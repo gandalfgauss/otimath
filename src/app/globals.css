@@ -253,6 +253,26 @@
   }
 
   /* Body */
+  .ds-body-large {
+    @apply text-md font-regular leading-sm;
+  }
+  .ds-body-large-medium {
+    @apply text-md font-medium leading-sm;
+  }
+  .ds-body-large-bold {
+    @apply text-md font-bold leading-sm;
+  }
+  .ds-body-large-link {
+    @apply text-md font-regular leading-sm underline;
+  }
+  .ds-body-large-medium-link {
+    @apply text-md font-medium leading-sm underline;
+  }
+  .ds-body-large-bold-link {
+    @apply text-md font-bold leading-sm underline;
+  }
+
+  /* Body */
   .ds-body {
     @apply text-base font-regular leading-tighter;
   }

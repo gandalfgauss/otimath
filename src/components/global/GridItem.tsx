@@ -1,12 +1,12 @@
-
+interface GridItemProps {
+  children: React.ReactNode;
+  cols: string;
+}
 
 export function GridItem({
   children,
   cols
-}: Readonly<{
-  children: React.ReactNode,
-  cols: string
-}>) {
+}: Readonly<GridItemProps>) {
   return (
     <div className={`w-full ${cols}`}>
       {children}

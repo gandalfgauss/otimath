@@ -1,16 +1,20 @@
 import { GridItem } from "./GridItem";
 
+interface GridProps {
+  children: React.ReactElement<typeof GridItem> | React.ReactElement<typeof GridItem>[];
+  id?: string;
+  paddings?: string;
+  rowGaps?: string;
+}
+
 export function Grid({
   children,
+  id,
   paddings,
   rowGaps
-}: Readonly<{
-  children: React.ReactElement<typeof GridItem> | React.ReactElement<typeof GridItem>[],
-  paddings?: string,
-  rowGaps?: string,
-}>) {
+}: Readonly<GridProps>) {
   return (
-    <section className={`flex justify-center w-full ${paddings ?? ''}`}>
+    <section id={id} className={`flex justify-center w-full ${paddings ?? ''}`}>
       <div
         className={`flex w-full max-w-[1216px] ml-xs mr-xs 
           max-xlg:ml-xxs max-xlg:mr-xxs 
