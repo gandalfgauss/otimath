@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 
 interface ButtonProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   style: 'primary' | 'secondary' | 'borderless';
   size: 'extra-small' | 'small' | 'medium' | 'large';
   icon?: React.ReactElement;
@@ -21,10 +21,10 @@ export function Button({
   href = '#',
 }: Readonly<ButtonProps>) {
   const sizesStyles = {
-    'extra-small': 'ds-small-bold pt-nano pb-nano pl-quarck pr-quarck',
-    'small': 'ds-small-bold pt-macro pb-macro pl-xxxs pr-xxxs',
-    'medium': 'ds-body-bold pt-xxxs pb-xxxs pl-xxs pr-xxs',
-    'large': 'ds-body-large-bold pt-xxs pb-xxs pl-xs pr-xs',
+    'extra-small': `ds-small-bold ${children && 'pt-nano pb-nano pl-quarck pr-quarck'}`,
+    'small': `ds-small-bold ${children && 'pt-macro pb-macro pl-xxxs pr-xxxs'}`,
+    'medium': `ds-body-bold ${children && 'pt-xxxs pb-xxxs pl-xxs pr-xxs'}`,
+    'large': `ds-body-large-bold ${children && 'pt-xxs pb-xxs pl-xs pr-xs'}`,
   };
 
   const styleObjects = {
@@ -37,7 +37,7 @@ export function Button({
                 active:text-brand-corporate-dark`,
   };
 
-  const className = `flex justify-center items-center gap-micro rounded-md cursor-pointer w-fit h-fit
+  const className = `flex justify-center items-center gap-micro ${children ? 'rounded-md' : 'rounded-circular'} cursor-pointer w-fit h-fit
                     transition-[background-color,opacity, border] duration-300 ease-in-out 
                     disabled:opacity-level-light disabled:pointer-events-none
                     ${styleObjects[style]} ${sizesStyles[size]}`;
@@ -64,3 +64,16 @@ export function Button({
     </Component>
   );
 }
+
+/* Example 
+
+<Button
+ as="link" href="#teste" style="borderless" size="extra-small" icon={<ChevronDown />} 
+ onClickFunction={async function teste() {
+  'use server'
+  }}
+>
+  Botão Secundário
+</Button>
+
+*/

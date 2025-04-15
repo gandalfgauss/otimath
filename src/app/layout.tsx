@@ -66,6 +66,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+      </head>
       <body
         className={` antialiased bg-background-corporate text-brand-corporate-pure font-family-base not-italic no-underline`}
       >
