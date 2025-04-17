@@ -5,9 +5,9 @@ import { TextBlock } from '../global/TextBlock';
 import { Button } from '../global/Button';
 import { List } from '../global/List';
 import Image from 'next/image';
-import educationalGamesImage from '@/images/home/educationalGamesHome.png';
+import educationalGamesImage from '@/images/home/pedagogicalToolsHome.png';
 
-export function EducationalGames() {
+export function PedagogicalTools() {
   return (
   <Grid 
     id="educational-games" 

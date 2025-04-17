@@ -1,5 +1,5 @@
 import { HeroBanner } from "@/components/global/HeroBanner";
-import { EducationalGames } from "@/components/home/EducationalGames";
+import { PedagogicalTools } from "@/components/home/PedagogicalTools";
 import { TextBlock } from "@/components/global/TextBlock";
 import heroBannerHomeImage from '@/images/home/heroBannerHome.webp';
 
@@ -23,7 +23,7 @@ export default function Home() {
         }
         image={heroBannerHomeImage}
       />
-      <EducationalGames />
+      <PedagogicalTools />
     </main>
   );
 }
