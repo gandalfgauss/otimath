@@ -7,7 +7,7 @@ export default function Home() {
   return (
     <main>
       <HeroBanner 
-        id="hero-banner-home"
+        id="otimizacao-aplicada"
         textBlock={
           <TextBlock 
               overline="OTIMIZAÇÃO CIENTÍFICA APLICADA" 

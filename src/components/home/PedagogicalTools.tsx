@@ -1,4 +1,3 @@
-import React from 'react';
 import { Grid } from "@/components/global/Grid";
 import { GridItem } from '../global/GridItem';
 import { TextBlock } from '../global/TextBlock';
@@ -10,7 +9,7 @@ import educationalGamesImage from '@/images/home/pedagogicalToolsHome.png';
 export function PedagogicalTools() {
   return (
   <Grid 
-    id="educational-games" 
+    id="ferramentas-pedagogicas" 
     paddings={`pt-xl pb-xl 
       max-xlg:pt-xl max-xlg:pb-xl
       max-lg:pt-xl max-lg:pb-xl

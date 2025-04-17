@@ -1,3 +1,4 @@
+import { Footer } from "@/components/global/Footer";
 import "./globals.css";
 import type { Metadata } from 'next';
 
@@ -65,13 +66,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="scroll-smooth">
       <head>
       </head>
       <body
         className={` antialiased bg-background-corporate text-brand-corporate-pure font-family-base not-italic no-underline`}
       >
         {children}
+        <Footer />
       </body>
     </html>
   );
