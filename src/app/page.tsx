@@ -1,13 +1,14 @@
 import { HeroBanner } from "@/components/global/HeroBanner";
-import { PedagogicalTools } from "@/components/home/PedagogicalTools";
 import { TextBlock } from "@/components/global/TextBlock";
+import { Button } from "@/components/global/Button";
+import { PedagogicalTools } from "@/components/home/PedagogicalTools";
 import heroBannerHomeImage from '@/images/home/heroBannerHome.webp';
 
 export default function Home() {
   return (
     <main>
       <HeroBanner 
-        id="otimizacao-aplicada"
+        id="hero-banner"
         textBlock={
           <TextBlock 
               overline="OTIMIZAÇÃO CIENTÍFICA APLICADA" 
@@ -19,6 +20,9 @@ export default function Home() {
               }
               maxWidthParagraph="max-w-[422px]"
               inverse={true}
+              innerComponents={[
+                <Button key="button-1" as="link" href="#ferramentas-pedagogicas" style="primary" size="medium">Nossos Recursos</Button>, 
+              ]}
           ></TextBlock>
         }
         image={heroBannerHomeImage}

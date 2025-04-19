@@ -20,7 +20,7 @@ export function Footer() {
     >
       <GridItem cols="col-[1_/_13] max-xlg:col-[1_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
         <div className="flex items-center gap-x-xs max-sm:flex-col max-sm:gap-y-xxxs max-sm:items-start">
-          <Link href="#ferramentas-pedagogicas" className="ds-body-bold text-neutral-white">Ferramentas Pedagógias</Link>
+          <Link href="/" className="ds-body-bold text-neutral-white">Home</Link>
           <Link href="/ensino" className="ds-body-bold text-neutral-white">Ensino</Link>
         </div>
       </GridItem>
@@ -37,7 +37,7 @@ export function Footer() {
               <Link href="mailto:hallidaysantos@gmail.com" target="_blank"><Mail className="text-neutral-white" size={20}/></Link>
             </div>
 
-            <Button as="link" href="#header" style="secondary" size="small" inverse={true} interationEffect={false}>
+            <Button as="link" href="#hero-banner" style="secondary" size="small" inverse={true} interationEffect={false}>
                 Voltar ao início
             </Button>
           </div>

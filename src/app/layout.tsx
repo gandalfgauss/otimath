@@ -1,6 +1,7 @@
 import { Footer } from "@/components/global/Footer";
 import "./globals.css";
 import type { Metadata } from 'next';
+import { Header } from "@/components/global/Header";
 
 export const metadata: Metadata = {
   title: {
@@ -66,12 +67,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className="scroll-smooth scroll-pt-[68px]">
       <head>
       </head>
       <body
         className={` antialiased bg-background-corporate text-brand-corporate-pure font-family-base not-italic no-underline`}
-      >
+      > 
+        <Header />
         {children}
         <Footer />
       </body>

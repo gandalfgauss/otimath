@@ -7,18 +7,20 @@ interface GridProps {
   rowGaps?: string;
   backgroundColor?: string;
   tag?: React.ElementType;
+  styles?: string;
 }
 
 export function Grid({
   children,
   id,
-  paddings,
+  paddings = '',
   rowGaps,
-  backgroundColor,
-  tag: Tag = "section"
+  backgroundColor = '',
+  tag: Tag = 'section',
+  styles = '',
 }: Readonly<GridProps>) {
   return (
-    <Tag id={id} className={`flex justify-center w-full ${paddings ?? ''} ${backgroundColor ?? ''}`}>
+    <Tag id={id} className={`flex justify-center w-full ${styles} ${paddings} ${backgroundColor}`}>
       <div
         className={`flex w-full max-w-[1216px] ml-xs mr-xs 
           max-xlg:ml-xxs max-xlg:mr-xxs 
@@ -45,6 +47,7 @@ export function Grid({
   rowGaps='gap-y-xs max-xlg:gap-y-xs max-lg:gap-y-xs max-md:gap-y-xs max-sm:gap-y-xs'
   backgroundColor='bg-linear-(--color-gradient-level-1)'
   tag="section"
+  styles=""
 >
   <GridItem cols="col-[1_/_12] max-xlg:col-[1_/_12] max-lg:col-[3_/_10] max-md:col-[4_/_9] max-sm:col-[5_/_8]">Componente</GridItem>
 </Grid>
