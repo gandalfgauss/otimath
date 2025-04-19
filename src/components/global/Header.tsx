@@ -28,17 +28,24 @@ export function Header() {
           <div className="flex gap-x-xxs h-full">
             {
               links.map((link, index) => (
-                <Link key={index} href={link.href} 
-                  className={`ds-body-medium text-brand-corporate-darkest content-center relative 
+                <div key={index} 
+                  className={`
+                    h-full flex items-center relative text-brand-corporate-darkest
                     after:content-[''] after:absolute after:bottom-[1px] after:left-0 
                     after:w-full after:h-[4px] after:rounded-pill
-                    hover:after:bg-brand-corporate-pure hover:after:opacity-level-soft
+                    
                     after:transition-[background-color,opacity] after:duration-300 after:ease-in-out
-                    ${pathname === link.href && 'text-brand-corporate-pure after:bg-brand-corporate-pure'}`
-                  }
-                >
-                  {link.name}
-                </Link>
+                    ${pathname === link.href ? 
+                      'text-brand-corporate-pure after:bg-brand-corporate-pure' : 
+                      'has-hover:after:bg-brand-corporate-pure has-hover:after:opacity-level-soft'
+                    }`
+                  }>
+                    <Link href={link.href} 
+                      className='ds-body-medium'
+                    >
+                      {link.name}
+                    </Link>
+                </div>
               ))
             }
           </div>
