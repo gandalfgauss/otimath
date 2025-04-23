@@ -19,7 +19,7 @@ export function Footer() {
       tag="footer"
     >
       <GridItem cols="col-[1_/_13] max-xlg:col-[1_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
-        <div className="flex items-center gap-x-xs max-sm:flex-col max-sm:gap-y-xxxs max-sm:items-start">
+        <div className="flex items-center gap-x-xs">
           <Link href="/" className="ds-body-bold text-neutral-white">Home</Link>
           <Link href="/ensino" className="ds-body-bold text-neutral-white">Ensino</Link>
         </div>
