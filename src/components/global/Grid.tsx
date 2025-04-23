@@ -20,7 +20,7 @@ export function Grid({
   styles = '',
 }: Readonly<GridProps>) {
   return (
-    <Tag id={id} className={`flex justify-center w-full ${styles} ${paddings} ${backgroundColor}`}>
+    <Tag id={id} className={`flex justify-center w-full overflow-hidden ${styles} ${paddings} ${backgroundColor}`}>
       <div
         className={`flex w-full max-w-[1216px] ml-xs mr-xs 
           max-xlg:ml-xxs max-xlg:mr-xxs 

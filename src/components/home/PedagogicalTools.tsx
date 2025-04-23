@@ -1,24 +1,20 @@
 import { Grid } from "@/components/global/Grid";
-import { GridItem } from '../global/GridItem';
-import { TextBlock } from '../global/TextBlock';
-import { Button } from '../global/Button';
-import { List } from '../global/List';
+import { GridItem } from '@/components/global/GridItem';
+import { TextBlock } from '@/components/global/TextBlock';
+import { Button } from '@/components/global/Button';
+import { List } from '@/components/global/List';
 import Image from 'next/image';
-import educationalGamesImage from '@/images/home/pedagogicalToolsHome.png';
+import pedagogicalToolsImage from '@/images/home/pedagogicalToolsHome.png';
 
 export function PedagogicalTools() {
   return (
   <Grid 
     id="ferramentas-pedagogicas" 
-    paddings={`pt-xl pb-xl 
-      max-xlg:pt-xl max-xlg:pb-xl
-      max-lg:pt-xl max-lg:pb-xl
-      max-md:pt-xl max-md:pb-xl
-      max-sm:pt-xl max-sm:pb-xl`} 
+    paddings={`pt-xl pb-xl`} 
     rowGaps='gap-y-xs max-xlg:gap-y-xs max-lg:gap-y-xs max-md:gap-y-xs max-sm:gap-y-xs'
     backgroundColor='bg-linear-(--color-gradient-level-1)'
   >
-    <GridItem cols="col-[1_/_8] max-xlg:col-[1_/_8] max-lg:col-[1_/_8] max-md:col-[1_/_8] max-sm:col-[1_/_13]">
+    <GridItem cols="col-[1_/_7] max-xlg:col-[1_/_7] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
       <TextBlock 
         overline="APRENDER MATEMÁTICA PODE SER DIVERTIDO!" 
         title={<h2 className="ds-heading-ultra">Ferramentas Pedagógicas para o Ensino de Matemática</h2>}
@@ -36,15 +32,15 @@ export function PedagogicalTools() {
             </List>
           </span>
         }
-        maxWidthParagraph="max-w-[592px]"
+        maxWidthParagraph="max-w-[592px] max-lg:max-w-[700px]"
         innerComponents={[
           <Button key="button-1" as="link" href="/ensino" style="primary" size="medium">Explorar Recursos</Button>, 
         ]}
       ></TextBlock>
     </GridItem>
-    <GridItem cols="col-[8_/_13] max-xlg:col-[8_/_13] max-lg:col-[8_/_13] max-md:col-[8_/_13] max-sm:col-[1_/_13]">
-        <div className="flex items-end justify-center h-full">
-          <Image className='max-w-[488px] w-full h-[501px] shrink-0' src={educationalGamesImage} alt="Ilustração de uma garota aprendendo matemática" />
+    <GridItem cols="col-[7_/_13] max-xlg:col-[7_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
+        <div className="flex items-end justify-center h-full relative">
+          <Image className='absolute bottom-[-65px] w-[751px] max-w-[751px] h-[501px] shrink-0  max-lg:relative max-sm:w-full max-sm:max-w-full max-sm:h-[350px]' src={pedagogicalToolsImage} alt="Ilustração de uma garota aprendendo matemática" />
         </div>
     </GridItem>
   </Grid>

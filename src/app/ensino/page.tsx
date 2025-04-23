@@ -2,7 +2,7 @@ import { HeroBanner } from "@/components/global/HeroBanner";
 import { TextBlock } from "@/components/global/TextBlock";
 import { Button } from "@/components/global/Button";
 import { OurAreas } from "@/components/teaching/OurAreas";
-import heroBannerTeachingImage from '@/images/teaching/bannerEnsino.webp';
+import heroBannerTeachingImage from '@/images/teaching/teachingBanner.webp';
 
 export default function Teaching() {
   return (
