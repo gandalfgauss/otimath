@@ -22,7 +22,7 @@ export default function Teaching() {
               maxWidthParagraph="max-w-[422px]"
               inverse={true}
               innerComponents={[
-                <Button key="button-1" as="link" href="#areas-disponiveis" style="primary" size="medium">Consultar áreas</Button>, 
+                <Button key="button-1" type="link" href="#areas-disponiveis" style="primary" size="medium">Consultar áreas</Button>, 
               ]}
           ></TextBlock>
         }

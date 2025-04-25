@@ -34,7 +34,7 @@ export function PedagogicalTools() {
         }
         maxWidthParagraph="max-w-[592px] max-lg:max-w-[700px]"
         innerComponents={[
-          <Button key="button-1" as="link" href="/ensino" style="primary" size="medium">Explorar Recursos</Button>, 
+          <Button key="button-1" type="link" href="/ensino" style="primary" size="medium">Explorar Recursos</Button>, 
         ]}
       ></TextBlock>
     </GridItem>

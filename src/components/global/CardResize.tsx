@@ -24,7 +24,7 @@ export function CardResize({
       <Image src={image} alt={title as string} 
         className='w-full h-full object-cover active:scale-[120%] hover:scale-[120%] transition-[scale] duration-300 ease-in-out'
       />
-      <h3 className='ds-body-bold text-brand-corporate-darker absolute top-[8px] left-[8px] z-1 bg-brand-corporate-lighter rounded-pill pt-quarck pb-quarck pl-micro pr-micro'>{title}</h3>
+      <h3 className='ds-body-bold text-brand-otimath-darker absolute top-[8px] left-[8px] z-1 bg-brand-otimath-lighter rounded-pill pt-quarck pb-quarck pl-micro pr-micro'>{title}</h3>
     </Link>
   );
 }

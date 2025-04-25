@@ -30,18 +30,22 @@ export function Header() {
               links.map((link, index) => (
                 <div key={index} 
                   className={`
-                    h-full flex items-center relative text-brand-corporate-darkest
+                    h-full flex items-center relative text-brand-otimath-darkest
+                    transition-[color,opacity] duration-300 ease-in-out
+
                     after:content-[''] after:absolute after:bottom-[1px] after:left-0 
                     after:w-full after:h-[4px] after:rounded-pill
-                    
                     after:transition-[background-color,opacity] after:duration-300 after:ease-in-out
                     ${pathname === link.href ? 
-                      'text-brand-corporate-pure after:bg-brand-corporate-pure' : 
-                      'has-hover:after:bg-brand-corporate-pure has-hover:after:opacity-level-soft'
+                      'text-brand-otimath-pure after:bg-brand-otimath-pure' : 
+                      `has-hover:text-brand-otimath-medium has-active:text-brand-otimath-dark has-active:opacity-level-semiopaque
+                        has-hover:after:bg-brand-otimath-pure has-hover:after:opacity-level-soft
+                        has-active:after:bg-brand-otimath-dark has-active:after:opacity-level-semiopaque
+                      `
                     }`
                   }>
                     <Link href={link.href} 
-                      className='ds-body-medium'
+                      className='ds-body-bold'
                     >
                       {link.name}
                     </Link>

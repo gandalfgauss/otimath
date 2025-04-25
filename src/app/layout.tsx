@@ -71,7 +71,7 @@ export default function RootLayout({
       <head>
       </head>
       <body
-        className={` antialiased bg-background-corporate text-brand-corporate-pure font-family-base not-italic no-underline`}
+        className={` antialiased bg-background-otimath text-brand-otimath-pure font-family-base not-italic no-underline`}
       > 
         <Header />
         {children}

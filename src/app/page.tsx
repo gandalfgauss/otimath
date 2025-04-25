@@ -21,7 +21,7 @@ export default function Home() {
               maxWidthParagraph="max-w-[422px]"
               inverse={true}
               innerComponents={[
-                <Button key="button-1" as="link" href="#ferramentas-pedagogicas" style="primary" size="medium">Nossos Recursos</Button>, 
+                <Button key="button-1" type="link" href="#ferramentas-pedagogicas" style="primary" size="medium">Nossos Recursos</Button>, 
               ]}
           ></TextBlock>
         }

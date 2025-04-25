@@ -28,7 +28,7 @@ export default function NotFound() {
               }
               maxWidthParagraph="max-w-[592px]"
               innerComponents={[
-                <Button key="button-1" as="link" href="/ensino" style="primary" size="medium">Explorar Recursos</Button>, 
+                <Button key="button-1" type="link" href="/ensino" style="primary" size="medium">Explorar Recursos</Button>, 
               ]}
             ></TextBlock>
           </GridItem>

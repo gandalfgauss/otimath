@@ -9,10 +9,10 @@ interface ButtonProps {
   size: 'extra-small' | 'small' | 'medium' | 'large';
   icon?: React.ReactElement;
   onClickFunction?: () => void;
-  as?: 'button' | 'link';
+  type?: 'button' | 'link';
   href?: string;
   inverse?: boolean;
-  interationEffect?: boolean;
+  interactionEffect?: boolean;
 }
 
 export function Button({
@@ -21,10 +21,10 @@ export function Button({
   size,
   icon,
   onClickFunction,
-  as = 'button',
+  type = 'button',
   href = '#',
   inverse = false,
-  interationEffect = true,
+  interactionEffect = true,
 }: Readonly<ButtonProps>) {
   const sizesStyles = {
     'extra-small': `ds-small-bold ${children && 'pt-nano pb-nano pl-quarck pr-quarck'}`,
@@ -33,55 +33,55 @@ export function Button({
     'large': `ds-body-large-bold ${children && 'pt-xxs pb-xxs pl-xs pr-xs'}`,
   };
 
-  const getPrimaryStyles = (inverse: boolean, interationEffect: boolean) => {
+  const getPrimaryStyles = (inverse: boolean, interactionEffect: boolean) => {
     if (inverse) {
-      return `bg-neutral-white text-brand-corporate-pure ${
-        interationEffect 
-          ? 'hover:bg-brand-corporate-lighter active:bg-brand-corporate-medium active:bg-brand-corporate-darkest' 
+      return `bg-neutral-white text-brand-otimath-pure ${
+        interactionEffect 
+          ? 'hover:bg-brand-otimath-lighter active:bg-brand-otimath-medium active:text-brand-otimath-darkest' 
           : ''
       }`;
     }
-    return `bg-brand-corporate-pure text-neutral-white ${
-      interationEffect 
-        ? 'hover:bg-brand-corporate-medium active:bg-brand-corporate-dark' 
+    return `bg-brand-otimath-pure text-neutral-white ${
+      interactionEffect 
+        ? 'hover:bg-brand-otimath-medium active:bg-brand-otimath-dark' 
         : ''
     }`;
   };
   
-  const getSecondaryStyles = (inverse: boolean, interationEffect: boolean) => {
+  const getSecondaryStyles = (inverse: boolean, interactionEffect: boolean) => {
     if (inverse) {
       return `bg-neutral-transparent text-neutral-white border-thin border-solid border-neutral-white ${
-        interationEffect
-          ? 'hover:text-brand-corporate-medium hover:border-brand-corporate-medium active:text-brand-corporate-dark hover:border-brand-corporate-dark'
+        interactionEffect
+          ? 'hover:text-feedback-info-light hover:border-feedback-info-light active:text-feedback-info-medium active:border-feedback-info-medium'
           : ''
       }`;
     }
-    return `bg-neutral-transparent text-brand-corporate-pure border-thin border-solid border-brand-corporate-pure ${
-      interationEffect
-        ? 'hover:text-brand-corporate-lighter hover:border-brand-corporate-lighter active:text-brand-corporate-light hover:border-brand-corporate-light'
+    return `bg-neutral-transparent text-brand-otimath-pure border-thin border-solid border-brand-otimath-pure ${
+      interactionEffect
+        ? 'hover:text-brand-otimath-lighter hover:border-brand-otimath-lighter active:text-brand-otimath-light active:border-brand-otimath-light'
         : ''
     }`;
   };
   
-  const getBorderlessStyles = (inverse: boolean, interationEffect: boolean) => {
+  const getBorderlessStyles = (inverse: boolean, interactionEffect: boolean) => {
     if (inverse) {
       return `bg-neutral-transparent text-neutral-white ${
-        interationEffect
-          ? 'hover:text-brand-corporate-medium hover:bg-brand-corporate-lighter active:text-brand-corporate-light'
+        interactionEffect
+          ? 'hover:text-brand-otimath-medium hover:bg-brand-otimath-lighter active:text-brand-otimath-light'
           : ''
       }`;
     }
-    return `bg-neutral-transparent text-brand-corporate-pure ${
-      interationEffect
-        ? 'hover:text-brand-corporate-medium hover:bg-brand-corporate-lightest active:text-brand-corporate-dark'
+    return `bg-neutral-transparent text-brand-otimath-pure ${
+      interactionEffect
+        ? 'hover:text-brand-otimath-medium hover:bg-brand-otimath-lightest active:text-brand-otimath-dark'
         : ''
     }`;
   };
   
   const styleObjects = {
-    primary: getPrimaryStyles(inverse, interationEffect),
-    secondary: getSecondaryStyles(inverse, interationEffect),
-    borderless: getBorderlessStyles(inverse, interationEffect)
+    primary: getPrimaryStyles(inverse, interactionEffect),
+    secondary: getSecondaryStyles(inverse, interactionEffect),
+    borderless: getBorderlessStyles(inverse, interactionEffect)
   };
 
   const className = `flex justify-center items-center gap-micro whitespace-nowrap ${children ? 'rounded-md' : 'rounded-circular'} cursor-pointer w-fit h-fit
@@ -102,7 +102,7 @@ export function Button({
     })
   : null;
 
-  const Component = as === 'link' ? Link : 'button';
+  const Component = type === 'link' ? Link : 'button';
 
   return (
     <Component href={href} onClick={onClickFunction} className={className}>
@@ -115,7 +115,7 @@ export function Button({
 /* Example 
 
 <Button
- as="link" href="#teste" style="borderless" size="extra-small" icon={<ChevronDown /> inverse={true} interationEffect={false}/>}
+ type="link" href="#teste" style="borderless" size="extra-small" icon={<ChevronDown /> inverse={true} interactionEffect={false}/>}
  onClickFunction={async function teste() {
   'use server'
   }}

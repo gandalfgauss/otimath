@@ -18,18 +18,18 @@
   --color-highlight-pure: #E85C9E;
   --color-highlight-light: #F8CFE0;
 
-  /* Corporate Background Color */
-  --color-background-corporate: #F8F8F8;
+  /* Otimath Background Color */
+  --color-background-otimath: #F8F8F8;
 
-  /* Corporate Brand Colors */
-  --color-brand-corporate-darkest: #0A0F24;
-  --color-brand-corporate-darker: #1E3A60;
-  --color-brand-corporate-dark: #204478;
-  --color-brand-corporate-pure: #1A4A9E;
-  --color-brand-corporate-medium: #5E7EB5;
-  --color-brand-corporate-light: #A3B4CB;
-  --color-brand-corporate-lighter: #D0DFF1;
-  --color-brand-corporate-lightest: #EAF2FB;
+  /* Otimath Brand Colors */
+  --color-brand-otimath-darkest: #0A0F24;
+  --color-brand-otimath-darker: #1E3A60;
+  --color-brand-otimath-dark: #204478;
+  --color-brand-otimath-pure: #1A4A9E;
+  --color-brand-otimath-medium: #5E7EB5;
+  --color-brand-otimath-light: #A3B4CB;
+  --color-brand-otimath-lighter: #D0DFF1;
+  --color-brand-otimath-lightest: #EAF2FB;
 
   /* Feedback Colors – Success */
   --color-feedback-success-darkest: #166600;
@@ -109,6 +109,7 @@
   ==================================================*/
 
   /* Opacity Levels */
+  --opacity-level-visible: 1;
   --opacity-level-semiopaque: 0.80;
   --opacity-level-intense: 0.64;
   --opacity-level-soft: 0.48;

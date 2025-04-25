@@ -20,9 +20,9 @@ export function TextBlock({
 
 
   return (
-    <div className={`${inverse ? 'text-neutral-white' : 'text-brand-corporate-pure'} w-full flex flex-col gap-xs`}>
+    <div className={`${inverse ? 'text-neutral-white' : 'text-brand-otimath-pure'} w-full flex flex-col gap-xs`}>
       <div className='flex flex-col gap-xxxs'>
-        {overline && <span className={`ds-overline ${inverse ? 'text-neutral-white' : 'text-brand-corporate-dark'}`}>{overline}</span>}
+        {overline && <span className={`ds-overline ${inverse ? 'text-neutral-white' : 'text-brand-otimath-dark'}`}>{overline}</span>}
         {title}
         <div className={`${inverse ? 'text-neutral-white' : 'text-neutral-dark'} ${maxWidthParagraph ?? ''}`}>{paragraph}</div>
       </div>
