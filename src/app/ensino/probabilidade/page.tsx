@@ -1,5 +1,6 @@
 import { HeroBanner } from "@/components/global/HeroBanner";
 import { TextBlock } from "@/components/global/TextBlock";
+import { Topics } from "@/components/teaching/probability/Topics";
 import heroBannerProbabilityImage from '@/images/teaching/probability/probabilityBanner.webp';
 
 export default function Probability() {
@@ -23,6 +24,7 @@ export default function Probability() {
         }
         image={heroBannerProbabilityImage}
       />
+      <Topics />
     </main>
   );
 }

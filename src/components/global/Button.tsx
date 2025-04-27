@@ -58,7 +58,7 @@ export function Button({
     }
     return `bg-neutral-transparent text-brand-otimath-pure border-thin border-solid border-brand-otimath-pure ${
       interactionEffect
-        ? 'hover:text-brand-otimath-lighter hover:border-brand-otimath-lighter active:text-brand-otimath-light active:border-brand-otimath-light'
+        ? 'hover:text-brand-otimath-medium hover:border-brand-otimath-medium active:text-brand-otimath-dark active:border-brand-otimath-dark'
         : ''
     }`;
   };
@@ -97,8 +97,9 @@ export function Button({
   };
 
   const iconElement = React.isValidElement(icon)
-  ? React.cloneElement(icon as React.ReactElement<{ size?: number }>, {
-      size: iconSize[size],
+  ? React.cloneElement(icon as React.ReactElement<{ width?: number, height?: number }>, {
+      width: iconSize[size],
+      height: iconSize[size],
     })
   : null;
 
@@ -115,7 +116,7 @@ export function Button({
 /* Example 
 
 <Button
- type="link" href="#teste" style="borderless" size="extra-small" icon={<ChevronDown /> inverse={true} interactionEffect={false}/>}
+ type="link" href="#teste" style="borderless" size="extra-small" icon={<ChevronDown /> inverse={true} interactionEffect={false}
  onClickFunction={async function teste() {
   'use server'
   }}
