@@ -39,7 +39,7 @@ export function TwoDicesGame() {
         }
       ></TextBlock>
     </GridItem>
-    <GridItem cols="col-[1_/_13] max-xlg:col-[1_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
+    <GridItem cols="col-[1_/_13] max-xlg:col-[1_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]" styles="overflow-auto">
         <div className="flex">
           <div className="w-fit flex flex-col gap-y-xxs">
             <div className="flex items-center gap-x-xxxs justify-between">
@@ -47,7 +47,7 @@ export function TwoDicesGame() {
               <Button style="borderless" size="extra-small" icon={<X />}>Limpar</Button>
             </div>
             
-            <table className="bg-background-otimath rounded-md outline-solid outline-neutral-lighter outline-hairline border-collapse w-fit h-full text-center">
+            <table className="bg-background-otimath rounded-md outline-solid outline-neutral-lighter outline-(length:--border-width-hairline) border-collapse w-fit h-full text-center">
               <thead className="flex justify-end">
                 <tr className="flex justify-end">
                   {dicesXImages.map((diceImage, index) => 

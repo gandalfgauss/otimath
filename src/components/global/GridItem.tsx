@@ -10,7 +10,7 @@ export function GridItem({
   styles,
 }: Readonly<GridItemProps>) {
   return (
-    <div className={`w-full ${cols} ${styles}`}>
+    <div className={`w-full ${cols} ${styles ?? ''}`}>
       {children}
     </div>
   );
