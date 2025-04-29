@@ -16,6 +16,7 @@ import diceY5Image from '@/images/teaching/probability/two-dices/dices/diceY5.gi
 import diceY6Image from '@/images/teaching/probability/two-dices/dices/diceY6.gif';
 import { RefreshCw, Check, X } from "lucide-react";
 import Image from "next/image";
+import { Checkbox } from "@/components/global/Checkbox";
 
 export function TwoDicesGame() {
   const dicesXImages = [diceX1Image, diceX2Image, diceX3Image, diceX4Image, diceX5Image, diceX6Image];
@@ -63,16 +64,16 @@ export function TwoDicesGame() {
                     {Array(7).fill(1).map((_, colIndex) => {
                       return <td 
                           className={`${colIndex == 0 ? 'w-[50px]': 'w-[116px] solid border-neutral-lighter border-hairline'}
-                            h-[80px] flex justify-center items-center
+                            h-[100px] flex justify-center items-center
                             ${rowIndex % 2 == 0 && colIndex != 0 && 'bg-feedback-info-lightest'}
                           `} 
                           key={`cell-${rowIndex}-${colIndex}`}
                         >
                         {colIndex == 0? <Image className="w-[32px] h-[32px]" src={dicesYImages[rowIndex]} alt={`Dado verde ${rowIndex + 1}`}/>: 
-                          <div className="w-full flex justify-center items-center gap-x-micro"> 
-                            <Button style="secondary" size="medium" icon={<Check />}></Button> 
-                            <Button style="secondary" size="medium" icon={<Check />}></Button>
-                            <Button style="secondary" size="medium" icon={<Check />}></Button>
+                          <div className="w-full flex justify-center items-center flex-wrap gap-x-xs gap-y-nano"> 
+                            <Checkbox label="A" id={`checkbox-A-${rowIndex+1}-${colIndex}`}/> 
+                            <Checkbox label="B" id={`checkbox-B-${rowIndex+1}-${colIndex}`}/> 
+                            <Checkbox label="D" id={`checkbox-D-${rowIndex+1}-${colIndex}`}/> 
                           </div> }
                       </td>
                       })

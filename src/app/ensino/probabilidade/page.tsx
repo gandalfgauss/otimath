@@ -1,6 +1,7 @@
 import { HeroBanner } from "@/components/global/HeroBanner";
 import { TextBlock } from "@/components/global/TextBlock";
 import { Topics } from "@/components/teaching/probability/Topics";
+import { Button } from "@/components/global/Button";
 import heroBannerProbabilityImage from '@/images/teaching/probability/probabilityBanner.webp';
 
 export default function Probability() {
@@ -20,6 +21,9 @@ export default function Probability() {
               }
               maxWidthParagraph="max-w-[422px]"
               inverse={true}
+              innerComponents={[
+                <Button key="button-1" type="link" href="#topicos" style="primary" size="medium">Tópicos Relacionados</Button>, 
+              ]}
           ></TextBlock>
         }
         image={heroBannerProbabilityImage}

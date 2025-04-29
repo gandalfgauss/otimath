@@ -9,7 +9,8 @@ import { usePathname } from "next/navigation";
 
 export function Header() {
   const pathname = usePathname();
-
+  console.log(pathname)
+  
   const links = [
     {"name": <House />, "href": "/"},
     {"name": "Ensino", "href": "/ensino"}
@@ -36,7 +37,7 @@ export function Header() {
                     after:content-[''] after:absolute after:bottom-[1px] after:left-0 
                     after:w-full after:h-[4px] after:rounded-pill
                     after:transition-[background-color,opacity] after:duration-300 after:ease-in-out
-                    ${pathname === link.href ? 
+                    ${(pathname === link.href || (pathname.startsWith(link.href) && link.href.length > 1)) ? 
                       'text-brand-otimath-pure after:bg-brand-otimath-pure' : 
                       `has-hover:text-brand-otimath-medium has-active:text-brand-otimath-dark has-active:opacity-level-semiopaque
                         has-hover:after:bg-brand-otimath-pure has-hover:after:opacity-level-soft

@@ -17,20 +17,13 @@ export function CardResize({
   href,
 }: Readonly<CardResizeProps>) {
   return (
-    <Link href={href} className='w-full max-w-[306px] flex flex-col gap-y-macro group'>
-      <div 
-        className={`
-          shrink-0
-          w-full h-[366px] 
-          border-solid border-hairline border-neutral-lightest rounded-md
-          overflow-hidden relative`}
-      >
-        <Image src={image} alt={category as string} 
-          className='w-full h-full object-cover group-hover:scale-[120%] group-active:scale-[120%] transition-[scale] duration-300 ease-in-out'
-        />
-        <span className='ds-body-bold text-brand-otimath-darker ml-micro mr-micro absolute top-[8px] z-1 bg-brand-otimath-lighter rounded-pill pt-quarck pb-quarck pl-micro pr-micro'>{category}</span>
-      </div>
-      {title && <h3 className='ds-body-large-bold text-brand-otimath-darker transition-[color] duration-300 ease-in-out group-hover:text-brand-otimath-pure group-active:text-brand-otimath-pure'>{title}</h3>}
+    <Link href={href} className='relative h-[366px] w-full max-w-[306px] border-solid border-hairline border-neutral-lightest overflow-hidden rounded-md group'>
+      <Image src={image} alt={category as string} 
+        className='w-full h-full object-cover group-hover:scale-[120%] group-active:scale-[120%] transition-[scale] duration-300 ease-in-out'
+      />
+      <span className='ds-body-bold text-brand-otimath-darker ml-micro mr-micro absolute top-[8px] z-2 bg-brand-otimath-lighter rounded-pill pt-quarck pb-quarck pl-micro pr-micro'>{category}</span>
+      {title && <h3 className='absolute z-3 bottom-[8px] ml-micro mr-micro ds-body-large-bold text-neutral-white transition-[color] duration-300 ease-in-out group-hover:text-neutral-light group-active:text-neutral-medium'>{title}</h3>}
+      <span className='absolute w-full h-full top-0 left-0 z-1 bg-linear-(--color-gradient-level-4)'></span>
     </Link>
   );
 }
