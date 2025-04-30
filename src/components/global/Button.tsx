@@ -8,7 +8,7 @@ interface ButtonProps {
   style: 'primary' | 'secondary' | 'borderless';
   size: 'extra-small' | 'small' | 'medium' | 'large';
   icon?: React.ReactElement;
-  onClickFunction?: () => void;
+  onClick?: () => void;
   type?: 'button' | 'link';
   href?: string;
   inverse?: boolean;
@@ -20,7 +20,7 @@ export function Button({
   style,
   size,
   icon,
-  onClickFunction,
+  onClick,
   type = 'button',
   href = '#',
   inverse = false,
@@ -106,7 +106,7 @@ export function Button({
   const Component = type === 'link' ? Link : 'button';
 
   return (
-    <Component href={href} onClick={onClickFunction} className={className}>
+    <Component href={href} onClick={onClick} className={className}>
       {children}
       {iconElement}
     </Component>
@@ -117,7 +117,7 @@ export function Button({
 
 <Button
  type="link" href="#teste" style="borderless" size="extra-small" icon={<ChevronDown /> inverse={true} interactionEffect={false}
- onClickFunction={async function teste() {
+ onClick={async function teste() {
   'use server'
   }}
 >

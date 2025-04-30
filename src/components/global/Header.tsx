@@ -9,7 +9,6 @@ import { usePathname } from "next/navigation";
 
 export function Header() {
   const pathname = usePathname();
-  console.log(pathname)
   
   const links = [
     {"name": <House />, "href": "/"},
