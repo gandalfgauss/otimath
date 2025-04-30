@@ -27,8 +27,8 @@ export function TwoDicesTable({
   const dicesYImages = [diceY1Image, diceY2Image, diceY3Image, diceY4Image, diceY5Image, diceY6Image];
 
   return (
-    <table className="bg-background-otimath rounded-md outline-solid outline-neutral-lighter outline-(length:--border-width-hairline) border-collapse w-fit h-full text-center">
-      <thead className="flex justify-end">
+    <table className="bg-background-otimath relative rounded-md outline-solid outline-neutral-lighter outline-(length:--border-width-hairline) border-collapse w-fit h-full text-center">
+      <thead className="flex justify-end bg-background-otimath sticky top-[-1px] z-1">
         <tr className="flex justify-end">
           {dicesXImages.map((diceImage, index) => 
             <th className="w-[116px] h-[50px] flex justify-center items-center" key={index}>
@@ -42,27 +42,29 @@ export function TwoDicesTable({
           return <tr className="flex" key={`row-${rowIndex}`}>
             {Array(7).fill(1).map((_, colIndex) => {
               return <td 
-                  className={`${colIndex == 0 ? 'w-[50px]': 'w-[116px] solid border-neutral-lighter border-hairline'}
-                    h-[100px] flex justify-center items-center
+                  className={`${colIndex == 0 ? 'w-[50px] sticky left-[-1px] z-1': 'w-[116px] solid border-neutral-lighter border-hairline'}
+                    h-[100px] flex justify-center items-center bg-background-otimath
                     ${rowIndex % 2 == 0 && colIndex != 0 && 'bg-feedback-info-lightest'}
                   `} 
                   key={`cell-${rowIndex}-${colIndex}`}
                 >
-                {colIndex == 0? <Image className="w-[32px] h-[32px]" src={dicesYImages[rowIndex]} alt={`Dado verde ${rowIndex + 1}`}/>: 
+                {colIndex == 0? 
+                  <Image className="w-[32px] h-[32px]" src={dicesYImages[rowIndex]} alt={`Dado verde ${rowIndex + 1}`}/>
+                  : 
+                  
                   <div className="w-full flex justify-center items-center flex-wrap gap-x-xs gap-y-nano"> 
-
-                  {Object.keys(eventsCheckboxes).map((eventName) => {
-                    const id = `checkbox-${eventName}-${rowIndex+1}-${colIndex}`;
-                    return (
-                      <Checkbox 
-                        key={id}
-                        label={eventName} 
-                        id={id}
-                        checked={eventsCheckboxes[eventName][id].value}
-                        onChange={(checked :boolean) => updateEventsCheckboxes(eventName, id, checked)}
-                      />
-                    );
-                  })}
+                    {Object.keys(eventsCheckboxes).map((eventName) => {
+                      const id = `checkbox-${eventName}-${rowIndex+1}-${colIndex}`;
+                      return (
+                        <Checkbox 
+                          key={id}
+                          label={eventName} 
+                          id={id}
+                          checked={eventsCheckboxes[eventName][id].value}
+                          onChange={(checked :boolean) => updateEventsCheckboxes(eventName, id, checked)}
+                        />
+                      );
+                    })}
                   </div> }
               </td>
               })

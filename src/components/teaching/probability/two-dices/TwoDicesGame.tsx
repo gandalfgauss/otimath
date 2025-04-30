@@ -26,7 +26,7 @@ export function TwoDicesGame() {
           <Button style="borderless" size="extra-small" icon={<X />} onClick={resetEventsCheckboxes}>Limpar</Button>
         </div>
 
-        <div className="w-full overflow-auto max-lg:flex max-lg:justify-center max-sm:justify-start">
+        <div className="w-full overflow-auto max-h-screen max-lg:flex max-lg:justify-center max-sm:justify-start">
           <TwoDicesTable eventsCheckboxes={eventsCheckboxes ?? {}} updateEventsCheckboxes={updateEventsCheckboxes}/>
         </div>
 
