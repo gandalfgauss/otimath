@@ -28,7 +28,8 @@ export function Modal({
 
     const modalElement = divRef.current;
     modalElement?.addEventListener("transitionend", () => {
-      modalElement.classList.add("hidden")
+      modalElement.classList.add("hidden");
+      document.body.classList.remove("overflow-hidden");
     }, {once: true});
   };
 
@@ -38,11 +39,12 @@ export function Modal({
   }
 
   useEffect(() => {
-    if(modal.status != "hide") {
+    if(modal.status == "show") {
       const modalElement = divRef.current;
       modalElement?.classList.remove("hidden");
       requestAnimationFrame(() => {
-        modalElement?.classList.add("opacity-level-visible")
+        modalElement?.classList.add("opacity-level-visible");
+        document.body.classList.add("overflow-hidden");
       });
     }
   }, [modal]);
