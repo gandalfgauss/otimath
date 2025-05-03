@@ -16,7 +16,9 @@ export function Alerts({
 
   useEffect(() => {
     if(alerts.length > 0 && alerts.every(alert => alert.status === "hide")) {
-      deleteAlerts();
+      setTimeout(()=> {
+        deleteAlerts();
+      }, 3000);
     }
   }, [alerts]);
 

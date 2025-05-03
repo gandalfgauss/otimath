@@ -20,6 +20,7 @@ export function Modal({
   modal,
   updateModal,
 }: Readonly<ModalProps>) {
+  let scrollPosition: number;
 
   const divRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +30,10 @@ export function Modal({
     const modalElement = divRef.current;
     modalElement?.addEventListener("transitionend", () => {
       modalElement.classList.add("hidden");
-      document.body.classList.remove("overflow-hidden");
+      document.body.classList.remove("overflow-y-scroll", "fixed", "w-full", "h-full");
+      document.body.style.top = '';
+      window.scrollTo(0, scrollPosition);
+      document.documentElement.classList.add('scroll-smooth');
     }, {once: true});
   };
 
@@ -42,9 +46,12 @@ export function Modal({
     if(modal.status == "show") {
       const modalElement = divRef.current;
       modalElement?.classList.remove("hidden");
+      scrollPosition = window.scrollY;
+      document.documentElement.classList.remove('scroll-smooth');
       requestAnimationFrame(() => {
         modalElement?.classList.add("opacity-level-visible");
-        document.body.classList.add("overflow-hidden");
+        document.body.classList.add("overflow-y-scroll", "fixed", "w-full", "h-full");
+        document.body.style.top = `-${scrollPosition}px`;
       });
     }
   }, [modal]);
