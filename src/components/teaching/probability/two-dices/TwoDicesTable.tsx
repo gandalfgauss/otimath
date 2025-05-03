@@ -12,7 +12,7 @@ import diceY5Image from '@/images/teaching/probability/two-dices/dices/diceY5.gi
 import diceY6Image from '@/images/teaching/probability/two-dices/dices/diceY6.gif';
 import Image from "next/image";
 import { Checkbox } from "@/components/global/Checkbox";
-import { EventCheckboxes } from './TwoDicesGame';
+import { EventCheckboxes } from '@/hooks/teaching/probability/two-dices/useTwoDicesHooks';
 
 interface TwoDicesTableProps {
   eventsCheckboxes: EventCheckboxes;

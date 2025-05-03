@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 interface ButtonProps {
   children?: React.ReactNode;
-  style: 'primary' | 'secondary' | 'borderless';
+  style: 'primary' | 'secondary' | 'borderless' | 'neutral';
   size: 'extra-small' | 'small' | 'medium' | 'large';
   icon?: React.ReactElement;
   onClick?: () => void;
@@ -77,11 +77,27 @@ export function Button({
         : ''
     }`;
   };
+
+  const getNeutralStyles = (inverse: boolean, interactionEffect: boolean) => {
+    if (inverse) {
+      return `bg-neutral-transparent text-neutral-white ${
+        interactionEffect
+          ? 'hover:text-neutral-medium hover:bg-neutral-lighter active:text-neutral-light'
+          : ''
+      }`;
+    }
+    return `bg-neutral-transparent text-neutral-dark ${
+      interactionEffect
+        ? 'hover:text-neutral-medium hover:bg-neutral-lighter active:text-neutral-dark'
+        : ''
+    }`;
+  };
   
   const styleObjects = {
     primary: getPrimaryStyles(inverse, interactionEffect),
     secondary: getSecondaryStyles(inverse, interactionEffect),
-    borderless: getBorderlessStyles(inverse, interactionEffect)
+    borderless: getBorderlessStyles(inverse, interactionEffect),
+    neutral: getNeutralStyles(inverse, interactionEffect)
   };
 
   const className = `flex justify-center items-center gap-micro whitespace-nowrap ${children ? 'rounded-md' : 'rounded-circular'} cursor-pointer w-fit h-fit

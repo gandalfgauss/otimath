@@ -4,26 +4,36 @@ import { Button } from "@/components/global/Button";
 import { RefreshCw, Check, X } from "lucide-react";
 import { TwoDicesTable } from "./TwoDicesTable";
 import { useTwoDicesHooks } from "@/hooks/teaching/probability/two-dices/useTwoDicesHooks";
+import { Alerts } from "@/components/global/Alerts";
+import { useAlerts } from "@/hooks/global/useAlerts";
+import { Modal } from "@/components/global/Modal";
+import { useModal } from "@/hooks/global/useModal";
 
-export interface EventCheckboxes {
-  [key: string]: {
-    [key: string]: {
-      value: boolean;
-    }
-  }
-}
 
 export function TwoDicesGame() {
   const eventsName = ['A', 'B', 'D'];
+  const {alerts, createAlert, updateAlert, deleteAlerts} = useAlerts();
+  const {modal, updateModal} = useModal();
   const { eventsCheckboxes, updateEventsCheckboxes, resetEventsCheckboxes } = useTwoDicesHooks(eventsName);
 
+  const dicesChecksClear = () => { 
+    updateModal({
+        title: "Limpando marcações", 
+        description:"Você gostaria de limpar as marcações da atividade atual?", 
+        status: "show",
+        confirmCallback: () => {
+          createAlert("Dados limpos", "Todas as marcações foram limpas", "info");
+          resetEventsCheckboxes();
+        }
+    });
+  }
 
   return (
     <div className="flex gap-x-xs gap-y-xs max-lg:flex-col-reverse">
       <div className="w-full flex flex-col gap-y-xxs max-lg:items-center max-sm:item-start">
         <div className="flex items-center gap-x-xxxs justify-between w-full max-w-[747px]">
           <Button style="secondary" size="small" icon={<RefreshCw />}>Novo</Button>
-          <Button style="borderless" size="extra-small" icon={<X />} onClick={resetEventsCheckboxes}>Limpar</Button>
+          <Button style="borderless" size="extra-small" icon={<X />} onClick={dicesChecksClear}>Limpar</Button>
         </div>
 
         <div className="w-full overflow-auto max-h-[calc(100vh-68px)] snap-both snap-mandatory scroll-p-[50px] max-lg:flex max-lg:justify-center max-sm:justify-start">
@@ -36,6 +46,8 @@ export function TwoDicesGame() {
       </div>
       <div className="w-full max-lg:max-w-[438px]">
       </div>
+      <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts}/>
+      <Modal modal={modal} updateModal={updateModal}/>
     </div>
   );
 }

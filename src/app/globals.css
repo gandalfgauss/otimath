@@ -79,6 +79,9 @@
   --color-neutral-white: #FFFFFF;
   --color-neutral-transparent: transparent;
 
+  /* Opacity Colors */
+  --color-opacity-modal: rgba(0, 0, 0, var(--opacity-level-semiopaque));
+
   /* Gradient Colors */
   --color-gradient-level-1: 69deg, rgba(203, 223, 237, 0.24) 33.17%, rgba(255, 247, 234, 0.24) 66.83%;
   --color-gradient-level-2: 90deg, #000 0%, rgba(0, 0, 0, 0.00) 100%;
