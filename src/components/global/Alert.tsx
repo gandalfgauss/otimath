@@ -9,7 +9,7 @@ export interface AlertInterface {
   title?: string;
   description?: string;
   type: AlertType;
-  status?: "show" | "hide";
+  status?: "show" | "hide" | "remove";
   timeout?: number;
 }
 
@@ -34,6 +34,7 @@ export function Alert({
     if (dialog) {
       dialog.addEventListener("animationend", () => {
         dialog.classList.add("hidden");
+        updateAlert(index, {...alert, status: "remove"});
       }, {once: true});
     }
   }

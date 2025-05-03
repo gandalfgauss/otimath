@@ -15,10 +15,8 @@ export function Alerts({
 }: Readonly<AlertsProps>) {
 
   useEffect(() => {
-    if(alerts.length > 0 && alerts.every(alert => alert.status === "hide")) {
-      setTimeout(()=> {
-        deleteAlerts();
-      }, 3000);
+    if(alerts.length > 0 && alerts.every(alert => alert.status === "remove")) {
+      deleteAlerts();
     }
   }, [alerts]);
 
