@@ -8,10 +8,11 @@ import { Alerts } from "@/components/global/Alerts";
 import { useAlerts } from "@/hooks/global/useAlerts";
 import { Modal } from "@/components/global/Modal";
 import { useModal } from "@/hooks/global/useModal";
+import { TwoDicesFormulation } from "./TwoDicesFormulation";
 
 
 export function TwoDicesGame() {
-  const eventsName = ['A', 'B', 'D'];
+  const eventsName = ['A', 'B', 'D', 'F'];
   const {alerts, createAlert, updateAlert, deleteAlerts} = useAlerts();
   const {modal, updateModal} = useModal();
   const { eventsCheckboxes, updateEventsCheckboxes, resetEventsCheckboxes } = useTwoDicesHooks(eventsName);
@@ -36,16 +37,14 @@ export function TwoDicesGame() {
           <Button style="borderless" size="extra-small" icon={<X />} onClick={dicesChecksClear}>Limpar</Button>
         </div>
 
-        <div className="w-full overflow-auto max-h-[calc(100vh-68px)] snap-both snap-mandatory scroll-p-[50px] max-lg:flex max-lg:justify-center max-sm:justify-start">
-          <TwoDicesTable eventsCheckboxes={eventsCheckboxes ?? {}} updateEventsCheckboxes={updateEventsCheckboxes}/>
-        </div>
-
+        <TwoDicesTable eventsCheckboxes={eventsCheckboxes ?? {}} updateEventsCheckboxes={updateEventsCheckboxes}/>
+        
         <div className="flex gap-x-xxxs items-center">
           <Button style="secondary" size="small" icon={<Check />}>Conferir</Button>
         </div>
       </div>
-      <div className="w-full max-lg:max-w-[438px]">
-      </div>
+      
+      <TwoDicesFormulation events={eventsName}/>
       <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts}/>
       <Modal modal={modal} updateModal={updateModal}/>
     </div>

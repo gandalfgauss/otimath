@@ -21,7 +21,7 @@ export function Alerts({
   }, [alerts]);
 
   return (
-    <div className='flex flex-col gap-y-xs fixed top-[20vh] right-[16px] items-end z-2'>
+    <div className='flex flex-col fixed top-[20vh] right-[16px] items-end z-2'>
       {alerts.map((alert, index) => {
         return <Alert 
           key={index}

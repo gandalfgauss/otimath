@@ -64,7 +64,7 @@ export function Modal({
       `}
     >
       <dialog 
-        className={`w-[600px] h-fit max-w-[calc(100%-32px)] flex flex-col justify-self-center
+        className={`w-[600px] h-fit max-w-[calc(100%-32px)] flex flex-col left-[50%] -translate-x-[50%]
           rounded-md solid border-hairline border-neutral-lightest bg-neutral-white`
         }
       >
