@@ -10,7 +10,7 @@ export function TwoDicesFormulation({
 }: Readonly<TwoDicesFormulation>) {
 
   return (
-    <div className={`w-full max-lg:max-w-[438px] max-lg:items-center self-center`
+    <div className={`w-full max-lg:max-w-[438px] max-lg:items-center max-lg:self-center`
       }
     >
       <TwoDicesEvents events={events} />

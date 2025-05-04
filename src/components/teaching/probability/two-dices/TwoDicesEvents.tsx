@@ -9,7 +9,7 @@ export function TwoDicesEvents({
 }: Readonly<TwoDicesEvents>) {
 
   return (
-    <div className="w-full rounded-md bg-neutral-white solid border-hairline border-neutral-lightest shadow-level-1">
+    <div className="w-full rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1">
       <h3 
         className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Eventos(s)</h3>
       <div className="flex flex-col">
