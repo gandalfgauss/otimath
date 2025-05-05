@@ -1,10 +1,15 @@
 @keyframes alertShow {
   0% { transform: translateX(200%); }
+  60% { transform: translateX(-10%); }
+  75% { transform: translateX(0); }
+  85% { transform: translateX(-4%); }
   100% { transform: translateX(0); }
 }
 
 @keyframes alertHide {
-  0% { transform: translateX(0); }
-  99% { transform: translateX(200%); }
-  100% {transform: translateX(200%); margin: 0;}
+  0% { transform: translateX(0); height: auto;}
+  50% { transform: translateX(200%); height: auto;}
+  70% { transform: translateX(200%); height: 0;}
+  90% { transform: translateX(200%);  height: 0; margin: 0; }
+  100% { transform: translateX(200%);  height: 0; margin: 0; padding: 0;}
 }

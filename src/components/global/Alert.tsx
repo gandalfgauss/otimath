@@ -76,7 +76,7 @@ export function Alert({
   return (
     <dialog ref={dialogRef}
       className={`w-fit max-w-[calc(100vw-32px)] rounded-sm shrink-0 relative right-0 flex gap-x-micro p-macro mb-xs
-      ${alert.status == "show"? "animate-[alertShow_0.5s_ease-out_forwards]" : "animate-[alertHide_0.5s_ease-out_forwards]"}
+      ${alert.status == "show"? "animate-[alertShow_0.5s_ease-out_forwards]" : "animate-[alertHide_1.0s_ease-out_forwards]"}
       ${alertStylesType[alert.type].generalColors}`}
     >
       {React.createElement(alertStylesType[alert.type].icon, { className: `${alertStylesType[alert.type].iconColor} w-[24px] h-[24px] shrink-0` })}
