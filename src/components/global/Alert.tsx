@@ -28,13 +28,20 @@ export function Alert({
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const closeAlert = () => {
-    updateAlert(index, {...alert, status: "hide"});
-
     const dialog = dialogRef.current;
+
     if (dialog) {
-      dialog.addEventListener("animationend", () => {
-        dialog.classList.add("hidden");
-        updateAlert(index, {...alert, status: "remove"});
+      dialog.style.height = `${dialog?.scrollHeight}px`;
+      updateAlert(index, {...alert, status: "hide"});
+      
+      dialog.addEventListener("transitionend", () => {
+
+        dialog.addEventListener("transitionend", () => {
+          dialog.classList.add("hidden");
+          updateAlert(index, {...alert, status: "remove"});
+        }, {once: true});
+
+        dialog.style.height = "0";
       }, {once: true});
     }
   }
@@ -76,7 +83,8 @@ export function Alert({
   return (
     <dialog ref={dialogRef}
       className={`w-fit max-w-[calc(100vw-32px)] rounded-sm shrink-0 relative right-0 flex gap-x-micro p-macro mb-xs
-      ${alert.status == "show"? "animate-[alertShow_0.5s_ease-out_forwards]" : "animate-[alertHide_1.0s_ease-out_forwards]"}
+      transition-[translate,height] duration-500 ease-in-out
+      ${alert.status == "show"? "animate-[alertShow_0.5s_ease-out_forwards]" : "translate-x-[200%]"}
       ${alertStylesType[alert.type].generalColors}`}
     >
       {React.createElement(alertStylesType[alert.type].icon, { className: `${alertStylesType[alert.type].iconColor} w-[24px] h-[24px] shrink-0` })}
