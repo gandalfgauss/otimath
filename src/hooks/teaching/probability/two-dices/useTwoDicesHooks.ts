@@ -19,9 +19,9 @@ const isPrime = (num: number): boolean => {
   return [2, 3, 5].includes(num);
 };
 
-const drawAnInteger = (maxValue: number): number => {
+/*const drawAnInteger = (maxValue: number): number => {
   return Math.floor(Math.random() * maxValue);
-}
+}*/
 
 const events: Event[] = [
   {
@@ -37,7 +37,7 @@ const events: Event[] = [
   {
     description: "Face par no dado verde",
     complementaryDescription: "Face ímpar no dado verde",
-    validation: (greenDice, blueDice) => greenDice % 2 === 0,
+    validation: (greenDice, ) => greenDice % 2 === 0,
   },
   {
     description: "Soma igual a 6",
@@ -52,7 +52,7 @@ const events: Event[] = [
   {
     description: "Número primo no dado azul",
     complementaryDescription: "Número não primo no dado azul",
-    validation: (greenDice, blueDice) => isPrime(blueDice),
+    validation: (_, blueDice) => isPrime(blueDice),
   },
   {
     description: "Maior face igual a 4",
