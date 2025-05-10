@@ -1,8 +1,8 @@
+import { Event } from "@/hooks/teaching/probability/two-dices/useTwoDicesHooks";
 import { TwoDicesEvents } from "./TwoDicesEvents";
 
-
 interface TwoDicesFormulation {
- events: string[]
+ events: Event[]
 }
 
 export function TwoDicesFormulation({

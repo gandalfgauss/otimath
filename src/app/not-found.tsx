@@ -12,10 +12,10 @@ export default function NotFound() {
         <Grid 
           id="not-found-404" 
           paddings={`pt-xl pb-xl`} 
-          rowGaps='gap-y-xs max-xlg:gap-y-xs max-lg:gap-y-xs max-md:gap-y-xs max-sm:gap-y-xs'
+          rowGaps='gap-y-xs'
           backgroundColor='bg-linear-(--color-gradient-level-1)'
         >
-          <GridItem styles="content-center" cols="col-[1_/_7] max-xlg:col-[1_/_7] max-lg:col-[1_/_7] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
+          <GridItem styles="content-center" cols="col-[1_/_7] max-md:col-[1_/_13]">
             <TextBlock 
               overline="Página Inexistente" 
               title={<h2 className="ds-heading-ultra">Queremos te ajudar</h2>}
@@ -32,7 +32,7 @@ export default function NotFound() {
               ]}
             ></TextBlock>
           </GridItem>
-          <GridItem cols="col-[7_/_13] max-xlg:col-[7_/_13] max-lg:col-[7_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
+          <GridItem cols="col-[7_/_13] max-md:col-[1_/_13]">
               <div className="flex items-end justify-center h-full">
                 <Image className='max-w-[550px] w-full h-[550px] shrink-0 max-sm:max-w-[350px] max-sm:h-[350px]' src={error404Image} alt="Error 404" />
               </div>

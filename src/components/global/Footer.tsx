@@ -12,25 +12,21 @@ export function Footer() {
   return (
     <Grid 
       id="grid" 
-      paddings={`pt-md pb-md
-        max-xlg:pt-md max-xlg:pb-md
-        max-lg:pt-md max-lg:pb-md
-        max-md:pt-md max-md:pb-md
-        max-sm:pt-md max-sm:pb-md`} 
-      rowGaps='gap-y-xxs max-xlg:gap-y-xxs max-lg:gap-y-xxs max-md:gap-y-xxs max-sm:gap-y-xxs'
+      paddings={`pt-md pb-md`} 
+      rowGaps='gap-y-xxs'
       backgroundColor='bg-brand-otimath-dark'
       tag="footer"
     >
-      <GridItem cols="col-[1_/_13] max-xlg:col-[1_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
+      <GridItem cols="col-[1_/_13]">
         <div className="flex items-center gap-x-xs">
           <Link href="/" className={`ds-body-bold ${linksColors}`}>Home</Link>
           <Link href="/ensino" className={`ds-body-bold ${linksColors}`}>Ensino</Link>
         </div>
       </GridItem>
-      <GridItem cols="col-[1_/_13] max-xlg:col-[1_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
+      <GridItem cols="col-[1_/_13]">
         <hr className="bg-neutral-white w-full h-[2px] mt-xxxs mb-xxxs rounded-md"/>
       </GridItem>
-      <GridItem cols="col-[1_/_13] max-xlg:col-[1_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
+      <GridItem cols="col-[1_/_13]">
         <div className="flex justify-between">
           <div className="flex flex-col justify-between h-full min-h-[102px]">
             <div className="flex items-center justify-between max-sm:justify-start max-sm:gap-x-xxxs">

@@ -22,7 +22,7 @@ export function Header() {
       styles='shadow-level-4 sticky z-10 top-[0px] h-[68px]'
       tag="header"
     >
-      <GridItem cols="col-[1_/_13] max-xlg:col-[1_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
+      <GridItem cols="col-[1_/_13]">
         <div className="flex items-center h-full gap-x-lg">
           <Image alt="Logo da Oti-Math" src="/otimath-icon.png" width={55} height={55} className="w-[55px] h-[55px]"/>
           <div className="flex gap-x-xxs h-full">

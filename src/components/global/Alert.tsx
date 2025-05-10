@@ -33,27 +33,16 @@ export function Alert({
     if (dialog) {
       updateAlert(index, {...alert, status: "hide"});
       
-      dialog.addEventListener("transitionend", (event) => {
-        event.stopPropagation();
-
-        dialog.parentElement?.addEventListener("transitionend", () => {
+      dialog.addEventListener("transitionend", () => {
+        dialog.addEventListener("transitionend", () => {
           dialog.classList.add("hidden");
           updateAlert(index, {...alert, status: "remove"});
-          if(dialog.parentElement) {
-            dialog.parentElement.style.transition = "none";
-            dialog.parentElement.style.transform = '';
-          }
         }, {once: true});
 
-        if(dialog.parentElement) {
-          dialog.parentElement.style.transition = "";
-          requestAnimationFrame(() => {
-              if (dialog.parentElement) {
-                const marginBottom = 32;
-                dialog.parentElement.style.transform = `translateY(-${dialog.scrollHeight + marginBottom}px)`;
-              }
-          });
-        }
+        requestAnimationFrame(() => {
+          dialog.style.height = "0px";
+          dialog.style.margin = "0px";
+        });
       }, {once: true});
     }
   }
@@ -95,7 +84,7 @@ export function Alert({
   return (
     <dialog ref={dialogRef}
       className={`w-fit max-w-[calc(100vw-32px)] overflow-hidden rounded-sm shrink-0 relative right-0 flex gap-x-micro p-macro mb-xs
-      transition-[translate,height] duration-500 ease-in-out
+      transition-[translate,height, margin] duration-500 ease-in-out h-[70px]
       ${alert.status == "show"? "animate-[alertShow_0.5s_ease-out_forwards]" : "translate-x-[200%]"}
       ${alertStylesType[alert.type].generalColors}`}
     >

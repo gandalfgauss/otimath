@@ -1,7 +1,6 @@
-
-
+import { Event } from "@/hooks/teaching/probability/two-dices/useTwoDicesHooks";
 interface TwoDicesEvents {
- events: string[]
+ events: Event[]
 }
 
 export function TwoDicesEvents({
@@ -21,7 +20,7 @@ export function TwoDicesEvents({
               `}
 
             >
-              <span className="ds-body-bold text-brand-otimath-medium">{event}</span> = Menor face igual a 5
+              <span className="ds-body-bold text-brand-otimath-medium">{event.name}</span> = {event.description}
             </span>
           )
         })}

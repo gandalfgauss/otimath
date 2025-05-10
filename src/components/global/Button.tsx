@@ -13,6 +13,7 @@ interface ButtonProps {
   href?: string;
   inverse?: boolean;
   interactionEffect?: boolean;
+  disabled?: boolean;
 }
 
 export function Button({
@@ -25,6 +26,7 @@ export function Button({
   href = '#',
   inverse = false,
   interactionEffect = true,
+  disabled = false
 }: Readonly<ButtonProps>) {
   const sizesStyles = {
     'extra-small': `ds-small-bold ${children && 'pt-nano pb-nano pl-quarck pr-quarck'}`,
@@ -122,7 +124,7 @@ export function Button({
   const Component = type === 'link' ? Link : 'button';
 
   return (
-    <Component href={href} onClick={onClick} className={className}>
+    <Component {...(disabled ? { disabled: true } : {})} href={href} onClick={onClick} className={className}>
       {children}
       {iconElement}
     </Component>
@@ -132,7 +134,7 @@ export function Button({
 /* Example 
 
 <Button
- type="link" href="#teste" style="borderless" size="extra-small" icon={<ChevronDown /> inverse={true} interactionEffect={false}
+ disable={false} type="link" href="#teste" style="borderless" size="extra-small" icon={<ChevronDown /> inverse={true} interactionEffect={false}
  onClick={async function teste() {
   'use server'
   }}

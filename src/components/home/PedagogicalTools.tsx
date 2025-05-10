@@ -11,10 +11,10 @@ export function PedagogicalTools() {
   <Grid 
     id="ferramentas-pedagogicas" 
     paddings={`pt-xl pb-xl`} 
-    rowGaps='gap-y-xs max-xlg:gap-y-xs max-lg:gap-y-xs max-md:gap-y-xs max-sm:gap-y-xs'
+    rowGaps='gap-y-xs'
     backgroundColor='bg-linear-(--color-gradient-level-1)'
   >
-    <GridItem cols="col-[1_/_7] max-xlg:col-[1_/_7] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
+    <GridItem cols="col-[1_/_7] max-lg:col-[1_/_13]">
       <TextBlock 
         overline="APRENDER MATEMÁTICA PODE SER DIVERTIDO!" 
         title={<h2 className="ds-heading-ultra">Ferramentas Pedagógicas para o Ensino de Matemática</h2>}
@@ -38,7 +38,7 @@ export function PedagogicalTools() {
         ]}
       ></TextBlock>
     </GridItem>
-    <GridItem cols="col-[7_/_13] max-xlg:col-[7_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
+    <GridItem cols="col-[7_/_13] max-lg:col-[1_/_13]">
         <div className="flex items-end justify-center h-full relative">
           <Image className='absolute bottom-[-65px] w-[751px] max-w-[751px] h-[501px] shrink-0  max-lg:relative max-sm:w-full max-sm:max-w-full max-sm:h-[350px]' src={pedagogicalToolsImage} alt="Ilustração de uma garota aprendendo matemática" />
         </div>

@@ -23,7 +23,7 @@ export function HeroBanner({
         <Grid 
           tag="div"
         >
-          <GridItem cols="col-[1_/_8] max-xlg:col-[1_/_8] max-lg:col-[1_/_8] max-md:col-[1_/_8] max-sm:col-[1_/_13]">
+          <GridItem cols="col-[1_/_8] max-sm:col-[1_/_13]">
             {textBlock}
           </GridItem>
         </Grid>

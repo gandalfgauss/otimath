@@ -1,12 +1,15 @@
 import React from 'react';
+import parse from 'html-react-parser';
 
 interface TextBlock {
   overline?: string;
   title?:  React.ReactNode;
-  paragraph?: React.ReactNode;
+  paragraph?: React.ReactNode | string;
   maxWidthParagraph?: string;
   innerComponents?: React.ReactNode[];
   inverse?: boolean;
+  centralize?: boolean
+  styles?: string;
 }
 
 export function TextBlock({
@@ -16,15 +19,23 @@ export function TextBlock({
   maxWidthParagraph,
   innerComponents,
   inverse,
+  centralize,
+  styles,
 }: Readonly<TextBlock>) {
 
 
   return (
-    <div className={`${inverse ? 'text-neutral-white' : 'text-brand-otimath-pure'} w-full flex flex-col gap-xs`}>
+    <div className={`${inverse ? 'text-neutral-white' : 'text-brand-otimath-pure'} ${centralize ? 'text-center items-center' : ''} w-full flex flex-col gap-xs ${styles ?? ''}`}>
       <div className='flex flex-col gap-xxxs'>
         {overline && <span className={`ds-overline ${inverse ? 'text-neutral-white' : 'text-brand-otimath-dark'}`}>{overline}</span>}
         {title}
-        <div className={`${inverse ? 'text-neutral-white' : 'text-neutral-dark'} ${maxWidthParagraph ?? ''}`}>{paragraph}</div>
+        <div className={`${inverse ? 'text-neutral-white' : 'text-neutral-dark'} ${maxWidthParagraph ?? ''}`}>
+          {typeof paragraph === 'string' ? (
+              parse(paragraph) 
+            ) : (
+              paragraph
+          )}
+      </div>
       </div>
       {innerComponents &&
         <div className='flex gap-xxxs'>
@@ -48,6 +59,8 @@ export function TextBlock({
     <Button key="button-2" style="borderless" size="extra-small">Teste</Button>
   ]}
   inverse={false}
+  centralize={false}
+  styles=''
 ></TextBlock>
 
 */
