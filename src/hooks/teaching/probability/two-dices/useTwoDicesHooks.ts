@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect} from 'react';
 
 export interface EventCheckboxes {
   [key: string]: {
     [key: string]: {
       value: boolean;
+      disabled: boolean;
     }
   }
 }
@@ -96,15 +97,8 @@ const shuffleArray = (events: Event[]) => {
   return newArray;
 };
 
-export const useTwoDicesHooks = () => {
-  const [eventsCheckboxes, setEventsCheckboxes] = useState<EventCheckboxes>({});
-  const [challenge, setChallenge] = useState<number>(0);
-  const [step, setStep] = useState<number>(0);
-  const [activeEvents, setActiveEvents] = useState<Event[]>([]);
-  const [instructions, setInstructions] = useState<string>('');
-  const [scrambledEvents, setScrambledEvents] = useState<Event[]>(shuffleArray(events));
-
-  const game = useMemo(() => ({
+const getGame = (scrambledEvents: Event[]) => {
+  return{
     challenges: [
       {
         steps: [
@@ -131,7 +125,18 @@ export const useTwoDicesHooks = () => {
         ],
       },
     ],
-  }), [scrambledEvents]);
+  }
+}
+
+export const useTwoDicesHooks = () => {
+  const [eventsCheckboxes, setEventsCheckboxes] = useState<EventCheckboxes>({});
+  const [challenge, setChallenge] = useState<number>(0);
+  const [step, setStep] = useState<number>(0);
+  const [activeEvents, setActiveEvents] = useState<Event[]>([]);
+  const [instructions, setInstructions] = useState<string>('');
+  const [scrambledEvents, setScrambledEvents] = useState<Event[]>(shuffleArray(events));
+
+  const [game, setGame] = useState(getGame(scrambledEvents));
 
   const buildCheckboxesState = () => {
     const eventsName = game.challenges?.[challenge]?.steps?.[step]?.activeEvents.map(event => event.name!) ?? [];
@@ -142,7 +147,7 @@ export const useTwoDicesHooks = () => {
       for (let row = 1; row <= 6; row++) {
         for (let col = 1; col <= 6; col++) {
           if(!newState[eventName][`checkbox-${eventName}-${row}-${col}`]) {
-            newState[eventName][`checkbox-${eventName}-${row}-${col}`] = { value: false };
+            newState[eventName][`checkbox-${eventName}-${row}-${col}`] = { value: false, disabled: false };
           } 
         }
       }
@@ -151,33 +156,51 @@ export const useTwoDicesHooks = () => {
   };
 
   const resetEventsCheckboxes = () => {
-    const eventsName = game.challenges?.[challenge]?.steps?.[step]?.activeEvents.map(event => event.name!) ?? [];
+    const eventsName = game.challenges?.[challenge]?.steps?.[step]?.activeEvents.map(event => event.name) ?? [];
     const newState: EventCheckboxes = {};
 
     eventsName.forEach((eventName) => {
       newState[eventName] = {};
       for (let row = 1; row <= 6; row++) {
         for (let col = 1; col <= 6; col++) {
-          newState[eventName][`checkbox-${eventName}-${row}-${col}`] = { value: false };
+          newState[eventName][`checkbox-${eventName}-${row}-${col}`] = { value: false, disabled: false };
         }
       }
     });
     setEventsCheckboxes(newState);
   };
 
-  const updateEventsCheckboxes = (eventName: string, id: string, checked: boolean) => {
+  const disabledEventsCheckboxes = () => {    
+    setEventsCheckboxes((prev) => {
+      const newEventsCheckboxes: EventCheckboxes = {};
+
+      for (const [eventName, checkboxes] of Object.entries(prev)) {
+        const newCheckboxes: typeof checkboxes = {};
+        for (const [key, checkbox] of Object.entries(checkboxes)) {
+          newCheckboxes[key] = { ...checkbox, disabled: true };
+        }
+        newEventsCheckboxes[eventName] = newCheckboxes;
+      }
+      return newEventsCheckboxes;
+    });
+  }
+
+  useEffect(() => {console.log("pos atulizacao", eventsCheckboxes)}, [eventsCheckboxes]);
+
+  const updateEventsCheckboxes = (eventName: string, id: string, checked: boolean, disabled: boolean) => {
     setEventsCheckboxes(prev => ({
       ...prev,
       [eventName]: {
         ...prev[eventName],
         [id]: {
-          value: checked
+          value: checked,
+          disabled: disabled
         }
       }
     }));
   };
 
-  const resetChallenge = () => {
+  const resetGame = () => {
     setScrambledEvents(shuffleArray(events));
   };
 
@@ -194,7 +217,7 @@ export const useTwoDicesHooks = () => {
       return activeEvents.every((event) => {
         return Object.entries(checkboxes[event.name!]).every(([key, value]) => {
           const [, , row, col] = key.split("-");
-          //console.log(row, col, event.validation(parseInt(row), parseInt(col)), value.value);
+          console.log(row, col, event.validation(parseInt(row), parseInt(col)), value.value, event.validation, activeEvents);
           return event.validation(parseInt(row), parseInt(col)) === value.value;
         });
       });
@@ -224,18 +247,24 @@ export const useTwoDicesHooks = () => {
     setChallenge(0);
     setStep(0);
     resetEventsCheckboxes();
-    setActiveEvents(game.challenges?.[challenge]?.steps?.[step]?.activeEvents);
-    setInstructions(game.challenges?.[challenge]?.steps?.[step]?.instructions);
+    setGame(getGame(scrambledEvents));
+    console.log("vim por aqui");
   }, [scrambledEvents]);
+
+  useEffect(() => {
+    setActiveEvents(game.challenges?.[0]?.steps?.[0]?.activeEvents);
+    setInstructions(game.challenges?.[0]?.steps?.[0]?.instructions);
+  }, [game]);
 
   return {
     eventsCheckboxes,
     updateEventsCheckboxes,
     resetEventsCheckboxes,
+    disabledEventsCheckboxes,
     activeEvents,
     instructions,
     setInstructions,
-    resetChallenge,
+    resetGame,
     checkSolution,
     nextChallenge,
     gameFinished

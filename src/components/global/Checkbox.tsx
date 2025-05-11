@@ -3,7 +3,8 @@
 interface CheckboxProps {
   label?: string;
   id?: string;
-  checked?: boolean
+  checked?: boolean;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }
 
@@ -11,21 +12,22 @@ export function Checkbox({
   label,
   id,
   checked,
-  onChange
+  disabled,
+  onChange,
 }: Readonly<CheckboxProps>) {
   return (
     <fieldset className="flex flex-col gap-y-nano">
       <label className="ds-small cursor-pointer" htmlFor={id}>{label}</label>
-      <input id={id} type="checkbox" checked={checked} onChange={(e) => {onChange(e.currentTarget.checked)}}
-        className={`cursor-pointer w-[20px] h-[20px] relative appearance-none solid border-thin border-neutral-medium rounded-sm
+      <input id={id} type="checkbox" checked={checked} onChange={(e) => {onChange(e.currentTarget.checked)}} {...(disabled ? { disabled: true } : {})}
+        className={`cursor-pointer w-[20px] h-[20px] relative appearance-none border-solid border-thin border-neutral-medium rounded-sm
           bg-neutral-transparent transition-[background-color,border-color] duration-300 ease-in-out 
           hover:not-checked:border-brand-otimath-pure hover:not-checked:bg-brand-otimath-lighter checked:bg-brand-otimath-pure checked:border-brand-otimath-pure
           after:absolute after:z-2 
           after:top-[50%] after:left-[50%] after:transform after:-translate-x-[55%] after:-translate-y-[65%] after:rotate-45 
-          after:w-[8px] after:h-[12px] after:solid after:border-neutral-white 
+          after:w-[8px] after:h-[12px] after:border-solid after:border-neutral-white 
           after:scale-0 after:bg-neutral-transparent
           after:transition-[scale] after:duration-300 after:ease-in-out after:border-r-thin after:border-b-thin 
-          checked:after:scale-100
+          checked:after:scale-100 disabled:opacity-level-light disabled:pointer-events-none
         `}
       >
       </input>

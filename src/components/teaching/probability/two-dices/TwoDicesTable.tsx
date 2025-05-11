@@ -16,7 +16,7 @@ import { EventCheckboxes } from '@/hooks/teaching/probability/two-dices/useTwoDi
 
 interface TwoDicesTableProps {
   eventsCheckboxes: EventCheckboxes;
-  updateEventsCheckboxes: (eventName: string, id: string, checked: boolean) => void;
+  updateEventsCheckboxes: (eventName: string, id: string, checked: boolean, disabled: boolean) => void;
 }
 
 export function TwoDicesTable({
@@ -50,7 +50,7 @@ export function TwoDicesTable({
             return <tr className="flex" key={`row-${rowIndex}`}>
               {Array(7).fill(1).map((_, colIndex) => {
                 return <td 
-                    className={`${colIndex == 0 ? 'w-[50px] sticky left-[-1px] z-1': 'snap-start w-[116px] solid border-neutral-lighter border-hairline'}
+                    className={`${colIndex == 0 ? 'w-[50px] sticky left-[-1px] z-1': 'snap-start w-[116px] border-solid border-neutral-lighter border-hairline'}
                       h-[100px] flex justify-center items-center bg-background-otimath
                       ${rowIndex % 2 == 0 && colIndex != 0 && 'bg-feedback-info-lightest'}
                     `} 
@@ -69,7 +69,8 @@ export function TwoDicesTable({
                             label={eventName} 
                             id={id}
                             checked={eventsCheckboxes[eventName][id].value}
-                            onChange={(checked: boolean) => updateEventsCheckboxes(eventName, id, checked)}
+                            disabled={eventsCheckboxes[eventName][id].disabled}
+                            onChange={(checked: boolean) => updateEventsCheckboxes(eventName, id, checked, eventsCheckboxes[eventName][id].disabled)}
                           />
                         );
                       })}

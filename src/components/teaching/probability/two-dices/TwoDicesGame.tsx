@@ -11,6 +11,7 @@ import { useModal } from "@/hooks/global/useModal";
 import { TwoDicesFormulation } from "./TwoDicesFormulation";
 import { TextBlock } from "@/components/global/TextBlock";
 import { useState} from 'react';
+import { TextInput } from "@/components/global/TextInput";
 
 export function TwoDicesGame() {
   const {alerts, createAlert, updateAlert, deleteAlerts} = useAlerts();
@@ -18,8 +19,10 @@ export function TwoDicesGame() {
   const [disableCheckButton, setDisableCheckButton] = useState(false);
   const [disableNextChallengeButton, setDisableNextChallengeButton] = useState(true);
   const [disableClearButton, setDisableClearButton] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const [ inputError, setInputError ] = useState(false);
 
-  const { eventsCheckboxes, updateEventsCheckboxes, resetEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetChallenge, nextChallenge, gameFinished} = useTwoDicesHooks();
+  const { eventsCheckboxes, updateEventsCheckboxes, resetEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetGame, nextChallenge, gameFinished} = useTwoDicesHooks();
   
   const dicesChecksClear = () => { 
     updateModal({
@@ -42,10 +45,11 @@ export function TwoDicesGame() {
         setInstructions("<p className='ds-body'>Parabéns, você finalizou todos os desafios!</p>");
         setDisableCheckButton(true);
         setDisableClearButton(true);
+        setDisableNextChallengeButton(true);
       } else {
         setInstructions("<p className='ds-body'>Parabéns, passe para o próximo desafio!</p>");
+        setDisableNextChallengeButton(false);
       }
-      setDisableNextChallengeButton(false);
     }
     else {
       createAlert("Ops!", "Você errou!", "error", 4000);
@@ -57,14 +61,17 @@ export function TwoDicesGame() {
     setDisableNextChallengeButton(true);
   }
 
-  const resetGame = () => {
+  const resetGameOnClick = () => {
     updateModal({
         title: "Reiniciando o jogo", 
         description:"Você gostaria de reiniciar o jogo?", 
         status: "show",
         confirmCallback: () => {
           createAlert("Jogo reiniciado", "O jogo foi reiniciado", "info");
-          resetChallenge();
+          resetGame();
+          setDisableCheckButton(false);
+          setDisableNextChallengeButton(true);
+          setDisableClearButton(false);
         }
     });
   }
@@ -80,7 +87,7 @@ export function TwoDicesGame() {
       <div className="flex gap-x-xs gap-y-xs max-lg:flex-col-reverse">
         <div className="w-full flex flex-col gap-y-xxs max-lg:items-center max-sm:item-start">
           <div className="flex items-center gap-x-xxxs justify-between w-full max-w-[747px]">
-            <Button style="secondary" size="small" icon={<RefreshCw />} onClick={resetGame}>Novo</Button>
+            <Button style="secondary" size="small" icon={<RefreshCw />} onClick={resetGameOnClick}>Novo</Button>
             <Button style="borderless" size="extra-small" icon={<X />} onClick={dicesChecksClear} disabled={disableClearButton}>Limpar</Button>
           </div>
 
@@ -89,9 +96,18 @@ export function TwoDicesGame() {
           <div className="flex gap-xxxs items-center">
             <Button style="secondary" size="small" icon={<Check />} onClick={checkProblemSolution} disabled={disableCheckButton}>Conferir</Button>
             <Button style="primary" size="small" icon={<ArrowRight />} onClick={goToNextChallenge} disabled={disableNextChallengeButton}>Próximo Desafio</Button>
+            <TextInput value={inputValue} label="Teste" id="Teste" disabled={false} 
+              min="0" max="36" placeholder="Digite um número" helperText="Digite um número entre 0 e 36"
+              required={true} error={inputError}
+              onChange={() => {
+                setInputError(true);
+                console.log(inputValue);
+              }}
+              type="natural-number"
+              setValue={(value) => setInputValue(value)}
+            />
           </div>
         </div>
-        
         <TwoDicesFormulation events={activeEvents}/>
         <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts}/>
         <Modal modal={modal} updateModal={updateModal}/>
