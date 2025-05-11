@@ -37,6 +37,7 @@ export function TextInput({
       <input 
         id={id} type="text" 
         value={value} 
+        inputMode={type == "natural-number" ? "numeric" : "text"}
         onChange={(event) => {
             onChange(event);
             let value = event.currentTarget.value;

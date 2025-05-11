@@ -41,3 +41,7 @@ export default function NotFound() {
     </main>
   );
 }
+
+/* Example 
+  <NotFound />
+*/

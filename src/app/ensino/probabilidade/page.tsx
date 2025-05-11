@@ -32,3 +32,7 @@ export default function Probability() {
     </main>
   );
 }
+
+/* Example 
+  <Probability />
+*/

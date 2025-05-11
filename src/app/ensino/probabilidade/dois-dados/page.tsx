@@ -27,3 +27,7 @@ export default function TwoDices() {
     </main>
   );
 }
+
+/* Example 
+  <TwoDices />
+*/

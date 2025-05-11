@@ -1,14 +1,14 @@
 import { Event } from "@/hooks/teaching/probability/two-dices/useTwoDicesHooks";
-interface TwoDicesEvents {
+interface TwoDicesEventsProps {
  events: Event[]
 }
 
 export function TwoDicesEvents({
   events,
-}: Readonly<TwoDicesEvents>) {
+}: Readonly<TwoDicesEventsProps>) {
 
   return (
-    <div className="w-full rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1">
+    <div className="w-full min-h-[205px] rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1">
       <h3 
         className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Eventos(s)</h3>
       <div className="flex flex-col">
@@ -32,6 +32,6 @@ export function TwoDicesEvents({
 
 /* Example 
 
-<TwoDicesFormulation events="" />
+<TwoDicesEvents events="" />
 
 */

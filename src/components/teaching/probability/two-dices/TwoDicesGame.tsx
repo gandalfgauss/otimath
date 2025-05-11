@@ -11,7 +11,6 @@ import { useModal } from "@/hooks/global/useModal";
 import { TwoDicesFormulation } from "./TwoDicesFormulation";
 import { TextBlock } from "@/components/global/TextBlock";
 import { useState} from 'react';
-import { TextInput } from "@/components/global/TextInput";
 
 export function TwoDicesGame() {
   const {alerts, createAlert, updateAlert, deleteAlerts} = useAlerts();
@@ -19,9 +18,6 @@ export function TwoDicesGame() {
   const [disableCheckButton, setDisableCheckButton] = useState(false);
   const [disableNextChallengeButton, setDisableNextChallengeButton] = useState(true);
   const [disableClearButton, setDisableClearButton] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const [ inputError, setInputError ] = useState(false);
-
   const { eventsCheckboxes, updateEventsCheckboxes, resetEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetGame, nextChallenge, gameFinished} = useTwoDicesHooks();
   
   const dicesChecksClear = () => { 
@@ -96,16 +92,6 @@ export function TwoDicesGame() {
           <div className="flex gap-xxxs items-center">
             <Button style="secondary" size="small" icon={<Check />} onClick={checkProblemSolution} disabled={disableCheckButton}>Conferir</Button>
             <Button style="primary" size="small" icon={<ArrowRight />} onClick={goToNextChallenge} disabled={disableNextChallengeButton}>Próximo Desafio</Button>
-            <TextInput value={inputValue} label="Teste" id="Teste" disabled={false} 
-              min="0" max="36" placeholder="Digite um número" helperText="Digite um número entre 0 e 36"
-              required={true} error={inputError}
-              onChange={() => {
-                setInputError(true);
-                console.log(inputValue);
-              }}
-              type="natural-number"
-              setValue={(value) => setInputValue(value)}
-            />
           </div>
         </div>
         <TwoDicesFormulation events={activeEvents}/>

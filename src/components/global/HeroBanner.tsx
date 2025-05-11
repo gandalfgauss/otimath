@@ -1,10 +1,8 @@
 import React from 'react';
 import { Grid } from "@/components/global/Grid";
 import { GridItem } from '../global/GridItem';
-import Image from 'next/image';
-import {StaticImageData} from 'next/image';
-
-interface HeroBanner {
+import Image, { StaticImageData } from 'next/image';
+interface HeroBannerProps {
   id?: string;
   textBlock: React.ReactNode;
   image: StaticImageData;
@@ -14,7 +12,7 @@ export function HeroBanner({
   id,
   textBlock,
   image,
-}: Readonly<HeroBanner>) {
+}: Readonly<HeroBannerProps>) {
   return (
     <section id={id} className='w-full h-[650px] relative'>
       <Image src={image} alt="Hero Image" className='w-full h-[650px] absolute top-[0] left-[0] z-0 object-cover'/>

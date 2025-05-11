@@ -40,9 +40,15 @@ export function PedagogicalTools() {
     </GridItem>
     <GridItem cols="col-[7_/_13] max-lg:col-[1_/_13]">
         <div className="flex items-end justify-center h-full relative">
-          <Image className='absolute bottom-[-65px] w-[751px] max-w-[751px] h-[501px] shrink-0  max-lg:relative max-sm:w-full max-sm:max-w-full max-sm:h-[350px]' src={pedagogicalToolsImage} alt="Ilustração de uma garota aprendendo matemática" />
+          <Image className='absolute bottom-[-65px] w-[751px] max-w-[751px] h-[501px] shrink-0 max-lg:relative max-sm:w-full max-sm:max-w-full max-sm:h-[350px]' src={pedagogicalToolsImage} alt="Ilustração de uma garota aprendendo matemática" />
         </div>
     </GridItem>
   </Grid>
   );
 }
+
+/* Example 
+
+<PedagogicalTools />
+
+*/

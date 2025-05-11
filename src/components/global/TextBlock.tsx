@@ -1,7 +1,7 @@
 import React from 'react';
 import parse from 'html-react-parser';
 
-interface TextBlock {
+interface TextBlockProps {
   overline?: string;
   title?:  React.ReactNode;
   paragraph?: React.ReactNode | string;
@@ -21,7 +21,7 @@ export function TextBlock({
   inverse,
   centralize,
   styles,
-}: Readonly<TextBlock>) {
+}: Readonly<TextBlockProps>) {
 
 
   return (

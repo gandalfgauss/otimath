@@ -139,7 +139,7 @@ export const useTwoDicesHooks = () => {
   const [game, setGame] = useState(getGame(scrambledEvents));
 
   const buildCheckboxesState = () => {
-    const eventsName = game.challenges?.[challenge]?.steps?.[step]?.activeEvents.map(event => event.name!) ?? [];
+    const eventsName = game.challenges?.[challenge]?.steps?.[step]?.activeEvents.map(event => event.name) ?? [];
     const newState: EventCheckboxes = eventsCheckboxes;
 
     eventsName.forEach((eventName) => {
@@ -215,7 +215,7 @@ export const useTwoDicesHooks = () => {
       const checkboxes = eventsCheckboxes;
 
       return activeEvents.every((event) => {
-        return Object.entries(checkboxes[event.name!]).every(([key, value]) => {
+        return Object.entries(checkboxes[event.name]).every(([key, value]) => {
           const [, , row, col] = key.split("-");
           console.log(row, col, event.validation(parseInt(row), parseInt(col)), value.value, event.validation, activeEvents);
           return event.validation(parseInt(row), parseInt(col)) === value.value;

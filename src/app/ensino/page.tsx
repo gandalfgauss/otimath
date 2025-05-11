@@ -32,3 +32,7 @@ export default function Teaching() {
     </main>
   );
 }
+
+/* Example 
+  <Teaching />
+*/
