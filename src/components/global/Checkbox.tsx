@@ -1,24 +1,24 @@
 'use client'
 
-interface CheckboxProps {
+export interface CheckboxInterface {
   label?: string;
   id?: string;
   checked?: boolean;
   disabled?: boolean;
-  onChange: (checked: boolean) => void;
+  onChange?: (checked: boolean) => void;
+}
+
+interface CheckboxProps {
+  checkbox: CheckboxInterface;
 }
 
 export function Checkbox({
-  label,
-  id,
-  checked,
-  disabled,
-  onChange,
+  checkbox
 }: Readonly<CheckboxProps>) {
   return (
     <fieldset className="flex flex-col gap-y-nano">
-      <label className="ds-small cursor-pointer" htmlFor={id}>{label}</label>
-      <input id={id} type="checkbox" checked={checked} onChange={(e) => {onChange(e.currentTarget.checked)}} {...(disabled ? { disabled: true } : {})}
+      <label className="ds-small cursor-pointer" htmlFor={checkbox.id}>{checkbox.label}</label>
+      <input id={checkbox.id} type="checkbox" checked={checkbox.checked} onChange={(e) => {checkbox?.onChange?.(e.currentTarget.checked)}} {...(checkbox.disabled ? { disabled: true } : {})}
         className={`cursor-pointer w-[20px] h-[20px] relative appearance-none border-solid border-thin border-neutral-medium rounded-sm
           bg-neutral-transparent transition-[background-color,border-color] duration-300 ease-in-out 
           hover:not-checked:border-brand-otimath-pure hover:not-checked:bg-brand-otimath-lighter checked:bg-brand-otimath-pure checked:border-brand-otimath-pure

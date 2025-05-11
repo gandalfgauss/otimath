@@ -18,9 +18,9 @@ export function TwoDicesGame() {
   const [disableCheckButton, setDisableCheckButton] = useState(false);
   const [disableNextChallengeButton, setDisableNextChallengeButton] = useState(true);
   const [disableClearButton, setDisableClearButton] = useState(false);
-  const { eventsCheckboxes, updateEventsCheckboxes, resetEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetGame, nextChallenge, gameFinished} = useTwoDicesHooks();
+  const { eventsCheckboxes, updateEventsCheckboxes, resetEventsCheckboxes, disabledEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetGame, nextChallenge, gameFinished} = useTwoDicesHooks();
   
-  const dicesChecksClear = () => { 
+  const dicesChecksClearOnClick = () => { 
     updateModal({
         title: "Limpando marcações", 
         description:"Você gostaria de limpar as marcações da atividade atual?", 
@@ -33,28 +33,31 @@ export function TwoDicesGame() {
     });
   }
 
-  const checkProblemSolution = () => {
+  const checkProblemSolutionOnClick = () => {
     if(checkSolution()) {
       createAlert("Parabéns!", "Você acertou!", "success", 5000);
+      setDisableCheckButton(true);
+      setDisableClearButton(true);
 
       if(gameFinished()) {
         setInstructions("<p className='ds-body'>Parabéns, você finalizou todos os desafios!</p>");
-        setDisableCheckButton(true);
-        setDisableClearButton(true);
         setDisableNextChallengeButton(true);
       } else {
         setInstructions("<p className='ds-body'>Parabéns, passe para o próximo desafio!</p>");
         setDisableNextChallengeButton(false);
       }
+      disabledEventsCheckboxes();
     }
     else {
       createAlert("Ops!", "Você errou!", "error", 4000);
     }
   }
 
-  const goToNextChallenge = () => {
+  const goToNextChallengeOnClick = () => {
     nextChallenge();
     setDisableNextChallengeButton(true);
+    setDisableCheckButton(false);
+    setDisableClearButton(false);
   }
 
   const resetGameOnClick = () => {
@@ -84,14 +87,14 @@ export function TwoDicesGame() {
         <div className="w-full flex flex-col gap-y-xxs max-lg:items-center max-sm:item-start">
           <div className="flex items-center gap-x-xxxs justify-between w-full max-w-[747px]">
             <Button style="secondary" size="small" icon={<RefreshCw />} onClick={resetGameOnClick}>Novo</Button>
-            <Button style="borderless" size="extra-small" icon={<X />} onClick={dicesChecksClear} disabled={disableClearButton}>Limpar</Button>
+            <Button style="borderless" size="extra-small" icon={<X />} onClick={dicesChecksClearOnClick} disabled={disableClearButton}>Limpar</Button>
           </div>
 
           <TwoDicesTable eventsCheckboxes={eventsCheckboxes ?? {}} updateEventsCheckboxes={updateEventsCheckboxes}/>
           
           <div className="flex gap-xxxs items-center">
-            <Button style="secondary" size="small" icon={<Check />} onClick={checkProblemSolution} disabled={disableCheckButton}>Conferir</Button>
-            <Button style="primary" size="small" icon={<ArrowRight />} onClick={goToNextChallenge} disabled={disableNextChallengeButton}>Próximo Desafio</Button>
+            <Button style="secondary" size="small" icon={<Check />} onClick={checkProblemSolutionOnClick} disabled={disableCheckButton}>Conferir</Button>
+            <Button style="primary" size="small" icon={<ArrowRight />} onClick={goToNextChallengeOnClick} disabled={disableNextChallengeButton}>Próximo Desafio</Button>
           </div>
         </div>
         <TwoDicesFormulation events={activeEvents}/>

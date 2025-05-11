@@ -13,7 +13,6 @@ import diceY6Image from '@/images/teaching/probability/two-dices/dices/diceY6.gi
 import Image from "next/image";
 import { Checkbox } from "@/components/global/Checkbox";
 import { EventCheckboxes } from '@/hooks/teaching/probability/two-dices/useTwoDicesHooks';
-
 interface TwoDicesTableProps {
   eventsCheckboxes: EventCheckboxes;
   updateEventsCheckboxes: (eventName: string, id: string, checked: boolean, disabled: boolean) => void;
@@ -66,11 +65,15 @@ export function TwoDicesTable({
                         return (
                           <Checkbox 
                             key={id}
-                            label={eventName} 
-                            id={id}
-                            checked={eventsCheckboxes[eventName][id].value}
-                            disabled={eventsCheckboxes[eventName][id].disabled}
-                            onChange={(checked: boolean) => updateEventsCheckboxes(eventName, id, checked, eventsCheckboxes[eventName][id].disabled)}
+                            checkbox={
+                              {
+                                label: eventName,
+                                id: id,
+                                checked: eventsCheckboxes[eventName][id].checkbox.checked,
+                                disabled: eventsCheckboxes[eventName][id].checkbox.disabled,
+                                onChange:(checked: boolean) => updateEventsCheckboxes(eventName, id, checked, eventsCheckboxes[eventName][id].checkbox.disabled as boolean)
+                              }
+                            }
                           />
                         );
                       })}

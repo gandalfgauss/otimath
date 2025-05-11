@@ -1,10 +1,10 @@
+import { CheckboxInterface } from '@/components/global/Checkbox';
 import { useState, useEffect} from 'react';
 
 export interface EventCheckboxes {
   [key: string]: {
     [key: string]: {
-      value: boolean;
-      disabled: boolean;
+      checkbox: CheckboxInterface
     }
   }
 }
@@ -147,7 +147,8 @@ export const useTwoDicesHooks = () => {
       for (let row = 1; row <= 6; row++) {
         for (let col = 1; col <= 6; col++) {
           if(!newState[eventName][`checkbox-${eventName}-${row}-${col}`]) {
-            newState[eventName][`checkbox-${eventName}-${row}-${col}`] = { value: false, disabled: false };
+            const id = `checkbox-${eventName}-${row}-${col}`;
+            newState[eventName][id] = { checkbox: {checked: false, disabled: false }};
           } 
         }
       }
@@ -163,7 +164,8 @@ export const useTwoDicesHooks = () => {
       newState[eventName] = {};
       for (let row = 1; row <= 6; row++) {
         for (let col = 1; col <= 6; col++) {
-          newState[eventName][`checkbox-${eventName}-${row}-${col}`] = { value: false, disabled: false };
+          const id = `checkbox-${eventName}-${row}-${col}`;
+          newState[eventName][id] = {checkbox: {checked: false, disabled: false }};
         }
       }
     });
@@ -177,7 +179,7 @@ export const useTwoDicesHooks = () => {
       for (const [eventName, checkboxes] of Object.entries(prev)) {
         const newCheckboxes: typeof checkboxes = {};
         for (const [key, checkbox] of Object.entries(checkboxes)) {
-          newCheckboxes[key] = { ...checkbox, disabled: true };
+          newCheckboxes[key] = {checkbox: { ...checkbox.checkbox, disabled: true }};
         }
         newEventsCheckboxes[eventName] = newCheckboxes;
       }
@@ -188,14 +190,16 @@ export const useTwoDicesHooks = () => {
   useEffect(() => {console.log("pos atulizacao", eventsCheckboxes)}, [eventsCheckboxes]);
 
   const updateEventsCheckboxes = (eventName: string, id: string, checked: boolean, disabled: boolean) => {
+    console.log(eventName, id, checked, disabled);
     setEventsCheckboxes(prev => ({
       ...prev,
       [eventName]: {
         ...prev[eventName],
-        [id]: {
-          value: checked,
+        [id]: {checkbox:{
+          ...prev[eventName][id].checkbox,
+          checked: checked,
           disabled: disabled
-        }
+        }}
       }
     }));
   };
@@ -217,8 +221,8 @@ export const useTwoDicesHooks = () => {
       return activeEvents.every((event) => {
         return Object.entries(checkboxes[event.name]).every(([key, value]) => {
           const [, , row, col] = key.split("-");
-          console.log(row, col, event.validation(parseInt(row), parseInt(col)), value.value, event.validation, activeEvents);
-          return event.validation(parseInt(row), parseInt(col)) === value.value;
+          console.log(row, col, event.validation(parseInt(row), parseInt(col)), value.checkbox.checked, event.validation, activeEvents);
+          return event.validation(parseInt(row), parseInt(col)) === value.checkbox.checked;
         });
       });
     }
