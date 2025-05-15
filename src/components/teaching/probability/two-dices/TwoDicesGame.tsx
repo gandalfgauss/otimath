@@ -18,7 +18,7 @@ export function TwoDicesGame() {
   const [disableCheckButton, setDisableCheckButton] = useState(false);
   const [disableNextChallengeButton, setDisableNextChallengeButton] = useState(true);
   const [disableClearButton, setDisableClearButton] = useState(false);
-  const { eventsCheckboxes, updateEventsCheckboxes, resetEventsCheckboxes, disabledEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetGame, nextChallenge, gameFinished} = useTwoDicesHooks();
+  const { eventsCheckboxes, updateEventsCheckboxes, resetEventsCheckboxes, disabledEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetGame, nextChallenge, isGameOver} = useTwoDicesHooks();
   
   const dicesChecksClearOnClick = () => { 
     updateModal({
@@ -39,7 +39,8 @@ export function TwoDicesGame() {
       setDisableCheckButton(true);
       setDisableClearButton(true);
 
-      if(gameFinished()) {
+      if(isGameOver()) {
+        console.log("aqui deu erro")
         setInstructions("<p className='ds-body'>Parabéns, você finalizou todos os desafios!</p>");
         setDisableNextChallengeButton(true);
       } else {

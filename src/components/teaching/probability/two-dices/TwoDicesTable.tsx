@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/global/Checkbox";
 import { EventCheckboxes } from '@/hooks/teaching/probability/two-dices/useTwoDicesHooks';
 interface TwoDicesTableProps {
   eventsCheckboxes: EventCheckboxes;
-  updateEventsCheckboxes: (eventName: string, id: string, checked: boolean, disabled: boolean) => void;
+  updateEventsCheckboxes: (eventName: string, diceGreen: number, diceBlue: number, checked: boolean, disabled: boolean) => void;
 }
 
 export function TwoDicesTable({
@@ -69,9 +69,9 @@ export function TwoDicesTable({
                               {
                                 label: eventName,
                                 id: id,
-                                checked: eventsCheckboxes[eventName][id].checkbox.checked,
-                                disabled: eventsCheckboxes[eventName][id].checkbox.disabled,
-                                onChange:(checked: boolean) => updateEventsCheckboxes(eventName, id, checked, eventsCheckboxes[eventName][id].checkbox.disabled as boolean)
+                                checked: eventsCheckboxes[eventName][rowIndex][colIndex-1].checked,
+                                disabled: eventsCheckboxes[eventName][rowIndex][colIndex-1].disabled,
+                                onChange:(checked: boolean) => updateEventsCheckboxes(eventName, rowIndex+1, colIndex, checked, eventsCheckboxes[eventName][rowIndex][colIndex-1].disabled as boolean)
                               }
                             }
                           />

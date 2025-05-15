@@ -2,11 +2,7 @@ import { CheckboxInterface } from '@/components/global/Checkbox';
 import { useState, useEffect} from 'react';
 
 export interface EventCheckboxes {
-  [key: string]: {
-    [key: string]: {
-      checkbox: CheckboxInterface
-    }
-  }
+  [key: string]: CheckboxInterface[][];
 }
 
 export interface Event {
@@ -128,6 +124,8 @@ const getGame = (scrambledEvents: Event[]) => {
   }
 }
 
+const MAXIMUM_VALUE_DICE = 6;
+
 export const useTwoDicesHooks = () => {
   const [eventsCheckboxes, setEventsCheckboxes] = useState<EventCheckboxes>({});
   const [challenge, setChallenge] = useState<number>(0);
@@ -143,13 +141,13 @@ export const useTwoDicesHooks = () => {
     const newState: EventCheckboxes = eventsCheckboxes;
 
     eventsName.forEach((eventName) => {
-      newState[eventName] = {};
-      for (let row = 1; row <= 6; row++) {
-        for (let col = 1; col <= 6; col++) {
-          if(!newState[eventName][`checkbox-${eventName}-${row}-${col}`]) {
-            const id = `checkbox-${eventName}-${row}-${col}`;
-            newState[eventName][id] = { checkbox: {checked: false, disabled: false }};
-          } 
+      if(!newState[eventName]) {
+        newState[eventName] = [];
+        for (let diceGreen = 0; diceGreen < MAXIMUM_VALUE_DICE; diceGreen++) {
+          newState[eventName][diceGreen] = [];
+          for (let diceBlue = 0; diceBlue < MAXIMUM_VALUE_DICE; diceBlue++) {
+            newState[eventName][diceGreen].push({ checked: false, disabled: false });
+          }
         }
       }
     });
@@ -161,11 +159,11 @@ export const useTwoDicesHooks = () => {
     const newState: EventCheckboxes = {};
 
     eventsName.forEach((eventName) => {
-      newState[eventName] = {};
-      for (let row = 1; row <= 6; row++) {
-        for (let col = 1; col <= 6; col++) {
-          const id = `checkbox-${eventName}-${row}-${col}`;
-          newState[eventName][id] = {checkbox: {checked: false, disabled: false }};
+      newState[eventName] = [];
+      for (let diceGreen = 0; diceGreen < MAXIMUM_VALUE_DICE; diceGreen++) {
+        newState[eventName][diceGreen] = [];
+        for (let diceBlue = 0; diceBlue < MAXIMUM_VALUE_DICE; diceBlue++) {
+          newState[eventName][diceGreen].push({checked: false, disabled: false });
         }
       }
     });
@@ -177,11 +175,13 @@ export const useTwoDicesHooks = () => {
       const newEventsCheckboxes: EventCheckboxes = {};
 
       for (const [eventName, checkboxes] of Object.entries(prev)) {
-        const newCheckboxes: typeof checkboxes = {};
-        for (const [key, checkbox] of Object.entries(checkboxes)) {
-          newCheckboxes[key] = {checkbox: { ...checkbox.checkbox, disabled: true }};
+        newEventsCheckboxes[eventName] = [];
+        for (let diceGreen = 0; diceGreen < MAXIMUM_VALUE_DICE; diceGreen++) {
+          newEventsCheckboxes[eventName][diceGreen] = [];
+          for (let diceBlue = 0; diceBlue < MAXIMUM_VALUE_DICE; diceBlue++) {
+            newEventsCheckboxes[eventName][diceGreen][diceBlue] = {...checkboxes[diceGreen][diceBlue], disabled: true };
+          }
         }
-        newEventsCheckboxes[eventName] = newCheckboxes;
       }
       return newEventsCheckboxes;
     });
@@ -189,26 +189,23 @@ export const useTwoDicesHooks = () => {
 
   useEffect(() => {console.log("pos atulizacao", eventsCheckboxes)}, [eventsCheckboxes]);
 
-  const updateEventsCheckboxes = (eventName: string, id: string, checked: boolean, disabled: boolean) => {
-    console.log(eventName, id, checked, disabled);
-    setEventsCheckboxes(prev => ({
-      ...prev,
-      [eventName]: {
-        ...prev[eventName],
-        [id]: {checkbox:{
-          ...prev[eventName][id].checkbox,
-          checked: checked,
-          disabled: disabled
-        }}
-      }
-    }));
+  const updateEventsCheckboxes = (eventName: string, diceGreen: number, diceBlue: number, checked: boolean, disabled: boolean) => {
+    console.log(eventName, diceGreen, diceBlue, checked, disabled);
+    setEventsCheckboxes(prev => {
+      const updated = { ...prev };
+      updated[eventName][diceGreen-1][diceBlue-1] = {
+        checked: checked,
+        disabled: disabled
+      };
+      return updated;
+    });
   };
 
   const resetGame = () => {
     setScrambledEvents(shuffleArray(events));
   };
 
-  const gameFinished = () => {
+  const isGameOver = () => {
     console.log("gameFinished", game.challenges?.length, challenge, game.challenges?.[challenge]?.steps?.length, step);
     return (game.challenges?.length - 1) === challenge && (game.challenges?.[challenge]?.steps?.length - 1) === step;
   }
@@ -219,11 +216,17 @@ export const useTwoDicesHooks = () => {
       const checkboxes = eventsCheckboxes;
 
       return activeEvents.every((event) => {
-        return Object.entries(checkboxes[event.name]).every(([key, value]) => {
-          const [, , row, col] = key.split("-");
-          console.log(row, col, event.validation(parseInt(row), parseInt(col)), value.checkbox.checked, event.validation, activeEvents);
-          return event.validation(parseInt(row), parseInt(col)) === value.checkbox.checked;
-        });
+        for (let diceGreen = 0; diceGreen < MAXIMUM_VALUE_DICE; diceGreen++) {
+          for (let diceBlue = 0; diceBlue < MAXIMUM_VALUE_DICE; diceBlue++) {
+            console.log(diceGreen+1, diceBlue+1, event.validation(diceGreen+1, diceBlue+1), checkboxes[event.name][diceGreen][diceBlue].checked, event.validation, activeEvents);
+
+            if(event.validation(diceGreen+1, diceBlue+1) != checkboxes[event.name][diceGreen][diceBlue].checked) {
+              return false;
+            }
+          }
+        }
+
+        return true;
       });
     }
   };
@@ -271,6 +274,6 @@ export const useTwoDicesHooks = () => {
     resetGame,
     checkSolution,
     nextChallenge,
-    gameFinished
+    isGameOver
   };
 };
