@@ -15,7 +15,7 @@ export function TwoDicesEvents({
         {events.map((event, index) => {
           return (
             <span key={index} 
-              className={`pt-micro pb-micro pl-quarck text-neutral-dark border-neutral-lightest solid border-b-hairline
+              className={`pt-micro pb-micro pl-quarck pr-quarck text-neutral-dark border-neutral-lightest solid border-b-hairline
                 odd:bg-feedback-info-lightest ds-body-bold
               `}
 

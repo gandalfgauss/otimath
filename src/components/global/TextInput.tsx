@@ -1,6 +1,6 @@
 'use client'
 
-interface TextInputProps {
+export interface TextInputInterface {
   label?: string;
   value?: string;
   setValue?: (value: string) => void;
@@ -13,63 +13,55 @@ interface TextInputProps {
   helperText?: string;
   required?: boolean;
   error?: boolean;
-  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  styles?: string
+}
+
+interface TextInputProps {
+  textInput: TextInputInterface;
 }
 
 export function TextInput({
-  label,
-  value,
-  setValue,
-  placeholder,
-  id,
-  disabled,
-  min,
-  max,
-  type,
-  helperText,
-  required,
-  error,
-  onChange,
+  textInput,
 }: Readonly<TextInputProps>) {
   return (
     <fieldset className="flex flex-col gap-y-nano">
-      {label && <label className="ds-small-bold cursor-pointer" htmlFor={id}>{label}</label>}
+      {textInput.label && <label className="ds-small-bold cursor-pointer" htmlFor={textInput.id}>{textInput.label}</label>}
       <input 
-        id={id} type="text" 
-        value={value} 
-        inputMode={type == "natural-number" ? "numeric" : "text"}
+        id={textInput.id} type="text" 
+        value={textInput.value} 
+        inputMode={textInput.type == "natural-number" ? "numeric" : "text"}
         onChange={(event) => {
-            onChange(event);
+            textInput?.onChange?.(event);
             let value = event.currentTarget.value;
-            setValue!(value);
+            textInput.setValue!(value);
 
-            if(type == "natural-number") {
+            if(textInput.type == "natural-number") {
               value = value.replace(/\D/g, '');
-              console.log("novo value", value)
-              setValue!(value);
+              textInput.setValue!(value);
 
-              if (min && parseInt(value) < parseInt(min)) {
-                setValue!(min);
+              if (textInput.min && parseInt(value) < parseInt(textInput.min)) {
+                textInput.setValue!(textInput.min);
               }
 
-              if (max && parseInt(value) > parseInt(max)) {
-                setValue!(max);
+              if (textInput.max && parseInt(value) > parseInt(textInput.max)) {
+                textInput.setValue!(textInput.max);
               }
             }
           }
         }
-        {...(required ? { required: true } : {})}
-        {...(disabled ? { disabled: true } : {})}
-        placeholder={placeholder}
-        className={`p-micro w-full border-solid border-hairline rounded-sm
-          outline-none bg-neutral-transparent ${value ? 'text-neutral-dark' : 'text-neutral-medium'} 
+        {...(textInput.required ? { required: true } : {})}
+        {...(textInput.disabled ? { disabled: true } : {})}
+        placeholder={textInput.placeholder}
+        className={`p-micro border-solid border-hairline rounded-sm
+          outline-none bg-neutral-transparent ${textInput.value ? 'text-neutral-dark' : 'text-neutral-medium'} 
           transition-[border-color] duration-300 ease-in-out hover:border-neutral-medium focus:border-brand-otimath-pure
           disabled:opacity-level-light disabled:pointer-events-none
-          ${error ? 'border-feedback-error-dark' : 'border-neutral-light'}
+          ${textInput.error ? 'border-feedback-error-dark' : 'border-neutral-light'} ${textInput.styles ?? ``}
         `}
       >
       </input>
-      {(error && helperText) && <small className="text-feedback-error-dark">{helperText}</small>}
+      {(textInput.error && textInput.helperText) && <small className="text-feedback-error-dark">{textInput.helperText}</small>}
     </fieldset>
   );
 }

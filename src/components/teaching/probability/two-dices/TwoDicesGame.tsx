@@ -18,7 +18,7 @@ export function TwoDicesGame() {
   const [disableCheckButton, setDisableCheckButton] = useState(false);
   const [disableNextChallengeButton, setDisableNextChallengeButton] = useState(true);
   const [disableClearButton, setDisableClearButton] = useState(false);
-  const { eventsCheckboxes, updateEventsCheckboxes, resetEventsCheckboxes, disabledEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetGame, nextChallenge, isGameOver} = useTwoDicesHooks();
+  const { eventsCheckboxes, updateEventsCheckboxes, buildCheckboxesState, resetEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetGame, nextChallenge, isGameOver, probabilitiesTextInputs, finishedTheChallenge, disabledProbabilitiesTextInputs} = useTwoDicesHooks();
   
   const dicesChecksClearOnClick = () => { 
     updateModal({
@@ -40,14 +40,22 @@ export function TwoDicesGame() {
       setDisableClearButton(true);
 
       if(isGameOver()) {
-        console.log("aqui deu erro")
         setInstructions("<p className='ds-body'>Parabéns, você finalizou todos os desafios!</p>");
         setDisableNextChallengeButton(true);
+        disabledProbabilitiesTextInputs();
+        buildCheckboxesState();
+
       } else {
-        setInstructions("<p className='ds-body'>Parabéns, passe para o próximo desafio!</p>");
-        setDisableNextChallengeButton(false);
+        if(finishedTheChallenge()) {
+          setDisableNextChallengeButton(false);
+          setInstructions("<p className='ds-body'>Parabéns, passe para o próximo desafio!</p>");
+          disabledProbabilitiesTextInputs();
+          buildCheckboxesState();
+        }
+        else {
+          goToNextChallengeOnClick();
+        }
       }
-      disabledEventsCheckboxes();
     }
     else {
       createAlert("Ops!", "Você errou!", "error", 4000);
@@ -98,7 +106,7 @@ export function TwoDicesGame() {
             <Button style="primary" size="small" icon={<ArrowRight />} onClick={goToNextChallengeOnClick} disabled={disableNextChallengeButton}>Próximo Desafio</Button>
           </div>
         </div>
-        <TwoDicesFormulation events={activeEvents}/>
+        <TwoDicesFormulation events={activeEvents} textsInputs={probabilitiesTextInputs}/>
         <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts}/>
         <Modal modal={modal} updateModal={updateModal}/>
       </div>
