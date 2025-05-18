@@ -45,7 +45,7 @@ export function SelectInput({
         onChange={handleChange}
         required={selectInput.required}
         disabled={selectInput.disabled}
-        className={`p-micro border-solid border-hairline rounded-sm
+        className={`border-solid border-hairline rounded-sm
           outline-none bg-neutral-transparent ${changeOption ? 'text-neutral-dark' : 'text-neutral-medium'} 
           transition-[border-color] duration-300 ease-in-out hover:border-neutral-medium focus:border-brand-otimath-pure
           disabled:opacity-level-light disabled:pointer-events-none
@@ -69,3 +69,26 @@ export function SelectInput({
     </fieldset>
   );
 }
+
+/* Example
+
+<SelectInput
+  selectInput={{ 
+    value: inputValue,
+    label: "Teste",
+    id: "Teste",
+    disabled: false,
+    placeholder: "Placeholder",
+    helperText: "Digite um número entre 0 e 36",
+    required: true,
+    error: inputError,
+    onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
+      setInputError(true);
+      console.log(event.currentTarget.value);
+    },
+    setValue: (value : string) => setInputValue(value),
+    options: [{value: "1", label: "1"}, {value: "2", label: "2"}, {value: "3", label: "3"}]
+  }}
+/>
+
+*/

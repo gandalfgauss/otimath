@@ -1,15 +1,17 @@
-import { Event, ProbabilitiesTextInputs } from "@/hooks/teaching/probability/two-dices/useTwoDicesHooks";
+import { Event, OperationSelectInputs, ProbabilitiesTextInputs } from "@/hooks/teaching/probability/two-dices/useTwoDicesHooks";
 import { TwoDicesEvents } from "./TwoDicesEvents";
 import { TwoDicesCalculations } from "./TwoDicesCalculations";
 
 interface TwoDicesFormulationProps {
  events: Event[],
  textsInputs: ProbabilitiesTextInputs
+ selectInputs: OperationSelectInputs
 }
 
 export function TwoDicesFormulation({
   events,
-  textsInputs
+  textsInputs,
+  selectInputs
 }: Readonly<TwoDicesFormulationProps>) {
 
   return (
@@ -17,7 +19,7 @@ export function TwoDicesFormulation({
       }
     >
       <TwoDicesEvents events={events} />
-      <TwoDicesCalculations textInputs={textsInputs} />
+      <TwoDicesCalculations textInputs={textsInputs} selectInputs={selectInputs} />
     </div>
   );
 }

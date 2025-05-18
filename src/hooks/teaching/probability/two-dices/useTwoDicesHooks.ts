@@ -1,5 +1,6 @@
 import { CheckboxInterface } from '@/components/global/Checkbox';
 import { TextInputInterface } from '@/components/global/TextInput';
+import { SelectInputInterface } from '@/components/global/SelectInput';
 import { useState, useEffect} from 'react';
 
 export interface EventCheckboxes {
@@ -15,6 +16,12 @@ export interface ProbabilitiesTextInputs {
   complementaryDenominator?: TextInputInterface;
 }
 
+export interface OperationSelectInputs {
+  eventsA: SelectInputInterface;
+  operations: SelectInputInterface;
+  eventsB: SelectInputInterface;
+}
+
 export interface Event {
   name?: string;
   description: string;
@@ -27,10 +34,6 @@ type Operation = "Intersection" | "Union" | "Difference" | "ReverseDifference";
 const isPrime = (num: number): boolean => {
   return [2, 3, 5].includes(num);
 };
-
-/*const drawAnInteger = (maxValue: number): number => {
-  return Math.floor(Math.random() * maxValue);
-}*/
 
 const events: Event[] = [
   {
@@ -85,7 +88,7 @@ const events: Event[] = [
   },
   {
     description: "Exatamente uma face par",
-    complementaryDescription: "Todas as faces são ímpares",
+    complementaryDescription: "Nenhuma ou mais de uma face par",
     validation: (greenDice, blueDice) =>
       (greenDice % 2 === 0 && blueDice % 2 !== 0) || (blueDice % 2 === 0 && greenDice % 2 !== 0),
   },
@@ -102,7 +105,7 @@ const getValidationOfOperation = (operation: Operation, validation1 : (greenDice
   return (greenDice: number, blueDice: number) => {
     const result1 = validation1(greenDice, blueDice);
     const result2 = validation2(greenDice, blueDice);
-
+    
     switch (operation) {
       case "Intersection":
         return result1 && result2;
@@ -139,213 +142,96 @@ function shuffleArray<T>(data: T[]): T[] {
 }
 
 const getGame = (scrambledEvents: Event[], operations: Operation[]) => {
-  return{
-    challenges: [
-      {
-        steps: [
-          {
-            activeEvents: [{ name: "A", ...scrambledEvents[0] }],
-            checkType: "checkbox",
-            instructions: `<p className="ds-body">
-              Veja a definição do <strong>Evento A</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes ao evento.
-              Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
-            </p>`,
-          },
-          {
-            activeEvents: [{ name: "A", ...scrambledEvents[0] }],
-            checkType: "probability-and-complementary-probability",
-            instructions: `<p className="ds-body">
-              Calcule a probabilidade de ocorrer o <strong>Evento A</strong> e a probabilidade de ocorrer o seu <strong>complementar (A&#773)</strong>,
-              digitando os valores apropriados no numerador e no denominador das frações abaixo no <strong>Quadro de Cálculo(s)</strong>.
-              Ao terminar, clique no <strong>Botão Conferir</strong> para conferir sua resposta. 
-            </p>`,
-            eventToProbability: { name: "A", ...scrambledEvents[0] },
-            hasComplementary: true,
-          }
-        ],
-      },
-      {
-        steps: [
-          {
-            activeEvents: [{ name: "A", ...scrambledEvents[1] }],
-            checkType: "checkbox",
-            instructions: `<p className="ds-body">
-              Veja a definição do <strong>Evento A</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes ao evento.
-              Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
-            </p>`,
-          },
-          {
-            activeEvents: [{ name: "A", ...scrambledEvents[1] }],
-            checkType: "probability-and-complementary-probability",
-            instructions: `<p className="ds-body">
-              Calcule a probabilidade de ocorrer o <strong>Evento A</strong> e a probabilidade de ocorrer o seu <strong>complementar (A&#773)</strong>,
-              digitando os valores apropriados no numerador e no denominador das frações abaixo no <strong>Quadro de Cálculo(s)</strong>.
-              Ao terminar, clique no <strong>Botão Conferir</strong> para conferir sua resposta. 
-            </p>`,
-            eventToProbability: { name: "A", ...scrambledEvents[1] },
-            hasComplementary: true,
-          }
-        ],
-      },
-      {
-        steps: [
-          {
-            activeEvents: [{ name: "A", ...scrambledEvents[2] }, { name: "B", ...scrambledEvents[3] }],
-            checkType: "checkbox",
-            instructions: `<p className="ds-body">
-              Veja a definição dos eventos <strong>A</strong> e <strong>B</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos eventos.
-              Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
-            </p>`,
-          },
-          {
-            activeEvents: [
-              { name: "A", ...scrambledEvents[2] },
-              { name: "B", ...scrambledEvents[3] },
-              { name: "D", description: getDescriptionOfOperation(operations[0], scrambledEvents[2], scrambledEvents[3]), complementaryDescription: "", validation: getValidationOfOperation(operations[0], scrambledEvents[2].validation, scrambledEvents[3].validation) }
-            ],
-            checkType: "checkbox",
-            instructions: `<p className="ds-body">
-              Veja a definição do <strong>Evento D</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos eventos.
-              Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
-            </p>`,
-          },
-          {
-            activeEvents: [
-              { name: "A", ...scrambledEvents[2] },
-              { name: "B", ...scrambledEvents[3] },
-              { name: "D", description: getDescriptionOfOperation(operations[0], scrambledEvents[2], scrambledEvents[3]), complementaryDescription: "", validation: getValidationOfOperation(operations[0], scrambledEvents[2].validation, scrambledEvents[3].validation) }
-            ],
-            checkType: "probability",
-            hasComplementary: false,
-            instructions: `<p className="ds-body">
-              Calcule a probabilidade de ocorrer o <strong>Evento D</strong>,
-              digitando os valores apropriados no numerador e no denominador da fração abaixo no <strong>Quadro de Cálculo(s)</strong>.
-              Ao terminar, clique no <strong>Botão Conferir</strong> para conferir sua resposta. 
-            </p>`,
-            eventToProbability: { name: "D", description: getDescriptionOfOperation(operations[0], scrambledEvents[2], scrambledEvents[3]), complementaryDescription: "", validation: getValidationOfOperation(operations[0], scrambledEvents[2].validation, scrambledEvents[3].validation) },
-          },
-        ],
-      },
-      {
-        steps: [
-          {
-            activeEvents: [{ name: "A", ...scrambledEvents[4] }, { name: "B", ...scrambledEvents[5] }],
-            checkType: "checkbox",
-            instructions: `<p className="ds-body">
-              Veja a definição dos eventos <strong>A</strong> e <strong>B</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos eventos.
-              Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
-            </p>`,
-          },
-          {
-            activeEvents: [
-              { name: "A", ...scrambledEvents[4] },
-              { name: "B", ...scrambledEvents[5] },
-              { name: "D", description: getDescriptionOfOperation(operations[1], scrambledEvents[4], scrambledEvents[5]), complementaryDescription: "", validation: getValidationOfOperation(operations[1], scrambledEvents[4].validation, scrambledEvents[5].validation) }
-            ],
-            checkType: "checkbox",
-            instructions: `<p className="ds-body">
-              Veja a definição do <strong>Evento D</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos eventos.
-              Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
-            </p>`,
-          },
-          {
-            activeEvents: [
-              { name: "A", ...scrambledEvents[4] },
-              { name: "B", ...scrambledEvents[5] },
-              { name: "D", description: getDescriptionOfOperation(operations[1], scrambledEvents[4], scrambledEvents[5]), complementaryDescription: "", validation: getValidationOfOperation(operations[1], scrambledEvents[4].validation, scrambledEvents[5].validation) }
-            ],
-            checkType: "probability",
-            hasComplementary: false,
-            instructions: `<p className="ds-body">
-              Calcule a probabilidade de ocorrer o <strong>Evento D</strong>,
-              digitando os valores apropriados no numerador e no denominador da fração abaixo no <strong>Quadro de Cálculo(s)</strong>.
-              Ao terminar, clique no <strong>Botão Conferir</strong> para conferir sua resposta. 
-            </p>`,
-            eventToProbability: { name: "D", description: getDescriptionOfOperation(operations[1], scrambledEvents[4], scrambledEvents[5]), complementaryDescription: "", validation: getValidationOfOperation(operations[1], scrambledEvents[4].validation, scrambledEvents[5].validation) },
-          },
-        ],
-      },
-      {
-        steps: [
-          {
-            activeEvents: [{ name: "A", ...scrambledEvents[6] }, { name: "B", ...scrambledEvents[7] }],
-            checkType: "checkbox",
-            instructions: `<p className="ds-body">
-              Veja a definição dos eventos <strong>A</strong> e <strong>B</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos eventos.
-              Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
-            </p>`,
-          },
-          {
-            activeEvents: [
-              { name: "A", ...scrambledEvents[6] },
-              { name: "B", ...scrambledEvents[7] },
-              { name: "D", description: getDescriptionOfOperation(operations[2], scrambledEvents[6], scrambledEvents[7]), complementaryDescription: "", validation: getValidationOfOperation(operations[2], scrambledEvents[6].validation, scrambledEvents[7].validation) }
-            ],
-            checkType: "checkbox",
-            instructions: `<p className="ds-body">
-              Veja a definição do <strong>Evento D</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos eventos.
-              Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
-            </p>`,
-          },
-          {
-            activeEvents: [
-              { name: "A", ...scrambledEvents[6] },
-              { name: "B", ...scrambledEvents[7] },
-              { name: "D", description: getDescriptionOfOperation(operations[2], scrambledEvents[6], scrambledEvents[7]), complementaryDescription: "", validation: getValidationOfOperation(operations[2], scrambledEvents[6].validation, scrambledEvents[7].validation) }
-            ],
-            checkType: "probability",
-            hasComplementary: false,
-            instructions: `<p className="ds-body">
-              Calcule a probabilidade de ocorrer o <strong>Evento D</strong>,
-              digitando os valores apropriados no numerador e no denominador da fração abaixo no <strong>Quadro de Cálculo(s)</strong>.
-              Ao terminar, clique no <strong>Botão Conferir</strong> para conferir sua resposta. 
-            </p>`,
-            eventToProbability: { name: "D", description: getDescriptionOfOperation(operations[2], scrambledEvents[6], scrambledEvents[7]), complementaryDescription: "", validation: getValidationOfOperation(operations[2], scrambledEvents[6].validation, scrambledEvents[7].validation) }
-          },
-        ],
-      },
-      {
-        steps: [
-          {
-            activeEvents: [{ name: "A", ...scrambledEvents[8] }, { name: "B", ...scrambledEvents[9] }],
-            checkType: "checkbox",
-            instructions: `<p className="ds-body">
-              Veja a definição dos eventos <strong>A</strong> e <strong>B</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos eventos.
-              Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
-            </p>`,
-          },
-          {
-            activeEvents: [
-              { name: "A", ...scrambledEvents[8] },
-              { name: "B", ...scrambledEvents[9] },
-              { name: "D", description: getDescriptionOfOperation(operations[3], scrambledEvents[8], scrambledEvents[9]), complementaryDescription: "", validation: getValidationOfOperation(operations[3], scrambledEvents[8].validation, scrambledEvents[9].validation) }
-            ],
-            checkType: "checkbox",
-            instructions: `<p className="ds-body">
-              Veja a definição do <strong>Evento D</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos eventos.
-              Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
-            </p>`,
-          },
-          {
-            activeEvents: [
-              { name: "A", ...scrambledEvents[8] },
-              { name: "B", ...scrambledEvents[9] },
-              { name: "D", description: getDescriptionOfOperation(operations[3], scrambledEvents[8], scrambledEvents[9]), complementaryDescription: "", validation: getValidationOfOperation(operations[3], scrambledEvents[8].validation, scrambledEvents[9].validation) }
-            ],
-            checkType: "probability",
-            hasComplementary: false,
-            instructions: `<p className="ds-body">
-              Calcule a probabilidade de ocorrer o <strong>Evento D</strong>,
-              digitando os valores apropriados no numerador e no denominador da fração abaixo no <strong>Quadro de Cálculo(s)</strong>.
-              Ao terminar, clique no <strong>Botão Conferir</strong> para conferir sua resposta. 
-            </p>`,
-            eventToProbability: { name: "D", description: getDescriptionOfOperation(operations[3], scrambledEvents[8], scrambledEvents[9]), complementaryDescription: "", validation: getValidationOfOperation(operations[3], scrambledEvents[8].validation, scrambledEvents[9].validation) }
-          },
-        ],
-      },
-    ],
+  const challenges = [];
+
+  for (let i = 0; i < 2; i++) {
+    challenges.push({
+      steps: [
+        {
+          activeEvents: [{ name: "A", ...scrambledEvents[i] }],
+          checkType: "checkbox",
+          instructions: `<p className="ds-body">
+            Veja a definição do <strong>Evento A</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes ao evento.
+            Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
+          </p>`,
+        },
+        {
+          activeEvents: [{ name: "A", ...scrambledEvents[i] }],
+          checkType: "probability-and-complementary-probability",
+          instructions: `<p className="ds-body">
+            Calcule a probabilidade de ocorrer o <strong>Evento A</strong> e a probabilidade de ocorrer o seu <strong>complementar (A&#773)</strong>,
+            digitando os valores apropriados no numerador e no denominador das frações abaixo no <strong>Quadro de Cálculo(s)</strong>.
+            Ao terminar, clique no <strong>Botão Conferir</strong> para conferir sua resposta. 
+          </p>`,
+          eventToProbability: { name: "A", ...scrambledEvents[i] },
+          hasComplementary: true,
+        }
+      ]
+    });
   }
-}
+
+  for (let i = 2, j = 0; i < scrambledEvents.length; i += 2, j++) {
+    const A = scrambledEvents[i];
+    const B = scrambledEvents[i + 1];
+    const operation = operations[j];
+    const D = {
+      name: "D",
+      description: getDescriptionOfOperation(operation, A, B),
+      complementaryDescription: "",
+      validation: getValidationOfOperation(operation, A.validation, B.validation)
+    };
+
+    challenges.push({
+      steps: [
+        {
+          activeEvents: [{ name: "A", ...A }, { name: "B", ...B }],
+          checkType: "checkbox",
+          instructions: `<p className="ds-body">
+            Veja a definição dos eventos <strong>A</strong> e <strong>B</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos eventos.
+            Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
+          </p>`,
+        },
+        {
+          activeEvents: [{ name: "A", ...A }, { name: "B", ...B }, D],
+          checkType: "checkbox",
+          instructions: `<p className="ds-body">
+            Veja a definição do <strong>Evento D</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes ao evento.
+            Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
+          </p>`,
+        },
+        {
+          activeEvents: [{ name: "A", ...A }, { name: "B", ...B }, D],
+          checkType: "select",
+          instructions: `<p className="ds-body">
+            Expresse o <strong>Evento D</strong> a partir de <strong>operações</strong> com os <strong>eventos A e B,</strong> selecionando as
+            operações e eventos apropriados. Ao terminar, clique no <strong>Botão Conferir</strong> para conferir sua resposta.
+          </p>`,
+          operation: operation,
+          eventsForSelect: ["A", "A\u0305", "B", "B\u0305"],
+          operations: [
+            { value: "Intersection", label: "\u2229" },
+            { value: "Union", label: "\u222A" },
+            { value: "Difference", label: "\u2212" }
+          ],
+        },
+        {
+          activeEvents: [{ name: "A", ...A }, { name: "B", ...B }, D],
+          checkType: "probability",
+          hasComplementary: false,
+          instructions: `<p className="ds-body">
+            Calcule a probabilidade de ocorrer o <strong>Evento D</strong>,
+            digitando os valores apropriados no numerador e no denominador da fração abaixo no <strong>Quadro de Cálculo(s)</strong>.
+            Ao terminar, clique no <strong>Botão Conferir</strong> para conferir sua resposta. 
+          </p>`,
+          eventToProbability: D,
+        }
+      ]
+    });
+  }
+
+  return { challenges };
+};
+
 
 const MAXIMUM_VALUE_DICE = 6;
 
@@ -357,6 +243,7 @@ export const useTwoDicesHooks = () => {
   const [instructions, setInstructions] = useState<string>('');
   const [scrambledEvents, setScrambledEvents] = useState<Event[]>(shuffleArray<Event>(events));
   const [probabilitiesTextInputs, setProbabilitiesTextInputs] = useState<ProbabilitiesTextInputs>({} as ProbabilitiesTextInputs);
+  const [operationSelectInputs, setOperationSelectInputs] = useState<OperationSelectInputs>({} as OperationSelectInputs)
 
   const [game, setGame] = useState(getGame(scrambledEvents, shuffleArray<Operation>(operations)));
 
@@ -525,6 +412,89 @@ export const useTwoDicesHooks = () => {
     ));
   }
 
+  const resetOperationSelectInputs = () => {
+    setOperationSelectInputs({} as OperationSelectInputs);
+  }
+
+  const buildOperationSelectInputs = (events: string[], operations: {value: string, label: string}[]) => {
+    const operationSelectInputsAux: OperationSelectInputs = {
+      eventsA: {
+        disabled: false,
+        value: " ",
+        error: false,
+        setValue: (value) => {
+          setOperationSelectInputs(prev => (
+            {
+              ...prev,
+              eventsA : {
+                ...prev.eventsA,
+                value: value
+              }
+            }
+          ))
+        },
+        options: events.map(event => ({ value: event, label: event })),
+      },
+      operations: {
+        disabled: false,
+        value: " ",
+        error: false,
+        setValue: (value) => {
+          setOperationSelectInputs(prev => (
+            {
+              ...prev,
+              operations : {
+                ...prev.operations,
+                value: value
+              }
+            }
+          ))
+        },
+        options: operations.map(operation => ({ value: operation.value, label: operation.label })),
+      },
+      eventsB: {
+        disabled: false,
+        value: " ",
+        error: false,
+        setValue: (value) => {
+          setOperationSelectInputs(prev => (
+            {
+              ...prev,
+              eventsB : {
+                ...prev.eventsB,
+                value: value
+              }
+            }
+          ))
+        },
+        options: events.map(event => ({ value: event, label: event })),
+      },
+    }
+
+    setOperationSelectInputs(operationSelectInputsAux);
+  }
+
+  const disabledOperationSelectInputs = () => {
+
+    if(operationSelectInputs?.eventsA) {
+      setOperationSelectInputs(prev => ({
+        ...prev,
+        eventsA: {
+          ...prev.eventsA,
+          disabled: true
+        },
+        operations: {
+          ...prev.operations,
+          disabled: true
+        },
+        eventsB: {
+          ...prev.eventsB,
+          disabled: true
+        }
+      }));
+    }
+  }
+  
   const resetGame = () => {
     setScrambledEvents(shuffleArray(events));
   };
@@ -540,7 +510,6 @@ export const useTwoDicesHooks = () => {
     return activeEvents.every((event) => {
       for (let diceGreen = 0; diceGreen < MAXIMUM_VALUE_DICE; diceGreen++) {
         for (let diceBlue = 0; diceBlue < MAXIMUM_VALUE_DICE; diceBlue++) {
-
           if(event.validation(diceGreen+1, diceBlue+1) != checkboxes[event.name][diceGreen][diceBlue].checked) {
             return false;
           }
@@ -597,6 +566,74 @@ export const useTwoDicesHooks = () => {
     return false;
   }
 
+  const verifySelectOperation = () => {
+    const operation = game.challenges?.[challenge]?.steps?.[step]?.operation;
+
+    if(operation == "Union") {
+      if(operationSelectInputs.operations.value == "Union") {
+        if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B") ||
+          (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A")
+        ) {
+          return true;
+        }
+      }
+    }
+
+    if(operation == "Intersection") {
+      if(operationSelectInputs.operations.value == "Intersection") {
+        if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B") ||
+          (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A")
+        ) {
+          return true;
+        }
+      }
+
+      if(operationSelectInputs.operations.value == "Difference") {
+        if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B\u0305") ||
+          (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A\u0305")
+        ) {
+          return true;
+        }
+      }
+    }
+
+    if(operation == "Difference") {
+      if(operationSelectInputs.operations.value == "Intersection") {
+        if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B\u0305") ||
+          (operationSelectInputs.eventsA.value == "B\u0305" && operationSelectInputs.eventsB.value == "A")
+        ) {
+          return true;
+        }
+      }
+
+      if(operationSelectInputs.operations.value == "Difference") {
+        if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B")
+        ) {
+          return true;
+        }
+      }
+    }
+
+    if(operation == "ReverseDifference") {
+      if(operationSelectInputs.operations.value == "Intersection") {
+        if((operationSelectInputs.eventsA.value == "A\u0305" && operationSelectInputs.eventsB.value == "B") ||
+          (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A\u0305")
+        ) {
+          return true;
+        }
+      }
+
+      if(operationSelectInputs.operations.value == "Difference") {
+        if((operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A")
+        ) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
 
   const checkSolution = () => {
     switch (game.challenges?.[challenge]?.steps?.[step]?.checkType) {
@@ -606,6 +643,8 @@ export const useTwoDicesHooks = () => {
         return verifyProbabilityAndProbabilityComplementary();
       case "probability":
         return verifyProbability();
+      case "select":
+        return verifySelectOperation();
     }
   };
 
@@ -625,8 +664,16 @@ export const useTwoDicesHooks = () => {
       setActiveEvents(game.challenges?.[challenge]?.steps?.[nextStep]?.activeEvents);
       setInstructions(game.challenges?.[challenge]?.steps?.[nextStep]?.instructions);
       buildCheckboxesState(challenge, nextStep);
+
       if(game.challenges?.[challenge]?.steps?.[nextStep]?.eventToProbability) {
         buildProbabilities(game.challenges?.[challenge]?.steps?.[nextStep]?.eventToProbability.name, game.challenges?.[challenge]?.steps?.[nextStep]?.hasComplementary);
+      } 
+
+      if(game.challenges?.[challenge]?.steps?.[nextStep]?.eventsForSelect) {
+        buildOperationSelectInputs(
+          game.challenges?.[challenge]?.steps?.[nextStep]?.eventsForSelect ?? [],
+          game.challenges?.[challenge]?.steps?.[nextStep]?.operations ?? []
+        )
       }
 
       return game.challenges?.[challenge]?.steps?.[nextStep]?.checkType;
@@ -639,9 +686,13 @@ export const useTwoDicesHooks = () => {
         if(game.challenges?.[challenge]?.steps?.[step]?.eventToProbability) {
           resetProbabilitiesTextInputs();
         }
+        
+        if(game.challenges?.[challenge]?.steps?.[step-1]?.eventsForSelect) {
+          resetOperationSelectInputs();
+        }
 
         setChallenge(nextChallenge);
-        setStep(0)
+        setStep(0);
         
         return game.challenges?.[nextChallenge]?.steps?.[0]?.checkType;
       }
@@ -657,6 +708,7 @@ export const useTwoDicesHooks = () => {
   useEffect(() => {
     resetEventsCheckboxes(0, 0, false);
     resetProbabilitiesTextInputs();
+    resetOperationSelectInputs();
     setActiveEvents(game.challenges?.[0]?.steps?.[0]?.activeEvents);
     setInstructions(game.challenges?.[0]?.steps?.[0]?.instructions);
   }, [game]);
@@ -674,6 +726,8 @@ export const useTwoDicesHooks = () => {
     nextChallenge,
     isGameOver,
     probabilitiesTextInputs,
+    operationSelectInputs,
+    disabledOperationSelectInputs,
     finishedTheChallenge,
     disabledProbabilitiesTextInputs,
     getTypeOfVerify
