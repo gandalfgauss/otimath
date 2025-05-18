@@ -384,16 +384,21 @@ export const useTwoDicesHooks = () => {
     setEventsCheckboxes(newState);
   };
 
-  const resetEventsCheckboxes = (challengeNumber=challenge, stepNumber=step) => {
+  const resetEventsCheckboxes = (challengeNumber=challenge, stepNumber=step, igonoreDisableState=true) => {
     const eventsName = game.challenges?.[challengeNumber]?.steps?.[stepNumber]?.activeEvents.map(event => event.name) ?? [];
     const newState: EventCheckboxes = {};
 
     eventsName.forEach((eventName) => {
-      newState[eventName] = [];
-      for (let diceGreen = 0; diceGreen < MAXIMUM_VALUE_DICE; diceGreen++) {
-        newState[eventName][diceGreen] = [];
-        for (let diceBlue = 0; diceBlue < MAXIMUM_VALUE_DICE; diceBlue++) {
-          newState[eventName][diceGreen].push({checked: false, disabled: false });
+      if(igonoreDisableState && eventsCheckboxes?.[eventName]?.[0]?.[0]?.disabled) {
+        newState[eventName] = eventsCheckboxes[eventName];
+      }
+      else {
+        newState[eventName] = [];
+        for (let diceGreen = 0; diceGreen < MAXIMUM_VALUE_DICE; diceGreen++) {
+          newState[eventName][diceGreen] = [];
+          for (let diceBlue = 0; diceBlue < MAXIMUM_VALUE_DICE; diceBlue++) {
+            newState[eventName][diceGreen].push({checked: false, disabled: false });
+          }
         }
       }
     });
@@ -609,6 +614,10 @@ export const useTwoDicesHooks = () => {
     return nextStep >= game.challenges?.[challenge]?.steps.length
   }
 
+  const getTypeOfVerify = () => {
+    return game.challenges?.[challenge]?.steps?.[step]?.checkType;
+  }
+
   const nextChallenge = () => {
     const nextStep = step + 1;
     if (nextStep < game.challenges?.[challenge]?.steps.length) {
@@ -619,18 +628,22 @@ export const useTwoDicesHooks = () => {
       if(game.challenges?.[challenge]?.steps?.[nextStep]?.eventToProbability) {
         buildProbabilities(game.challenges?.[challenge]?.steps?.[nextStep]?.eventToProbability.name, game.challenges?.[challenge]?.steps?.[nextStep]?.hasComplementary);
       }
+
+      return game.challenges?.[challenge]?.steps?.[nextStep]?.checkType;
     } else {
       const nextChallenge = challenge + 1;
       if (nextChallenge < game.challenges.length) {;
         setActiveEvents(game.challenges?.[nextChallenge]?.steps?.[0]?.activeEvents);
         setInstructions(game.challenges?.[nextChallenge]?.steps?.[0]?.instructions);
-        resetEventsCheckboxes(nextChallenge, 0);
+        resetEventsCheckboxes(nextChallenge, 0, false);
         if(game.challenges?.[challenge]?.steps?.[step]?.eventToProbability) {
           resetProbabilitiesTextInputs();
         }
 
         setChallenge(nextChallenge);
         setStep(0)
+        
+        return game.challenges?.[nextChallenge]?.steps?.[0]?.checkType;
       }
     }
   };
@@ -642,7 +655,7 @@ export const useTwoDicesHooks = () => {
   }, [scrambledEvents]);
 
   useEffect(() => {
-    resetEventsCheckboxes();
+    resetEventsCheckboxes(0, 0, false);
     resetProbabilitiesTextInputs();
     setActiveEvents(game.challenges?.[0]?.steps?.[0]?.activeEvents);
     setInstructions(game.challenges?.[0]?.steps?.[0]?.instructions);
@@ -663,5 +676,6 @@ export const useTwoDicesHooks = () => {
     probabilitiesTextInputs,
     finishedTheChallenge,
     disabledProbabilitiesTextInputs,
+    getTypeOfVerify
   };
 };

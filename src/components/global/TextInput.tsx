@@ -68,15 +68,17 @@ export function TextInput({
 
 /* Example 
 
-<TextInput value={inputValue} label="Teste" id="Teste" disabled={false} 
-  min="0" max="36" placeholder="Digite um número" helperText="Digite um número entre 0 e 36"
-  required={true} error={inputError}
-  onChange={() => {
-    setInputError(true);
-    console.log(inputValue);
+<TextInput textInput={{
+    styles: "w-[40px] h-[30px] text-center",
+    value: textInputs.complementaryDenominator?.value,
+    disabled: textInputs.complementaryDenominator?.disabled,
+    min:"1",
+    max:"36",
+    required: true,
+    error: textInputs.complementaryDenominator?.error,
+    type:"natural-number",
+    setValue: textInputs.complementaryDenominator?.setValue,
   }}
-  type="natural-number"
-  setValue={(value) => setInputValue(value)}
 />
 
 */

@@ -71,6 +71,7 @@ export function TwoDicesTable({
                                 id: id,
                                 checked: eventsCheckboxes[eventName][rowIndex][colIndex-1].checked,
                                 disabled: eventsCheckboxes[eventName][rowIndex][colIndex-1].disabled,
+                                styles: "disabled:opacity-level-semiopaque",
                                 onChange:(checked: boolean) => updateEventsCheckboxes(eventName, rowIndex+1, colIndex, checked, eventsCheckboxes[eventName][rowIndex][colIndex-1].disabled as boolean)
                               }
                             }

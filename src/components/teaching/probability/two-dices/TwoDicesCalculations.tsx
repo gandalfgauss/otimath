@@ -1,3 +1,4 @@
+
 import { TextInput } from "@/components/global/TextInput";
 import { ProbabilitiesTextInputs } from "@/hooks/teaching/probability/two-dices/useTwoDicesHooks";
 
@@ -9,11 +10,12 @@ export function TwoDicesCalculations({
   textInputs,
 }: Readonly<TwoDicesCalculationsProps>) {
 
+
   return (
     <div className="w-full min-h-[230px] rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1">
       <h3 
         className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Cálculo(s)</h3>
-      <div className="flex flex-col pt-micro pb-micro pl-quarck pr-quarck">
+      <div className="flex flex-col pt-micro pb-micro pl-quarck pr-quarck gap-xxxs">
         {textInputs?.eventName &&
           <div className="flex flex-col gap-xxxs justify-center">
             <div className="flex gap-micro items-center">
@@ -83,14 +85,15 @@ export function TwoDicesCalculations({
             }
           </div>
         }
+
+        
       </div>
     </div>
   );
 }
 
-
 /* Example 
 
-<TwoDicesCalculations events="" />
+<TwoDicesCalculations textInputs="" selectInput="" />
 
 */

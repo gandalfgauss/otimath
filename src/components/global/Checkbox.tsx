@@ -6,6 +6,7 @@ export interface CheckboxInterface {
   checked?: boolean;
   disabled?: boolean;
   onChange?: (checked: boolean) => void;
+  styles?: string;
 }
 
 interface CheckboxProps {
@@ -16,8 +17,8 @@ export function Checkbox({
   checkbox
 }: Readonly<CheckboxProps>) {
   return (
-    <fieldset className="flex flex-col gap-y-nano">
-      <label className="ds-small cursor-pointer" htmlFor={checkbox.id}>{checkbox.label}</label>
+    <fieldset className="flex flex-col gap-y-nano group">
+      <label className="ds-small cursor-pointer group-has-disabled:pointer-events-none" htmlFor={checkbox.id}>{checkbox.label}</label>
       <input id={checkbox.id} type="checkbox" checked={checkbox.checked} onChange={(e) => {checkbox?.onChange?.(e.currentTarget.checked)}} {...(checkbox.disabled ? { disabled: true } : {})}
         className={`cursor-pointer w-[20px] h-[20px] relative appearance-none border-solid border-thin border-neutral-medium rounded-sm
           bg-neutral-transparent transition-[background-color,border-color] duration-300 ease-in-out 
@@ -27,7 +28,7 @@ export function Checkbox({
           after:w-[8px] after:h-[12px] after:border-solid after:border-neutral-white 
           after:scale-0 after:bg-neutral-transparent
           after:transition-[scale] after:duration-300 after:ease-in-out after:border-r-thin after:border-b-thin 
-          checked:after:scale-100 disabled:opacity-level-light disabled:pointer-events-none
+          checked:after:scale-100 disabled:opacity-level-intense disabled:pointer-events-none ${checkbox.styles ?? ``}
         `}
       >
       </input>

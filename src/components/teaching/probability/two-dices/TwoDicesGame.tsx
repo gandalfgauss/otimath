@@ -18,7 +18,7 @@ export function TwoDicesGame() {
   const [disableCheckButton, setDisableCheckButton] = useState(false);
   const [disableNextChallengeButton, setDisableNextChallengeButton] = useState(true);
   const [disableClearButton, setDisableClearButton] = useState(false);
-  const { eventsCheckboxes, updateEventsCheckboxes, buildCheckboxesState, resetEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetGame, nextChallenge, isGameOver, probabilitiesTextInputs, finishedTheChallenge, disabledProbabilitiesTextInputs} = useTwoDicesHooks();
+  const { eventsCheckboxes, updateEventsCheckboxes, buildCheckboxesState, resetEventsCheckboxes, activeEvents, instructions, setInstructions, checkSolution, resetGame, nextChallenge, isGameOver, probabilitiesTextInputs, finishedTheChallenge, disabledProbabilitiesTextInputs, getTypeOfVerify} = useTwoDicesHooks();
   
   const dicesChecksClearOnClick = () => { 
     updateModal({
@@ -63,10 +63,20 @@ export function TwoDicesGame() {
   }
 
   const goToNextChallengeOnClick = () => {
-    nextChallenge();
-    setDisableNextChallengeButton(true);
+    if(getTypeOfVerify() === "checkbox") {
+      setDisableClearButton(true);
+    } else {
+      setDisableClearButton(false);
+    }
     setDisableCheckButton(false);
-    setDisableClearButton(false);
+    setDisableNextChallengeButton(true);
+
+    const checkType = nextChallenge();
+    if(checkType === "checkbox") {
+      setDisableClearButton(false);
+    } else {
+      setDisableClearButton(true);
+    }
   }
 
   const resetGameOnClick = () => {
