@@ -1,5 +1,6 @@
 import { HeroBanner } from "@/components/global/HeroBanner";
 import { TextBlock } from "@/components/global/TextBlock";
+import { TwoDicesInstructionsSection } from "@/components/teaching/probability/two-dices/TwoDicesInstructionsSection";
 import { TwoDicesSection } from "@/components/teaching/probability/two-dices/TwoDicesSection";
 import heroBannerTwoDicesImage from '@/images/teaching/probability/two-dices/twoDicesBanner.webp';
 
@@ -23,6 +24,7 @@ export default function TwoDices() {
         }
         image={heroBannerTwoDicesImage}
       />
+      <TwoDicesInstructionsSection />
       <TwoDicesSection />
     </main>
   );

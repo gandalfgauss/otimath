@@ -1,12 +1,13 @@
 import React from 'react';
 
 interface ListProps {
+  removeMarker?: boolean;
   children?: React.ReactNode[];
 }
 
-export function List({children}: Readonly<ListProps>) {
+export function List({children, removeMarker}: Readonly<ListProps>) {
   return (
-    <ul className="list-disc pl-xxs mt-xxxs space-y-micro">
+    <ul className={`${removeMarker ? 'list-none' : 'list-disc'} pl-xxs mt-xxxs space-y-micro`}>
       {children}
     </ul>
   );
