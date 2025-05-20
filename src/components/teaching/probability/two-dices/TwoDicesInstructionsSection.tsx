@@ -35,7 +35,7 @@ export function TwoDicesInstructionsSection() {
                 <List>
                   <li>Clique nos <strong>quadradinhos</strong> da tabela abaixo para marcar os <strong>resultados</strong> que fazem parte do <strong>evento</strong> indicado;</li> 
                   <li>Cada <strong>quadradinho</strong> representa uma combinação possível entre os <strong>dados verde e azul;</strong></li>
-                  <li>Se clicar novamente, o quadradinho será desmarcado.</li>
+                  <li>Se clicar novamente, o <strong>quadradinho</strong> será desmarcado.</li>
                 </List>
 
                 <br/>
@@ -65,7 +65,7 @@ export function TwoDicesInstructionsSection() {
                 </p>
                 <List removeMarker={true}>
                   <li><RefreshCw className="inline" size={16}/> - <strong>Novo</strong> - Reinicia a <strong>atividade,</strong> retornando ao primeiro desafio;</li>
-                  <li><X className="inline" size={16}/> - <strong>Limpar</strong> - Apaga os <strong>quadradinho</strong>s marcados referente ao(s) <strong>evento(s)</strong> ativo(s);</li>
+                  <li><X className="inline" size={16}/> - <strong>Limpar</strong> - Apaga os <strong>quadradinhos</strong> marcados referente ao(s) <strong>evento(s)</strong> ativo(s);</li>
                   <li><Check className="inline" size={16}/> - <strong>Conferir</strong> - Verifica se a <strong>etapa</strong> está correta;</li>
                   <li><ArrowRight className="inline" size={16}/> - <strong>Próximo Desafio</strong> - Passa para o próximo <strong>desafio.</strong></li>
                 </List>

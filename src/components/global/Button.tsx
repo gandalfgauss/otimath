@@ -29,10 +29,10 @@ export function Button({
   disabled = false
 }: Readonly<ButtonProps>) {
   const sizesStyles = {
-    'extra-small': `ds-small-bold ${children && 'pt-nano pb-nano pl-quarck pr-quarck'}`,
-    'small': `ds-small-bold ${children && 'pt-macro pb-macro pl-xxxs pr-xxxs'}`,
-    'medium': `ds-body-bold ${children && 'pt-xxxs pb-xxxs pl-xxs pr-xxs'}`,
-    'large': `ds-body-large-bold ${children && 'pt-xxs pb-xxs pl-xs pr-xs'}`,
+    'extra-small': `ds-small-bold ${children ? 'pt-nano pb-nano pl-quarck pr-quarck' : ''}`,
+    'small': `ds-small-bold ${children ? 'pt-macro pb-macro pl-xxxs pr-xxxs' : ''}`,
+    'medium': `ds-body-bold ${children ? 'pt-xxxs pb-xxxs pl-xxs pr-xxs' : ''}`,
+    'large': `ds-body-large-bold ${children ? 'pt-xxs pb-xxs pl-xs pr-xs' : ''}`,
   };
 
   const getPrimaryStyles = (inverse: boolean, interactionEffect: boolean) => {

@@ -51,7 +51,7 @@ export function TwoDicesTable({
                 return <td 
                     className={`${colIndex == 0 ? 'w-[50px] sticky left-[-1px] z-1': 'snap-start w-[116px] border-solid border-neutral-lighter border-hairline'}
                       h-[100px] flex justify-center items-center bg-background-otimath
-                      ${rowIndex % 2 == 0 && colIndex != 0 && 'bg-feedback-info-lightest'}
+                      ${(rowIndex % 2 == 0 && colIndex != 0) ? 'bg-feedback-info-lightest' : ''}
                     `} 
                     key={`cell-${rowIndex}-${colIndex}`}
                   >
