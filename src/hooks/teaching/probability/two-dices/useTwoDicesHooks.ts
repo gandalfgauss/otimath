@@ -703,9 +703,10 @@ export const useTwoDicesHooks = () => {
   }
 
   const checkOnClick = () => {
+    document.getElementById("dois-dados")?.scrollIntoView({ behavior: 'smooth' });
+
     if(checkSolution()) {
       createAlert("Parabéns!", "Você acertou!", "success", 5000);
-      document.getElementById("dois-dados")?.scrollIntoView({ behavior: 'smooth' });
 
       if(isGameOver()) {
         setInstructions("<p className='ds-body'>Parabéns, você finalizou todos os desafios!</p>");

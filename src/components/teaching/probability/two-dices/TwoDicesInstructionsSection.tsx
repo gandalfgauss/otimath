@@ -83,6 +83,13 @@ export function TwoDicesInstructionsSection() {
                 <p>
                 Tente finalizar todos os <strong>desafios</strong>. <strong>Boa sorte!</strong>
                 </p>
+                
+                <br />
+                <br />
+
+                <p>
+                  Feito por: <strong>Halliday Gauss Costa dos Santos</strong> e <strong>Rangel Freitas dos Santos</strong>
+                </p>
               </div>
             }
           ></TextBlock>
