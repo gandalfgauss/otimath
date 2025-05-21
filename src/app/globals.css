@@ -3,6 +3,7 @@
 @font-face {
   font-family: 'Inter';
   src: url('/fonts/Inter/InterVariable.ttf');
+  font-display: swap;
 }
 
 /*==================================================

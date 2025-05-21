@@ -11,7 +11,7 @@ export function Header() {
   const pathname = usePathname();
   
   const links = [
-    {"name": <House />, "href": "/"},
+    {"name": <House />, "href": "/", "ariaLabel": "Ir para a Home"},
     {"name": "Ensino", "href": "/ensino"}
   ]
 
@@ -44,7 +44,9 @@ export function Header() {
                       `
                     }`
                   }>
-                    <Link href={link.href} 
+                    <Link 
+                      href={link.href} 
+                      aria-label={link.ariaLabel}
                       className='ds-body-bold'
                     >
                       {link.name}

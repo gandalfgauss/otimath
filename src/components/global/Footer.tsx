@@ -30,10 +30,10 @@ export function Footer() {
         <div className="flex justify-between">
           <div className="flex flex-col justify-between h-full min-h-[102px]">
             <ul className="flex items-center justify-between max-sm:justify-start max-sm:gap-x-xxxs">
-              <li><Link href="https://www.facebook.com/hallidayuzumaki/" target="_blank"><Facebook className={`${linksColors}`} size={20}/></Link></li>
-              <li><Link href="https://www.instagram.com/hallidaygauss/" target="_blank"><Instagram className={`${linksColors}`} size={20}/></Link></li>
-              <li><Link href="https://www.linkedin.com/in/halliday-gauss-7322681a0/" target="_blank"><Linkedin className={`${linksColors}`} size={20}/></Link></li>
-              <li><Link href="mailto:hallidaysantos@gmail.com" target="_blank"><Mail className={`${linksColors}`} size={20}/></Link></li>
+              <li><Link aria-label="Link para o Facebook" href="https://www.facebook.com/hallidayuzumaki/" target="_blank"><Facebook className={`${linksColors}`} size={20}/></Link></li>
+              <li><Link aria-label="Link para o Instagram" href="https://www.instagram.com/hallidaygauss/" target="_blank"><Instagram className={`${linksColors}`} size={20}/></Link></li>
+              <li><Link aria-label="Link para o Linkedin" href="https://www.linkedin.com/in/halliday-gauss-7322681a0/" target="_blank"><Linkedin className={`${linksColors}`} size={20}/></Link></li>
+              <li><Link aria-label="Mandar email" href="mailto:hallidaysantos@gmail.com" target="_blank"><Mail className={`${linksColors}`} size={20}/></Link></li>
             </ul>
 
             <Button type="link" href="#hero-banner" style="secondary" size="small" inverse={true}>
