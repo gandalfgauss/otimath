@@ -19,7 +19,15 @@ export function Checkbox({
   return (
     <fieldset className="flex flex-col gap-y-nano group">
       <label className="ds-small cursor-pointer group-has-disabled:pointer-events-none" htmlFor={checkbox.id}>{checkbox.label}</label>
-      <input id={checkbox.id} type="checkbox" checked={checkbox.checked} onChange={(e) => {checkbox?.onChange?.(e.currentTarget.checked)}} {...(checkbox.disabled ? { disabled: true } : {})}
+      <input id={checkbox.id} type="checkbox" 
+        checked={checkbox.checked} 
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            checkbox?.onChange?.(!checkbox.checked);
+          }
+        }} 
+        onChange={(e) => {checkbox?.onChange?.(e.currentTarget.checked)}} {...(checkbox.disabled ? { disabled: true } : {})}
         className={`cursor-pointer w-[20px] h-[20px] relative appearance-none border-solid border-thin border-neutral-medium rounded-sm
           bg-neutral-transparent transition-[background-color,border-color] duration-300 ease-in-out 
           hover:not-checked:border-brand-otimath-pure hover:not-checked:bg-brand-otimath-lighter checked:bg-brand-otimath-pure checked:border-brand-otimath-pure

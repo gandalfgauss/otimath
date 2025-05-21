@@ -25,10 +25,10 @@ export function Header() {
       <GridItem cols="col-[1_/_13]">
         <div className="flex items-center h-full gap-x-lg">
           <Image alt="Logo da Oti-Math" src="/otimath-icon.png" width={55} height={55} className="w-[55px] h-[55px]"/>
-          <div className="flex gap-x-xxs h-full">
+          <ul className="flex gap-x-xxs h-full">
             {
               links.map((link, index) => (
-                <div key={index} 
+                <li key={index} 
                   className={`
                     h-full flex items-center relative text-brand-otimath-darkest
                     transition-[color,opacity] duration-300 ease-in-out
@@ -49,10 +49,10 @@ export function Header() {
                     >
                       {link.name}
                     </Link>
-                </div>
+                </li>
               ))
             }
-          </div>
+          </ul>
         </div>
       </GridItem>
     </Grid>

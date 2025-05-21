@@ -1,3 +1,5 @@
+'use client'
+
 import { CheckboxInterface } from '@/components/global/Checkbox';
 import { TextInputInterface } from '@/components/global/TextInput';
 import { SelectInputInterface } from '@/components/global/SelectInput';
@@ -238,7 +240,7 @@ export const useTwoDicesHooks = () => {
   };
 
   const disabledCheckboxesState = (eventsCheckboxesActual=eventsCheckboxes) => {
-    const newState: EventCheckboxes = eventsCheckboxesActual;
+    const newState: EventCheckboxes = {...eventsCheckboxesActual};
 
     Object.keys(newState).forEach((eventName) => {
       for (let diceGreen = 0; diceGreen < MAXIMUM_VALUE_DICE; diceGreen++) {
@@ -254,7 +256,7 @@ export const useTwoDicesHooks = () => {
 
   const buildCheckboxesState = (gameActual=game, challengeActual=challenge, stepActual=step, eventsCheckboxesActual=eventsCheckboxes) => {
     const eventsName = gameActual.challenges?.[challengeActual]?.steps?.[stepActual]?.activeEvents.map(event => event.name) ?? [];
-    const newState: EventCheckboxes = eventsCheckboxesActual;
+    const newState: EventCheckboxes = {...eventsCheckboxesActual};
 
     eventsName.forEach((eventName) => {
       if(!newState[eventName]) {
@@ -702,9 +704,13 @@ export const useTwoDicesHooks = () => {
     });
   }
 
-  const checkOnClick = () => {
-    document.getElementById("dois-dados")?.scrollIntoView({ behavior: 'smooth' });
+  const goToTopOfChallenge = () => {
+    requestAnimationFrame(() => {
+      document.getElementById("dois-dados")?.scrollIntoView({ behavior: 'smooth' });
+    });
+  }
 
+  const checkOnClick = () => {
     if(checkSolution()) {
       createAlert("Parabéns!", "Você acertou!", "success", 5000);
 
@@ -733,6 +739,8 @@ export const useTwoDicesHooks = () => {
     else {
       createAlert("Ops!", "Você errou!", "error", 4000);
     }
+
+    goToTopOfChallenge();
   }
 
   const goToNextStepOnClick = () => {
@@ -745,6 +753,8 @@ export const useTwoDicesHooks = () => {
     } else {
       setDisabledClearButton(true);
     }
+
+    goToTopOfChallenge();
   }
 
   const resetGameOnClick = () => {
@@ -758,6 +768,7 @@ export const useTwoDicesHooks = () => {
           setDisabledCheckButton(false);
           setDisabledNextStepButton(true);
           setDisabledClearButton(false);
+          goToTopOfChallenge();
         }
     });
   }
@@ -790,7 +801,6 @@ export const useTwoDicesHooks = () => {
   const [disabledCheckButton, setDisabledCheckButton] = useState(false);
   const [disabledNextStepButton, setDisabledNextStepButton] = useState(true);
   const [disabledClearButton, setDisabledClearButton] = useState(false);
-
 
   useEffect(() => {
     startGame();
