@@ -14,6 +14,7 @@ interface ButtonProps {
   inverse?: boolean;
   interactionEffect?: boolean;
   disabled?: boolean;
+  ariaLabel?: string;
 }
 
 export function Button({
@@ -26,7 +27,8 @@ export function Button({
   href = '#',
   inverse = false,
   interactionEffect = true,
-  disabled = false
+  disabled = false,
+  ariaLabel
 }: Readonly<ButtonProps>) {
   const sizesStyles = {
     'extra-small': `ds-small-bold ${children ? 'pt-nano pb-nano pl-quarck pr-quarck' : ''}`,
@@ -124,7 +126,7 @@ export function Button({
   const Component = type === 'link' ? Link : 'button';
 
   return (
-    <Component {...(disabled ? { disabled: true } : {})} href={href} onClick={onClick} className={className}>
+    <Component {...(disabled ? { disabled: true } : {})} aria-label={ariaLabel} href={href} onClick={onClick} className={className}>
       {children}
       {iconElement}
     </Component>
@@ -138,6 +140,8 @@ export function Button({
  onClick={async function teste() {
   'use server'
   }}
+
+ ariaLabel=""
 >
   Botão Secundário
 </Button>

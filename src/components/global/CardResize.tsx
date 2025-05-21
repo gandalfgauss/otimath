@@ -32,6 +32,6 @@ export function CardResize({
 
 /* Example 
 
-<CardResize image={probabilidade} href="/ensino/probabilidade" category="Probabilidade" title="Dois dados" />
+<CardResize image={probabilidade} alt="" href="/ensino/probabilidade" category="Probabilidade" title="Dois dados" />
 
 */

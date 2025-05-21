@@ -89,7 +89,7 @@ export function Modal({
         >
           <div className="p-xxxs flex justify-between">
             <h3 className="ds-body-large-bold text-brand-otimath-pure">{modal.title}</h3>
-            <Button style="neutral" size="medium" icon={<X />} onClick={closeModal} />
+            <Button style="neutral" size="medium" icon={<X />} onClick={closeModal} ariaLabel="Fechar modal"/>
           </div>
           <div className="pt-micro pb-micro pl-xxxs pr-xxxs border-t-hairline border-neutral-lightest">
             <p className="ds-body">{modal.description}</p>

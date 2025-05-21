@@ -94,7 +94,7 @@ export function Alert({
         <p className="ds-small">{alert.description}</p>
       </div>
 
-      <Button style="neutral" size="small" icon={<X />} onClick={closeAlert}></Button>
+      <Button style="neutral" size="small" icon={<X />} onClick={closeAlert} ariaLabel="Fechar alerta"/>
     </dialog>
   );
 }
