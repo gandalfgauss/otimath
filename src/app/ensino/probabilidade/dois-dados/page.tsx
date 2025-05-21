@@ -7,7 +7,7 @@ import heroBannerTwoDicesImage from '@/images/teaching/probability/two-dices/two
 
 export const generateMetadata = (): Metadata => {
   return {
-    title: "Ensino",
+    title: "Dois Dados",
     description: "Conheça nossas áreas.",
     alternates: {
       canonical: "https://otimath.com/ensino/probabilidade/dois-dados",

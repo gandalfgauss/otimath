@@ -7,7 +7,7 @@ import heroBannerProbabilityImage from '@/images/teaching/probability/probabilit
 
 export const generateMetadata = (): Metadata => {
   return {
-    title: "Ensino",
+    title: "Probabilidade",
     description: "Conheça nossas áreas.",
     alternates: {
       canonical: "https://otimath.com/ensino/probabilidade",
