@@ -15,7 +15,7 @@ export function HeroBanner({
 }: Readonly<HeroBannerProps>) {
   return (
     <section id={id} className='w-full h-[650px] relative'>
-      <Image src={image} alt="Hero Image" className='w-full h-[650px] object-cover' fill priority/>
+      <Image src={image} alt="Hero Image" className='w-full h-[650px] object-cover z-0' fill priority/>
       <div className='w-full h-full absolute top-[0] left-[0] z-1 bg-linear-(--color-gradient-level-2) max-sm:bg-linear-(--color-gradient-level-3)'></div>
       <div className='relative z-2 w-full flex h-full items-center'>
         <Grid 

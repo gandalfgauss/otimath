@@ -1,8 +1,19 @@
+import type { Metadata } from "next";
 import { HeroBanner } from "@/components/global/HeroBanner";
 import { TextBlock } from "@/components/global/TextBlock";
 import { Topics } from "@/components/teaching/probability/Topics";
 import { Button } from "@/components/global/Button";
 import heroBannerProbabilityImage from '@/images/teaching/probability/probabilityBanner.webp';
+
+export const generateMetadata = (): Metadata => {
+  return {
+    title: "Ensino",
+    description: "Conheça nossas áreas.",
+    alternates: {
+      canonical: "https://otimath.com/ensino/probabilidade",
+    },
+  };
+};
 
 export default function Probability() {
   return (

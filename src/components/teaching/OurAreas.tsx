@@ -17,7 +17,7 @@ export function OurAreas() {
     </GridItem>
     <GridItem cols="col-[1_/_13]">
         <div className="flex gap-x-xs">
-          <CardResize image={probabilityImage} href="/ensino/probabilidade" category="Probabilidade" />
+          <CardResize image={probabilityImage} alt="Um dado e uma caixa com bolas coloridas" href="/ensino/probabilidade" category="Probabilidade" />
         </div>
     </GridItem>
   </Grid>

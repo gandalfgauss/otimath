@@ -1,8 +1,19 @@
+import type { Metadata } from "next";
 import { HeroBanner } from "@/components/global/HeroBanner";
 import { TextBlock } from "@/components/global/TextBlock";
 import { TwoDicesInstructionsSection } from "@/components/teaching/probability/two-dices/TwoDicesInstructionsSection";
 import { TwoDicesSection } from "@/components/teaching/probability/two-dices/TwoDicesSection";
 import heroBannerTwoDicesImage from '@/images/teaching/probability/two-dices/twoDicesBanner.webp';
+
+export const generateMetadata = (): Metadata => {
+  return {
+    title: "Ensino",
+    description: "Conheça nossas áreas.",
+    alternates: {
+      canonical: "https://otimath.com/ensino/probabilidade/dois-dados",
+    },
+  };
+};
 
 export default function TwoDices() {
   return (

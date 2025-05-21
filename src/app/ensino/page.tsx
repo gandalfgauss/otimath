@@ -1,8 +1,21 @@
+import type { Metadata } from "next";
 import { HeroBanner } from "@/components/global/HeroBanner";
 import { TextBlock } from "@/components/global/TextBlock";
 import { Button } from "@/components/global/Button";
 import { OurAreas } from "@/components/teaching/OurAreas";
 import heroBannerTeachingImage from '@/images/teaching/teachingBanner.webp';
+
+
+export const generateMetadata = (): Metadata => {
+  return {
+    title: "Ensino",
+    description: "Conheça nossas áreas.",
+    alternates: {
+      canonical: "https://otimath.com/ensino",
+    },
+  };
+};
+
 
 export default function Teaching() {
   return (
