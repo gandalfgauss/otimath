@@ -17,7 +17,7 @@ export function Topics() {
     </GridItem>
     <GridItem cols="col-[1_/_13] max-xlg:col-[1_/_13] max-lg:col-[1_/_13] max-md:col-[1_/_13] max-sm:col-[1_/_13]">
         <div className="flex gap-x-xs">
-          <CardResize image={twoDiceImage} href="/ensino/probabilidade/dois-dados" category="Espaço amostral equiprovável" title="Dois dados" />
+          <CardResize image={twoDiceImage} alt="Dois dados: um verde e outro azul" href="/ensino/probabilidade/dois-dados" category="Espaço amostral equiprovável" title="Dois dados" />
         </div>
     </GridItem>
   </Grid>
