@@ -158,7 +158,7 @@ export const useTwoDicesHooks = () => {
             activeEvents: [{ name: "A", ...scrambledEvents[i] }],
             checkType: "checkbox",
             instructions: `<p className="ds-body">
-              Veja a definição do <strong>Evento A</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes ao evento.
+              Veja a definição do <strong>Evento A</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes ao <strong>evento</strong>.
               Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
             </p>`,
           },
@@ -194,7 +194,7 @@ export const useTwoDicesHooks = () => {
             activeEvents: [{ name: "A", ...A }, { name: "B", ...B }],
             checkType: "checkbox",
             instructions: `<p className="ds-body">
-              Veja a definição dos eventos <strong>A</strong> e <strong>B</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos eventos.
+              Veja a definição dos eventos <strong>A</strong> e <strong>B</strong> no <strong>Quadro de Eventos</strong> e selecione os resultados correspondentes aos <strong>eventos.</strong>
               Clique no <strong>Botão Conferir</strong> ao terminar a marcação para conferir sua resposta ou no <strong>Botão Limpar</strong> para recomeçar a marcação. 
             </p>`,
           },
@@ -272,11 +272,11 @@ export const useTwoDicesHooks = () => {
     setEventsCheckboxes(newState);
   };
 
-  const resetEventsCheckboxes = (eventsCheckboxesActual=eventsCheckboxes, igonoreDisabledState=true) => {
+  const resetEventsCheckboxes = (eventsCheckboxesActual=eventsCheckboxes, preserveDisabledState=true) => {
     const newState: EventCheckboxes = {};
 
     Object.keys(eventsCheckboxesActual).forEach((eventName) => {
-      if(igonoreDisabledState && eventsCheckboxesActual?.[eventName]?.[0]?.[0]?.disabled) {
+      if(preserveDisabledState && eventsCheckboxesActual?.[eventName]?.[0]?.[0]?.disabled) {
         newState[eventName] = eventsCheckboxesActual[eventName];
       }
       else {
@@ -395,19 +395,47 @@ export const useTwoDicesHooks = () => {
         ...prev,
         numerator: {
           ...prev.numerator,
+          error: false,
           disabled: true,
         },
         denominator: {
           ...prev.denominator,
+          error: false,
           disabled: true,
         },
         complementaryNumerator: {
           ...prev.complementaryNumerator,
+          error: false,
           disabled: true,
         },
         complementaryDenominator: {
           ...prev.complementaryDenominator,
+          error: false,
           disabled: true,
+        },
+      }
+    ));
+  }
+
+  const addErrorProbabilitiesTextInputs = () => {
+    setProbabilitiesTextInputs(prev => (
+      { 
+        ...prev,
+        numerator: {
+          ...prev.numerator,
+          error: true,
+        },
+        denominator: {
+          ...prev.denominator,
+          error: true,
+        },
+        complementaryNumerator: {
+          ...prev.complementaryNumerator,
+          error: true,
+        },
+        complementaryDenominator: {
+          ...prev.complementaryDenominator,
+          error: true,
         },
       }
     ));
@@ -482,15 +510,39 @@ export const useTwoDicesHooks = () => {
         ...prev,
         eventsA: {
           ...prev.eventsA,
+          error: false,
           disabled: true
         },
         operations: {
           ...prev.operations,
+          error: false,
+
           disabled: true
         },
         eventsB: {
           ...prev.eventsB,
+          error: false,
           disabled: true
+        }
+      }));
+    }
+  }
+
+  const addErrorOperationSelectInputs = () => {
+    if(operationSelectInputs?.eventsA) {
+      setOperationSelectInputs(prev => ({
+        ...prev,
+        eventsA: {
+          ...prev.eventsA,
+          error: true
+        },
+        operations: {
+          ...prev.operations,
+          error: true
+        },
+        eventsB: {
+          ...prev.eventsB,
+          error: true
         }
       }));
     }
@@ -566,68 +618,69 @@ export const useTwoDicesHooks = () => {
   const verifySelectOperation = () => {
     const operation = game.challenges?.[challenge]?.steps?.[step]?.operation;
 
-    if(operation == "Union") {
-      if(operationSelectInputs.operations.value == "Union") {
-        if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B") ||
-          (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A")
-        ) {
-          return true;
+    switch(operation) {
+      case "Union": 
+        if(operationSelectInputs.operations.value == "Union") {
+          if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B") ||
+            (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A")
+          ) {
+            return true;
+          }
         }
-      }
+        break;
+  
+      case "Intersection":
+        if(operationSelectInputs.operations.value == "Intersection") {
+          if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B") ||
+            (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A")
+          ) {
+            return true;
+          }
+        }
+  
+        if(operationSelectInputs.operations.value == "Difference") {
+          if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B\u0305") ||
+            (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A\u0305")
+          ) {
+            return true;
+          }
+        }
+
+        break;
+      case "Difference":  
+        if(operationSelectInputs.operations.value == "Intersection") {
+          if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B\u0305") ||
+            (operationSelectInputs.eventsA.value == "B\u0305" && operationSelectInputs.eventsB.value == "A")
+          ) {
+            return true;
+          }
+        }
+  
+        if(operationSelectInputs.operations.value == "Difference") {
+          if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B")
+          ) {
+            return true;
+          }
+        }
+
+        break;
+
+      case "ReverseDifference":
+        if(operationSelectInputs.operations.value == "Intersection") {
+          if((operationSelectInputs.eventsA.value == "A\u0305" && operationSelectInputs.eventsB.value == "B") ||
+            (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A\u0305")
+          ) {
+            return true;
+          }
+        }
+  
+        if(operationSelectInputs.operations.value == "Difference") {
+          if((operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A")
+          ) {
+            return true;
+          }
+        }
     }
-
-    if(operation == "Intersection") {
-      if(operationSelectInputs.operations.value == "Intersection") {
-        if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B") ||
-          (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A")
-        ) {
-          return true;
-        }
-      }
-
-      if(operationSelectInputs.operations.value == "Difference") {
-        if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B\u0305") ||
-          (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A\u0305")
-        ) {
-          return true;
-        }
-      }
-    }
-
-    if(operation == "Difference") {
-      if(operationSelectInputs.operations.value == "Intersection") {
-        if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B\u0305") ||
-          (operationSelectInputs.eventsA.value == "B\u0305" && operationSelectInputs.eventsB.value == "A")
-        ) {
-          return true;
-        }
-      }
-
-      if(operationSelectInputs.operations.value == "Difference") {
-        if((operationSelectInputs.eventsA.value == "A" && operationSelectInputs.eventsB.value == "B")
-        ) {
-          return true;
-        }
-      }
-    }
-
-    if(operation == "ReverseDifference") {
-      if(operationSelectInputs.operations.value == "Intersection") {
-        if((operationSelectInputs.eventsA.value == "A\u0305" && operationSelectInputs.eventsB.value == "B") ||
-          (operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A\u0305")
-        ) {
-          return true;
-        }
-      }
-
-      if(operationSelectInputs.operations.value == "Difference") {
-        if((operationSelectInputs.eventsA.value == "B" && operationSelectInputs.eventsB.value == "A")
-        ) {
-          return true;
-        }
-      }
-    }
-
     return false;
   }
 
@@ -652,41 +705,52 @@ export const useTwoDicesHooks = () => {
   const nextStep = () => {
     const nextStep = step + 1;
     if (nextStep < game.challenges?.[challenge]?.steps.length) {
-      setStep(nextStep);
-      setActiveEvents(game.challenges?.[challenge]?.steps?.[nextStep]?.activeEvents);
-      setInstructions(game.challenges?.[challenge]?.steps?.[nextStep]?.instructions);
-      const newEventsCheckboxes = disabledCheckboxesState();
-      buildCheckboxesState(game, challenge, nextStep, newEventsCheckboxes);
 
-      if(game.challenges?.[challenge]?.steps?.[nextStep]?.eventToProbability) {
-        buildProbabilities(game.challenges?.[challenge]?.steps?.[nextStep]?.eventToProbability.name, game.challenges?.[challenge]?.steps?.[nextStep]?.hasComplementary);
+      let newEventsCheckboxes = {...eventsCheckboxes};
+
+      if(getCheckTypeByChallengeAndStep(challenge, step) == "checkbox") {
+        newEventsCheckboxes = disabledCheckboxesState();
+      }
+
+      if(getCheckTypeByChallengeAndStep(challenge, nextStep) === "checkbox") {
+        buildCheckboxesState(game, challenge, nextStep, newEventsCheckboxes);
+      }
+
+      if(getCheckTypeByChallengeAndStep(challenge, step) === "probability-and-complementary-probability" || getCheckTypeByChallengeAndStep(challenge, step) === "probability" ) {
+        disabledProbabilitiesTextInputs();
       } 
 
-      if(game.challenges?.[challenge]?.steps?.[nextStep]?.eventsForSelect) {
+      if(getCheckTypeByChallengeAndStep(challenge, nextStep) === "probability-and-complementary-probability" || getCheckTypeByChallengeAndStep(challenge, nextStep) === "probability" ) {
+        buildProbabilities(game.challenges?.[challenge]?.steps?.[nextStep]?.eventToProbability?.name ?? '', game.challenges?.[challenge]?.steps?.[nextStep]?.hasComplementary ?? false);
+      } 
+
+      if(getCheckTypeByChallengeAndStep(challenge, step) == "select") {
+        disabledOperationSelectInputs();
+      }
+
+      if(getCheckTypeByChallengeAndStep(challenge, nextStep) == "select") {
         buildOperationSelectInputs(
           game.challenges?.[challenge]?.steps?.[nextStep]?.eventsForSelect ?? [],
           game.challenges?.[challenge]?.steps?.[nextStep]?.operations ?? []
         )
       }
 
+      setStep(nextStep);
+      setActiveEvents(game.challenges?.[challenge]?.steps?.[nextStep]?.activeEvents);
+      setInstructions(game.challenges?.[challenge]?.steps?.[nextStep]?.instructions);
+
       return game.challenges?.[challenge]?.steps?.[nextStep]?.checkType;
     } else {
       const nextChallenge = challenge + 1;
       if (nextChallenge < game.challenges.length) {
-        setActiveEvents(game.challenges?.[nextChallenge]?.steps?.[0]?.activeEvents);
-        setInstructions(game.challenges?.[nextChallenge]?.steps?.[0]?.instructions);
         buildCheckboxesState(game, nextChallenge, 0, {});
-        if(game.challenges?.[challenge]?.steps?.[step]?.eventToProbability) {
-          resetProbabilitiesTextInputs();
-        }
-        
-        if(game.challenges?.[challenge]?.steps?.[step-1]?.eventsForSelect) {
-          resetOperationSelectInputs();
-        }
-
+        resetProbabilitiesTextInputs();
+        resetOperationSelectInputs();
         setChallenge(nextChallenge);
         setStep(0);
-        
+        setInstructions(game.challenges?.[nextChallenge]?.steps?.[0]?.instructions);
+        setActiveEvents(game.challenges?.[nextChallenge]?.steps?.[0]?.activeEvents);
+
         return game.challenges?.[nextChallenge]?.steps?.[0]?.checkType;
       }
     }
@@ -708,6 +772,10 @@ export const useTwoDicesHooks = () => {
     requestAnimationFrame(() => {
       document.getElementById("dois-dados")?.scrollIntoView({ behavior: 'smooth' });
     });
+  }
+
+  const getCheckTypeByChallengeAndStep = (challenge: number, step: number,) => {
+    return game.challenges?.[challenge].steps?.[step].checkType;
   }
 
   const checkOnClick = () => {
@@ -738,6 +806,14 @@ export const useTwoDicesHooks = () => {
     }
     else {
       createAlert("Ops!", "Você errou!", "error", 4000);
+      
+      if(getCheckTypeByChallengeAndStep(challenge, step) === "select") {
+        addErrorOperationSelectInputs();
+      }
+
+      if(getCheckTypeByChallengeAndStep(challenge, step) === "probability" || getCheckTypeByChallengeAndStep(challenge, step) === "probability-and-complementary-probability") {
+        addErrorProbabilitiesTextInputs();
+      }
     }
 
     goToTopOfChallenge();

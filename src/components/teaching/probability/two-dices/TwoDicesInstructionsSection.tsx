@@ -54,7 +54,7 @@ export function TwoDicesInstructionsSection() {
                 <br />
                 
                 <p>
-                  Por último, calculará a(s) <strong>probabilidade(s)</strong> do(s)
+                  Por último, calculará a(s) <strong>probabilidade(s)</strong> de ocorrer o(s)
                   último(s)<strong>evento(s)</strong> no <strong>Quadro de Cálculo(s).</strong>
                 </p>
       

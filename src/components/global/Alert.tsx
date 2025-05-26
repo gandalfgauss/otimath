@@ -53,8 +53,10 @@ export function Alert({
         closeAlert();
       }
     }
-    const timeoutId = setTimeout(hiddenAlertTimeout, alert.timeout);
-    return () => clearTimeout(timeoutId)
+    if(alert.timeout) {
+      const timeoutId = setTimeout(hiddenAlertTimeout, alert.timeout);
+      return () => clearTimeout(timeoutId)
+    }
   }, []);
 
 

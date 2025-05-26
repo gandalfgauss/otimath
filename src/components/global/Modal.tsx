@@ -76,14 +76,12 @@ export function Modal({
   return (
     modal && modal.status !== "hide" && (
       <div
-        aria-hidden="true"
         onClick={clickModalExternalArea}
         ref={divRef}
         className={`w-full h-full fixed bg-opacity-modal flex items-center justify-center z-11 top-0 left-0
         opacity-level-transparent transition-[opacity] duration-300 ease-in-out`}
       >
         <dialog
-          aria-hidden="false"
           className={`w-[600px] h-fit max-w-[calc(100%-32px)] flex flex-col left-[50%] -translate-x-[50%]
             rounded-md solid border-hairline border-neutral-lightest bg-neutral-white`}
         >
