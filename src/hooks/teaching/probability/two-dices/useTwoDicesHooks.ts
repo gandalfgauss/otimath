@@ -34,119 +34,120 @@ export interface Event {
 
 type Operation = "Intersection" | "Union" | "Difference" | "ReverseDifference";
 
+const MAXIMUM_VALUE_DICE = 6;
 
-export const useTwoDicesHooks = () => {
-  const MAXIMUM_VALUE_DICE = 6;
+const events: Event[] = [
+  {
+    description: "Soma maior que 8",
+    complementaryDescription: "Soma menor ou igual a 8",
+    validation: (greenDice, blueDice) => greenDice + blueDice > 8,
+  },
+  {
+    description: "Menor face igual a 5",
+    complementaryDescription: "Menor face diferente de 5",
+    validation: (greenDice, blueDice) => Math.min(greenDice, blueDice) === 5,
+  },
+  {
+    description: "Face par no dado verde",
+    complementaryDescription: "Face ímpar no dado verde",
+    validation: (greenDice, ) => greenDice % 2 === 0,
+  },
+  {
+    description: "Soma igual a 6",
+    complementaryDescription: "Soma diferente de 6",
+    validation: (greenDice, blueDice) => greenDice + blueDice === 6,
+  },
+  {
+    description: "Produto das faces maior que 15",
+    complementaryDescription: "Produto das faces menor ou igual a 15",
+    validation: (greenDice, blueDice) => greenDice * blueDice > 15,
+  },
+  {
+    description: "Número primo no dado azul",
+    complementaryDescription: "Número não primo no dado azul",
+    validation: (_, blueDice) => isPrime(blueDice),
+  },
+  {
+    description: "Maior face igual a 4",
+    complementaryDescription: "Maior face diferente de 4",
+    validation: (greenDice, blueDice) => Math.max(greenDice, blueDice) === 4,
+  },
+  {
+    description: "Soma menor que 7",
+    complementaryDescription: "Soma maior ou igual a 7",
+    validation: (greenDice, blueDice) => greenDice + blueDice < 7,
+  },
+  {
+    description: "Pelo menos uma face par",
+    complementaryDescription: "Nenhuma face par",
+    validation: (greenDice, blueDice) => greenDice % 2 === 0 || blueDice % 2 === 0,
+  },
+  {
+    description: "Pelo menos uma face múltipla de 3",
+    complementaryDescription: "Nenhuma face múltipla de 3",
+    validation: (greenDice, blueDice) => greenDice % 3 === 0 || blueDice % 3 === 0,
+  },
+  {
+    description: "Exatamente uma face par",
+    complementaryDescription: "Nenhuma ou mais de uma face par",
+    validation: (greenDice, blueDice) =>
+      (greenDice % 2 === 0 && blueDice % 2 !== 0) || (blueDice % 2 === 0 && greenDice % 2 !== 0),
+  },
+  {
+    description: "Nenhuma face par",
+    complementaryDescription: "Todas as faces são pares",
+    validation: (greenDice, blueDice) => greenDice % 2 === 1 && blueDice % 2 === 1,
+  },
+];
 
-  const events: Event[] = [
-    {
-      description: "Soma maior que 8",
-      complementaryDescription: "Soma menor ou igual a 8",
-      validation: (greenDice, blueDice) => greenDice + blueDice > 8,
-    },
-    {
-      description: "Menor face igual a 5",
-      complementaryDescription: "Menor face diferente de 5",
-      validation: (greenDice, blueDice) => Math.min(greenDice, blueDice) === 5,
-    },
-    {
-      description: "Face par no dado verde",
-      complementaryDescription: "Face ímpar no dado verde",
-      validation: (greenDice, ) => greenDice % 2 === 0,
-    },
-    {
-      description: "Soma igual a 6",
-      complementaryDescription: "Soma diferente de 6",
-      validation: (greenDice, blueDice) => greenDice + blueDice === 6,
-    },
-    {
-      description: "Produto das faces maior que 15",
-      complementaryDescription: "Produto das faces menor ou igual a 15",
-      validation: (greenDice, blueDice) => greenDice * blueDice > 15,
-    },
-    {
-      description: "Número primo no dado azul",
-      complementaryDescription: "Número não primo no dado azul",
-      validation: (_, blueDice) => isPrime(blueDice),
-    },
-    {
-      description: "Maior face igual a 4",
-      complementaryDescription: "Maior face diferente de 4",
-      validation: (greenDice, blueDice) => Math.max(greenDice, blueDice) === 4,
-    },
-    {
-      description: "Soma menor que 7",
-      complementaryDescription: "Soma maior ou igual a 7",
-      validation: (greenDice, blueDice) => greenDice + blueDice < 7,
-    },
-    {
-      description: "Pelo menos uma face par",
-      complementaryDescription: "Nenhuma face par",
-      validation: (greenDice, blueDice) => greenDice % 2 === 0 || blueDice % 2 === 0,
-    },
-    {
-      description: "Pelo menos uma face múltipla de 3",
-      complementaryDescription: "Nenhuma face múltipla de 3",
-      validation: (greenDice, blueDice) => greenDice % 3 === 0 || blueDice % 3 === 0,
-    },
-    {
-      description: "Exatamente uma face par",
-      complementaryDescription: "Nenhuma ou mais de uma face par",
-      validation: (greenDice, blueDice) =>
-        (greenDice % 2 === 0 && blueDice % 2 !== 0) || (blueDice % 2 === 0 && greenDice % 2 !== 0),
-    },
-    {
-      description: "Nenhuma face par",
-      complementaryDescription: "Todas as faces são pares",
-      validation: (greenDice, blueDice) => greenDice % 2 === 1 && blueDice % 2 === 1,
-    },
-  ];
+const operations = ["Intersection", "Union", "Difference", "ReverseDifference"] as Operation[];
 
-  const operations = ["Intersection", "Union", "Difference", "ReverseDifference"] as Operation[];
+const isPrime = (num: number): boolean => {
+  return [2, 3, 5].includes(num);
+};
 
-  const isPrime = (num: number): boolean => {
-    return [2, 3, 5].includes(num);
-  };
-
-  const getCompositeValidationFunction = (operation: Operation, validation1 : (greenDice: number, blueDice : number) => boolean, validation2: (greenDice: number, blueDice : number) => boolean) => {
-    return (greenDice: number, blueDice: number) => {
-      const result1 = validation1(greenDice, blueDice);
-      const result2 = validation2(greenDice, blueDice);
-      
-      switch (operation) {
-        case "Intersection":
-          return result1 && result2;
-        case "Union":
-          return result1 || result2;
-        case "Difference":
-          return result1 && !result2;
-        case "ReverseDifference":
-          return !result1 && result2;
-      }
-    }
-  }
-
-  const getCompoundDescription = (operation: Operation, eventA: Event, eventB: Event) => {
+const getCompositeValidationFunction = (operation: Operation, validation1 : (greenDice: number, blueDice : number) => boolean, validation2: (greenDice: number, blueDice : number) => boolean) => {
+  return (greenDice: number, blueDice: number) => {
+    const result1 = validation1(greenDice, blueDice);
+    const result2 = validation2(greenDice, blueDice);
+    
     switch (operation) {
       case "Intersection":
-        return eventA.description + " e " + eventB.description.toLowerCase();
+        return result1 && result2;
       case "Union":
-        return eventA.description + " ou " + eventB.description.toLowerCase();
+        return result1 || result2;
       case "Difference":
-        return eventA.description + " e " + eventB.complementaryDescription.toLowerCase();
+        return result1 && !result2;
       case "ReverseDifference":
-        return eventB.description + " e " + eventA.complementaryDescription.toLowerCase();
+        return !result1 && result2;
     }
   }
+}
 
-  function shuffleArray<T>(data: T[]): T[] {
-    const newArray = [...data];
-    for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
+const getCompoundDescription = (operation: Operation, eventA: Event, eventB: Event) => {
+  switch (operation) {
+    case "Intersection":
+      return eventA.description + " e " + eventB.description.toLowerCase();
+    case "Union":
+      return eventA.description + " ou " + eventB.description.toLowerCase();
+    case "Difference":
+      return eventA.description + " e " + eventB.complementaryDescription.toLowerCase();
+    case "ReverseDifference":
+      return eventB.description + " e " + eventA.complementaryDescription.toLowerCase();
   }
+}
+
+function shuffleArray<T>(data: T[]): T[] {
+  const newArray = [...data];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+
+export const useTwoDicesHooks = () => {
+
 
   const getGame = (scrambledEvents: Event[], operations: Operation[]) => {
     const challenges = [];

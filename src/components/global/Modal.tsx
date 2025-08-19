@@ -66,7 +66,7 @@ export function Modal({
       });
     }
 
-     document.addEventListener("keydown", handleEsc, { once: true });
+    document.addEventListener("keydown", handleEsc, { once: true });
 
     return () => {
       document.removeEventListener("keydown", handleEsc);

@@ -11,7 +11,7 @@ export function Footer() {
   `;
   return (
     <Grid 
-      id="grid" 
+      id="footer" 
       paddings={`pt-md pb-md`} 
       rowGaps='gap-y-xxs'
       backgroundColor='bg-brand-otimath-dark'

@@ -35,7 +35,6 @@ export function Alert({
       
       dialog.addEventListener("transitionend", () => {
         dialog.addEventListener("transitionend", () => {
-          dialog.classList.add("hidden");
           updateAlert(index, {...alert, status: "remove"});
         }, {once: true});
 
