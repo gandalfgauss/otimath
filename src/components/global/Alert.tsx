@@ -85,7 +85,7 @@ export function Alert({
   
   return (
     <dialog ref={dialogRef}
-      className={`w-fit max-w-[calc(100vw-32px)] overflow-hidden rounded-sm shrink-0 relative right-0 flex gap-x-micro p-macro mb-xs
+      className={`w-fit max-w-[calc(100vw-32px)] h-auto overflow-hidden rounded-sm shrink-0 relative right-0 flex gap-x-micro p-macro mb-xs
       transition-[translate,height, margin] duration-500 ease-in-out h-[70px]
       ${alert.status == "show"? "animate-[alertShow_0.5s_ease-out_forwards]" : "translate-x-[200%]"}
       ${alertStylesType[alert.type].generalColors}`}
