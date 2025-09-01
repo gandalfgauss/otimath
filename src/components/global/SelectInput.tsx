@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export interface SelectInputInterface {
   label?: string;
@@ -26,11 +26,11 @@ export function SelectInput({
 }: Readonly<SelectInputProps>) {
   const [changeOption, setChangeOption] = useState(false);
 
-  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     setChangeOption(true);
     selectInput?.onChange?.(event);
     selectInput.setValue?.(event.currentTarget.value);
-  };
+  }, [selectInput]);
 
   return (
     <fieldset className="flex flex-col gap-y-nano">

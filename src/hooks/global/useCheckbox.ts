@@ -1,12 +1,12 @@
-import { useState} from 'react';
+import { useCallback, useState} from 'react';
 import { CheckboxInterface } from '@/components/global/Checkbox';
 
 export const useCheckbox = () => {
   const [checkbox, setCheckbox] = useState<CheckboxInterface>({label: '', id: '', checked: false, disabled: false, onChange: () => {}});
   
-  const updateCheckbox = (checkbox : CheckboxInterface) => {
+  const updateCheckbox = useCallback((checkbox : CheckboxInterface) => {
     setCheckbox(checkbox);
-  }
+  }, []);
 
   return {checkbox, updateCheckbox}
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { Button } from "./Button";
 
@@ -23,7 +23,7 @@ export function Modal({
   const scrollPositionRef = useRef<number>(0);
   const divRef = useRef<HTMLDivElement>(null);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     const modalElement = divRef.current;
     modalElement?.addEventListener("transitionend", () => {
       updateModal({ ...modal, status: "hide" });
@@ -34,24 +34,24 @@ export function Modal({
     document.body.style.top = '';
     window.scrollTo(0, scrollPositionRef.current);
     document.documentElement.classList.add('scroll-smooth');
-  };
+  }, [modal, updateModal]);
 
-  const confirmModal = () => {
+  const confirmModal = useCallback(() => {
     modal?.confirmCallback?.();
     closeModal();
-  }
+  }, [closeModal, modal]);
 
-  const clickModalExternalArea = (event: React.MouseEvent<HTMLDivElement>) => {
+  const clickModalExternalArea = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {
       closeModal();
     }
-  }
+  }, [closeModal]);
 
-  const handleEsc = (e: KeyboardEvent) => {
+  const handleEsc = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") {
       closeModal();
     }
-  };
+  }, [closeModal]);
 
   useEffect(() => {
     scrollPositionRef.current = window.scrollY;
@@ -71,7 +71,7 @@ export function Modal({
     return () => {
       document.removeEventListener("keydown", handleEsc);
     };
-  }, [modal]);
+  }, [modal.status, handleEsc]);
 
   return (
     modal && modal.status !== "hide" && (

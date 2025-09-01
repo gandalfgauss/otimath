@@ -13,6 +13,7 @@ import diceY6Image from '@/images/teaching/probability/two-dices/dices/diceY6.gi
 import Image from "next/image";
 import { Checkbox } from "@/components/global/Checkbox";
 import { EventCheckboxes } from '@/hooks/teaching/probability/two-dices/useTwoDicesHooks';
+import { useMemo } from 'react';
 interface TwoDicesTableProps {
   eventsCheckboxes: EventCheckboxes;
   updateEventsCheckboxes: (eventName: string, diceGreen: number, diceBlue: number, checked: boolean, disabled: boolean) => void;
@@ -22,8 +23,8 @@ export function TwoDicesTable({
   eventsCheckboxes,
   updateEventsCheckboxes
 }: Readonly<TwoDicesTableProps>) {
-  const dicesXImages = [diceX1Image, diceX2Image, diceX3Image, diceX4Image, diceX5Image, diceX6Image];
-  const dicesYImages = [diceY1Image, diceY2Image, diceY3Image, diceY4Image, diceY5Image, diceY6Image];
+  const dicesXImages = useMemo(() => [diceX1Image, diceX2Image, diceX3Image, diceX4Image, diceX5Image, diceX6Image], []);
+  const dicesYImages = useMemo(() => [diceY1Image, diceY2Image, diceY3Image, diceY4Image, diceY5Image, diceY6Image], []);
 
   return (
     <div className={`w-full overflow-auto max-h-[calc(100vh-68px)]

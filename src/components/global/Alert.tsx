@@ -1,4 +1,4 @@
-import React, {useEffect, useRef } from "react";
+import React, {useCallback, useEffect, useRef } from "react";
 import { CircleAlert, CircleCheckBig, Info, TriangleAlert, X } from "lucide-react";
 import { Button } from "./Button";
 import '@/styles/global/alert.css'
@@ -27,7 +27,7 @@ export function Alert({
 
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const closeAlert = () => {
+  const closeAlert = useCallback (() => {
     const dialog = dialogRef.current;
 
     if (dialog) {
@@ -44,7 +44,7 @@ export function Alert({
         });
       }, {once: true});
     }
-  }
+  }, [alert, updateAlert, index]);
 
   useEffect(() => {
     const hiddenAlertTimeout = () => {
@@ -52,11 +52,12 @@ export function Alert({
         closeAlert();
       }
     }
+    
     if(alert.timeout) {
       const timeoutId = setTimeout(hiddenAlertTimeout, alert.timeout);
       return () => clearTimeout(timeoutId)
     }
-  }, []);
+  }, [alert.timeout, alert.status, closeAlert]);
 
 
   const alertStylesType = {
