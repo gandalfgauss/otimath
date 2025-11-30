@@ -672,8 +672,7 @@ export default function ArchimedesMethodExhaustionRieman() {
 
       <div className="container">
         <div className="header">
-          <h1>🏛️ Método de Arquimedes</h1>
-          <p>Aproximação por Retângulos Inscritos (Método Moderno)</p>
+          <h1>🏛️ Aproximação da área sob a curva por Retângulos Inscritos</h1>
         </div>
 
         <div className="content">
