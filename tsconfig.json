@@ -22,6 +22,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/ensino/thm/metodo-de-exaustao-de-arquimedes/page.js"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/ensino/thm/metodo-de-exaustao-de-arquimedes/page.js", "src/app/ensino/thm/metodo-de-exaustao-de-arquimedes-rieman/page.js"],
   "exclude": ["node_modules"]
 }
