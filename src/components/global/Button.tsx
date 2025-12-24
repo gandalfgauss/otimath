@@ -120,7 +120,7 @@ export function Button({
 
   const className = useMemo(() => { return `flex justify-center items-center gap-micro whitespace-nowrap ${children ? 'rounded-md' : 'rounded-circular'} cursor-pointer w-fit h-fit
                     transition-[background-color,opacity, border] duration-300 ease-in-out 
-                    disabled:opacity-level-light disabled:pointer-events-none
+                    disabled:opacity-level-soft disabled:pointer-events-none
                     ${styleObjects[style]} ${sizesStyles[size]}`
                   }, [children, size, sizesStyles, style, styleObjects]);
 

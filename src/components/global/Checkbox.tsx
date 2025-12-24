@@ -36,7 +36,7 @@ export function Checkbox({
           after:w-[8px] after:h-[12px] after:border-solid after:border-neutral-white 
           after:scale-0 after:bg-neutral-transparent
           after:transition-[scale] after:duration-300 after:ease-in-out after:border-r-thin after:border-b-thin 
-          checked:after:scale-100 disabled:opacity-level-intense disabled:pointer-events-none ${checkbox.styles ?? ``}
+          checked:after:scale-100 disabled:opacity-level-soft disabled:pointer-events-none ${checkbox.styles ?? ``}
         `}
       >
       </input>

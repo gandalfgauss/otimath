@@ -5,20 +5,25 @@ import { Header } from "@/components/global/Header";
 
 export const metadata: Metadata = {
   title: {
-    default: 'Oti-Math | Soluções em Otimização Matemática',
+    default: 'Oti-Math | Soluções Matemáticas',
     template: '%s | Oti-Math',
   },
-  description: 'Desenvolvemos ferramentas avançadas para resolver problemas complexos de otimização matemática e computacional. Maximize eficiência com nossas soluções personalizadas.',
+  description: 'Desenvolvemos ferramentas para resolver problemas matemáticos.',
   keywords: [
-    'otimização matemática', 
+    'matemática', 
+    'ensino de matemática',
+    'educação',
     'solução de problemas computacionais', 
     'algoritmos de otimização',
     'modelagem matemática',
     'IA para otimização'
   ],
   openGraph: {
-    title: 'Oti-Math | Transformando Problemas em Soluções',
-    description: 'Ferramentas inteligentes para otimização matemática e computacional. Ideal para empresas, pesquisadores e desenvolvedores.',
+    title: {
+      default: 'Oti-Math | Soluções Matemáticas',
+      template: '%s | Oti-Math',
+    },
+    description: 'Desenvolvemos ferramentas para resolver problemas matemáticos.',
     url: 'https://otimath.com',
     siteName: 'Oti-Math',
     images: [
@@ -34,8 +39,11 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Oti-Math | Otimização Matemática de Alto Desempenho',
-    description: 'Conheça nossas ferramentas para resolver problemas complexos com eficiência computacional.',
+    title: {
+      default: 'Oti-Math | Soluções Matemáticas',
+      template: '%s | Oti-Math',
+    },
+    description: 'Desenvolvemos ferramentas para resolver problemas matemáticos.',
     images: ['/twitter-card.png'],
     creator: '@otimath_tech',
   },
@@ -57,7 +65,7 @@ export const metadata: Metadata = {
     canonical: 'https://otimath.com',
   },
   metadataBase: new URL('https://otimath.com'),
-  category: 'tecnologia',
+  category: 'matemática',
 };
 
 
@@ -71,7 +79,7 @@ export default function RootLayout({
       <head>
       </head>
       <body
-        className={` antialiased bg-background-otimath text-brand-otimath-pure font-family-base not-italic no-underline`}
+        className={`antialiased bg-background-otimath text-brand-otimath-pure font-family-base not-italic no-underline`}
       > 
         <Header />
         {children}

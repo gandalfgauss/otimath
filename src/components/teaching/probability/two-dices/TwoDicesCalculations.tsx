@@ -23,7 +23,7 @@ export function TwoDicesCalculations({
             <span className="ds-body-bold text-brand-otimath-medium">D = </span> 
             <SelectInput
               selectInput={{ 
-                styles: "w-[50px] h-[40px] text-center disabled:opacity-level-semiopaque",
+                styles: "w-[50px] h-[40px] text-center",
                 placeholder: " ",
                 value: selectInputs.eventsA.value,
                 disabled: selectInputs.eventsA.disabled,
@@ -35,7 +35,7 @@ export function TwoDicesCalculations({
             />
             <SelectInput
               selectInput={{ 
-                styles: "w-[50px] h-[40px] text-center disabled:opacity-level-semiopaque",
+                styles: "w-[50px] h-[40px] text-center",
                 placeholder: " ",
                 value: selectInputs.operations.value,
                 disabled: selectInputs.operations.disabled,
@@ -47,7 +47,7 @@ export function TwoDicesCalculations({
             />
             <SelectInput
               selectInput={{ 
-                styles: "w-[50px] h-[40px] text-center disabled:opacity-level-semiopaque",
+                styles: "w-[50px] h-[40px] text-center",
                 placeholder: " ",
                 value: selectInputs.eventsB.value,
                 disabled: selectInputs.eventsB.disabled,
@@ -66,7 +66,7 @@ export function TwoDicesCalculations({
               <span className="ds-body-bold text-brand-otimath-medium">{`P(${textInputs.eventName}) = `}</span>
               <div className="flex flex-col gap-nano items-center">
                   <TextInput textInput={{
-                      styles: "w-[40px] h-[30px] text-center disabled:opacity-level-semiopaque",
+                      styles: "w-[40px] h-[30px] text-center",
                       value: textInputs.numerator.value,
                       disabled: textInputs.numerator.disabled,
                       min:"0",
@@ -80,7 +80,7 @@ export function TwoDicesCalculations({
                 <hr className="w-full h-[2px] bg-neutral-black" />
 
                 <TextInput textInput={{
-                      styles: "w-[40px] h-[30px] text-center disabled:opacity-level-semiopaque",
+                      styles: "w-[40px] h-[30px] text-center",
                       value: textInputs.denominator.value,
                       disabled: textInputs.denominator.disabled,
                       min:"1",
@@ -99,7 +99,7 @@ export function TwoDicesCalculations({
                 <span className="ds-body-bold text-brand-otimath-medium">{`P(${textInputs.eventName}\u0305) = `}</span>
                 <div className="flex flex-col gap-nano items-center">
                     <TextInput textInput={{
-                        styles: "w-[40px] h-[30px] text-center disabled:opacity-level-semiopaque",
+                        styles: "w-[40px] h-[30px] text-center",
                         value: textInputs.complementaryNumerator?.value,
                         disabled: textInputs.complementaryNumerator?.disabled,
                         min:"0",
@@ -113,7 +113,7 @@ export function TwoDicesCalculations({
                   <hr className="w-full h-[2px] bg-neutral-black" />
 
                   <TextInput textInput={{
-                        styles: "w-[40px] h-[30px] text-center disabled:opacity-level-semiopaque",
+                        styles: "w-[40px] h-[30px] text-center",
                         value: textInputs.complementaryDenominator?.value,
                         disabled: textInputs.complementaryDenominator?.disabled,
                         min:"1",

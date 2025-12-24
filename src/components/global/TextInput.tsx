@@ -56,7 +56,7 @@ export function TextInput({
         className={`p-micro border-solid border-hairline rounded-sm
           outline-none bg-neutral-transparent ${textInput.value ? 'text-neutral-dark' : 'text-neutral-medium'} 
           transition-[border-color] duration-300 ease-in-out hover:border-neutral-medium focus:border-brand-otimath-pure
-          disabled:opacity-level-light disabled:pointer-events-none
+          disabled:opacity-level-soft disabled:pointer-events-none
           ${textInput.error ? 'border-feedback-error-dark' : 'border-neutral-light'} ${textInput.styles ?? ``}
         `}
       >

@@ -48,7 +48,7 @@ export function SelectInput({
         className={`border-solid border-hairline rounded-sm
           outline-none bg-neutral-transparent ${changeOption ? 'text-neutral-dark' : 'text-neutral-medium'} 
           transition-[border-color] duration-300 ease-in-out hover:border-neutral-medium focus:border-brand-otimath-pure
-          disabled:opacity-level-light disabled:pointer-events-none
+          disabled:opacity-level-soft disabled:pointer-events-none
           ${selectInput.error ? 'border-feedback-error-dark' : 'border-neutral-light'} ${selectInput.styles ?? ''}
         `}
       >

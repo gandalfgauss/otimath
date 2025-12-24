@@ -8,14 +8,41 @@ import heroBannerTeachingImage from '@/images/teaching/teachingBanner.webp';
 
 export const generateMetadata = (): Metadata => {
   return {
-    title: "Ensino",
-    description: "Conheça nossas áreas.",
-    alternates: {
-      canonical: "https://otimath.com/ensino",
+    title: 'Ensino',
+    description: 'Oferecemos soluções educacionais em matemática aplicada, otimização e modelagem computacional.',
+    keywords: [
+      'matemática', 
+      'ensino de matemática',
+    ],
+    openGraph: {
+      title: 'Ensino',
+      description: 'Oferecemos soluções educacionais em matemática aplicada, otimização e modelagem computacional.',
+      url: 'https://otimath.com/ensino',
+      siteName: 'Oti-Math',
+      images: [
+        {
+          url: heroBannerTeachingImage.src,
+          width: 1920,
+          height: 650,
+          alt: 'Ensino',
+        },
+      ],
+      locale: 'pt_BR',
+      type: 'website',
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'Ensino',
+      description: 'Oferecemos soluções educacionais em matemática aplicada, otimização e modelagem computacional.',
+      images: [heroBannerTeachingImage.src],
+      creator: '@otimath_tech',
+    },
+    alternates: {
+      canonical: 'https://otimath.com/ensino',
+    },
+    category: 'educação',
   };
 };
-
 
 export default function Teaching() {
   return (
