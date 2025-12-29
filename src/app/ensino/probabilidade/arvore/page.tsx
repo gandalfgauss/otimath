@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { HeroBanner } from "@/components/global/HeroBanner";
 import { TextBlock } from "@/components/global/TextBlock";
 import heroBannerTreeImage from '@/images/teaching/probability/tree/treeBanner.webp';
+import { TreeSection } from "@/components/teaching/probability/tree/TreeSection";
 
 export const generateMetadata = (): Metadata => {
   return {
@@ -64,7 +65,7 @@ export default function Tree() {
         }
         image={heroBannerTreeImage}
       />
-
+      <TreeSection />
     </main>
   );
 }
