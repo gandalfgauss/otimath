@@ -13,11 +13,11 @@ export function TreeGame() {
   return (
     <div className="flex flex-col gap-y-xxs">
        <TextBlock 
-        paragraph={game.challenges[game.currentChallenge].problem.description}
+        paragraph={game?.challenges[game.currentChallenge].problem.description}
       ></TextBlock>
 
       <TextBlock 
-        paragraph={game.challenges[game.currentChallenge].steps[game.challenges[game.currentChallenge].currentStep].instructions}
+        paragraph={game?.challenges[game.currentChallenge].steps[game.challenges[game.currentChallenge].currentStep].instructions}
      ></TextBlock>
 
       <div className="flex gap-x-xs gap-y-xs max-lg:flex-col-reverse">
@@ -31,7 +31,7 @@ export function TreeGame() {
           
           <div className="flex gap-xxxs items-center">
             <Button style="secondary" size="small" icon={<Check />}>Conferir</Button>
-            <Button style="primary" size="small" icon={<ArrowRight />}>Próximo Desafio</Button>
+            <Button style="primary" size="small" icon={<ArrowRight />} onClick={game?.gameFunctions?.goToNextChallengeOnClick}>Próximo Desafio</Button>
           </div>
         </div>
         <div>Menu Aqui</div>
