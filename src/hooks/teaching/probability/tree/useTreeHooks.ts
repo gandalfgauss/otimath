@@ -90,103 +90,23 @@ const generateRandomPartition = (partsCount: number) => {
   return normalizedValues;
 }
 
-const getChallengeOne = (): Challenge => {
-  const event1 : Event = {
-    description: "Urna A",
+function gcd(a: number, b: number) {
+    while (b !== 0) {
+      [a, b] = [b, a % b];
+    }
+    return a;
   }
 
-  const event2 : Event = {
-    description: "Urna B",
-  }
+const simplifyFraction = (numerator: number, denominator: number) => {
+  const divisor = gcd(numerator, denominator);
 
-  const event3 : Event = {
-    description: "Bola Vermelha",
-  }
-
-  const event4 : Event = {
-    description: "Bola Preta",
-  }
-
-  const eventTree1 : EventTree = {
-    event: event1,
-    probabilityOfOccurring: 0.5,
-    level: 1,
+  return {
+    numerator: numerator / divisor,
+    denominator: denominator / divisor
   };
-  const eventTree2 : EventTree = {
-    event: event2,
-    probabilityOfOccurring: 0.5,
-    level: 1,
-  };
-
-  const redBallInUrnA = Math.floor(Math.random() * 19) + 1;
-  const blackBallInUrnA = 20 - redBallInUrnA;
-  const eventTree3 : EventTree = {
-    event: event3,
-    probabilityOfOccurring: Number((redBallInUrnA / (redBallInUrnA + blackBallInUrnA)).toFixed(2)),
-    parentEventTree: eventTree1,
-    level: 2,
-  };
-  const eventTree4 : EventTree = {
-    event: event4,
-    probabilityOfOccurring: Number((blackBallInUrnA / (redBallInUrnA + blackBallInUrnA)).toFixed(2)),
-    parentEventTree: eventTree1,
-    level: 2,
-  };
-
-  eventTree1.childrenEventsTree = [eventTree3, eventTree4];
-
-  const redBallInUrnB = Math.floor(Math.random() * 20) + 1;
-  const blackBallInUrnB = 20 - redBallInUrnB;
-  const eventTree5 : EventTree = {
-    event: event3,
-    probabilityOfOccurring: Number((redBallInUrnB / (redBallInUrnB + blackBallInUrnB)).toFixed(2)),
-    parentEventTree: eventTree2,
-    level: 2,
-  };
-  const eventTree6 : EventTree = {
-    event: event4,
-    probabilityOfOccurring: Number((blackBallInUrnB / (redBallInUrnB + blackBallInUrnB)).toFixed(2)),
-    parentEventTree: eventTree2,
-    level: 2,
-  };
-
-  eventTree2.childrenEventsTree = [eventTree5, eventTree6];
-
-  const problem: Problem = {
-    description: `<p className="ds-body">
-    <span className="ds-body-large text-brand-otimath-pure"><strong>Problema:</strong></span>
-    <br/> Em um experimento de Probabilidade, são utilizadas duas urnas, <strong>A e B</strong>, contendo <strong>bolas vermelhas e pretas.</strong>
-    <br/> A <strong>urna A</strong> possui <strong>${redBallInUrnA} bola${redBallInUrnA > 1 ? 's' : ''} vermelha${redBallInUrnA > 1 ? 's' : ''}</strong> e <strong>${blackBallInUrnA} bola${blackBallInUrnA > 1 ? 's' : ''} preta${blackBallInUrnA > 1 ? 's' : ''},</strong> 
-    enquanto a <strong>urna B</strong> possui <strong>${redBallInUrnB} bola${redBallInUrnB > 1 ? 's' : ''} vermelha${redBallInUrnB > 1 ? 's' : ''}</strong> e <strong>${blackBallInUrnB} bola${blackBallInUrnB > 1 ? 's' : ''} preta${blackBallInUrnB > 1 ? 's' : ''}.</strong>
-    <br/> Uma das urnas é escolhida ao acaso e, em seguida, retira-se uma bola da urna escolhida.
-    </p>`,
-    eventsTree: [eventTree1, eventTree2, eventTree3, eventTree4, eventTree5, eventTree6],
-    distinctEvents: [event1, event2, event3, event4],
-  };
-
-  const stepOne: Step = {
-    instructions: `<p className="ds-body"> 
-                    <span className="ds-body-large text-brand-otimath-pure"><strong>Instruções:</strong></span>
-                    <br/> Construa a árvore de probabilidade que representa a distribuição das bolas nas urnas. 
-                    <br/> <strong> Identifique, marque e nomeie os eventos</strong> correspondentes ao <strong> primeiro nível</strong> da árvore.
-                    <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta ou no <strong>Botão Limpar</strong> para reiniciar a atividade.
-                  </p>`,
-    checkType: "Tree",
-    checkTree: {
-      levelToAssemble: 1,
-    },
-  };
-
-  const challenge: Challenge = {
-    problem: problem,
-    steps: [stepOne],
-    currentStep: 0,
-  };
-
-  return challenge;
 }
 
-const getChallengeTwo = (): Challenge => {
+const getChallengeOne = (): Challenge => {
   const event1: Event = {
     description: "Feminino",
   };
@@ -290,49 +210,141 @@ const getChallengeTwo = (): Challenge => {
   return challenge;
 }
 
-const getChallengeThree = (): Challenge => {
-  const redCard = Math.max(Math.floor(Math.random() * 8), 3);
-  const blueCard = 10 - redCard;
-
-  const event1: Event = {
-    description: "Vermelha na primeira",
-  };
-  const event2: Event = {
-    description: "Azul na primeira",
+const getChallengeTwo = (): Challenge => {
+  const event1 : Event = {
+    description: "Urna A",
   }
-  const event3: Event = {
-    description: "Vermelha na segunda",
-  };
-  const event4: Event = {
-    description: "Azul na segunda",
-  };
-  const event5: Event = {
-    description: "Vermelha na terceira",
-  };
-  const event6: Event = {
-    description: "Azul na terceira",
-  };
+
+  const event2 : Event = {
+    description: "Urna B",
+  }
+
+  const event3 : Event = {
+    description: "Bola Vermelha",
+  }
+
+  const event4 : Event = {
+    description: "Bola Preta",
+  }
 
   const eventTree1 : EventTree = {
     event: event1,
-    probabilityOfOccurring: Number((redCard / (redCard + blueCard)).toFixed(4)),
+    probabilityOfOccurring: 0.5,
     level: 1,
   };
   const eventTree2 : EventTree = {
     event: event2,
-    probabilityOfOccurring: Number((blueCard / (redCard + blueCard)).toFixed(4)),
+    probabilityOfOccurring: 0.5,
     level: 1,
   };
 
+  const redBallInUrnA = Math.floor(Math.random() * 19) + 1;
+  const blackBallInUrnA = 20 - redBallInUrnA;
   const eventTree3 : EventTree = {
     event: event3,
-    probabilityOfOccurring: Number((Math.max(redCard - 1, 0) / (Math.max(redCard - 1, 0) + blueCard)).toFixed(4)),
+    probabilityOfOccurring: Number((redBallInUrnA / (redBallInUrnA + blackBallInUrnA)).toFixed(2)),
     parentEventTree: eventTree1,
     level: 2,
   };
   const eventTree4 : EventTree = {
     event: event4,
-    probabilityOfOccurring: Number((blueCard / (Math.max(redCard - 1, 0) + blueCard)).toFixed(4)),
+    probabilityOfOccurring: Number((blackBallInUrnA / (redBallInUrnA + blackBallInUrnA)).toFixed(2)),
+    parentEventTree: eventTree1,
+    level: 2,
+  };
+
+  eventTree1.childrenEventsTree = [eventTree3, eventTree4];
+
+  const redBallInUrnB = Math.floor(Math.random() * 20) + 1;
+  const blackBallInUrnB = 20 - redBallInUrnB;
+  const eventTree5 : EventTree = {
+    event: event3,
+    probabilityOfOccurring: Number((redBallInUrnB / (redBallInUrnB + blackBallInUrnB)).toFixed(2)),
+    parentEventTree: eventTree2,
+    level: 2,
+  };
+  const eventTree6 : EventTree = {
+    event: event4,
+    probabilityOfOccurring: Number((blackBallInUrnB / (redBallInUrnB + blackBallInUrnB)).toFixed(2)),
+    parentEventTree: eventTree2,
+    level: 2,
+  };
+
+  eventTree2.childrenEventsTree = [eventTree5, eventTree6];
+
+  const problem: Problem = {
+    description: `<p className="ds-body">
+    <span className="ds-body-large text-brand-otimath-pure"><strong>Problema:</strong></span>
+    <br/> Em um experimento de Probabilidade, são utilizadas duas urnas, <strong>A e B</strong>, contendo <strong>bolas vermelhas e pretas.</strong>
+    <br/> A <strong>urna A</strong> possui <strong>${redBallInUrnA} bola${redBallInUrnA > 1 ? 's' : ''} vermelha${redBallInUrnA > 1 ? 's' : ''}</strong> e <strong>${blackBallInUrnA} bola${blackBallInUrnA > 1 ? 's' : ''} preta${blackBallInUrnA > 1 ? 's' : ''},</strong> 
+    enquanto a <strong>urna B</strong> possui <strong>${redBallInUrnB} bola${redBallInUrnB > 1 ? 's' : ''} vermelha${redBallInUrnB > 1 ? 's' : ''}</strong> e <strong>${blackBallInUrnB} bola${blackBallInUrnB > 1 ? 's' : ''} preta${blackBallInUrnB > 1 ? 's' : ''}.</strong>
+    <br/> Uma das urnas é escolhida ao acaso e, em seguida, retira-se uma bola da urna escolhida.
+    </p>`,
+    eventsTree: [eventTree1, eventTree2, eventTree3, eventTree4, eventTree5, eventTree6],
+    distinctEvents: [event1, event2, event3, event4],
+  };
+
+  const stepOne: Step = {
+    instructions: `<p className="ds-body"> 
+                    <span className="ds-body-large text-brand-otimath-pure"><strong>Instruções:</strong></span>
+                    <br/> Construa a árvore de probabilidade que representa a distribuição das bolas nas urnas. 
+                    <br/> <strong> Identifique, marque e nomeie os eventos</strong> correspondentes ao <strong> primeiro nível</strong> da árvore.
+                    <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta ou no <strong>Botão Limpar</strong> para reiniciar a atividade.
+                  </p>`,
+    checkType: "Tree",
+    checkTree: {
+      levelToAssemble: 1,
+    },
+  };
+
+  const challenge: Challenge = {
+    problem: problem,
+    steps: [stepOne],
+    currentStep: 0,
+  };
+
+  return challenge;
+}
+
+const getChallengeThree = (): Challenge => {
+  const sickAdults = Math.floor(Math.random() * 4) + 1;
+  const correctDiagnosis = Math.floor(Math.random() * 4) + 16;
+  const incorrectDiagnosis = Math.floor(Math.random() * 3) + 1;
+
+  const event1: Event = {
+    description: "Doente",
+  };
+  const event2: Event = {
+    description: "Saudável",
+  }
+  const event3: Event = {
+    description: "Diagnóstico positivo",
+  };
+  const event4: Event = {
+    description: "Diagnóstico negativo",
+  };
+
+
+  const eventTree1 : EventTree = {
+    event: event1,
+    probabilityOfOccurring: Number((sickAdults/20).toFixed(2)),
+    level: 1,
+  };
+  const eventTree2 : EventTree = {
+    event: event2,
+    probabilityOfOccurring: Number((1 - sickAdults/20).toFixed(2)),
+    level: 1,
+  };
+
+  const eventTree3 : EventTree = {
+    event: event3,
+    probabilityOfOccurring: Number((correctDiagnosis/20).toFixed(2)),
+    parentEventTree: eventTree1,
+    level: 2,
+  };
+  const eventTree4 : EventTree = {
+    event: event4,
+    probabilityOfOccurring: Number((1 - correctDiagnosis/20).toFixed(2)),
     parentEventTree: eventTree1,
     level: 2,
   };
@@ -341,87 +353,33 @@ const getChallengeThree = (): Challenge => {
 
   const eventTree5 : EventTree = {
     event: event3,
-    probabilityOfOccurring: Number((redCard / (redCard + Math.max(blueCard - 1, 0))).toFixed(4)),
+    probabilityOfOccurring: Number((incorrectDiagnosis/20).toFixed(2)),
     parentEventTree: eventTree2,
     level: 2,
   };
   const eventTree6 : EventTree = {
     event: event4,
-    probabilityOfOccurring: Number((Math.max(blueCard - 1, 0) / (redCard + Math.max(blueCard - 1, 0))).toFixed(4)),
+    probabilityOfOccurring: Number((1 - incorrectDiagnosis/20).toFixed(2)),
     parentEventTree: eventTree2,
     level: 2,
   };
 
   eventTree2.childrenEventsTree = [eventTree5, eventTree6];
 
-  const eventTree7 : EventTree = {
-    event: event5,
-    probabilityOfOccurring: Number((Math.max(redCard - 2, 0) / (Math.max(redCard - 2, 0) + blueCard)).toFixed(4)),
-    parentEventTree: eventTree3,
-    level: 3,
-  };
-  const eventTree8 : EventTree = {
-    event: event6,
-    probabilityOfOccurring: Number((blueCard / (Math.max(redCard - 2, 0) + blueCard)).toFixed(4)),
-    parentEventTree: eventTree3,
-    level: 3,
-  };
-
-  eventTree3.childrenEventsTree = [eventTree7, eventTree8];
-
-  const eventTree9 : EventTree = {
-    event: event5,
-    probabilityOfOccurring: Number((Math.max(redCard - 1, 0) / (Math.max(redCard - 1, 0) + Math.max(blueCard - 1, 0))).toFixed(4)),
-    parentEventTree: eventTree4,
-    level: 3,
-  };
-  const eventTree10 : EventTree = {
-    event: event6,
-    probabilityOfOccurring: Number((Math.max(blueCard - 1, 0) / (Math.max(redCard - 1, 0) + Math.max(blueCard - 1, 0))).toFixed(4)),
-    parentEventTree: eventTree4,
-    level: 3,
-  };
-
-  eventTree4.childrenEventsTree = [eventTree9, eventTree10];
-
-  const eventTree11 : EventTree = {
-    event: event5,
-    probabilityOfOccurring: Number((Math.max(redCard - 1, 0) / (Math.max(redCard - 1, 0) + Math.max(blueCard - 1, 0))).toFixed(4)),
-    parentEventTree: eventTree5,
-    level: 3,
-  };
-  const eventTree12 : EventTree = {
-    event: event6,
-    probabilityOfOccurring: Number((Math.max(blueCard - 1, 0) / (Math.max(redCard - 1, 0) + Math.max(blueCard - 1, 0))).toFixed(4)),
-    parentEventTree: eventTree5,
-    level: 3,
-  };
-
-  eventTree5.childrenEventsTree = [eventTree11, eventTree12];
-
-  const eventTree13 : EventTree = {
-    event: event5,
-    probabilityOfOccurring: Number((redCard / (redCard + Math.max(blueCard - 2, 0))).toFixed(4)),
-    parentEventTree: eventTree6,
-    level: 3,
-  };
-  const eventTree14 : EventTree = {
-    event: event6,
-    probabilityOfOccurring: Number((Math.max(blueCard - 2, 0) / (redCard + Math.max(blueCard - 2, 0))).toFixed(4)),
-    parentEventTree: eventTree6,
-    level: 3,
-  };
-
-  eventTree6.childrenEventsTree = [eventTree13, eventTree14];
+  const sickAdultsFraction = simplifyFraction(sickAdults, 20);
+  const correctDiagnosisFraction = simplifyFraction(correctDiagnosis, 20);
+  const incorrectDiagnosisFraction = simplifyFraction(incorrectDiagnosis, 20);
   
   const problem: Problem = {
     description: `<p className="ds-body">
     <span className="ds-body-large text-brand-otimath-pure"><strong>Problema:</strong></span>
-    <br/> Em uma caixa há <strong>${redCard + blueCard} cartões,</strong> sendo <strong>${redCard} vermelho${redCard > 1 ? 's' : ''}</strong> e <strong>${blueCard} ${blueCard > 1 ? 'azuis' : 'azul'}.</strong>
-    <br/><strong>Três cartões</strong> são selecionados aleatoriamente, um após o outro, sem reposição.
+    <br/> Em uma localidade, <strong>${sickAdultsFraction.numerator}/${sickAdultsFraction.denominator}</strong> dos adultos <strong>sofrem de determinada doença</strong>.
+    <br/> Um médico local  <strong>diagnostica corretamente ${correctDiagnosisFraction.numerator}/${correctDiagnosisFraction.denominator}</strong> das pessoas que  <strong>têm a doença</strong> 
+    e <strong>diagnostica erradamente ${incorrectDiagnosisFraction.numerator}/${incorrectDiagnosisFraction.denominator}</strong> das pessoas que  <strong>não a têm</strong>.
+    <br/> Um adulto acaba de ser atendido pelo médico.
     </p>`,
-    eventsTree: [eventTree1, eventTree2, eventTree3, eventTree4, eventTree5, eventTree6, eventTree7, eventTree8, eventTree9, eventTree10, eventTree11, eventTree12, eventTree13, eventTree14],
-    distinctEvents: [event1, event2, event3, event4, event5, event6],
+    eventsTree: [eventTree1, eventTree2, eventTree3, eventTree4, eventTree5, eventTree6],
+    distinctEvents: [event1, event2, event3, event4],
   };
 
   const stepOne: Step = {
