@@ -7,6 +7,10 @@ type CheckType = "Tree" | "Probability";
 interface Event {
   description: string;
   label?: string;
+  selected?: boolean;
+  disabled?: boolean;
+  error?: boolean;
+  inputIsFocused?: boolean;
 }
 interface EventTree {
   event: Event;
@@ -19,23 +23,18 @@ interface EventTree {
 interface Problem {
   description: string;
   eventsTree: EventTree[];
-  distinctEvents: Event[]; 
+  eventOptions: Event[]; 
 }
 
 interface CheckTree {
-  levelToAssemble?: number;
+  levelsToAssemble?: number[];
   parentEvent?: Event;
-}
-
-interface CheckProbabilityWithIntersection {
-  events: Event[];
 }
 
 interface Step {
   instructions: string;
   checkType: CheckType;
   checkTree?: CheckTree;
-  checkProbabilityWithIntersection?: CheckProbabilityWithIntersection;
 }
 
 interface Challenge {
@@ -44,13 +43,15 @@ interface Challenge {
   currentStep: number;
 }
 
-interface GameFunctions {
-  goToNextChallengeOnClick: () => void;
+interface NextChallengeButton {
+  onClick: () => void;
+  disabled: boolean;
 }
+
 export interface Game {
   currentChallenge: number;
   challenges: Challenge[];
-  gameFunctions?: GameFunctions;
+  nextChallengeButton?: NextChallengeButton;
 }
 
 const generateRandomPartition = (partsCount: number) => {
@@ -91,11 +92,11 @@ const generateRandomPartition = (partsCount: number) => {
 }
 
 function gcd(a: number, b: number) {
-    while (b !== 0) {
-      [a, b] = [b, a % b];
-    }
-    return a;
+  while (b !== 0) {
+    [a, b] = [b, a % b];
   }
+  return a;
+}
 
 const simplifyFraction = (numerator: number, denominator: number) => {
   const divisor = gcd(numerator, denominator);
@@ -104,6 +105,15 @@ const simplifyFraction = (numerator: number, denominator: number) => {
     numerator: numerator / divisor,
     denominator: denominator / divisor
   };
+}
+
+function shuffleArray<T>(data: T[]): T[] {
+  const newArray = [...data];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
 }
 
 const getChallengeOne = (): Challenge => {
@@ -121,6 +131,15 @@ const getChallengeOne = (): Challenge => {
   };
   const event5: Event = {
     description: "Terceiro Ano",
+  };
+  const event6: Event = {
+    description: "É aluno",
+  };
+  const event7: Event = {
+    description: "Matutino",
+  };
+  const event8: Event = {
+    description: "Feminino e Masculino",
   };
 
   const levelOneProbabilities = generateRandomPartition(2);
@@ -185,7 +204,7 @@ const getChallengeOne = (): Challenge => {
     <br/><strong>Entre os meninos</strong>, esses percentuais são <strong>${(eventTree6.probabilityOfOccurring*100).toFixed(0)}%, ${(eventTree7.probabilityOfOccurring*100).toFixed(0)}% e ${(eventTree8.probabilityOfOccurring*100).toFixed(0)}%</strong> respectivamente.
     </p>`,
     eventsTree: [eventTree1, eventTree2, eventTree3, eventTree4, eventTree5, eventTree6, eventTree7, eventTree8],
-    distinctEvents: [event1, event2, event3, event4, event5],
+    eventOptions: shuffleArray<Event>([event1, event2, event3, event4, event5, event6, event7, event8]),
   };
 
   const stepOne: Step = {
@@ -197,7 +216,7 @@ const getChallengeOne = (): Challenge => {
                   </p>`,
     checkType: "Tree",
     checkTree: {
-      levelToAssemble: 1,
+      levelsToAssemble: [1],
     },
   };
 
@@ -281,7 +300,7 @@ const getChallengeTwo = (): Challenge => {
     <br/> Uma das urnas é escolhida ao acaso e, em seguida, retira-se uma bola da urna escolhida.
     </p>`,
     eventsTree: [eventTree1, eventTree2, eventTree3, eventTree4, eventTree5, eventTree6],
-    distinctEvents: [event1, event2, event3, event4],
+    eventOptions: shuffleArray<Event>([event1, event2, event3, event4]),
   };
 
   const stepOne: Step = {
@@ -293,7 +312,7 @@ const getChallengeTwo = (): Challenge => {
                   </p>`,
     checkType: "Tree",
     checkTree: {
-      levelToAssemble: 1,
+      levelsToAssemble: [1],
     },
   };
 
@@ -323,7 +342,6 @@ const getChallengeThree = (): Challenge => {
   const event4: Event = {
     description: "Diagnóstico negativo",
   };
-
 
   const eventTree1 : EventTree = {
     event: event1,
@@ -379,7 +397,7 @@ const getChallengeThree = (): Challenge => {
     <br/> Um adulto acaba de ser atendido pelo médico.
     </p>`,
     eventsTree: [eventTree1, eventTree2, eventTree3, eventTree4, eventTree5, eventTree6],
-    distinctEvents: [event1, event2, event3, event4],
+    eventOptions: shuffleArray<Event>([event1, event2, event3, event4]),
   };
 
   const stepOne: Step = {
@@ -391,7 +409,7 @@ const getChallengeThree = (): Challenge => {
                   </p>`,
     checkType: "Tree",
     checkTree: {
-      levelToAssemble: 1,
+      levelsToAssemble: [1, 2],
     },
   };
 
@@ -407,14 +425,13 @@ const getChallengeThree = (): Challenge => {
 const getNewGame = (): Game => {
   const challenges: Challenge[] = [];
   challenges.push(getChallengeOne(), getChallengeTwo(), getChallengeThree());
-  console.log(challenges);
   return { challenges, currentChallenge: 0  };
 };
 
 export const useTreeHooks = () => {
   const [game, setGame] = useState<Game | null>(null);
 
-  const goToNextChallengeOnClick = useCallback(() => {
+  const increaseChallenge = useCallback(() => {
     setGame(prev => {
       if (!prev) {
         return prev;
@@ -435,19 +452,39 @@ export const useTreeHooks = () => {
     });
   }, []);
 
+  const buttonNextChallengeOnClick = useCallback(() => {
+    increaseChallenge();
+  }, [increaseChallenge]);
+
   const startGame = useCallback(() => {
     const newGame = getNewGame();
 
-    newGame.gameFunctions = {
-      goToNextChallengeOnClick,
+    newGame.nextChallengeButton = {
+      onClick: buttonNextChallengeOnClick,
+      disabled: true
     };
 
+    newGame.challenges = newGame.challenges.map((challenge) => {
+     challenge.problem.eventOptions = challenge.problem.eventOptions.map((event) => {
+        return {
+          ...event,
+          selected: false,
+          disabled: false,
+          label: "",
+          error: false,
+          inputIsFocused: false,
+        };
+      });
+      return challenge;
+    });
+
     setGame(newGame);
-  }, [goToNextChallengeOnClick]);
+  }, [buttonNextChallengeOnClick]);
 
   useEffect(() => {
     startGame();
   }, [startGame]);
 
-  return { game };
+  console.log(game);
+  return { game, setGame };
 };

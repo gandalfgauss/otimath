@@ -1,5 +1,9 @@
 'use client'
 
+import { useEffect, useRef } from "react";
+
+type InputType = "natural-number" | "text";
+
 export interface TextInputInterface {
   label?: string;
   value?: string;
@@ -9,12 +13,13 @@ export interface TextInputInterface {
   disabled?: boolean;
   min?: string;
   max?: string;
-  type?: "natural-number";
+  type?: InputType;
   helperText?: string;
   required?: boolean;
   error?: boolean;
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   styles?: string
+  isFocused?: boolean;
 }
 
 interface TextInputProps {
@@ -24,10 +29,17 @@ interface TextInputProps {
 export function TextInput({
   textInput,
 }: Readonly<TextInputProps>) {
+   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [textInput.isFocused]);
+
   return (
     <fieldset className="flex flex-col gap-y-nano">
       {textInput.label && <label className="ds-small-bold cursor-pointer" htmlFor={textInput.id}>{textInput.label}</label>}
       <input 
+        ref={inputRef}
         id={textInput.id} type="text" 
         value={textInput.value} 
         inputMode={textInput.type == "natural-number" ? "numeric" : "text"}

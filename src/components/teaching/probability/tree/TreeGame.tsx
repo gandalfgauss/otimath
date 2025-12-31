@@ -4,10 +4,11 @@ import { Button } from "@/components/global/Button";
 import { RefreshCw, Check, X, ArrowRight } from "lucide-react";
 import { TextBlock } from "@/components/global/TextBlock";
 import { useTreeHooks } from "@/hooks/teaching/probability/tree/useTreeHooks";
+import { TreeMenu } from "./TreeMenu";
 
 export function TreeGame() {
   const { 
-    game
+    game, setGame
   } = useTreeHooks();
 
   return (
@@ -31,10 +32,10 @@ export function TreeGame() {
           
           <div className="flex gap-xxxs items-center">
             <Button style="secondary" size="small" icon={<Check />}>Conferir</Button>
-            <Button style="primary" size="small" icon={<ArrowRight />} onClick={game?.gameFunctions?.goToNextChallengeOnClick}>Próximo Desafio</Button>
+            <Button style="primary" size="small" icon={<ArrowRight />} onClick={game?.nextChallengeButton?.onClick} disabled={game?.nextChallengeButton?.disabled}>Próximo Desafio</Button>
           </div>
         </div>
-        <div>Menu Aqui</div>
+        <TreeMenu game={game} setGame={setGame} />
       </div>
     </div>
   );

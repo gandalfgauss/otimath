@@ -7,6 +7,8 @@ export interface CheckboxInterface {
   disabled?: boolean;
   onChange?: (checked: boolean) => void;
   styles?: string;
+  containerStyles?: string;
+  labelStyles?: string;
 }
 
 interface CheckboxProps {
@@ -17,8 +19,8 @@ export function Checkbox({
   checkbox
 }: Readonly<CheckboxProps>) {
   return (
-    <fieldset className="flex flex-col gap-y-nano group">
-      <label className="ds-small cursor-pointer group-has-disabled:pointer-events-none" htmlFor={checkbox.id}>{checkbox.label}</label>
+    <fieldset className={`${checkbox.containerStyles ? checkbox.containerStyles : 'flex flex-col gap-y-nano'} group`}>
+      <label className={`${checkbox.labelStyles ? checkbox.labelStyles : 'ds-small'} cursor-pointer group-has-disabled:pointer-events-none`} htmlFor={checkbox.id}>{checkbox.label}</label>
       <input id={checkbox.id} type="checkbox" 
         checked={checkbox.checked} 
         onKeyDown={(e) => {
