@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback} from 'react';
+import { useState, useEffect, useCallback, useRef} from 'react';
+import { useAlerts } from '@/hooks/global/useAlerts';
 
 type CheckType = "Tree" | "Probability";
 
@@ -11,6 +12,7 @@ interface Event {
   disabled?: boolean;
   error?: boolean;
   inputIsFocused?: boolean;
+  inputHelperText?: string;
 }
 interface EventTree {
   event: Event;
@@ -28,6 +30,7 @@ interface Problem {
 
 interface CheckTree {
   levelsToAssemble?: number[];
+  levelsToShow?: number[];
   parentEvent?: Event;
 }
 
@@ -40,7 +43,6 @@ interface Step {
 interface Challenge {
   problem: Problem;
   steps: Step[];
-  currentStep: number;
 }
 
 interface NextChallengeButton {
@@ -48,10 +50,17 @@ interface NextChallengeButton {
   disabled: boolean;
 }
 
+interface CheckButton {
+  onClick: () => void;
+  disabled: boolean;
+}
+
 export interface Game {
+  currentStep: number;
   currentChallenge: number;
   challenges: Challenge[];
   nextChallengeButton?: NextChallengeButton;
+  checkButton?: CheckButton;
 }
 
 const generateRandomPartition = (partsCount: number) => {
@@ -114,6 +123,16 @@ function shuffleArray<T>(data: T[]): T[] {
     [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
   }
   return newArray;
+}
+
+function getDuplicatesBy<T, K extends keyof T>(array: T[], key: K): T[] {
+  const count = new Map<T[K], number>();
+
+  for (const item of array) {
+    count.set(item[key], (count.get(item[key]) ?? 0) + 1);
+  }
+
+  return array.filter(item => (count.get(item[key]) ?? 0) > 1);
 }
 
 const getChallengeOne = (): Challenge => {
@@ -198,8 +217,7 @@ const getChallengeOne = (): Challenge => {
 
   const problem: Problem = {
     description: `<p className="ds-body">
-    <span className="ds-body-large text-brand-otimath-pure"><strong>Problema:</strong></span>
-    <br/>  Na gincana anual do Colégio Universitário, <strong>${(eventTree1.probabilityOfOccurring*100).toFixed(0)}%</strong> dos alunos presentes são do <strong>sexo feminino.</strong> 
+    Na gincana anual do Colégio Universitário, <strong>${(eventTree1.probabilityOfOccurring*100).toFixed(0)}%</strong> dos alunos presentes são do <strong>sexo feminino.</strong> 
     <br/><strong>Entre as meninas, ${(eventTree3.probabilityOfOccurring*100).toFixed(0)}%</strong> são do <strong>primeiro ano,</strong> <strong>${(eventTree4.probabilityOfOccurring*100).toFixed(0)}%</strong> são do <strong>segundo ano</strong> e <strong>${(eventTree5.probabilityOfOccurring*100).toFixed(0)}%</strong> são do <strong>terceiro ano.</strong> 
     <br/><strong>Entre os meninos</strong>, esses percentuais são <strong>${(eventTree6.probabilityOfOccurring*100).toFixed(0)}%, ${(eventTree7.probabilityOfOccurring*100).toFixed(0)}% e ${(eventTree8.probabilityOfOccurring*100).toFixed(0)}%</strong> respectivamente.
     </p>`,
@@ -209,21 +227,20 @@ const getChallengeOne = (): Challenge => {
 
   const stepOne: Step = {
     instructions: `<p className="ds-body"> 
-                    <span className="ds-body-large text-brand-otimath-pure"><strong>Instruções:</strong></span>
-                    <br/> Construa a árvore de probabilidade que representa a distribuição dos alunos do Colégio Universitário participantes da gincana anual. 
+                    Construa a árvore de probabilidade que representa a distribuição dos alunos do Colégio Universitário participantes da gincana anual. 
                     <br/> <strong> Identifique, marque e nomeie os eventos</strong> correspondentes ao <strong> primeiro nível</strong> da árvore.
                     <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta ou no <strong>Botão Limpar</strong> para reiniciar a atividade.
                   </p>`,
     checkType: "Tree",
     checkTree: {
-      levelsToAssemble: [1],
+      levelsToAssemble: [1,2],
+      levelsToShow: [1, 2],
     },
   };
 
   const challenge: Challenge = {
     problem: problem,
     steps: [stepOne],
-    currentStep: 0,
   };
 
   return challenge;
@@ -293,8 +310,7 @@ const getChallengeTwo = (): Challenge => {
 
   const problem: Problem = {
     description: `<p className="ds-body">
-    <span className="ds-body-large text-brand-otimath-pure"><strong>Problema:</strong></span>
-    <br/> Em um experimento de Probabilidade, são utilizadas duas urnas, <strong>A e B</strong>, contendo <strong>bolas vermelhas e pretas.</strong>
+    Em um experimento de Probabilidade, são utilizadas duas urnas, <strong>A e B</strong>, contendo <strong>bolas vermelhas e pretas.</strong>
     <br/> A <strong>urna A</strong> possui <strong>${redBallInUrnA} bola${redBallInUrnA > 1 ? 's' : ''} vermelha${redBallInUrnA > 1 ? 's' : ''}</strong> e <strong>${blackBallInUrnA} bola${blackBallInUrnA > 1 ? 's' : ''} preta${blackBallInUrnA > 1 ? 's' : ''},</strong> 
     enquanto a <strong>urna B</strong> possui <strong>${redBallInUrnB} bola${redBallInUrnB > 1 ? 's' : ''} vermelha${redBallInUrnB > 1 ? 's' : ''}</strong> e <strong>${blackBallInUrnB} bola${blackBallInUrnB > 1 ? 's' : ''} preta${blackBallInUrnB > 1 ? 's' : ''}.</strong>
     <br/> Uma das urnas é escolhida ao acaso e, em seguida, retira-se uma bola da urna escolhida.
@@ -305,8 +321,7 @@ const getChallengeTwo = (): Challenge => {
 
   const stepOne: Step = {
     instructions: `<p className="ds-body"> 
-                    <span className="ds-body-large text-brand-otimath-pure"><strong>Instruções:</strong></span>
-                    <br/> Construa a árvore de probabilidade que representa a distribuição das bolas nas urnas. 
+                    Construa a árvore de probabilidade que representa a distribuição das bolas nas urnas. 
                     <br/> <strong> Identifique, marque e nomeie os eventos</strong> correspondentes ao <strong> primeiro nível</strong> da árvore.
                     <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta ou no <strong>Botão Limpar</strong> para reiniciar a atividade.
                   </p>`,
@@ -319,7 +334,6 @@ const getChallengeTwo = (): Challenge => {
   const challenge: Challenge = {
     problem: problem,
     steps: [stepOne],
-    currentStep: 0,
   };
 
   return challenge;
@@ -390,8 +404,7 @@ const getChallengeThree = (): Challenge => {
   
   const problem: Problem = {
     description: `<p className="ds-body">
-    <span className="ds-body-large text-brand-otimath-pure"><strong>Problema:</strong></span>
-    <br/> Em uma localidade, <strong>${sickAdultsFraction.numerator}/${sickAdultsFraction.denominator}</strong> dos adultos <strong>sofrem de determinada doença</strong>.
+    Em uma localidade, <strong>${sickAdultsFraction.numerator}/${sickAdultsFraction.denominator}</strong> dos adultos <strong>sofrem de determinada doença</strong>.
     <br/> Um médico local  <strong>diagnostica corretamente ${correctDiagnosisFraction.numerator}/${correctDiagnosisFraction.denominator}</strong> das pessoas que  <strong>têm a doença</strong> 
     e <strong>diagnostica erradamente ${incorrectDiagnosisFraction.numerator}/${incorrectDiagnosisFraction.denominator}</strong> das pessoas que  <strong>não a têm</strong>.
     <br/> Um adulto acaba de ser atendido pelo médico.
@@ -402,8 +415,7 @@ const getChallengeThree = (): Challenge => {
 
   const stepOne: Step = {
     instructions: `<p className="ds-body"> 
-                    <span className="ds-body-large text-brand-otimath-pure"><strong>Instruções:</strong></span>
-                    <br/> Construa a árvore de probabilidade que representa a distribuição dos cartões. 
+                    Construa a árvore de probabilidade que representa a distribuição dos cartões. 
                     <br/> <strong> Identifique, marque e nomeie os eventos</strong> correspondentes ao <strong> primeiro nível</strong> da árvore.
                     <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta ou no <strong>Botão Limpar</strong> para reiniciar a atividade.
                   </p>`,
@@ -416,7 +428,6 @@ const getChallengeThree = (): Challenge => {
   const challenge: Challenge = {
     problem: problem,
     steps: [stepOne],
-    currentStep: 0,
   };
 
   return challenge;
@@ -425,11 +436,14 @@ const getChallengeThree = (): Challenge => {
 const getNewGame = (): Game => {
   const challenges: Challenge[] = [];
   challenges.push(getChallengeOne(), getChallengeTwo(), getChallengeThree());
-  return { challenges, currentChallenge: 0  };
+  return { challenges, currentChallenge: 0, currentStep: 0  };
 };
 
 export const useTreeHooks = () => {
   const [game, setGame] = useState<Game | null>(null);
+  const {alerts, createAlert, updateAlert, deleteAlerts} = useAlerts();
+  const alertLockRef = useRef(false);
+
 
   const increaseChallenge = useCallback(() => {
     setGame(prev => {
@@ -456,13 +470,107 @@ export const useTreeHooks = () => {
     increaseChallenge();
   }, [increaseChallenge]);
 
+  const checkLabelSelectedEvents = useCallback((prevGame: Game, eventsToCheck: Event[]) => {
+    let newGameWithLabelVerifify = {...prevGame}
+    let labelCheckStatus = true;
+
+    const eventsWithoutLabel = eventsToCheck.filter(eventItem => !eventItem.label?.trim());
+    if(eventsWithoutLabel.length > 0) {
+      if (!alertLockRef.current) {
+        alertLockRef.current = true;
+        createAlert("Eventos", "Verifique os nomes dos eventos", "error");
+      }
+
+     newGameWithLabelVerifify = { 
+      ...prevGame,
+        challenges: prevGame.challenges.map((challenge, challengeIndex) => {
+          if (challengeIndex === prevGame.currentChallenge) {
+            const updatedEvents = challenge.problem.eventOptions.map((event) => {
+              if (eventsWithoutLabel.some(eventItem => eventItem.description == event.description)) {
+                return { ...event, error: true, inputHelperText: "Digite um nome para o evento" };
+              }
+              return event;
+            });
+            return {
+              ...challenge,
+              problem: {
+                ...challenge.problem,
+                eventOptions: updatedEvents
+              }
+            };
+          }
+          return challenge;
+        })
+      } 
+
+      labelCheckStatus = false;
+    }
+
+    const eventsDuplicated = getDuplicatesBy(eventsToCheck, "label");
+    if(eventsDuplicated.length > 0) {
+      if (!alertLockRef.current) {
+        alertLockRef.current = true;
+        createAlert("Eventos", "Verifique os nomes dos eventos", "error");
+      }
+
+     newGameWithLabelVerifify = { 
+      ...prevGame,
+        challenges: prevGame.challenges.map((challenge, challengeIndex) => {
+          if (challengeIndex === prevGame.currentChallenge) {
+            const updatedEvents = challenge.problem.eventOptions.map((event) => {
+              if (eventsDuplicated.some(eventItem => eventItem.label == event.label)) {
+                return { ...event, error: true, inputHelperText: "Digite um nome único para o evento" };
+              }
+              return event;
+            });
+            return {
+              ...challenge,
+              problem: {
+                ...challenge.problem,
+                eventOptions: updatedEvents
+              }
+            };
+          }
+          return challenge;
+        })
+      } 
+
+      labelCheckStatus = false;
+    }
+
+    return {newGameWithLabelVerifify, labelCheckStatus};
+  }, [createAlert]);
+  
+  const checkTreeStep = useCallback((prevGame: Game, problem: Problem, checkTree: CheckTree) => {
+    const eventsToCheck = problem.eventOptions.filter(eventItem => eventItem.selected);
+    console.log(prevGame, problem, checkTree, eventsToCheck)
+    
+    const {newGameWithLabelVerifify, labelCheckStatus} = checkLabelSelectedEvents(prevGame, eventsToCheck);
+    if(!labelCheckStatus) {
+      return newGameWithLabelVerifify;
+    }
+   
+    return prevGame;
+  }, [checkLabelSelectedEvents]);
+
+  const checkButtonOnClick = useCallback(() => {
+    alertLockRef.current = false;
+    setGame(prevGame => {
+      if (!prevGame) return prevGame;
+  
+      const challenge = prevGame.challenges[prevGame.currentChallenge];
+      const step = challenge?.steps[prevGame.currentStep];
+    
+      if(step.checkType == "Tree") {
+        return checkTreeStep(prevGame, challenge.problem, step.checkTree as CheckTree);
+      }
+
+      return prevGame;
+    });
+  }, [setGame, checkTreeStep]);
+
   const startGame = useCallback(() => {
     const newGame = getNewGame();
-
-    newGame.nextChallengeButton = {
-      onClick: buttonNextChallengeOnClick,
-      disabled: true
-    };
 
     newGame.challenges = newGame.challenges.map((challenge) => {
      challenge.problem.eventOptions = challenge.problem.eventOptions.map((event) => {
@@ -473,18 +581,28 @@ export const useTreeHooks = () => {
           label: "",
           error: false,
           inputIsFocused: false,
+          inputHelperText: ""
         };
       });
       return challenge;
     });
 
+    newGame.nextChallengeButton = {
+      onClick: buttonNextChallengeOnClick,
+      disabled: true
+    };
+
+    newGame.checkButton = {
+      onClick: checkButtonOnClick,
+      disabled: false
+    };
+
     setGame(newGame);
-  }, [buttonNextChallengeOnClick]);
+  }, [buttonNextChallengeOnClick, checkButtonOnClick]);
 
   useEffect(() => {
     startGame();
-  }, [startGame]);
+  }, []);
 
-  console.log(game);
-  return { game, setGame };
+  return { game, setGame, alerts, updateAlert, deleteAlerts };
 };

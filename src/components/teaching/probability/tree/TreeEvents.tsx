@@ -78,7 +78,7 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
           if (challengeIndex === prevGame.currentChallenge) {
             const updatedEvents = challenge.problem.eventOptions.map((event, eventIndex) => {
               if (eventIndex === index) {
-                return { ...event, selected: checked };
+                return { ...event, selected: checked, error: false };
               }
               return event;
             });
@@ -106,17 +106,17 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
   }, [setGame, setTextInputValue, setTextInputFocus]);
 
   return (
-    <div className="w-full min-h-[205px]
+    <div className="w-full
       rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1">
       <h3 
         className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Eventos(s)</h3>
-      <div className="flex flex-col gap-y-micro p-micro max-h-[400px] overflow-auto [scrollbar-width:thin]">
+      <div className="flex flex-col gap-y-micro p-micro h-[280px] overflow-auto [scrollbar-width:thin]">
         {events?.map((event, index) => {
           return (
             <div key={index} 
               className={` 
                text-neutral-dark  solid border-thin
-               rounded-md cursor-pointer p-micro flex flex-col gap-y-micro
+               rounded-md cursor-pointer p-micro flex flex-col
                transition-[background-color,border-color] duration-300 ease-in-out
                 ${event?.selected ? 'bg-brand-otimath-lightest border-brand-otimath-pure' : 'bg-neutral-lightest border-neutral-lighter hover:border-neutral-medium'}
                `}>
@@ -131,20 +131,19 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
                       disabled: event?.disabled,
                       styles: 'shrink-0',
                       containerStyles: 'flex flex-row-reverse justify-end gap-x-micro w-fit items-center w-full',
-                      labelStyles: 'ds-body-bold grow-1 shrink-0',
+                      labelStyles: 'ds-body-bold grow-1',
                       onChange: (checked: boolean) => changeCheckbox(index, checked),
                     }
                   }
                 />
-                {
-                  event?.selected &&
 
+                <div className={`${event?.selected ? 'h-auto pt-micro' : 'h-0 pt-0'} overflow-hidden transition-[height, padding] duration-300 ease-in-out`}>
                   <TextInput textInput={{
                     id:"TextInput_" + event?.description,
                     styles: "w-full",
                     label: "Nome:",
                     placeholder: "Ex: F, M, 1A",
-                    helperText: "Não repita o nome de um evento",
+                    helperText: event?.inputHelperText,
                     required: true,
                     type: "text",
                     value: event?.label,
@@ -153,7 +152,7 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
                     isFocused: event?.inputIsFocused,
                     setValue: (value: string) => setTextInputValue(index, value),
                   }}/>
-                }
+                </div>
             </div>
           )
         })}
