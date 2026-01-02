@@ -115,10 +115,11 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
           return (
             <div key={index} 
               className={` 
-               text-neutral-dark  solid border-thin
-               rounded-md cursor-pointer p-micro flex flex-col
+               text-neutral-dark solid border-thin cursor-pointer
+               rounded-md p-micro flex flex-col
                transition-[background-color,border-color] duration-300 ease-in-out
-                ${event?.selected ? 'bg-brand-otimath-lightest border-brand-otimath-pure' : 'bg-neutral-lightest border-neutral-lighter hover:border-neutral-medium'}
+                 ${event?.selected ? 'bg-brand-otimath-lightest border-brand-otimath-pure' : 'bg-neutral-lightest border-neutral-lighter hover:border-neutral-medium'}
+                  ${event?.disabled ? 'pointer-events-none' : ''}
                `}>
             
                <Checkbox 

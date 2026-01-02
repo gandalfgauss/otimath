@@ -7,10 +7,11 @@ import { TextBlock } from "@/components/global/TextBlock";
 import { useTreeHooks } from "@/hooks/teaching/probability/tree/useTreeHooks";
 import { TreeMenu } from "./TreeMenu";
 import { Tree } from "./Tree";
+import { Modal } from "@/components/global/Modal";
 
 export function TreeGame() {
   const { 
-    game, setGame, alerts, updateAlert, deleteAlerts
+    game, setGame, alerts, updateAlert, deleteAlerts, modal, updateModal
   } = useTreeHooks();
 
   return (
@@ -28,8 +29,8 @@ export function TreeGame() {
       <div className="flex gap-x-xs gap-y-xs max-lg:flex-col-reverse">
         <div className="w-full flex flex-col gap-y-xxs max-lg:items-center max-sm:item-start">
           <div className="flex items-center gap-x-xxxs justify-between w-full max-w-[747px]">
-            <Button style="secondary" size="small" icon={<RefreshCw />}>Novo</Button>
-            <Button style="borderless" size="extra-small" icon={<X />}>Limpar</Button>
+            <Button style="secondary" size="small" icon={<RefreshCw />} onClick={game?.newGameButton?.onClick} disabled={game?.newGameButton?.disabled}>Novo</Button>
+            <Button style="borderless" size="extra-small" icon={<X />} onClick={game?.clearButton?.onClick} disabled={game?.clearButton?.disabled}>Limpar</Button>
           </div>
 
           <Tree game={game} setGame={setGame} />
@@ -41,7 +42,7 @@ export function TreeGame() {
         </div>
         <TreeMenu game={game} setGame={setGame} />
         <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts}/>
-       
+        <Modal modal={modal} updateModal={updateModal}/>
       </div>
     </div>
   );

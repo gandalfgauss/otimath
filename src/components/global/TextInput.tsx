@@ -36,8 +36,8 @@ export function TextInput({
   }, [textInput.isFocused]);
 
   return (
-    <fieldset className="flex flex-col gap-y-nano">
-      {textInput.label && <label className="ds-small-bold cursor-pointer" htmlFor={textInput.id}>{textInput.label}</label>}
+    <fieldset className="flex flex-col gap-y-nano group">
+      {textInput.label && <label className="ds-small-bold cursor-pointer group-has-disabled:pointer-events-none" htmlFor={textInput.id}>{textInput.label}</label>}
       <input 
         ref={inputRef}
         id={textInput.id} type="text" 
