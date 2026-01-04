@@ -11,60 +11,27 @@ interface TreeEventsProps {
 export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
   const events = game?.challenges[game.currentChallenge].problem.eventOptions;
 
-  const setTextInputFocus = useCallback((index: number, focused: boolean) => {
+  const setTextInputFocus = useCallback((index: number) => {
     setGame((prevGame) => {
       if (!prevGame) return prevGame;
 
-      const newGame = { ...prevGame,
-        challenges: prevGame.challenges.map((challenge, challengeIndex) => {
-          if (challengeIndex === prevGame.currentChallenge) {
-            const updatedEvents = challenge.problem.eventOptions.map((event, eventIndex) => {
-              if (eventIndex === index) {
-                return { ...event, inputIsFocused: focused };
-              }
-              return event;
-            });
-            return {
-              ...challenge,
-              problem: {
-                ...challenge.problem,
-                eventOptions: updatedEvents
-              }
-            };
-          }
-          return challenge;
-        })
-      };
-      
-      return newGame;
+      prevGame.challenges[prevGame.currentChallenge].problem.eventOptions[index].inputElement?.focus();
+
+      return prevGame;
     });
   },[setGame]);
     
   const setTextInputValue = useCallback((index: number, value: string) => {
     setGame((prevGame) => {
       if (!prevGame) return prevGame;
+      const newGame = {...prevGame};
 
-      const newGame = { ...prevGame,
-        challenges: prevGame.challenges.map((challenge, challengeIndex) => {
-          if (challengeIndex === prevGame.currentChallenge) {
-            const updatedEvents = challenge.problem.eventOptions.map((event, eventIndex) => {
-              if (eventIndex === index) {
-                return { ...event, label: value };
-              }
-              return event;
-            });
-            return {
-              ...challenge,
-              problem: {
-                ...challenge.problem,
-                eventOptions: updatedEvents
-              }
-            };
-          }
-          return challenge;
-        })
-      };
-      
+      const eventOptionToChange = newGame.challenges[newGame.currentChallenge].problem.eventOptions[index];
+      newGame.challenges[newGame.currentChallenge].problem.eventOptions[index] = {
+        ...eventOptionToChange,
+        label: value,
+      }
+
       return newGame;
     });
   },[setGame]);
@@ -72,33 +39,20 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
   const changeCheckbox = useCallback((index: number, checked: boolean) => {
     setGame((prevGame) => {
       if (!prevGame) return prevGame;
+      const newGame = {...prevGame};
 
-      const newGame = { ...prevGame,
-        challenges: prevGame.challenges.map((challenge, challengeIndex) => {
-          if (challengeIndex === prevGame.currentChallenge) {
-            const updatedEvents = challenge.problem.eventOptions.map((event, eventIndex) => {
-              if (eventIndex === index) {
-                return { ...event, selected: checked, error: false };
-              }
-              return event;
-            });
-            return {
-              ...challenge,
-              problem: {
-                ...challenge.problem,
-                eventOptions: updatedEvents
-              }
-            };
-          }
-          return challenge;
-        })
-      };
+      const eventOptionToChange = newGame.challenges[newGame.currentChallenge].problem.eventOptions[index];
+      newGame.challenges[newGame.currentChallenge].problem.eventOptions[index] = {
+        ...eventOptionToChange,
+        selected: checked, 
+        error: false
+      }
 
       return newGame;
     });
 
     if(checked) {
-      setTextInputFocus(index, true);
+      setTextInputFocus(index);
     } else {
       setTextInputValue(index, "");
     }
@@ -110,14 +64,14 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
       rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1">
       <h3 
         className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Eventos(s)</h3>
-      <div className="flex flex-col gap-y-micro p-micro h-[280px] overflow-auto [scrollbar-width:thin]">
+      <div className="flex flex-col gap-y-micro p-micro h-[280px] overflow-auto [scrollbar-width:thin] snap-both snap-mandatory scroll-pt-micro">
         {events?.map((event, index) => {
           return (
             <div key={index} 
               className={` 
                text-neutral-dark solid border-thin cursor-pointer
-               rounded-md p-micro flex flex-col
-               transition-[background-color,border-color] duration-300 ease-in-out
+               rounded-md p-micro flex flex-col snap-start
+               transition-[background-color,border-color] duration-300 ease-in-out 
                  ${event?.selected ? 'bg-brand-otimath-lightest border-brand-otimath-pure' : 'bg-neutral-lightest border-neutral-lighter hover:border-neutral-medium'}
                   ${event?.disabled ? 'pointer-events-none' : ''}
                `}>
@@ -150,7 +104,7 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
                     value: event?.label,
                     disabled: event?.disabled,
                     error: event?.error,
-                    isFocused: event?.inputIsFocused,
+                    getInputRef: (inputRef: HTMLInputElement) => {if (event) event.inputElement = inputRef;},
                     setValue: (value: string) => setTextInputValue(index, value),
                   }}/>
                 </div>

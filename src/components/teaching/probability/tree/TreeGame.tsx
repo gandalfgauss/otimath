@@ -22,7 +22,6 @@ export function TreeGame() {
       ></TextBlock>
 
       <TextBlock 
-        title={<h3 className="ds-heading-large">Enunciado:</h3>}
         paragraph={game?.challenges[game.currentChallenge].steps[game.currentStep].instructions}
       ></TextBlock>
 
@@ -33,7 +32,7 @@ export function TreeGame() {
             <Button style="borderless" size="extra-small" icon={<X />} onClick={game?.clearButton?.onClick} disabled={game?.clearButton?.disabled}>Limpar</Button>
           </div>
 
-          <Tree game={game} setGame={setGame} />
+          <Tree game={game} />
           
           <div className="flex gap-xxxs items-center">
             <Button style="secondary" size="small" icon={<Check />} onClick={game?.checkButton?.onClick} disabled={game?.checkButton?.disabled}>Conferir</Button>

@@ -804,7 +804,7 @@ export const useTwoDicesHooks = () => {
       if(isGameOver()) {
         createAlert("Parabéns!", "Você acertou! Parabéns por finalizar todos os desafios!", "success", 5000);
 
-        setInstructions("<p className='ds-body'>Parabéns, você finalizou todos os desafios!</p>");
+        setInstructions("<p className='ds-body-bold text-feedback-success-dark text-center'>Parabéns, você finalizou todos os desafios!</p>");
         setDisabledCheckButton(true);
         setDisabledClearButton(true);
         setDisabledNextStepButton(true);
@@ -818,7 +818,7 @@ export const useTwoDicesHooks = () => {
         setDisabledCheckButton(true);
         setDisabledClearButton(true);
         setDisabledNextStepButton(false);
-        setInstructions("<p className='ds-body'>Parabéns, passe para o próximo desafio!</p>");
+        setInstructions("<p className='ds-body-bold text-feedback-success-dark text-center'>Parabéns, passe para o próximo desafio!</p>");
         disabledProbabilitiesTextInputs();
         disabledOperationSelectInputs();
         disabledCheckboxesState();

@@ -19,7 +19,7 @@ export interface TextInputInterface {
   error?: boolean;
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   styles?: string
-  isFocused?: boolean;
+  getInputRef?: (inputRefParam: HTMLInputElement) => void
 }
 
 interface TextInputProps {
@@ -29,11 +29,13 @@ interface TextInputProps {
 export function TextInput({
   textInput,
 }: Readonly<TextInputProps>) {
-   const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, [textInput.isFocused]);
+    if (inputRef.current) {
+      textInput?.getInputRef?.(inputRef.current);
+    }
+  }, [textInput]);
 
   return (
     <fieldset className="flex flex-col gap-y-nano group">
