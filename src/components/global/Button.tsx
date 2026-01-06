@@ -15,6 +15,7 @@ interface ButtonProps {
   interactionEffect?: boolean;
   disabled?: boolean;
   ariaLabel?: string;
+  additionalStyles?: string;
 }
 
 const getPrimaryStyles = (inverse: boolean, interactionEffect: boolean) => {
@@ -96,7 +97,8 @@ export function Button({
   inverse = false,
   interactionEffect = true,
   disabled = false,
-  ariaLabel
+  ariaLabel,
+  additionalStyles
 }: Readonly<ButtonProps>) {
 
   const sizesStyles = useMemo(() => { 
@@ -121,8 +123,8 @@ export function Button({
   const className = useMemo(() => { return `flex justify-center items-center gap-micro whitespace-nowrap ${children ? 'rounded-md' : 'rounded-circular'} cursor-pointer w-fit h-fit
                     transition-[background-color,opacity, border] duration-300 ease-in-out 
                     disabled:opacity-level-soft disabled:pointer-events-none
-                    ${styleObjects[style]} ${sizesStyles[size]}`
-                  }, [children, size, sizesStyles, style, styleObjects]);
+                    ${styleObjects[style]} ${sizesStyles[size]} ${additionalStyles}`
+                  }, [children, size, sizesStyles, style, styleObjects, additionalStyles]);
 
   const iconElement = useMemo(() => { 
     return React.isValidElement(icon)

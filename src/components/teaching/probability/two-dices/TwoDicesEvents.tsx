@@ -10,7 +10,7 @@ export function TwoDicesEvents({
   return (
     <div className="w-full min-h-[205px] rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1">
       <h3 
-        className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Eventos(s)</h3>
+        className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Evento(s)</h3>
       <div className="flex flex-col">
         {events.map((event, index) => {
           return (

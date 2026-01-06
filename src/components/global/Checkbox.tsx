@@ -21,7 +21,7 @@ export function Checkbox({
   return (
     <fieldset className={`${checkbox.containerStyles ? checkbox.containerStyles : 'flex flex-col gap-y-nano'} group`}>
       <label className={`${checkbox.labelStyles ? checkbox.labelStyles : 'ds-small'} cursor-pointer group-has-disabled:pointer-events-none`} htmlFor={checkbox.id}>{checkbox.label}</label>
-      <input id={checkbox.id} type="checkbox" 
+      <input id={checkbox.id} type="checkbox"
         checked={checkbox.checked} 
         onKeyDown={(e) => {
           if (e.key === 'Enter') {

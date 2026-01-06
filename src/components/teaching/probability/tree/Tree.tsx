@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect, useRef, useState } from "react";
+import { useMemo, useEffect, useRef, useState, useCallback } from "react";
 import ReactFlow, {
   type Edge,
   type Node,
@@ -14,34 +14,127 @@ import dagre from "dagre";
 import "@/styles/teaching/probability/tree/tree.css"
 
 import { Game, EventTree} from "@/hooks/teaching/probability/tree/useTreeHooks";
+import { Button } from "@/components/global/Button";
 
 interface Tree {
   game: Game | null;
+  setGame: React.Dispatch<React.SetStateAction<Game | null>>;
+}
+
+interface EventTreeNodeData {
+  eventTree: EventTree;
+  game: Game;
+  setGame: React.Dispatch<React.SetStateAction<Game | null>>;
 }
 
 const nodeTypes: NodeTypes = { eventTreeNode: EventTreeNode };
 
-const NODE_W = 70;
+const NODE_W = 120;
 const NODE_H = 40;
 
-function EventTreeNode({data}: Readonly<{data: EventTree}>) {
+
+function EventTreeNode({data}: Readonly<{data: {eventTree: EventTree, setGame: React.Dispatch<React.SetStateAction<Game | null>>}}>) {
+  const probabilityOnClick = useCallback(() => {
+    data.setGame((prevGame) => {
+      if (!prevGame) return prevGame;
+
+      const newGame = { ...prevGame, challenges: [...prevGame.challenges] };
+
+      const currentChallengeIndex = newGame.currentChallenge;
+      const currentChallenge = {
+        ...newGame.challenges[currentChallengeIndex],
+      };
+
+      const currentProblem = {
+        ...currentChallenge.problem,
+        eventsTree: [...currentChallenge.problem.eventsTree],
+        probabilitiesToAssemble: [...currentChallenge.problem.probabilitiesToAssemble],
+      };
+
+      const probabilityChosen = currentProblem.probabilitiesToAssemble.find(probability => probability?.selected);
+      const probabilityChosenIndex = currentProblem.probabilitiesToAssemble.findIndex(probability => probability?.selected);
+
+      const eventTreeChosen = {...data.eventTree};
+      const eventTreeChosenIndex = currentProblem.eventsTree.findIndex(
+        eventTree => 
+          eventTree.event.description == data.eventTree.event.description &&
+          eventTree.event.label == data.eventTree.event.label &&
+          eventTree.parentEventTree?.event.description == data.eventTree.parentEventTree?.event.description
+      );
+
+      if(probabilityChosen) {
+        currentProblem.eventsTree[eventTreeChosenIndex] = {
+          ...eventTreeChosen,
+          probability: {
+            ...eventTreeChosen.probability,
+            probabilityText: probabilityChosen.probabilityText,
+            probabilityOfOccurring: probabilityChosen.probabilityOfOccurring,
+          }
+        }
+
+        currentProblem.probabilitiesToAssemble[probabilityChosenIndex] = {
+          ...probabilityChosen,
+          selected: false,
+        }
+      } else {
+        currentProblem.eventsTree = currentProblem.eventsTree.map((eventTree, indexEventTree) => {
+          if(eventTreeChosenIndex == indexEventTree) {
+             return {
+              ...eventTree,
+              probability: {
+                ...eventTree.probability,
+                selected: !eventTree.probability?.selected
+              }
+            }
+          }
+
+          return {
+            ...eventTree,
+            probability: {
+              ...eventTree.probability,
+              selected: false
+            }
+          }
+        });
+      }
+
+      currentChallenge.problem = currentProblem;
+      newGame.challenges[currentChallengeIndex] = currentChallenge;
+
+      return newGame;
+    });
+  }, [data]);
+
   return (
     <div 
-      className={`w-full h-full flex items-center justify-center bg-neutral-white p-macro shadow-level-2
+      className={`w-full h-full flex gap-x-macro items-center justify-center bg-neutral-white p-macro shadow-level-2 z-50
         rounded-md border-solid border-hairline border-neutral-light transition-[opacity] duration-300 ease-in-out
-        ${data.show ? 'opacity-level-visible' : 'opacity-level-transparent'}`
+        ${data.eventTree.show ? 'opacity-level-visible' : 'opacity-level-transparent'}`
       }
     >
-      <div className="ds-body-bold text-neutral-dark">{data.event?.label}</div>
+      <div className="ds-body-bold text-neutral-dark">{data.eventTree.event?.label}</div>
 
-      {data.level != 1 && <Handle type="target" position={Position.Left} />}
-      {(data.childrenEventsTree?.length ?? 0) > 0 && <Handle type="source" position={Position.Right} />}
+      {data.eventTree.probability?.show && 
+        <Button
+          style="secondary" 
+          size="extra-small"
+          disabled={data.eventTree.probability?.disabled}
+          type="button"
+          onClick={probabilityOnClick}
+          additionalStyles={`text-neutral-dark hover:text-neutral-dark !w-[60px] shrink-0 node-button ${data.eventTree.probability?.selected ? '!bg-brand-otimath-lightest !border-brand-otimath-pure !text-brand-otimath-pure' : ' bg-neutral-lightest border-neutral-lighter hover:!border-neutral-medium'}`}
+        > 
+          {data.eventTree.probability?.probabilityText ? data.eventTree.probability?.probabilityText : '?'}
+        </Button>
+      }
+
+      {data.eventTree.level != 0 && <Handle type="target" position={Position.Left} />}
+      {(data.eventTree.childrenEventsTree?.length ?? 0) > 0 && <Handle type="source" position={Position.Right} />}
     </div>
   );
 }
 
-function eventTreeToGraph(allNodes: EventTree[]) {
-  const nodes: Node<EventTree>[] = [];
+function eventTreeToGraph(allNodes: EventTree[], game: Game, setGame: React.Dispatch<React.SetStateAction<Game | null>>) {
+  const nodes: Node<EventTreeNodeData>[] = [];
   const edges: Edge[] = [];
 
   const makeId = (n: EventTree) =>
@@ -56,8 +149,9 @@ function eventTreeToGraph(allNodes: EventTree[]) {
     nodes.push({
       id,
       type: "eventTreeNode",
-      data: { ...n },
+      data: { eventTree: {...n}, game, setGame },
       position: { x: 0, y: 0 },
+      className: n.level === 0 ? "rf-node-anchor" : "",
     });
   }
 
@@ -67,7 +161,7 @@ function eventTreeToGraph(allNodes: EventTree[]) {
     const source = makeId(n.parentEventTree);
     const target = makeId(n);
 
-    const visible = !!showById.get(source) && !!showById.get(target);
+    const visible = (!!showById.get(source) && !!showById.get(target)) || (n.level == 0);
 
     edges.push({
       id: `e:${source}->${target}`,
@@ -75,6 +169,7 @@ function eventTreeToGraph(allNodes: EventTree[]) {
       target,
       hidden: !visible,
       style: {
+        stroke: 'var(--color-brand-otimath-pure)',
         strokeWidth: 2,
         opacity: visible ? 1 : 0,
         transition: "opacity 300ms ease-in-out",
@@ -107,17 +202,16 @@ function layoutHorizontal(nodes: Node[], edges: Edge[]) {
   return { nodes: layoutedNodes, edges };
 }
 
-export function Tree({ game }: Readonly<Tree>) {
+export function Tree({ game, setGame }: Readonly<Tree>) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
 
-  const roots =
-    game?.challenges[game.currentChallenge].problem.eventsTree ?? [];
-
   const { nodes, edges } = useMemo(() => {
-    const graph = eventTreeToGraph(roots);
+    const roots =
+    game?.challenges[game.currentChallenge].problem.eventsTree ?? [];
+    const graph = eventTreeToGraph(roots, game as Game, setGame);
     return layoutHorizontal(graph.nodes, graph.edges);
-  }, [game?.challenges[game.currentChallenge].problem.eventsTree]);
+  }, [game, setGame]);
 
   
   useEffect(() => {
@@ -170,3 +264,5 @@ export function Tree({ game }: Readonly<Tree>) {
     </div>
   );
 }
+
+

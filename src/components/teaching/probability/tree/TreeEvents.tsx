@@ -1,7 +1,7 @@
 import { Checkbox } from "@/components/global/Checkbox";
 import { TextInput } from "@/components/global/TextInput";
 import { Game } from "@/hooks/teaching/probability/tree/useTreeHooks";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 interface TreeEventsProps {
   game: Game | null;
@@ -9,7 +9,11 @@ interface TreeEventsProps {
 }
 
 export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
-  const events = game?.challenges[game.currentChallenge].problem.eventOptions;
+  
+ const events = useMemo(() => {
+    if (!game) return [];
+    return game.challenges[game.currentChallenge].problem.eventOptions;
+  }, [game]);
 
   const setTextInputFocus = useCallback((index: number) => {
     setGame((prevGame) => {
@@ -29,7 +33,7 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
       const eventOptionToChange = newGame.challenges[newGame.currentChallenge].problem.eventOptions[index];
       newGame.challenges[newGame.currentChallenge].problem.eventOptions[index] = {
         ...eventOptionToChange,
-        label: value,
+        label: value.slice(0,2),
       }
 
       return newGame;
@@ -60,10 +64,13 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
   }, [setGame, setTextInputValue, setTextInputFocus]);
 
   return (
-    <div className="w-full
-      rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1">
+    <div 
+      className={`w-full rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1
+        ${game?.challenges[game.currentChallenge].problem.boardEventsDisabled? 'opacity-level-intense' : ''}
+      `}
+    >
       <h3 
-        className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Eventos(s)</h3>
+        className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Eventos</h3>
       <div className="flex flex-col gap-y-micro p-micro h-[280px] overflow-auto [scrollbar-width:thin] snap-both snap-mandatory scroll-pt-micro">
         {events?.map((event, index) => {
           return (

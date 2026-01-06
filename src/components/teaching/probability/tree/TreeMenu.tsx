@@ -1,5 +1,6 @@
 import { TreeEvents } from "./TreeEvents";
 import { Game } from "@/hooks/teaching/probability/tree/useTreeHooks";
+import { TreeProbability } from "./TreeProbability";
 
 interface TreeMenuProps {
   game: Game | null;
@@ -13,6 +14,7 @@ export function TreeMenu({game, setGame}:Readonly<TreeMenuProps>) {
       }
     >
       <TreeEvents game={game} setGame={setGame}/>
+      <TreeProbability game={game} setGame={setGame}/>
     </div>
   );
 }

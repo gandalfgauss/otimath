@@ -6,6 +6,8 @@ import { SelectInputInterface } from '@/components/global/SelectInput';
 import { useState, useEffect} from 'react';
 import { useAlerts } from '@/hooks/global/useAlerts';
 import { useModal } from '@/hooks/global/useModal';
+import { playSound } from '@/hooks/global/useSound';
+
 export interface EventCheckboxes {
   [eventName: string]: CheckboxInterface[][];
 }
@@ -784,6 +786,7 @@ export const useTwoDicesHooks = () => {
         status: "show",
         confirmCallback: () => {
           createAlert("Dados limpos", "Todas as marcações foram limpas", "info");
+          playSound("/sounds/clear.mp3");
           resetEventsCheckboxes(eventsCheckboxes, true);
         }
     });
@@ -803,6 +806,7 @@ export const useTwoDicesHooks = () => {
     if(checkSolution()) {
       if(isGameOver()) {
         createAlert("Parabéns!", "Você acertou! Parabéns por finalizar todos os desafios!", "success", 5000);
+        playSound("/sounds/gameFinished.mp3");
 
         setInstructions("<p className='ds-body-bold text-feedback-success-dark text-center'>Parabéns, você finalizou todos os desafios!</p>");
         setDisabledCheckButton(true);
@@ -814,6 +818,7 @@ export const useTwoDicesHooks = () => {
 
       } else if(finishedTheChallenge()) {
         createAlert("Parabéns!", "Você acertou! Passe para o próximo desafio.", "success", 5000);
+        playSound("/sounds/challengeFinished.mp3");
 
         setDisabledCheckButton(true);
         setDisabledClearButton(true);
@@ -825,12 +830,13 @@ export const useTwoDicesHooks = () => {
       }
       else {
         createAlert("Parabéns!", "Você acertou!", "success", 5000);
-
+        playSound("/sounds/correct.mp3");
         goToNextStepOnClick();
       }
     }
     else {
       createAlert("Ops!", "Você errou, tente novamente!", "error", 4000);
+      playSound("/sounds/incorrect.mp3");
       
       if(getCheckTypeByChallengeAndStep(challenge, step) === "select") {
         addErrorOperationSelectInputs();
@@ -865,6 +871,7 @@ export const useTwoDicesHooks = () => {
         status: "show",
         confirmCallback: () => {
           createAlert("Jogo reiniciado", "O jogo foi reiniciado", "info");
+          playSound("/sounds/clear.mp3");
           startGame();
           setDisabledCheckButton(false);
           setDisabledNextStepButton(true);

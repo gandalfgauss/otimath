@@ -32,7 +32,7 @@ export function TreeGame() {
             <Button style="borderless" size="extra-small" icon={<X />} onClick={game?.clearButton?.onClick} disabled={game?.clearButton?.disabled}>Limpar</Button>
           </div>
 
-          <Tree game={game} />
+          <Tree game={game} setGame={setGame} />
           
           <div className="flex gap-xxxs items-center">
             <Button style="secondary" size="small" icon={<Check />} onClick={game?.checkButton?.onClick} disabled={game?.checkButton?.disabled}>Conferir</Button>

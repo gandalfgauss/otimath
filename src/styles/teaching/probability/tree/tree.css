@@ -1,3 +1,15 @@
-.react-flow * {
+.react-flow *:not(.node-button) {
   cursor: default !important;
+  pointer-events: auto;
+}
+
+.react-flow .rf-node-anchor {
+  opacity: var(--opacity-level-transparent);
+  pointer-events: none;
+  width: 50px !important;
+  height: 1px !important;
+}
+
+.react-flow .rf-node-anchor * {
+  pointer-events: none;
 }
