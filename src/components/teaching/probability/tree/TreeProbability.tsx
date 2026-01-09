@@ -74,8 +74,9 @@ export function TreeProbability({game, setGame}:Readonly<TreeProbabilityProps>) 
   }, [setGame]);
 
   return (
-    <div className="w-full
-      rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1">
+    <div className={`w-full rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1
+      ${boardProbabilityDisabled ? 'opacity-level-intense' : ''}`}
+    >
       <h3 
         className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Probabilidades</h3>
       <div className={`flex flex-wrap gap-macro p-micro items-center justify-center
@@ -105,5 +106,5 @@ export function TreeProbability({game, setGame}:Readonly<TreeProbabilityProps>) 
 }
 
 /* Example 
-<TreeEvents />
+<TreeProbability />
 */

@@ -20,6 +20,7 @@ export interface TextInputInterface {
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   styles?: string
   getInputRef?: (inputRefParam: HTMLInputElement) => void
+  readonly?: boolean;
 }
 
 interface TextInputProps {
@@ -43,6 +44,7 @@ export function TextInput({
       <input 
         ref={inputRef}
         id={textInput.id} type="text" 
+        readOnly={textInput.readonly}
         value={textInput.value} 
         inputMode={textInput.type == "natural-number" ? "numeric" : "text"}
         onChange={(event) => {

@@ -5,7 +5,8 @@ import { useAlerts } from '@/hooks/global/useAlerts';
 import { useModal } from '@/hooks/global/useModal';
 import { playSound } from '@/hooks/global/useSound';
 
-type CheckType = "Tree" | "Probability";
+type CheckType = "Tree" | "Probability" | "Calculations";
+type Operation = "Union" | "Intersection" | "Conditional";
 
 interface Event {
   description: string;
@@ -16,6 +17,14 @@ interface Event {
   inputHelperText?: string;
   inputElement?: HTMLInputElement;
 }
+
+interface Calculations {
+  eventA: Event;
+  operation?: Operation;
+  eventB?: Event;
+  result: number;
+}
+
 export interface EventTree {
   event: Event;
   probabilityOfOccurring: number;
@@ -34,13 +43,26 @@ interface Probability {
   show?: boolean;
 }
 
+interface CalculationsLayout {
+  value: string;
+  disabled: boolean;
+  error: boolean;
+  options?: {value: string, label: string}[];
+}
+
 interface Problem {
   description: string;
   eventsTree: EventTree[];
   eventOptions: Event[]; 
   probabilitiesToAssemble: Probability[];
-  boardProbabilityDisabled?: boolean;
   boardEventsDisabled?: boolean;
+  boardProbabilityDisabled?: boolean;
+  boardCalculationsDisabled?: boolean;
+  calculationsEventA?: CalculationsLayout;
+  calculationsOperation?: CalculationsLayout;
+  calculationsEventB?: CalculationsLayout;
+  calculationsResult?: CalculationsLayout; 
+  calculationsHistory?: Calculations[];
 }
 
 interface CheckTree {
@@ -51,6 +73,7 @@ interface Step {
   instructions: string;
   checkType: CheckType;
   checkTree?: CheckTree;
+  calculations?: Calculations;
 }
 interface Challenge {
   problem: Problem;
@@ -86,6 +109,12 @@ export interface Game {
   clearButton?: ClearButton;
   newGameButton?: NewGameButton;
 }
+
+export const operationsOptions: { value: Operation, label: string }[] = [
+  { value: "Intersection", label: "\u2229" },
+  { value: "Union", label: "\u222A" },
+  { value: "Conditional", label: "|" }
+];
 
 const generateRandomPartition = (partsCount: number) => {
   const rawValues = Array.from(
@@ -329,9 +358,101 @@ const getChallengeOne = (): Challenge => {
     checkType: "Probability",
   };
 
+  const stepFour: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja uma menina do primeiro ano?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event1,
+      operation: "Intersection",
+      eventB: event3,
+      result: eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring
+    }
+  };
+
+  const stepFive: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja um menino do segundo ano?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event2,
+      operation: "Intersection",
+      eventB: event4,
+      result: eventTree2.probabilityOfOccurring * eventTree7.probabilityOfOccurring
+    }
+  };
+
+  const stepSix: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja do terceiro ano?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event5,
+      result: (eventTree5.probabilityOfOccurring * eventTree1.probabilityOfOccurring) + (eventTree8.probabilityOfOccurring * eventTree2.probabilityOfOccurring)
+    }
+  };
+
+  const stepSeven: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja uma menina, dado que é do primeiro ano?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event1,
+      operation: "Conditional",
+      eventB: event3,
+      result: (eventTree3.probabilityOfOccurring * eventTree1.probabilityOfOccurring) /
+              ((eventTree3.probabilityOfOccurring * eventTree1.probabilityOfOccurring) +
+               (eventTree6.probabilityOfOccurring * eventTree2.probabilityOfOccurring))
+    }
+  };
+
+    const stepEight: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja um menino, dado que é do segundo ano?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event2,
+      operation: "Conditional",
+      eventB: event4,
+      result: (eventTree7.probabilityOfOccurring * eventTree2.probabilityOfOccurring) /
+              ((eventTree7.probabilityOfOccurring * eventTree2.probabilityOfOccurring) +
+               (eventTree4.probabilityOfOccurring * eventTree1.probabilityOfOccurring) )
+    }
+  };
+
   const challenge: Challenge = {
     problem: problem,
-    steps: [stepOne, stepTwo, stepThree],
+    steps: [stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix, stepSeven, stepEight],
   };
 
   return challenge;
@@ -376,7 +497,6 @@ const getChallengeTwo = (): Challenge => {
     probabilityOfOccurring: 0.5,
     level: 1,
     parentEventTree: eventTree0
-
   };
 
   eventTree0.childrenEventsTree = [eventTree1, eventTree2];
@@ -485,9 +605,102 @@ const getChallengeTwo = (): Challenge => {
     checkType: "Probability",
   };
 
+  const stepFour: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ser sorteada a primeira urna e uma bola preta?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event1,
+      operation: "Intersection",
+      eventB: event4,
+      result: eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring
+    }
+  };
+
+  const stepFive: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ser sorteada a segunda urna e uma bola vermelha?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event2,
+      operation: "Intersection",
+      eventB: event3,
+      result: eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring
+    }
+  };
+
+  const stepSix: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ser sorteada uma bola vermelha?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event3,
+      result: (eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) +
+              (eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring)
+    }
+  };
+
+  const stepSeven: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ter sido sorteada a primeira urna dado que a bola é vermelha?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event1,
+      operation: "Conditional",
+      eventB: event3,
+      result: (eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) /
+              ((eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) +
+               (eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring))
+    }
+  };
+
+  const stepEight: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ter sido sorteada a segunda urna dado que a bola é preta?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event2,
+      operation: "Conditional",
+      eventB: event4,
+      result: (eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring) /
+              ((eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring) +
+               (eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring) )
+    }
+  };
+
   const challenge: Challenge = {
     problem: problem,
-    steps: [stepOne, stepTwo, stepThree],
+    steps: [stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix, stepSeven, stepEight],
   };
 
   return challenge;
@@ -665,9 +878,122 @@ const getChallengeThree = (): Challenge => {
     checkType: "Probability",
   };
 
+  const stepThree: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de o paciente ter a doença e o médico diagnosticar positivamente?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event1,
+      operation: "Intersection",
+      eventB: event3,
+      result: eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring
+    }
+  };
+
+  const stepFour: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de o paciente não ter a doença e o médico diagnosticar positivamente?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event2,
+      operation: "Intersection",
+      eventB: event3,
+      result: eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring
+    }
+  };
+
+  const stepFive: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de o médico diagnosticar o paciente como portador?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event2,
+      result: (eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) +
+              (eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring)
+    }
+  };
+
+  const stepSix: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>O médico diagnostica o paciente como não portador da doença. Qual é a probabilidade de que ele esteja certo?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event2,
+      operation: "Conditional",
+      eventB: event4,
+      result: (eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring) /
+              ((eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring) +
+               (eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring))
+    }
+  };
+
+  const stepSeven: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>O médico diagnostica o paciente como portador da doença. Qual é probabilidade de ele estar errado?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event2,
+      operation: "Conditional",
+      eventB: event3,
+      result: (eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) /
+              ((eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) +
+               (eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring))
+    }
+  };
+
+  const stepEight: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>O médico diagnostica o paciente como não portador da doença. Qual é probabilidade de ele esteja errado?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event1,
+      operation: "Conditional",
+      eventB: event4,
+      result: (eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring) /
+              ((eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring) +
+               (eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring))
+    }
+  };
+
   const challenge: Challenge = {
     problem: problem,
-    steps: [stepOne, stepTwo],
+    steps: [stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix, stepSeven, stepEight],
   };
 
   return challenge;
@@ -822,8 +1148,6 @@ export const useTreeHooks = () => {
         return eventsToCheck.some(eventToCheck => eventTree.event.description == eventToCheck.description);
       });
     }
-
-    goToTopOfChallenge();
     
     if(selectionIsCorrect) {
       if(!challengeIsComplete(prevGame)) {
@@ -911,8 +1235,6 @@ export const useTreeHooks = () => {
   const getGameChallengeFinishedButtonsStates = useCallback((prevGame: Game): Game => {
     return {
       ...prevGame, 
-      currentChallenge: prevGame.currentChallenge, 
-      currentStep: prevGame.currentStep,
       nextChallengeButton: {
         ...prevGame.nextChallengeButton,
         disabled: false,
@@ -931,8 +1253,6 @@ export const useTreeHooks = () => {
   const getGameFinishedButtonsStates = useCallback((prevGame: Game): Game => {
       return {
         ...prevGame, 
-        currentChallenge: prevGame.currentChallenge, 
-        currentStep: prevGame.currentStep,
         nextChallengeButton: {
           ...prevGame.nextChallengeButton,
           disabled: true,
@@ -1064,6 +1384,38 @@ export const useTreeHooks = () => {
     return newGame;
   }, []);
 
+  const getGameActivedCalculationsBoard = useCallback((prevGame: Game) : Game => {
+    const newGame = {...prevGame};
+    const problem =  newGame.challenges[newGame.currentChallenge].problem;
+    newGame.challenges[newGame.currentChallenge].problem = {
+      ...problem,
+      boardCalculationsDisabled: false,
+      calculationsEventA: {
+        disabled: false,
+        error: false,
+        value: ' '
+      },
+      calculationsOperation: {
+        disabled: false,
+        error: false,
+        value: ' ',
+        options: operationsOptions
+      },
+      calculationsEventB: {
+        disabled: false,
+        error: false,
+        value: ' '
+      },
+      calculationsResult: {
+        disabled: false,
+        error: false,
+        value: ''
+      }
+    }
+    
+    return newGame;
+  }, []);
+
   const checkProbabilityStep = useCallback((prevGame: Game) => {
     let newGame = {...prevGame};
 
@@ -1073,7 +1425,7 @@ export const useTreeHooks = () => {
       return eventTree.level == 0 || eventTree.probability?.probabilityOfOccurring == eventTree.probabilityOfOccurring
     })
 
-    if(checkStatus ) {
+    if(checkStatus) {
       if(!challengeIsComplete(prevGame)) {
         if (!alertLockRef.current) {
           alertLockRef.current = true;
@@ -1095,7 +1447,347 @@ export const useTreeHooks = () => {
 
   }, [challengeIsComplete, createAlert, getGameDisabledProbabilityBoard]);
 
+  const getGameDisabledCalculationsBoard = useCallback((prevGame: Game) : Game => {
+    return {
+      ...prevGame, 
+      challenges: prevGame.challenges.map((challenge, index) => {
+        if(index == prevGame.currentChallenge) {
+          return {
+            ...challenge,
+            problem: {
+              ...challenge.problem,
+              calculationsEventA: {
+                ...challenge.problem.calculationsEventA,
+                error: challenge.problem.calculationsEventA?.error ?? false,
+                disabled: true,
+                value: challenge.problem.calculationsEventA?.value ?? '',
+              },
+              calculationsOperation: {
+                ...challenge.problem.calculationsOperation,
+                error: challenge.problem.calculationsOperation?.error ?? false,
+                disabled: true,
+                value: challenge.problem.calculationsOperation?.value ?? '',
+              },
+              calculationsEventB: {
+                ...challenge.problem.calculationsEventB,
+                error: challenge.problem.calculationsEventB?.error ?? false,
+                disabled: true,
+                value: challenge.problem.calculationsEventB?.value ?? '',
+              },
+              calculationsResult: {
+                ...challenge.problem.calculationsResult,
+                error: challenge.problem.calculationsResult?.error ?? false,
+                disabled: true,
+                value: challenge.problem.calculationsResult?.value ?? '',
+              }
+            }
+          }
+        }
+        return challenge;
+      })
+    };
+  }, []);
+
+  const getGameSelectCalculationsInError = useCallback((prevGame: Game): Game => {
+      return {
+        ...prevGame, 
+        challenges: prevGame.challenges.map((challenge, index) => {
+          if(index == prevGame.currentChallenge) {
+            return {
+              ...challenge,
+              problem: {
+                ...challenge.problem,
+                calculationsEventA: {
+                  ...challenge.problem.calculationsEventA,
+                  error: true,
+                  disabled: challenge.problem.calculationsEventA?.disabled ?? false,
+                  value: challenge.problem.calculationsEventA?.value ?? '',
+                },
+                calculationsOperation: {
+                  ...challenge.problem.calculationsOperation,
+                  error: true,
+                  disabled: challenge.problem.calculationsOperation?.disabled ?? false,
+                  value: challenge.problem.calculationsOperation?.value ?? '',
+                },
+                calculationsEventB: {
+                  ...challenge.problem.calculationsEventB,
+                  error: true,
+                  disabled: challenge.problem.calculationsEventB?.disabled ?? false,
+                  value: challenge.problem.calculationsEventB?.value ?? '',
+                }
+              }
+            }
+          }
+          return challenge;
+        })
+      };
+  }, []);
+
+  const getGameInputCalculationsInError = useCallback((prevGame: Game): Game => {
+      return {
+        ...prevGame, 
+        challenges: prevGame.challenges.map((challenge, index) => {
+          if(index == prevGame.currentChallenge) {
+            return {
+              ...challenge,
+              problem: {
+                ...challenge.problem,
+                calculationsResult: {
+                  ...challenge.problem.calculationsResult,
+                  error: true,
+                  disabled: challenge.problem.calculationsResult?.disabled ?? false,
+                  value: challenge.problem.calculationsResult?.value ?? '',
+                }
+              }
+            }
+          }
+          return challenge;
+        })
+      };
+  }, []);
+
+  const getGameSelectCalculationsRemoveError = useCallback((prevGame: Game): Game => {
+      return {
+        ...prevGame, 
+        challenges: prevGame.challenges.map((challenge, index) => {
+          if(index == prevGame.currentChallenge) {
+            return {
+              ...challenge,
+              problem: {
+                ...challenge.problem,
+                calculationsEventA: {
+                  ...challenge.problem.calculationsEventA,
+                  error: false,
+                  disabled: challenge.problem.calculationsEventA?.disabled ?? false,
+                  value: challenge.problem.calculationsEventA?.value ?? '',
+                },
+                calculationsOperation: {
+                  ...challenge.problem.calculationsOperation,
+                  error: false,
+                  disabled: challenge.problem.calculationsOperation?.disabled ?? false,
+                  value: challenge.problem.calculationsOperation?.value ?? '',
+                },
+                calculationsEventB: {
+                  ...challenge.problem.calculationsEventB,
+                  error: false,
+                  disabled: challenge.problem.calculationsEventB?.disabled ?? false,
+                  value: challenge.problem.calculationsEventB?.value ?? '',
+                },
+              }
+            }
+          }
+          return challenge;
+        })
+      };
+  }, []);
+
+  const getGameInputCalculationsRemoveError = useCallback((prevGame: Game): Game => {
+    return {
+      ...prevGame, 
+      challenges: prevGame.challenges.map((challenge, index) => {
+        if(index == prevGame.currentChallenge) {
+          return {
+            ...challenge,
+            problem: {
+              ...challenge.problem,
+              calculationsResult: {
+                ...challenge.problem.calculationsResult,
+                error: false,
+                disabled: challenge.problem.calculationsResult?.disabled ?? false,
+                value: challenge.problem.calculationsResult?.value ?? '',
+              }
+            }
+          }
+        }
+        return challenge;
+      })
+    };
+  }, []);
+
+  const getGameCalculationsClear = useCallback((prevGame: Game): Game => {
+    if(!prevGame) return prevGame;
+
+    return {
+      ...prevGame, 
+      challenges: prevGame.challenges.map((challenge, index) => {
+        if(index == prevGame.currentChallenge) {
+          return {
+            ...challenge,
+            problem: {
+              ...challenge.problem,
+              calculationsEventA: {
+                ...challenge.problem.calculationsEventA,
+                error: false,
+                disabled: challenge.problem.calculationsEventA?.disabled ?? false,
+                value: ' ',
+              },
+              calculationsOperation: {
+                ...challenge.problem.calculationsOperation,
+                error: false,
+                disabled: challenge.problem.calculationsOperation?.disabled ?? false,
+                value: ' ',
+              },
+              calculationsEventB: {
+                ...challenge.problem.calculationsEventB,
+                error: false,
+                disabled: challenge.problem.calculationsEventB?.disabled ?? false,
+                value: ' ',
+              },
+              calculationsResult: {
+                ...challenge.problem.calculationsResult,
+                error: false,
+                disabled: challenge.problem.calculationsResult?.disabled ?? false,
+                value: ' ',
+              }
+            }
+          }
+        }
+        return challenge;
+      })
+    };
+  }, []);
+
+  const checkExpression = useCallback((prevGame: Game) => {
+    let newGame = {...prevGame};
+    let checkStatus = false;
+    
+    const stepCalculations = newGame.challenges[newGame.currentChallenge].steps[newGame.currentStep].calculations;
+    const problemCalculations = newGame.challenges[newGame.currentChallenge].problem;
+
+    if(stepCalculations?.eventA && !stepCalculations?.eventB) {
+      if(stepCalculations?.eventA.description == problemCalculations.calculationsEventA?.value) {
+        checkStatus = true;
+        newGame = getGameSelectCalculationsRemoveError(newGame);
+      }
+    } else {
+      if ((
+          stepCalculations?.eventA.description == problemCalculations.calculationsEventA?.value &&
+          stepCalculations?.operation == problemCalculations.calculationsOperation?.value &&
+          stepCalculations?.eventB?.description == problemCalculations.calculationsEventB?.value
+        ) ||
+        (
+          stepCalculations?.operation != "Conditional" &&
+          stepCalculations?.eventA?.description == problemCalculations.calculationsEventB?.value &&
+          stepCalculations?.eventB?.description == problemCalculations.calculationsEventA?.value
+        )
+      ) {
+        checkStatus = true;
+        newGame = getGameSelectCalculationsRemoveError(newGame);
+      }
+    }
+
+    if(!checkStatus) {
+      if(!alertLockRef.current) {
+        alertLockRef.current = true;
+        createAlert("Ops!", "Você errou, confira a expressão e tente novamente!", "error");
+        playSound("/sounds/incorrect.mp3");
+      }
+      newGame = getGameSelectCalculationsInError(newGame);
+    }
+
+    return {newGame, checkStatus};
+  }, [createAlert, getGameSelectCalculationsInError, getGameSelectCalculationsRemoveError]);
+
+  const calculateExpression = (expression: string) => {
+    try {
+      const sanitized = expression.replaceAll(',', '.');
+      const result = new Function(`"use strict"; return (${sanitized})`)();
+      if(result === Infinity || Number.isNaN(result)) {
+        return "Erro";
+      }
+      return String(result);
+    } catch {
+      return "Erro";
+    }
+  };
+
+  const getGameAddCalculationsInHistory = useCallback((prevGame: Game, calculationItem: Calculations) => {
+    return {
+      ...prevGame,
+      challenges: prevGame.challenges.map((challenge, index) => {
+        if(index == prevGame.currentChallenge) {
+          return {
+            ...challenge,
+            problem: {
+              ...challenge.problem,
+              calculationsHistory: [
+                ...(challenge.problem.calculationsHistory ?? []),
+                calculationItem
+              ]
+            }
+          }
+        }
+        return challenge;
+      })
+    }
+  }, []);
+
+  const checkCalculations = useCallback((prevGame: Game) => {
+    let newGame = {...prevGame};
+    let checkStatus = false;
+    
+    const stepCalculations = newGame.challenges[newGame.currentChallenge].steps[newGame.currentStep].calculations;
+    const stepCalculationsResult = stepCalculations?.result;
+    const calculationResult = Number(calculateExpression(newGame.challenges[newGame.currentChallenge].problem.calculationsResult?.value ?? ''));
+    const eventsTree = newGame.challenges[newGame.currentChallenge].problem.eventsTree;
+
+    if(calculationResult == stepCalculationsResult) {
+      checkStatus = true;
+      newGame = getGameInputCalculationsRemoveError(newGame);
+
+      const eventA = eventsTree.find(eventTree => eventTree.event.description == stepCalculations?.eventA?.description)?.event;
+      const eventB = eventsTree.find(eventTree => eventTree.event.description == stepCalculations?.eventB?.description)?.event;
+      newGame = getGameAddCalculationsInHistory(newGame, {
+        eventA: eventA as Event,
+        operation: stepCalculations?.operation,
+        eventB: eventB,
+        result: stepCalculations?.result ?? -1
+      });
+    }
+
+    if(!checkStatus) {
+      if(!alertLockRef.current) {
+        alertLockRef.current = true;
+        createAlert("Ops!", "Você errou, confira os cálculos e tente novamente!", "error");
+        playSound("/sounds/incorrect.mp3");
+      }
+      newGame = getGameInputCalculationsInError(newGame);
+    }
+
+    return {newGame, checkStatus};
+  }, [createAlert, getGameInputCalculationsInError, getGameInputCalculationsRemoveError]);
+
+  const checkCalculationsStep = useCallback((prevGame: Game) => {
+    let newGame = {...prevGame};
+    let checkStatus = false;
+
+    ({newGame, checkStatus} = checkExpression(newGame));
+
+    if(checkStatus) {
+      ({newGame, checkStatus} = checkCalculations(newGame));
+    }
+
+    if(!checkStatus) {
+      return {newGame, checkStatus};
+    } 
+
+    if(!challengeIsComplete(prevGame)) {
+      if (!alertLockRef.current) {
+        alertLockRef.current = true;
+        createAlert("Parabéns!", "Você acertou!", "success");
+        playSound("/sounds/correct.mp3");
+      }
+    }
+
+    newGame = getGameCalculationsClear(newGame)
+    
+    return {newGame, checkStatus};
+
+  }, [checkExpression, getGameCalculationsClear, createAlert, challengeIsComplete, checkCalculations]);
+
   const checkButtonOnClick = useCallback(() => {
+    goToTopOfChallenge();
+
     alertLockRef.current = false;
 
     setGame(prevGame => {
@@ -1111,20 +1803,18 @@ export const useTreeHooks = () => {
         ({newGame, checkStatus} = checkTreeStep(prevGame, challenge.problem, step.checkTree as CheckTree));
       } else if(step.checkType == "Probability") {
         ({newGame, checkStatus} = checkProbabilityStep(prevGame));
+      } else {
+        ({newGame, checkStatus} = checkCalculationsStep(prevGame));
       }
 
       if(!checkStatus) {
         return newGame;
       }
 
-      console.log("Game antes de avaliar completude", prevGame);
       if(challengeIsComplete(newGame)) {
-        console.log("Desafio completo")
-        newGame = getGameWithEventsDisabled(newGame);
-        
+        newGame = getGameDisabledCalculationsBoard(newGame);
 
         if(gameIsComplete(newGame)) {
-          console.log("Game completo")
           newGame = getGameFinishedButtonsStates(newGame);
           newGame = getGameFinishedNewInstructions(newGame);
 
@@ -1153,14 +1843,19 @@ export const useTreeHooks = () => {
           newGame = getGameDisabledEventBoard(newGame);
           newGame = getGameActivedProbabilityBoard(newGame);
         }
+        else if(newGame.challenges[newGame.currentChallenge].steps[newGame.currentStep].checkType == "Calculations") {
+          newGame = getGameActivedCalculationsBoard(newGame);
+        }
       }
 
       return newGame;
     });
-  }, [setGame, checkTreeStep, challengeIsComplete,  getGameWithEventsDisabled, getGameChallengeFinishedButtonsStates, getGameToNextStep, getGameChallengeFinishedNewInstructions, getGameFinishedNewInstructions, gameIsComplete, createAlert, getGameFinishedButtonsStates, getGameDisabledEventBoard, getGameActivedProbabilityBoard, checkProbabilityStep]);
+  }, [setGame, checkTreeStep, challengeIsComplete,  getGameWithEventsDisabled, getGameChallengeFinishedButtonsStates, getGameToNextStep, getGameChallengeFinishedNewInstructions, getGameFinishedNewInstructions, gameIsComplete, createAlert, getGameFinishedButtonsStates, getGameDisabledEventBoard, getGameActivedProbabilityBoard, checkProbabilityStep, getGameActivedCalculationsBoard, checkCalculationsStep, getGameDisabledCalculationsBoard]);
 
   const clearTreeStep = useCallback((prevGame: Game): Game => {
     if (!alertLockRef.current) {
+      alertLockRef.current = true;
+
       updateModal({
         title: "Limpando marcações", 
         description:"Você gostaria de limpar as marcações da atividade atual?", 
@@ -1184,7 +1879,6 @@ export const useTreeHooks = () => {
                 return challenge;
               })
             });
-            alertLockRef.current = true;
             createAlert("Eventos", "Todas as marcações dos eventos foram limpas.", "info");
             playSound("/sounds/clear.mp3");
             goToTopOfChallenge();
@@ -1197,6 +1891,7 @@ export const useTreeHooks = () => {
 
   const clearProbabilityStep = useCallback((prevGame: Game): Game => {
     if (!alertLockRef.current) {
+      alertLockRef.current = true;
       updateModal({
         title: "Limpando marcações", 
         description:"Você gostaria de limpar as marcações da atividade atual?", 
@@ -1233,7 +1928,6 @@ export const useTreeHooks = () => {
                 return challenge;
               })
             });
-            alertLockRef.current = true;
             goToTopOfChallenge();
             createAlert("Eventos", "Todas as marcações dos eventos foram limpas.", "info");
             playSound("/sounds/clear.mp3");
@@ -1243,6 +1937,26 @@ export const useTreeHooks = () => {
 
     return prevGame;
   }, [createAlert, updateModal]);
+
+  const clearCalculationStep = useCallback((prevGame: Game): Game => {
+    if (!alertLockRef.current) {
+      alertLockRef.current = true;
+
+      updateModal({
+        title: "Limpando expressões e cálculos", 
+        description:"Você gostaria de limpar as expressões e cálculos da atividade atual?", 
+        status: "show",
+        confirmCallback: () => {
+          setGame(getGameCalculationsClear(prevGame));
+          goToTopOfChallenge();
+          createAlert("Eventos", "Todas as marcações dos eventos foram limpas.", "info");
+          playSound("/sounds/clear.mp3");
+        }
+      });
+    }
+
+    return prevGame;
+  }, [createAlert, updateModal, getGameCalculationsClear]);
 
   const clearButtonOnClick = useCallback(() => {
     alertLockRef.current = false;
@@ -1258,9 +1972,9 @@ export const useTreeHooks = () => {
         return clearProbabilityStep(prevGame);
       }
 
-      return prevGame;
+      return clearCalculationStep(prevGame)
     });
-  }, [clearTreeStep, clearProbabilityStep]);
+  }, [clearTreeStep, clearProbabilityStep, clearCalculationStep]);
 
   const startGame = useCallback(() => {
     const newGame = getNewGame();
@@ -1299,8 +2013,33 @@ export const useTreeHooks = () => {
         };
       });
 
-      challenge.problem.boardProbabilityDisabled = true;
       challenge.problem.boardEventsDisabled = false;
+      challenge.problem.boardProbabilityDisabled = true;
+      challenge.problem.boardCalculationsDisabled = true;
+      challenge.problem.calculationsEventA = {
+        value: ' ',
+        disabled: true,
+        error: false
+      }
+      challenge.problem.calculationsOperation = {
+        value: ' ',
+        disabled: true,
+        error: false,
+        options: operationsOptions
+      }
+      challenge.problem.calculationsEventB = {
+        value: ' ',
+        disabled: true,
+        error: false
+      }
+
+      challenge.problem.calculationsResult = {
+        value: '',
+        disabled: true,
+        error: false
+      }
+
+      challenge.problem.calculationsHistory = [];
       
       return challenge;
     });
@@ -1328,27 +2067,23 @@ export const useTreeHooks = () => {
     setGame(newGame);
   }, [buttonNextChallengeOnClick, checkButtonOnClick, clearButtonOnClick]);
 
-    const newGameButtonOnClick = useCallback(() => {
-      updateModal({
-          title: "Reiniciando o jogo", 
-          description:"Você gostaria de reiniciar o jogo?", 
-          status: "show",
-          confirmCallback: () => {
-            createAlert("Jogo reiniciado", "O jogo foi reiniciado.", "info");
-            playSound("/sounds/clear.mp3");
-            startGame();
-            goToTopOfChallenge();
-          }
-      });
+  const newGameButtonOnClick = useCallback(() => {
+    updateModal({
+        title: "Reiniciando o jogo", 
+        description:"Você gostaria de reiniciar o jogo?", 
+        status: "show",
+        confirmCallback: () => {
+          createAlert("Jogo reiniciado", "O jogo foi reiniciado.", "info");
+          playSound("/sounds/clear.mp3");
+          startGame();
+          goToTopOfChallenge();
+        }
+    });
   }, [createAlert, updateModal, startGame]);
 
   useEffect(() => {
     startGame();
   }, []);
-
-   useEffect(() => {
-    console.log(game)
-  }, [game]);
 
   return { game, setGame, alerts, updateAlert, deleteAlerts, modal, updateModal};
 };

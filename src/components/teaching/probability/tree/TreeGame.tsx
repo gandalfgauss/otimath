@@ -50,6 +50,6 @@ export function TreeGame() {
 
 /* Example 
 
-<TwoDicesGame />
+<TreeGame />
 
 */

@@ -15,6 +15,7 @@ import "@/styles/teaching/probability/tree/tree.css"
 
 import { Game, EventTree} from "@/hooks/teaching/probability/tree/useTreeHooks";
 import { Button } from "@/components/global/Button";
+import { ProbabilityHistory } from "./ProbabilityHistory";
 
 interface Tree {
   game: Game | null;
@@ -231,38 +232,44 @@ export function Tree({ game, setGame }: Readonly<Tree>) {
   }, [rfInstance, containerRef]);
 
   return (
-    <div 
-      ref={containerRef}
-      className="w-full h-[500px] rounded-md bg-neutral-lightest shadow-level-1"
-    >
-      <ReactFlow
-        key={`${game?.currentChallenge}`}
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        onInit={(instance) => {
-            setRfInstance(instance);
-            instance.fitView({ padding: 0.2, duration: 0 });
+    <div ref={containerRef} className="w-full rounded-md bg-neutral-lightest shadow-level-1">
+      <div 
+        className="w-full h-[500px]"
+      >
+        <ReactFlow
+          key={`${game?.currentChallenge}`}
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          onInit={(instance) => {
+              setRfInstance(instance);
+              instance.fitView({ padding: 0.2, duration: 0 });
+            }
           }
-        }
-        proOptions={{ hideAttribution: true }}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        panOnDrag={false}
-        panOnScroll={false}
-        zoomOnScroll={false}
-        zoomOnPinch={false}
-        zoomOnDoubleClick={false}
-        preventScrolling={false}
-        selectNodesOnDrag={false}
-        nodesFocusable={false}
-        edgesFocusable={false}
-      />
+          proOptions={{ hideAttribution: true }}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          panOnDrag={false}
+          panOnScroll={false}
+          zoomOnScroll={false}
+          zoomOnPinch={false}
+          zoomOnDoubleClick={false}
+          preventScrolling={false}
+          selectNodesOnDrag={false}
+          nodesFocusable={false}
+          edgesFocusable={false}
+        />
+      </div>
+      <ProbabilityHistory game={game}/>
     </div>
   );
 }
 
+/* Example 
 
+<Tree />
+
+*/
