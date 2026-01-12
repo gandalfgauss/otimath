@@ -14,11 +14,11 @@ export default function TreeCalculator({game, setGame}:Readonly<TreeCalculatorPr
   const inputRef = useRef<HTMLInputElement>(null);
 
   const calculationsResult = useMemo(() => {
-      return game?.challenges[game.currentChallenge].problem.calculationsResult;
+      return game?.challenges[game.currentChallenge].problem.problemCalculations?.calculationsResult;
   }, [game]);
 
   const expression = useMemo(() => {
-      return game?.challenges[game.currentChallenge].problem.calculationsResult?.value ?? '';
+      return game?.challenges[game.currentChallenge].problem.problemCalculations?.calculationsResult?.value ?? '';
   }, [game]);
 
   const setExpression = useCallback((value: string) => {
@@ -30,11 +30,14 @@ export default function TreeCalculator({game, setGame}:Readonly<TreeCalculatorPr
         ...newGame.challenges[currentChallengeIndex],
         problem: {
           ...newGame.challenges[currentChallengeIndex].problem,
-          calculationsResult: {
-            ...newGame.challenges[currentChallengeIndex].problem.calculationsResult,
-            value: value,
-            disabled: newGame.challenges[currentChallengeIndex].problem.calculationsResult?.disabled ?? false,
-            error: newGame.challenges[currentChallengeIndex].problem.calculationsResult?.error ?? false,
+          problemCalculations: {
+            ...newGame.challenges[currentChallengeIndex].problem.problemCalculations,
+            calculationsResult: {
+              ...newGame.challenges[currentChallengeIndex].problem.problemCalculations?.calculationsResult,
+              value: value,
+              disabled: newGame.challenges[currentChallengeIndex].problem.problemCalculations?.calculationsResult?.disabled ?? false,
+              error: newGame.challenges[currentChallengeIndex].problem.problemCalculations?.calculationsResult?.error ?? false,
+            }
           }
         }
       };

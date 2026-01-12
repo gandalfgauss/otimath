@@ -1,6 +1,6 @@
 import { SelectInput } from "@/components/global/SelectInput";
 import { Game } from "@/hooks/teaching/probability/tree/useTreeHooks";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo} from "react";
 import TreeCalculator from "./TreeCalculator";
 
 
@@ -11,8 +11,12 @@ interface TreeCalculationsProps {
 
 type CalculationKey =
   | "calculationsEventA"
+  | "calculationsOperationA"
   | "calculationsEventB"
-  | "calculationsOperation";
+  | "calculationsOperationB"
+  | "calculationsEventC"
+  | "calculationsOperationC"
+  | "calculationsEventD";
 
 export function TreeCalculations({game, setGame}:Readonly<TreeCalculationsProps>) {
   const problem = useMemo(() => {
@@ -46,17 +50,20 @@ export function TreeCalculations({game, setGame}:Readonly<TreeCalculationsProps>
         ...prevGame,
         challenges: prevGame.challenges.map((challenge, index) => {
           if(prevGame.currentChallenge == index) {
-            const currentSelect = challenge.problem[selectInputItem];
+            const currentSelect = challenge.problem.problemCalculations?.[selectInputItem];
 
             return {
               ...challenge,
               problem: {
                 ...challenge.problem,
-                [selectInputItem]: {
-                  ...currentSelect,
-                  value: value,
-                  disabled: currentSelect?.disabled ?? false,
-                  error: currentSelect?.error ?? false,
+                problemCalculations: {
+                  ...challenge.problem.problemCalculations,
+                  [selectInputItem]: {
+                    ...currentSelect,
+                    value: value,
+                    disabled: currentSelect?.disabled ?? false,
+                    error: currentSelect?.error ?? false,
+                  }
                 }
               }
             }
@@ -80,49 +87,111 @@ export function TreeCalculations({game, setGame}:Readonly<TreeCalculationsProps>
         transition-[opacity] duration-300 ease-in-out
         ${problem?.boardCalculationsDisabled ? 'opacity-0 pointer-events-none' : ''}`}
       >
-        <div className="flex items-center gap-quarck">
+        <div className="flex flex-wrap items-center gap-quarck">
           <span>P(</span>
           {currentStep?.calculations?.eventA && 
           <SelectInput
             selectInput={{ 
               styles: "w-[50px] h-[40px] text-center",
               placeholder: " ",
-              value: problem?.calculationsEventA?.value,
-              disabled: problem?.calculationsEventA?.disabled ,
+              value: problem?.problemCalculations?.calculationsEventA?.value,
+              disabled: problem?.problemCalculations?.calculationsEventA?.disabled ,
               required: true,
-              error: problem?.calculationsEventA?.error,
+              error: problem?.problemCalculations?.calculationsEventA?.error,
               setValue: (value: string) => {
                 setSelectInputValue(value, "calculationsEventA")
               },
               options: eventsOptions
             }}
           /> }
-          {currentStep?.calculations?.operation && 
+          {currentStep?.calculations?.operationA && 
           <SelectInput
             selectInput={{ 
               styles: "w-[50px] h-[40px] text-center",
               placeholder: " ",
-              value: problem?.calculationsOperation?.value,
-              disabled: problem?.calculationsOperation?.disabled ,
+              value: problem?.problemCalculations?.calculationsOperationA?.value,
+              disabled: problem?.problemCalculations?.calculationsOperationA?.disabled ,
               required: true,
-              error: problem?.calculationsOperation?.error,
+              error: problem?.problemCalculations?.calculationsOperationA?.error,
               setValue: (value: string) => {
-                setSelectInputValue(value, "calculationsOperation")
+                setSelectInputValue(value, "calculationsOperationA")
               },
-              options: problem?.calculationsOperation?.options
+              options: problem?.problemCalculations?.calculationsOperationA?.options
             }}
           />}
-          {currentStep?.calculations?.eventB&& 
+          {currentStep?.calculations?.eventB && 
           <SelectInput
             selectInput={{ 
               styles: "w-[50px] h-[40px] text-center",
               placeholder: " ",
-              value: problem?.calculationsEventB?.value,
-              disabled: problem?.calculationsEventB?.disabled ,
+              value: problem?.problemCalculations?.calculationsEventB?.value,
+              disabled: problem?.problemCalculations?.calculationsEventB?.disabled ,
               required: true,
-              error: problem?.calculationsEventB?.error,
+              error: problem?.problemCalculations?.calculationsEventB?.error,
               setValue: (value: string) => {
                 setSelectInputValue(value, "calculationsEventB")
+              },
+              options: eventsOptions
+            }}
+          />
+          }
+          {currentStep?.calculations?.operationB && 
+          <SelectInput
+            selectInput={{ 
+              styles: "w-[50px] h-[40px] text-center",
+              placeholder: " ",
+              value: problem?.problemCalculations?.calculationsOperationB?.value,
+              disabled: problem?.problemCalculations?.calculationsOperationB?.disabled ,
+              required: true,
+              error: problem?.problemCalculations?.calculationsOperationB?.error,
+              setValue: (value: string) => {
+                setSelectInputValue(value, "calculationsOperationB")
+              },
+              options: problem?.problemCalculations?.calculationsOperationB?.options
+            }}
+          />}
+          {currentStep?.calculations?.eventC && 
+          <SelectInput
+            selectInput={{ 
+              styles: "w-[50px] h-[40px] text-center",
+              placeholder: " ",
+              value: problem?.problemCalculations?.calculationsEventC?.value,
+              disabled: problem?.problemCalculations?.calculationsEventC?.disabled ,
+              required: true,
+              error: problem?.problemCalculations?.calculationsEventC?.error,
+              setValue: (value: string) => {
+                setSelectInputValue(value, "calculationsEventC")
+              },
+              options: eventsOptions
+            }}
+          />
+          }
+          {currentStep?.calculations?.operationC && 
+          <SelectInput
+            selectInput={{ 
+              styles: "w-[50px] h-[40px] text-center",
+              placeholder: " ",
+              value: problem?.problemCalculations?.calculationsOperationC?.value,
+              disabled: problem?.problemCalculations?.calculationsOperationC?.disabled ,
+              required: true,
+              error: problem?.problemCalculations?.calculationsOperationC?.error,
+              setValue: (value: string) => {
+                setSelectInputValue(value, "calculationsOperationC")
+              },
+              options: problem?.problemCalculations?.calculationsOperationC?.options
+            }}
+          />}
+          {currentStep?.calculations?.eventD && 
+          <SelectInput
+            selectInput={{ 
+              styles: "w-[50px] h-[40px] text-center",
+              placeholder: " ",
+              value: problem?.problemCalculations?.calculationsEventD?.value,
+              disabled: problem?.problemCalculations?.calculationsEventD?.disabled ,
+              required: true,
+              error: problem?.problemCalculations?.calculationsEventD?.error,
+              setValue: (value: string) => {
+                setSelectInputValue(value, "calculationsEventD")
               },
               options: eventsOptions
             }}

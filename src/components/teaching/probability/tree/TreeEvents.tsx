@@ -33,7 +33,7 @@ export function TreeEvents({game, setGame}:Readonly<TreeEventsProps>) {
       const eventOptionToChange = newGame.challenges[newGame.currentChallenge].problem.eventOptions[index];
       newGame.challenges[newGame.currentChallenge].problem.eventOptions[index] = {
         ...eventOptionToChange,
-        label: value.slice(0,2),
+        label: value.slice(0,3),
       }
 
       return newGame;

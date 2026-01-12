@@ -20,8 +20,12 @@ interface Event {
 
 interface Calculations {
   eventA: Event;
-  operation?: Operation;
+  operationA?: Operation;
   eventB?: Event;
+  operationB?: Operation;
+  eventC?: Event;
+  operationC?: Operation;
+  eventD?: Event;
   result: number;
 }
 
@@ -50,6 +54,18 @@ interface CalculationsLayout {
   options?: {value: string, label: string}[];
 }
 
+interface ProblemCalculations {
+  calculationsEventA?: CalculationsLayout;
+  calculationsOperationA?: CalculationsLayout;
+  calculationsEventB?: CalculationsLayout;
+  calculationsOperationB?: CalculationsLayout;
+  calculationsEventC?: CalculationsLayout;
+  calculationsOperationC?: CalculationsLayout;
+  calculationsEventD?: CalculationsLayout;
+  calculationsResult?: CalculationsLayout; 
+  calculationsHistory?: Calculations[];
+}
+
 interface Problem {
   description: string;
   eventsTree: EventTree[];
@@ -58,11 +74,7 @@ interface Problem {
   boardEventsDisabled?: boolean;
   boardProbabilityDisabled?: boolean;
   boardCalculationsDisabled?: boolean;
-  calculationsEventA?: CalculationsLayout;
-  calculationsOperation?: CalculationsLayout;
-  calculationsEventB?: CalculationsLayout;
-  calculationsResult?: CalculationsLayout; 
-  calculationsHistory?: Calculations[];
+  problemCalculations?: ProblemCalculations;
 }
 
 interface CheckTree {
@@ -370,7 +382,7 @@ const getChallengeOne = (): Challenge => {
     checkType: "Calculations",
     calculations: {
       eventA: event1,
-      operation: "Intersection",
+      operationA: "Intersection",
       eventB: event3,
       result: eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring
     }
@@ -383,14 +395,14 @@ const getChallengeOne = (): Challenge => {
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja um menino do segundo ano?</strong></span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja um menino do primeiro ano?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
       eventA: event2,
-      operation: "Intersection",
-      eventB: event4,
-      result: eventTree2.probabilityOfOccurring * eventTree7.probabilityOfOccurring
+      operationA: "Intersection",
+      eventB: event3,
+      result: eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring
     }
   };
 
@@ -401,12 +413,12 @@ const getChallengeOne = (): Challenge => {
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja do terceiro ano?</strong></span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja do primeiro ano?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
-      eventA: event5,
-      result: (eventTree5.probabilityOfOccurring * eventTree1.probabilityOfOccurring) + (eventTree8.probabilityOfOccurring * eventTree2.probabilityOfOccurring)
+      eventA: event3,
+      result: (eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) + (eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring)
     }
   };
 
@@ -422,7 +434,7 @@ const getChallengeOne = (): Challenge => {
     checkType: "Calculations",
     calculations: {
       eventA: event1,
-      operation: "Conditional",
+      operationA: "Conditional",
       eventB: event3,
       result: (eventTree3.probabilityOfOccurring * eventTree1.probabilityOfOccurring) /
               ((eventTree3.probabilityOfOccurring * eventTree1.probabilityOfOccurring) +
@@ -430,29 +442,51 @@ const getChallengeOne = (): Challenge => {
     }
   };
 
-    const stepEight: Step = {
+  const stepEight: Step = {
     instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
                     <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
                     <span> 
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja um menino, dado que é do segundo ano?</strong></span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja um menino, dado que é do primeiro ano?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
       eventA: event2,
-      operation: "Conditional",
-      eventB: event4,
-      result: (eventTree7.probabilityOfOccurring * eventTree2.probabilityOfOccurring) /
-              ((eventTree7.probabilityOfOccurring * eventTree2.probabilityOfOccurring) +
-               (eventTree4.probabilityOfOccurring * eventTree1.probabilityOfOccurring) )
+      operationA: "Conditional",
+      eventB: event3,
+      result: (eventTree6.probabilityOfOccurring * eventTree2.probabilityOfOccurring) /
+              ((eventTree6.probabilityOfOccurring * eventTree2.probabilityOfOccurring) +
+               (eventTree3.probabilityOfOccurring * eventTree1.probabilityOfOccurring) )
+    }
+  };
+
+  const stepNine: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de que seja uma menina, dado que é do primeiro ano, ou, que seja um menino, dado que também é do primeiro ano?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event1,
+      operationA: "Conditional",
+      eventB: event3,
+      operationB: "Union",
+      eventC: event2,
+      operationC: "Conditional",
+      eventD: event3,
+      result: 1
     }
   };
 
   const challenge: Challenge = {
     problem: problem,
-    steps: [stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix, stepSeven, stepEight],
+    steps: [stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix, stepSeven, stepEight, stepNine],
   };
 
   return challenge;
@@ -537,7 +571,7 @@ const getChallengeTwo = (): Challenge => {
 
   const problem: Problem = {
     description: `<p className="ds-body">
-    Em um experimento de Probabilidade, são utilizadas duas urnas, <strong>A e B</strong>, contendo <strong>bolas vermelhas e pretas.</strong>
+    Em um experimento de Probabilidade, são utilizadas duas urnas, <strong>Urna A e Urna B</strong>, contendo <strong>bolas vermelhas e pretas.</strong>
     <br/> A <strong>urna A</strong> possui <strong>${redBallInUrnA} bola${redBallInUrnA > 1 ? 's' : ''} vermelha${redBallInUrnA > 1 ? 's' : ''}</strong> e <strong>${blackBallInUrnA} bola${blackBallInUrnA > 1 ? 's' : ''} preta${blackBallInUrnA > 1 ? 's' : ''},</strong> 
     enquanto a <strong>urna B</strong> possui <strong>${redBallInUrnB} bola${redBallInUrnB > 1 ? 's' : ''} vermelha${redBallInUrnB > 1 ? 's' : ''}</strong> e <strong>${blackBallInUrnB} bola${blackBallInUrnB > 1 ? 's' : ''} preta${blackBallInUrnB > 1 ? 's' : ''}.</strong>
     <br/> Uma das urnas é escolhida ao acaso e, em seguida, retira-se uma bola da urna escolhida.
@@ -612,12 +646,12 @@ const getChallengeTwo = (): Challenge => {
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ser sorteada a primeira urna e uma bola preta?</strong></span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ser sorteada a urna A e uma bola preta?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
       eventA: event1,
-      operation: "Intersection",
+      operationA: "Intersection",
       eventB: event4,
       result: eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring
     }
@@ -630,14 +664,14 @@ const getChallengeTwo = (): Challenge => {
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ser sorteada a segunda urna e uma bola vermelha?</strong></span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ser sorteada a urna B e uma bola preta?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
       eventA: event2,
-      operation: "Intersection",
-      eventB: event3,
-      result: eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring
+      operationA: "Intersection",
+      eventB: event4,
+      result: eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring
     }
   };
 
@@ -648,13 +682,13 @@ const getChallengeTwo = (): Challenge => {
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ser sorteada uma bola vermelha?</strong></span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ser sorteada uma bola preta?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
-      eventA: event3,
-      result: (eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) +
-              (eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring)
+      eventA: event4,
+      result: (eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring) +
+              (eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring)
     }
   };
 
@@ -665,16 +699,16 @@ const getChallengeTwo = (): Challenge => {
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ter sido sorteada a primeira urna dado que a bola é vermelha?</strong></span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ter sido sorteada a urna A dado que a bola é preta?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
       eventA: event1,
-      operation: "Conditional",
-      eventB: event3,
-      result: (eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) /
-              ((eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) +
-               (eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring))
+      operationA: "Conditional",
+      eventB: event4,
+      result: (eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring) /
+              ((eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring) +
+               (eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring))
     }
   };
 
@@ -685,12 +719,12 @@ const getChallengeTwo = (): Challenge => {
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ter sido sorteada a segunda urna dado que a bola é preta?</strong></span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ter sido sorteada a urna B dado que a bola é preta?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
       eventA: event2,
-      operation: "Conditional",
+      operationA: "Conditional",
       eventB: event4,
       result: (eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring) /
               ((eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring) +
@@ -698,9 +732,31 @@ const getChallengeTwo = (): Challenge => {
     }
   };
 
+  const stepNine: Step = {
+    instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
+                    <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
+                    <span> 
+                      Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
+                      <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
+                    </span>
+                    <span className="ds-body-large text-center"><strong>Qual é a probabilidade de ter sido sorteada a urna A, dado que a bola é preta, ou, ter sido sorteada a urna B, dado que a bola é preta?</strong></span>
+                  </div>`,
+    checkType: "Calculations",
+    calculations: {
+      eventA: event1,
+      operationA: "Conditional",
+      eventB: event4,
+      operationB: "Union",
+      eventC: event2,
+      operationC: "Conditional",
+      eventD: event4,
+      result: 1
+    }
+  };
+
   const challenge: Challenge = {
     problem: problem,
-    steps: [stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix, stepSeven, stepEight],
+    steps: [stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix, stepSeven, stepEight, stepNine],
   };
 
   return challenge;
@@ -890,7 +946,7 @@ const getChallengeThree = (): Challenge => {
     checkType: "Calculations",
     calculations: {
       eventA: event1,
-      operation: "Intersection",
+      operationA: "Intersection",
       eventB: event3,
       result: eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring
     }
@@ -908,7 +964,7 @@ const getChallengeThree = (): Challenge => {
     checkType: "Calculations",
     calculations: {
       eventA: event2,
-      operation: "Intersection",
+      operationA: "Intersection",
       eventB: event3,
       result: eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring
     }
@@ -925,7 +981,7 @@ const getChallengeThree = (): Challenge => {
                   </div>`,
     checkType: "Calculations",
     calculations: {
-      eventA: event2,
+      eventA: event3,
       result: (eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) +
               (eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring)
     }
@@ -938,16 +994,16 @@ const getChallengeThree = (): Challenge => {
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>O médico diagnostica o paciente como não portador da doença. Qual é a probabilidade de que ele esteja certo?</strong></span>
+                    <span className="ds-body-large text-center"><strong>O médico diagnostica o paciente como portador da doença. Qual é probabilidade de ele estar errado?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
       eventA: event2,
-      operation: "Conditional",
-      eventB: event4,
-      result: (eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring) /
-              ((eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring) +
-               (eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring))
+      operationA: "Conditional",
+      eventB: event3,
+      result: (eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring) /
+              ((eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) +
+               (eventTree2.probabilityOfOccurring * eventTree5.probabilityOfOccurring))
     }
   };
 
@@ -958,12 +1014,12 @@ const getChallengeThree = (): Challenge => {
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>O médico diagnostica o paciente como portador da doença. Qual é probabilidade de ele estar errado?</strong></span>
+                    <span className="ds-body-large text-center"><strong>O médico diagnostica o paciente como portador da doença. Qual é probabilidade de ele estar certo?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
-      eventA: event2,
-      operation: "Conditional",
+      eventA: event1,
+      operationA: "Conditional",
       eventB: event3,
       result: (eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) /
               ((eventTree1.probabilityOfOccurring * eventTree3.probabilityOfOccurring) +
@@ -971,29 +1027,31 @@ const getChallengeThree = (): Challenge => {
     }
   };
 
-  const stepEight: Step = {
+  const stepNine: Step = {
     instructions: `<div className="ds-body flex flex-col gap-y-xxxs"> 
                     <h3 className="ds-heading-large text-brand-otimath-pure">Enunciado:</h3>
                     <span> 
                       Monte a <strong>expressão</strong> correspondente à <strong>pergunta</strong> e, em seguida, realize os cálculos na calculadora.
                       <br/> Ao finalizar, clique no <strong>Botão Conferir</strong> para verificar sua resposta.
                     </span>
-                    <span className="ds-body-large text-center"><strong>O médico diagnostica o paciente como não portador da doença. Qual é probabilidade de ele esteja errado?</strong></span>
+                    <span className="ds-body-large text-center"><strong>O médico diagnostica o paciente como portador da doença. Qual é probabilidade do paciente ser doente ou saudável?</strong></span>
                   </div>`,
     checkType: "Calculations",
     calculations: {
       eventA: event1,
-      operation: "Conditional",
-      eventB: event4,
-      result: (eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring) /
-              ((eventTree1.probabilityOfOccurring * eventTree4.probabilityOfOccurring) +
-               (eventTree2.probabilityOfOccurring * eventTree6.probabilityOfOccurring))
+      operationA: "Conditional",
+      eventB: event3,
+      operationB: "Union",
+      eventC: event2,
+      operationC: "Conditional",
+      eventD: event3,
+      result: 1
     }
   };
 
   const challenge: Challenge = {
     problem: problem,
-    steps: [stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix, stepSeven, stepEight],
+    steps: [stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix, stepSeven, stepNine],
   };
 
   return challenge;
@@ -1384,38 +1442,6 @@ export const useTreeHooks = () => {
     return newGame;
   }, []);
 
-  const getGameActivedCalculationsBoard = useCallback((prevGame: Game) : Game => {
-    const newGame = {...prevGame};
-    const problem =  newGame.challenges[newGame.currentChallenge].problem;
-    newGame.challenges[newGame.currentChallenge].problem = {
-      ...problem,
-      boardCalculationsDisabled: false,
-      calculationsEventA: {
-        disabled: false,
-        error: false,
-        value: ' '
-      },
-      calculationsOperation: {
-        disabled: false,
-        error: false,
-        value: ' ',
-        options: operationsOptions
-      },
-      calculationsEventB: {
-        disabled: false,
-        error: false,
-        value: ' '
-      },
-      calculationsResult: {
-        disabled: false,
-        error: false,
-        value: ''
-      }
-    }
-    
-    return newGame;
-  }, []);
-
   const checkProbabilityStep = useCallback((prevGame: Game) => {
     let newGame = {...prevGame};
 
@@ -1447,6 +1473,63 @@ export const useTreeHooks = () => {
 
   }, [challengeIsComplete, createAlert, getGameDisabledProbabilityBoard]);
 
+  const getGameActivedCalculationsBoard = useCallback((prevGame: Game) : Game => {
+    const newGame = {...prevGame};
+    const problem =  newGame.challenges[newGame.currentChallenge].problem;
+    newGame.challenges[newGame.currentChallenge].problem = {
+      ...problem,
+      boardCalculationsDisabled: false,
+      problemCalculations: {
+        ...problem.problemCalculations,
+        calculationsEventA: {
+          disabled: false,
+          error: false,
+          value: ' '
+        },
+        calculationsOperationA: {
+          disabled: false,
+          error: false,
+          value: ' ',
+          options: operationsOptions
+        },
+        calculationsEventB: {
+          disabled: false,
+          error: false,
+          value: ' '
+        },
+        calculationsOperationB: {
+          disabled: false,
+          error: false,
+          value: ' ',
+          options: operationsOptions
+        },
+        calculationsEventC: {
+          disabled: false,
+          error: false,
+          value: ' '
+        },
+        calculationsOperationC: {
+          disabled: false,
+          error: false,
+          value: ' ',
+          options: operationsOptions
+        },
+        calculationsEventD: {
+          disabled: false,
+          error: false,
+          value: ' '
+        },
+        calculationsResult: {
+          disabled: false,
+          error: false,
+          value: ''
+        }
+      }
+    }
+    
+    return newGame;
+  }, []);
+
   const getGameDisabledCalculationsBoard = useCallback((prevGame: Game) : Game => {
     return {
       ...prevGame, 
@@ -1456,30 +1539,58 @@ export const useTreeHooks = () => {
             ...challenge,
             problem: {
               ...challenge.problem,
-              calculationsEventA: {
-                ...challenge.problem.calculationsEventA,
-                error: challenge.problem.calculationsEventA?.error ?? false,
-                disabled: true,
-                value: challenge.problem.calculationsEventA?.value ?? '',
-              },
-              calculationsOperation: {
-                ...challenge.problem.calculationsOperation,
-                error: challenge.problem.calculationsOperation?.error ?? false,
-                disabled: true,
-                value: challenge.problem.calculationsOperation?.value ?? '',
-              },
-              calculationsEventB: {
-                ...challenge.problem.calculationsEventB,
-                error: challenge.problem.calculationsEventB?.error ?? false,
-                disabled: true,
-                value: challenge.problem.calculationsEventB?.value ?? '',
-              },
-              calculationsResult: {
-                ...challenge.problem.calculationsResult,
-                error: challenge.problem.calculationsResult?.error ?? false,
-                disabled: true,
-                value: challenge.problem.calculationsResult?.value ?? '',
+              problemCalculations: {
+                ...challenge.problem.problemCalculations,
+                calculationsEventA: {
+                  ...challenge.problem?.problemCalculations?.calculationsEventA,
+                  error: challenge.problem?.problemCalculations?.calculationsEventA?.error ?? false,
+                  disabled: true,
+                  value: challenge.problem?.problemCalculations?.calculationsEventA?.value ?? '',
+                },
+                calculationsOperationA: {
+                  ...challenge.problem?.problemCalculations?.calculationsOperationA,
+                  error: challenge.problem?.problemCalculations?.calculationsOperationA?.error ?? false,
+                  disabled: true,
+                  value: challenge.problem?.problemCalculations?.calculationsOperationA?.value ?? '',
+                },
+                calculationsEventB: {
+                  ...challenge.problem?.problemCalculations?.calculationsEventB,
+                  error: challenge.problem?.problemCalculations?.calculationsEventB?.error ?? false,
+                  disabled: true,
+                  value: challenge.problem?.problemCalculations?.calculationsEventB?.value ?? '',
+                },
+                calculationsOperationB: {
+                  ...challenge.problem?.problemCalculations?.calculationsOperationB,
+                  error: challenge.problem?.problemCalculations?.calculationsOperationB?.error ?? false,
+                  disabled: true,
+                  value: challenge.problem?.problemCalculations?.calculationsOperationB?.value ?? '',
+                },
+                calculationsEventC: {
+                  ...challenge.problem?.problemCalculations?.calculationsEventC,
+                  error: challenge.problem?.problemCalculations?.calculationsEventC?.error ?? false,
+                  disabled: true,
+                  value: challenge.problem?.problemCalculations?.calculationsEventC?.value ?? '',
+                },
+                calculationsOperationC: {
+                  ...challenge.problem?.problemCalculations?.calculationsOperationC,
+                  error: challenge.problem?.problemCalculations?.calculationsOperationC?.error ?? false,
+                  disabled: true,
+                  value: challenge.problem?.problemCalculations?.calculationsOperationC?.value ?? '',
+                },
+                calculationsEventD: {
+                  ...challenge.problem?.problemCalculations?.calculationsEventD,
+                  error: challenge.problem?.problemCalculations?.calculationsEventD?.error ?? false,
+                  disabled: true,
+                  value: challenge.problem?.problemCalculations?.calculationsEventD?.value ?? '',
+                },
+                calculationsResult: {
+                  ...challenge.problem?.problemCalculations?.calculationsResult,
+                  error: challenge.problem?.problemCalculations?.calculationsResult?.error ?? false,
+                  disabled: true,
+                  value: challenge.problem?.problemCalculations?.calculationsResult?.value ?? '',
+                }
               }
+              
             }
           }
         }
@@ -1497,23 +1608,50 @@ export const useTreeHooks = () => {
               ...challenge,
               problem: {
                 ...challenge.problem,
-                calculationsEventA: {
-                  ...challenge.problem.calculationsEventA,
-                  error: true,
-                  disabled: challenge.problem.calculationsEventA?.disabled ?? false,
-                  value: challenge.problem.calculationsEventA?.value ?? '',
-                },
-                calculationsOperation: {
-                  ...challenge.problem.calculationsOperation,
-                  error: true,
-                  disabled: challenge.problem.calculationsOperation?.disabled ?? false,
-                  value: challenge.problem.calculationsOperation?.value ?? '',
-                },
-                calculationsEventB: {
-                  ...challenge.problem.calculationsEventB,
-                  error: true,
-                  disabled: challenge.problem.calculationsEventB?.disabled ?? false,
-                  value: challenge.problem.calculationsEventB?.value ?? '',
+                problemCalculations: {
+                  ...challenge.problem.problemCalculations,
+                  calculationsEventA: {
+                    ...challenge.problem.problemCalculations?.calculationsEventA,
+                    error: true,
+                    disabled: challenge.problem.problemCalculations?.calculationsEventA?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsEventA?.value ?? '',
+                  },
+                  calculationsOperationA: {
+                    ...challenge.problem.problemCalculations?.calculationsOperationA,
+                    error: true,
+                    disabled: challenge.problem.problemCalculations?.calculationsOperationA?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsOperationA?.value ?? '',
+                  },
+                  calculationsEventB: {
+                    ...challenge.problem.problemCalculations?.calculationsEventB,
+                    error: true,
+                    disabled: challenge.problem.problemCalculations?.calculationsEventB?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsEventB?.value ?? '',
+                  },
+                  calculationsOperationB: {
+                    ...challenge.problem.problemCalculations?.calculationsOperationB,
+                    error: true,
+                    disabled: challenge.problem.problemCalculations?.calculationsOperationB?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsOperationB?.value ?? '',
+                  },
+                  calculationsEventC: {
+                    ...challenge.problem.problemCalculations?.calculationsEventC,
+                    error: true,
+                    disabled: challenge.problem.problemCalculations?.calculationsEventC?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsEventC?.value ?? '',
+                  },
+                  calculationsOperationC: {
+                    ...challenge.problem.problemCalculations?.calculationsOperationC,
+                    error: true,
+                    disabled: challenge.problem.problemCalculations?.calculationsOperationC?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsOperationC?.value ?? '',
+                  },
+                  calculationsEventD: {
+                    ...challenge.problem.problemCalculations?.calculationsEventD,
+                    error: true,
+                    disabled: challenge.problem.problemCalculations?.calculationsEventD?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsEventD?.value ?? '',
+                  },
                 }
               }
             }
@@ -1532,11 +1670,14 @@ export const useTreeHooks = () => {
               ...challenge,
               problem: {
                 ...challenge.problem,
-                calculationsResult: {
-                  ...challenge.problem.calculationsResult,
-                  error: true,
-                  disabled: challenge.problem.calculationsResult?.disabled ?? false,
-                  value: challenge.problem.calculationsResult?.value ?? '',
+                problemCalculations: {
+                  ...challenge.problem.problemCalculations,
+                  calculationsResult: {
+                    ...challenge.problem.problemCalculations?.calculationsResult,
+                    error: true,
+                    disabled: challenge.problem.problemCalculations?.calculationsResult?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsResult?.value ?? '',
+                  }
                 }
               }
             }
@@ -1555,24 +1696,51 @@ export const useTreeHooks = () => {
               ...challenge,
               problem: {
                 ...challenge.problem,
-                calculationsEventA: {
-                  ...challenge.problem.calculationsEventA,
-                  error: false,
-                  disabled: challenge.problem.calculationsEventA?.disabled ?? false,
-                  value: challenge.problem.calculationsEventA?.value ?? '',
-                },
-                calculationsOperation: {
-                  ...challenge.problem.calculationsOperation,
-                  error: false,
-                  disabled: challenge.problem.calculationsOperation?.disabled ?? false,
-                  value: challenge.problem.calculationsOperation?.value ?? '',
-                },
-                calculationsEventB: {
-                  ...challenge.problem.calculationsEventB,
-                  error: false,
-                  disabled: challenge.problem.calculationsEventB?.disabled ?? false,
-                  value: challenge.problem.calculationsEventB?.value ?? '',
-                },
+                problemCalculations: {
+                  ...challenge.problem.problemCalculations,
+                  calculationsEventA: {
+                    ...challenge.problem.problemCalculations?.calculationsEventA,
+                    error: false,
+                    disabled: challenge.problem.problemCalculations?.calculationsEventA?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsEventA?.value ?? '',
+                  },
+                  calculationsOperationA: {
+                    ...challenge.problem.problemCalculations?.calculationsOperationA,
+                    error: false,
+                    disabled: challenge.problem.problemCalculations?.calculationsOperationA?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsOperationA?.value ?? '',
+                  },
+                  calculationsEventB: {
+                    ...challenge.problem.problemCalculations?.calculationsEventB,
+                    error: false,
+                    disabled: challenge.problem.problemCalculations?.calculationsEventB?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsEventB?.value ?? '',
+                  },
+                  calculationsOperationB: {
+                    ...challenge.problem.problemCalculations?.calculationsOperationB,
+                    error: false,
+                    disabled: challenge.problem.problemCalculations?.calculationsOperationB?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsOperationB?.value ?? '',
+                  },
+                  calculationsEventC: {
+                    ...challenge.problem.problemCalculations?.calculationsEventC,
+                    error: false,
+                    disabled: challenge.problem.problemCalculations?.calculationsEventC?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsEventC?.value ?? '',
+                  },
+                  calculationsOperationC: {
+                    ...challenge.problem.problemCalculations?.calculationsOperationC,
+                    error: false,
+                    disabled: challenge.problem.problemCalculations?.calculationsOperationC?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsOperationC?.value ?? '',
+                  },
+                  calculationsEventD: {
+                    ...challenge.problem.problemCalculations?.calculationsEventD,
+                    error: false,
+                    disabled: challenge.problem.problemCalculations?.calculationsEventD?.disabled ?? false,
+                    value: challenge.problem.problemCalculations?.calculationsEventD?.value ?? '',
+                  },
+                }
               }
             }
           }
@@ -1590,11 +1758,14 @@ export const useTreeHooks = () => {
             ...challenge,
             problem: {
               ...challenge.problem,
-              calculationsResult: {
-                ...challenge.problem.calculationsResult,
-                error: false,
-                disabled: challenge.problem.calculationsResult?.disabled ?? false,
-                value: challenge.problem.calculationsResult?.value ?? '',
+              problemCalculations: {
+                ...challenge.problem.problemCalculations,
+                calculationsResult: {
+                  ...challenge.problem.problemCalculations?.calculationsResult,
+                  error: false,
+                  disabled: challenge.problem.problemCalculations?.calculationsResult?.disabled ?? false,
+                  value: challenge.problem.problemCalculations?.calculationsResult?.value ?? '',
+                }
               }
             }
           }
@@ -1605,8 +1776,6 @@ export const useTreeHooks = () => {
   }, []);
 
   const getGameCalculationsClear = useCallback((prevGame: Game): Game => {
-    if(!prevGame) return prevGame;
-
     return {
       ...prevGame, 
       challenges: prevGame.challenges.map((challenge, index) => {
@@ -1615,29 +1784,56 @@ export const useTreeHooks = () => {
             ...challenge,
             problem: {
               ...challenge.problem,
-              calculationsEventA: {
-                ...challenge.problem.calculationsEventA,
-                error: false,
-                disabled: challenge.problem.calculationsEventA?.disabled ?? false,
-                value: ' ',
-              },
-              calculationsOperation: {
-                ...challenge.problem.calculationsOperation,
-                error: false,
-                disabled: challenge.problem.calculationsOperation?.disabled ?? false,
-                value: ' ',
-              },
-              calculationsEventB: {
-                ...challenge.problem.calculationsEventB,
-                error: false,
-                disabled: challenge.problem.calculationsEventB?.disabled ?? false,
-                value: ' ',
-              },
-              calculationsResult: {
-                ...challenge.problem.calculationsResult,
-                error: false,
-                disabled: challenge.problem.calculationsResult?.disabled ?? false,
-                value: ' ',
+              problemCalculations: {
+                ...challenge.problem.problemCalculations,
+                calculationsEventA: {
+                  ...challenge.problem.problemCalculations?.calculationsEventA,
+                  error: false,
+                  disabled: challenge.problem.problemCalculations?.calculationsEventA?.disabled ?? false,
+                  value: ' ',
+                },
+                calculationsOperationA: {
+                  ...challenge.problem.problemCalculations?.calculationsOperationA,
+                  error: false,
+                  disabled: challenge.problem.problemCalculations?.calculationsOperationA?.disabled ?? false,
+                  value: ' ',
+                },
+                calculationsEventB: {
+                  ...challenge.problem.problemCalculations?.calculationsEventB,
+                  error: false,
+                  disabled: challenge.problem.problemCalculations?.calculationsEventB?.disabled ?? false,
+                  value: ' ',
+                },
+                calculationsOperationB: {
+                  ...challenge.problem.problemCalculations?.calculationsOperationB,
+                  error: false,
+                  disabled: challenge.problem.problemCalculations?.calculationsOperationB?.disabled ?? false,
+                  value: ' ',
+                },
+                calculationsEventC: {
+                  ...challenge.problem.problemCalculations?.calculationsEventC,
+                  error: false,
+                  disabled: challenge.problem.problemCalculations?.calculationsEventC?.disabled ?? false,
+                  value: ' ',
+                },
+                calculationsOperationC: {
+                  ...challenge.problem.problemCalculations?.calculationsOperationC,
+                  error: false,
+                  disabled: challenge.problem.problemCalculations?.calculationsOperationC?.disabled ?? false,
+                  value: ' ',
+                },
+                calculationsEventD: {
+                  ...challenge.problem.problemCalculations?.calculationsEventD,
+                  error: false,
+                  disabled: challenge.problem.problemCalculations?.calculationsEventD?.disabled ?? false,
+                  value: ' ',
+                },
+                calculationsResult: {
+                  ...challenge.problem.problemCalculations?.calculationsResult,
+                  error: false,
+                  disabled: challenge.problem.problemCalculations?.calculationsResult?.disabled ?? false,
+                  value: '',
+                }
               }
             }
           }
@@ -1652,29 +1848,77 @@ export const useTreeHooks = () => {
     let checkStatus = false;
     
     const stepCalculations = newGame.challenges[newGame.currentChallenge].steps[newGame.currentStep].calculations;
-    const problemCalculations = newGame.challenges[newGame.currentChallenge].problem;
+    const problemCalculations = newGame.challenges[newGame.currentChallenge].problem.problemCalculations;
 
-    if(stepCalculations?.eventA && !stepCalculations?.eventB) {
-      if(stepCalculations?.eventA.description == problemCalculations.calculationsEventA?.value) {
-        checkStatus = true;
-        newGame = getGameSelectCalculationsRemoveError(newGame);
-      }
-    } else {
-      if ((
-          stepCalculations?.eventA.description == problemCalculations.calculationsEventA?.value &&
-          stepCalculations?.operation == problemCalculations.calculationsOperation?.value &&
-          stepCalculations?.eventB?.description == problemCalculations.calculationsEventB?.value
-        ) ||
-        (
-          stepCalculations?.operation != "Conditional" &&
-          stepCalculations?.eventA?.description == problemCalculations.calculationsEventB?.value &&
-          stepCalculations?.eventB?.description == problemCalculations.calculationsEventA?.value
-        )
-      ) {
-        checkStatus = true;
-        newGame = getGameSelectCalculationsRemoveError(newGame);
+    if(stepCalculations?.eventA) {
+      if(!stepCalculations?.eventB) {
+        if(stepCalculations?.eventA.description == problemCalculations?.calculationsEventA?.value) {
+          checkStatus = true;
+          newGame = getGameSelectCalculationsRemoveError(newGame);
+        }
+      } else if(!stepCalculations?.operationB) {
+        if ((
+            stepCalculations?.eventA.description == problemCalculations?.calculationsEventA?.value &&
+            stepCalculations?.operationA == problemCalculations?.calculationsOperationA?.value &&
+            stepCalculations?.eventB?.description == problemCalculations?.calculationsEventB?.value
+          ) ||
+          (
+            stepCalculations?.operationA != "Conditional" &&
+            stepCalculations?.eventA?.description == problemCalculations?.calculationsEventB?.value &&
+            stepCalculations?.operationA == problemCalculations?.calculationsOperationA?.value &&
+            stepCalculations?.eventB?.description == problemCalculations?.calculationsEventA?.value
+          )
+        ) {
+          checkStatus = true;
+          newGame = getGameSelectCalculationsRemoveError(newGame);
+        }
+      } else {
+        if (
+            ((
+              stepCalculations?.eventA.description == problemCalculations?.calculationsEventA?.value &&
+              stepCalculations?.operationA == problemCalculations?.calculationsOperationA?.value &&
+              stepCalculations?.eventB?.description == problemCalculations?.calculationsEventB?.value
+            ) ||
+            (
+              stepCalculations?.operationA != "Conditional" &&
+              stepCalculations?.eventA?.description == problemCalculations?.calculationsEventB?.value &&
+              stepCalculations?.operationA == problemCalculations?.calculationsOperationA?.value &&
+              stepCalculations?.eventB?.description == problemCalculations?.calculationsEventA?.value
+            )) 
+          &&
+            (stepCalculations?.operationB == problemCalculations?.calculationsOperationB?.value)
+          &&
+          (
+            ((
+              stepCalculations?.eventC?.description == problemCalculations?.calculationsEventC?.value &&
+              stepCalculations?.operationC == problemCalculations?.calculationsOperationC?.value &&
+              stepCalculations?.eventD?.description == problemCalculations?.calculationsEventD?.value
+            ) ||
+            (
+              stepCalculations?.operationC != "Conditional" &&
+              stepCalculations?.eventC?.description == problemCalculations?.calculationsEventD?.value &&
+              stepCalculations?.operationC == problemCalculations?.calculationsOperationC?.value &&
+              stepCalculations?.eventD?.description == problemCalculations?.calculationsEventC?.value
+            )) 
+          )
+        ) {
+
+           console.log("terceira condição satisfeita", (
+            stepCalculations?.eventA.description == problemCalculations?.calculationsEventA?.value &&
+            stepCalculations?.operationA == problemCalculations?.calculationsOperationA?.value &&
+            stepCalculations?.eventB?.description == problemCalculations?.calculationsEventB?.value
+          ), (
+            stepCalculations?.operationA != "Conditional" &&
+            stepCalculations?.eventA?.description == problemCalculations?.calculationsEventB?.value &&
+            stepCalculations?.eventB?.description == problemCalculations?.calculationsEventA?.value
+          ), newGame);
+
+          checkStatus = true;
+          newGame = getGameSelectCalculationsRemoveError(newGame);
+        }
       }
     }
+
 
     if(!checkStatus) {
       if(!alertLockRef.current) {
@@ -1710,10 +1954,14 @@ export const useTreeHooks = () => {
             ...challenge,
             problem: {
               ...challenge.problem,
-              calculationsHistory: [
-                ...(challenge.problem.calculationsHistory ?? []),
-                calculationItem
-              ]
+              problemCalculations: {
+                ...challenge.problem.problemCalculations,
+                calculationsHistory: [
+                  ...(challenge.problem.problemCalculations?.calculationsHistory ?? []),
+                  calculationItem
+                ]
+              }
+
             }
           }
         }
@@ -1728,19 +1976,26 @@ export const useTreeHooks = () => {
     
     const stepCalculations = newGame.challenges[newGame.currentChallenge].steps[newGame.currentStep].calculations;
     const stepCalculationsResult = stepCalculations?.result;
-    const calculationResult = Number(calculateExpression(newGame.challenges[newGame.currentChallenge].problem.calculationsResult?.value ?? ''));
+    const calculationResult = Number(calculateExpression(newGame.challenges[newGame.currentChallenge].problem.problemCalculations?.calculationsResult?.value ?? ''));
     const eventsTree = newGame.challenges[newGame.currentChallenge].problem.eventsTree;
 
-    if(calculationResult == stepCalculationsResult) {
+    if(calculationResult.toFixed(4) == stepCalculationsResult?.toFixed(4)) {
       checkStatus = true;
       newGame = getGameInputCalculationsRemoveError(newGame);
 
       const eventA = eventsTree.find(eventTree => eventTree.event.description == stepCalculations?.eventA?.description)?.event;
       const eventB = eventsTree.find(eventTree => eventTree.event.description == stepCalculations?.eventB?.description)?.event;
+      const eventC = eventsTree.find(eventTree => eventTree.event.description == stepCalculations?.eventC?.description)?.event;
+      const eventD = eventsTree.find(eventTree => eventTree.event.description == stepCalculations?.eventD?.description)?.event;
+
       newGame = getGameAddCalculationsInHistory(newGame, {
         eventA: eventA as Event,
-        operation: stepCalculations?.operation,
+        operationA: stepCalculations?.operationA,
         eventB: eventB,
+        operationB: stepCalculations?.operationB,
+        eventC: eventC,
+        operationC: stepCalculations?.operationC,
+        eventD: eventD,
         result: stepCalculations?.result ?? -1
       });
     }
@@ -1755,7 +2010,7 @@ export const useTreeHooks = () => {
     }
 
     return {newGame, checkStatus};
-  }, [createAlert, getGameInputCalculationsInError, getGameInputCalculationsRemoveError]);
+  }, [createAlert, getGameInputCalculationsInError, getGameInputCalculationsRemoveError, getGameAddCalculationsInHistory]);
 
   const checkCalculationsStep = useCallback((prevGame: Game) => {
     let newGame = {...prevGame};
@@ -1779,7 +2034,7 @@ export const useTreeHooks = () => {
       }
     }
 
-    newGame = getGameCalculationsClear(newGame)
+    newGame = getGameCalculationsClear(newGame);
     
     return {newGame, checkStatus};
 
@@ -2016,30 +2271,59 @@ export const useTreeHooks = () => {
       challenge.problem.boardEventsDisabled = false;
       challenge.problem.boardProbabilityDisabled = true;
       challenge.problem.boardCalculationsDisabled = true;
-      challenge.problem.calculationsEventA = {
+
+      challenge.problem.problemCalculations = {};
+      challenge.problem.problemCalculations.calculationsEventA = {
         value: ' ',
         disabled: true,
         error: false
       }
-      challenge.problem.calculationsOperation = {
+      challenge.problem.problemCalculations.calculationsOperationA = {
         value: ' ',
         disabled: true,
         error: false,
         options: operationsOptions
       }
-      challenge.problem.calculationsEventB = {
+
+      challenge.problem.problemCalculations.calculationsEventB = {
         value: ' ',
         disabled: true,
         error: false
       }
 
-      challenge.problem.calculationsResult = {
+      challenge.problem.problemCalculations.calculationsOperationB = {
+        value: ' ',
+        disabled: true,
+        error: false,
+        options: operationsOptions
+      }
+
+      challenge.problem.problemCalculations.calculationsEventC = {
+        value: ' ',
+        disabled: true,
+        error: false
+      }
+
+      challenge.problem.problemCalculations.calculationsOperationC = {
+        value: ' ',
+        disabled: true,
+        error: false,
+        options: operationsOptions
+      }
+
+      challenge.problem.problemCalculations.calculationsEventD = {
+        value: ' ',
+        disabled: true,
+        error: false
+      }
+
+      challenge.problem.problemCalculations.calculationsResult = {
         value: '',
         disabled: true,
         error: false
       }
 
-      challenge.problem.calculationsHistory = [];
+      challenge.problem.problemCalculations.calculationsHistory = [];
       
       return challenge;
     });
