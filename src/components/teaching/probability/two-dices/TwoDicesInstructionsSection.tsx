@@ -113,6 +113,6 @@ export function TwoDicesInstructionsSection() {
 
 /* Example 
 
-<TwoDicesSection />
+<TwoDicesInstructionsSection />
 
 */

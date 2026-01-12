@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { HeroBanner } from "@/components/global/HeroBanner";
-import { TextBlock } from "@/components/global/TextBlock";
-import { TwoDicesInstructionsSection } from "@/components/teaching/probability/two-dices/TwoDicesInstructionsSection";
-import { TwoDicesSection } from "@/components/teaching/probability/two-dices/TwoDicesSection";
 import heroBannerTwoDicesImage from '@/images/teaching/probability/two-dices/twoDicesBanner.webp';
+import TwoDicesActivity from "@/components/teaching/probability/two-dices/TwoDicesActivity";
 
 export const generateMetadata = (): Metadata => {
   return {
@@ -48,27 +45,7 @@ export const generateMetadata = (): Metadata => {
 
 export default function TwoDices() {
   return (
-    <main>
-      <HeroBanner 
-        id="hero-banner"
-        textBlock={
-          <TextBlock 
-              overline="Probabilidade" 
-              title={<h1 className="ds-heading-giga">Dois Dados: cálculo de probabilidade em espaços amostrais equiprováveis</h1>}
-              paragraph={
-                <p className="ds-body">
-                  Aprenda a calcular probabilidades em espaços amostrais equiprováveis usando lançamentos de dois dados.
-                </p>
-              }
-              maxWidthParagraph="max-w-[422px]"
-              inverse={true}
-          ></TextBlock>
-        }
-        image={heroBannerTwoDicesImage}
-      />
-      <TwoDicesInstructionsSection />
-      <TwoDicesSection />
-    </main>
+    <TwoDicesActivity />
   );
 }
 

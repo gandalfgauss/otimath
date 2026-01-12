@@ -19,7 +19,7 @@ export function ProbabilityHistory({game}:Readonly<ProbabilityHistoryProps>) {
         {game?.challenges[game.currentChallenge].problem.problemCalculations?.calculationsHistory?.map((calculation, index) => (
           <div key={index} className="ds-body-bold text-center snap-start bg-brand-otimath-lightest p-quarck rounded-md shadow-level-1 max-w-[19ch] w-full">
             <span>P(
-              {calculation.eventA.label}{calculation.operationA ? `${getOperationLabel(calculation.operationA)}`: ''}{calculation.eventB?.label ? ` ${calculation.eventB?.label}`: ''}
+              {calculation.eventA.label}{calculation.operationA ? `${getOperationLabel(calculation.operationA)}`: ''}{calculation.eventB?.label ? `${calculation.eventB?.label}`: ''}
               {calculation.operationB ? ` ${getOperationLabel(calculation.operationB)} `: ''}
               {calculation.eventC?.label}{calculation.operationC ? `${getOperationLabel(calculation.operationC)}`: ''}{calculation.eventD?.label ? ` ${calculation.eventD?.label}`: ''}
               )
