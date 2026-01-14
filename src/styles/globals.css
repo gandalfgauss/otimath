@@ -89,6 +89,8 @@
   --color-gradient-level-2: 90deg, #000 0%, rgba(0, 0, 0, 0) 100%;
   --color-gradient-level-3: 90deg, #000 0%, rgba(0, 0, 0, 0.5) 100%;
   --color-gradient-level-4: 0deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 50%;
+  --color-gradient-level-5: 180deg, rgba(203, 223, 237, 0.24) 70%,
+    rgba(163, 180, 203, 0.24) 100%;
 
   /*==================================================
     BORDERS

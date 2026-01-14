@@ -3,6 +3,7 @@ import { TextBlock } from "@/components/global/TextBlock";
 import heroBannerTreeImage from '@/images/teaching/probability/tree/treeBanner.webp';
 import { TreeSection } from "@/components/teaching/probability/tree/TreeSection";
 import { TreeInstructionSection } from "./TreeInstructionsSection";
+import { TreeCredits } from "./TreeCredits";
 
 export default function TreeActivity() {
   return (
@@ -26,6 +27,7 @@ export default function TreeActivity() {
       />
       <TreeInstructionSection />
       <TreeSection />
+      <TreeCredits />
     </main>
   );
 }

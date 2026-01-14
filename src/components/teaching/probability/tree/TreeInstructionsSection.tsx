@@ -107,13 +107,6 @@ export function TreeInstructionSection() {
                 <p>
                 Tente finalizar todos os <strong>desafios</strong>. <strong>Boa sorte!</strong>
                 </p>
-                
-                <br />
-                <br />
-
-                <p>
-                  Feito por: <strong>Halliday Gauss Costa dos Santos</strong> e <strong>Rangel Freitas dos Santos</strong>
-                </p>
               </div>
             }
           ></TextBlock>
@@ -127,7 +120,6 @@ export function TreeInstructionSection() {
               <path d="M 0 500 Q 150 400 300 500 T 600 500" />
             </g>
           </svg>
-
         </div>
       </GridItem>
     </Grid>

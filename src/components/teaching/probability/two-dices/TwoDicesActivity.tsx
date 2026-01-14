@@ -3,6 +3,7 @@ import { TextBlock } from "@/components/global/TextBlock";
 import { TwoDicesInstructionsSection } from "@/components/teaching/probability/two-dices/TwoDicesInstructionsSection";
 import { TwoDicesSection } from "@/components/teaching/probability/two-dices/TwoDicesSection";
 import heroBannerTwoDicesImage from '@/images/teaching/probability/two-dices/twoDicesBanner.webp';
+import { TwoDicesCredits } from "./TwoDicesCredits";
 
 
 export default function TwoDicesActivity() {
@@ -27,6 +28,7 @@ export default function TwoDicesActivity() {
       />
       <TwoDicesInstructionsSection />
       <TwoDicesSection />
+      <TwoDicesCredits />
     </main>
   );
 }
