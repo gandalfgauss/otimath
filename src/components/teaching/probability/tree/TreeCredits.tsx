@@ -7,7 +7,6 @@ import Link from "next/link";
 export function TreeCredits() {
   return (
         <Grid 
-          id="arvore-instrucoes" 
           paddings={`pt-xs pb-xs`} 
           backgroundColor="bg-linear-(--color-gradient-level-5)"
         >
@@ -20,7 +19,7 @@ export function TreeCredits() {
               before:opacity-level-intense z-0"
             > 
               <TextBlock 
-                overline="Créditos" 
+                overline="Créditos e Referências" 
                 title={<h2 className="ds-heading-extra">Reconhecimento de autoria e fonte</h2>}
                 paragraph={
                   <p className="ds-body-medium">
@@ -44,9 +43,8 @@ export function TreeCredits() {
               >
                 <h3 className="ds-body-medium text-brand-otimath-darker">Idealizado por:</h3>
                 <Link 
-                  className="ds-body-bold text-brand-otimath-dark hover:text-brand-otimath-darker 
-                    hover:underline transition-[color] duration-300 ease-in-out"
-                   href="https://cdme.im-uff.mat.br" target="_blank" 
+                  className="ds-body-bold text-brand-otimath-dark underline underline-offset-4 hover:decoration-brand-otimath-darker hover:text-brand-otimath-darker transition-color duration-300 ease-in-out"
+                   href="https://www.professores.uff.br/anafarias/" target="_blank" 
                 >
                   Ana Maria Lima de Farias.
                   <br/>
@@ -55,10 +53,19 @@ export function TreeCredits() {
               </div>
 
               <p className="ds-body-bold text-brand-otimath-dark z-1">
-                Este e mais OVAs estão disponíveis em:{" "}
-                <Link href="https://cdme.im-uff.mat.br" target="_blank" 
-                  className="text-brand-otimath-dark hover:text-brand-otimath-darker 
-                  hover:underline transition-[color] duration-300 ease-in-out">
+                <Link 
+                  href="https://cdme.im-uff.mat.br/arvore/arvore-testar-e-iniciar.html"
+                  target="_blank" 
+                  className="underline underline-offset-4 hover:decoration-brand-otimath-darker hover:text-brand-otimath-darker transition-color duration-300 ease-in-out"
+                >
+                  Este OVA
+                </Link>
+                {" "}e mais OVAs estão disponíveis em:{" "}
+                <Link 
+                  href="https://cdme.im-uff.mat.br" 
+                  target="_blank" 
+                  className="underline underline-offset-4 hover:decoration-brand-otimath-darker hover:text-brand-otimath-darker transition-color duration-300 ease-in-out"
+                >
                   cdme.im-uff.mat.br
                 </Link>.
               </p>

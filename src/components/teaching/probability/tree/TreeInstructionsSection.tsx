@@ -111,13 +111,31 @@ export function TreeInstructionSection() {
             }
           ></TextBlock>
 
-          <svg className="absolute top-[12%] rotate-135 right-[-25%] z-0" width="600" height="600" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+          <svg
+            className="absolute top-[12%] rotate-135 right-[-25%] z-0"
+            width="600"
+            height="600"
+            viewBox="0 0 600 600"
+            xmlns="http://www.w3.org/2000/svg"
+          >
             <g fill="none" stroke="#1a4a9e" strokeWidth="10" opacity={0.04}>
-              <path d="M 0 100 Q 150 0 300 100 T 600 100" />
-              <path d="M 0 200 Q 150 100 300 200 T 600 200" />
-              <path d="M 0 300 Q 150 200 300 300 T 600 300" />
-              <path d="M 0 400 Q 150 300 300 400 T 600 400" />
-              <path d="M 0 500 Q 150 400 300 500 T 600 500" />
+              <circle cx="90" cy="300" r="18" />
+              
+              <line x1="108" y1="300" x2="230" y2="180" />
+              <line x1="108" y1="300" x2="230" y2="420" />
+
+              <circle cx="250" cy="180" r="18" />
+              <circle cx="250" cy="420" r="18" />
+
+              <line x1="268" y1="180" x2="410" y2="110" />
+              <line x1="268" y1="180" x2="410" y2="250" />
+              <line x1="268" y1="420" x2="410" y2="350" />
+              <line x1="268" y1="420" x2="410" y2="490" />
+
+              <circle cx="430" cy="110" r="18" />
+              <circle cx="430" cy="250" r="18" />
+              <circle cx="430" cy="350" r="18" />
+              <circle cx="430" cy="490" r="18" />
             </g>
           </svg>
         </div>

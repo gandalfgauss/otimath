@@ -87,13 +87,24 @@ export function TwoDicesInstructionsSection() {
             }
           ></TextBlock>
 
-          <svg className="absolute top-[12%] rotate-135 right-[-25%] z-0" width="600" height="600" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+          <svg
+            className="absolute top-[12%] rotate-135 right-[-25%] z-0"
+            width="600"
+            height="600"
+            viewBox="0 0 600 600"
+            xmlns="http://www.w3.org/2000/svg"
+          >
             <g fill="none" stroke="#1a4a9e" strokeWidth="10" opacity={0.04}>
-              <path d="M 0 100 Q 150 0 300 100 T 600 100" />
-              <path d="M 0 200 Q 150 100 300 200 T 600 200" />
-              <path d="M 0 300 Q 150 200 300 300 T 600 300" />
-              <path d="M 0 400 Q 150 300 300 400 T 600 400" />
-              <path d="M 0 500 Q 150 400 300 500 T 600 500" />
+              <rect x="120" y="160" width="180" height="180" rx="24" />
+              <rect x="260" y="260" width="180" height="180" rx="24" />
+
+              <circle cx="170" cy="210" r="10" fill="#1a4a9e" stroke="none" />
+              <circle cx="250" cy="290" r="10" fill="#1a4a9e" stroke="none" />
+
+              <circle cx="310" cy="310" r="10" fill="#1a4a9e" stroke="none" />
+              <circle cx="390" cy="310" r="10" fill="#1a4a9e" stroke="none" />
+              <circle cx="310" cy="390" r="10" fill="#1a4a9e" stroke="none" />
+              <circle cx="390" cy="390" r="10" fill="#1a4a9e" stroke="none" />
             </g>
           </svg>
 

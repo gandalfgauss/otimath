@@ -1,0 +1,4861 @@
+'use client'
+
+import { useState } from "react";
+import { Button } from "@/components/global/Button";
+import { RefreshCw, Play, X, ArrowRight, Check, Info } from "lucide-react";
+import { Alerts } from "@/components/global/Alerts";
+import { Modal } from "@/components/global/Modal";
+import { TextBlock } from "@/components/global/TextBlock";
+import { TextInput } from "@/components/global/TextInput";
+import { Roulette, ROULETTE_COLORS } from "./Roulette";
+import { RouletteTable } from "./RouletteTable";
+import { RouletteChart } from "./RouletteChart";
+import { RouletteQuestion } from "./RouletteQuestion";
+import { RouletteInfoBox } from "./RouletteInfoBox";
+import { useRouletteHooks, getPhaseIndex } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
+
+function gerarTextoNotaOU(n: number) {
+  const letras = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].slice(0, n);
+  const numerais: Record<number, string> = { 2: 'dois', 3: 'três', 4: 'quatro', 5: 'cinco', 6: 'seis', 7: 'sete', 8: 'oito' };
+  const exemplo = letras.join(' ou ');
+  const contagem = numerais[n] || `${n}`;
+  const uniao = letras.join('∪');
+  const leitura = letras.join(' União ');
+  const listaEventos = letras.map(l => `vale quando acontece ${l}`).join(', ');
+  const complemento = n === 2
+    ? `e também vale quando acontecem ${letras[0]} e ${letras[1]} ao mesmo tempo`
+    : `e também vale quando acontecem dois deles ou vários deles, inclusive os ${contagem}, ao mesmo tempo`;
+  return { exemplo, contagem, uniao, leitura, listaEventos, complemento };
+}
+
+export function RouletteGame() {
+  const {
+    // Game state
+    gameState,
+    sliderValue,
+    setSliderValue,
+    selectedOption,
+    setSelectedOption,
+    currentQuestion,
+
+    // Inputs
+    sampleSpaceInput,
+    setSampleSpaceInput,
+    sampleSpaceCountInput,
+    setSampleSpaceCountInput,
+    probabilityInputs,
+    relativeFrequencyInputs,
+    convergenceInputs,
+    theoreticalQuestion1Input,
+    theoreticalQuestion2Input,
+    predictionInput,
+    casosFavoraveisInput,
+    exercicioNEInput,
+    exercicioNSInput,
+    exercicioPENumeradorInput,
+    exercicioPEDenominadorInput,
+
+    // Data
+    getFrequencyData,
+    getChartData,
+
+    // Actions
+    spinRoulette,
+    handleSpinEnd,
+    checkAnswer,
+    resetGame,
+    clearFrequencies,
+    nextStep,
+    startAutoSpins,
+    registerColor,
+    startStage1,
+    startStage2,
+    startStage3,
+    toggleSectorSelection,
+    restartExercise,
+    restartDesafio1,
+
+    // Info box
+    showInfoBox,
+    // setShowInfoBox não usado diretamente no componente
+    infoBoxContent,
+    handleInfoBoxConfirm,
+
+    // Exemplos vistos (para controle de botões)
+    exemplosVistosDeterministico,
+    exemplosVistosAleatorio,
+    handleVerMaisExemplosDeterministico,
+    handleVerMaisExemplosAleatorio,
+
+    // Exemplos de eventos disjuntos (subStep 6.55)
+    exemplosDisjuntosVistos,
+    disjointNeedsNumbers,
+
+    // Exercício interativo de eventos disjuntos
+    disjointExercisePhase,
+    disjointUserSelectA,
+    disjointUserSelectB,
+    handleStartDisjointExercise,
+    handleDisjointSectorClick,
+    handleDisjointConfirmA,
+    handleDisjointConfirmB,
+    handleDisjointRetry,
+
+    // Probabilidade da União de Eventos ME (subStep 6.56)
+    unionPhase,
+    unionActivityNum,
+    unionCurrentEventIdx,
+    unionEvents,
+    unionSelectedSectors,
+    unionProbNumInput,
+    unionProbDenInput,
+    unionFinalNumInput,
+    unionFinalDenInput,
+    unionSectorNumbers,
+    unionMaxActivities,
+    unionNeedsNumbers,
+    setUnionProbNumInput,
+    setUnionProbDenInput,
+    setUnionFinalNumInput,
+    setUnionFinalDenInput,
+    handleUnionSectorClick,
+    handleUnionConfirmSelection,
+    handleUnionConfirmProb,
+    handleUnionConfirmFinal,
+    handleUnionNextActivity,
+
+    // Fluxo de reinício
+    restartPhase,
+    handleRestartChoice,
+    handleRestartConfirm,
+    handleRestartCancel,
+
+    // Características do experimento aleatório (múltipla seleção)
+    caracteristicasSelecionadas,
+    toggleCaracteristica,
+    caracteristicasExperimentoAleatorio,
+
+    // Fase de experimentação (3 tentativas)
+    experimentacaoState,
+    handleApostaExperimentacao,
+    handleConfirmacaoResultado,
+    spinRouletteExperimentacao,
+    // Investigação inicial Etapa 2
+    handleApostaS2,
+    handleConfirmacaoS2,
+    spinRouletteS2,
+    handleColorPaletteSelect,
+    progressiveReadingStep,
+
+    // Control states
+    instructions,
+    disabledSpinButton,
+    disabledCheckButton,
+    disabledClearButton,
+    disabledNextButton,
+    showAutoSpinButtons,
+
+    // Alerts and Modal
+    alerts,
+    updateAlert,
+    deleteAlerts,
+    modal,
+    updateModal,
+
+    // Eventos Complementares
+    compPhase,
+    compExamplesViewed,
+    compCalcExampleNum,
+    compUserSelectA,
+    compUserSelectAbar,
+    compIsGuided,
+    compChainInputs, setCompChainInputs,
+    compChainResult,
+    compPaInput, setCompPaInput,
+    compStepByStep, setCompStepByStep,
+    handleCompSectorClick,
+    handleCompConfirmA,
+    handleCompConfirmAbar,
+    handleCompRetry,
+    handleStartCompExercise,
+    handleCompVerMaisExemplos,
+
+    // Frequência Absoluta (subStep 8.5)
+    freqAbsQuestion,
+    freqAbsInput, setFreqAbsInput,
+
+    // Frequência Relativa conceitual (subStep 8.6)
+    freqRelConceptPhase,
+    handleFreqRelConceptLi,
+    handleFreqRelConceptContinue,
+
+    // Frequência Relativa verificação (subStep 9.5)
+    freqRelQuestion,
+    freqRelInput, setFreqRelInput,
+
+    // Interpretação dos Resultados
+    interpretationPhase,
+    interpretationSelected, setInterpretationSelected,
+    interpretationQ3,
+    handleInterpretationCheck,
+    handleInterpretationContinue,
+
+    // Problemas de consolidação LGN (subStep 15)
+    lgnPhase,
+    lgnN,
+    lgnParams,
+    lgnInput, setLgnInput,
+    handleLgnQueroSaber,
+    handleLgnContinue,
+
+    // Etapa 2 — Probabilidade Não Equiprovável
+    s2RatioPhase,
+    s2ConceptQuestion,
+    s2ConceptSelected, setS2ConceptSelected,
+    s2UnitSectorIndex,
+    s2TableAllCorrect,
+    handleRatioSectorClick,
+    handleRatioTableContinue,
+    s2ReasoningColorY,
+    s2ReasoningAngleY,
+    s2ReasoningRatio,
+    s2ReasoningInput, setS2ReasoningInput,
+    s2ReasoningShowHint,
+    s2IxPhase,
+    s2IxSumSelected, setS2IxSumSelected,
+    s2IxCalcStep,
+    handleIxCalcNext,
+    // Treinos
+    trainingState,
+    trainRatioInputs,
+    trainIxInputs,
+    trainSumInput,
+    trainProbInputs,
+    handleTrainingSectorClick,
+    handleTrainingCalcNext,
+    handleTrainingNext,
+    handleTrainingContinue,
+    // Perguntas conceituais pós-classificação
+    s2RandomColors,
+    // Leitura progressiva probabilidade angular
+    s2AngleReadingStep,
+    handleAngleReadingNext,
+    // Giros reflexivos
+    s2SpinReflection, setS2SpinReflection,
+    handleSpinReflectionContinue,
+    handleReflectionOptionChange,
+    handleReflectionBetClick,
+    s2RatioInputs,
+    s2IxInputs,
+    s2SumEquationInput,
+    s2XInput,
+    s2NumProbInputs,
+    s2AngleProbInputs,
+    s2FreqAbsInputs,
+    s2FreqRelInputs,
+    s2ConclusionInput,
+
+    // Treinos de Fração θ/360
+    fracTraining,
+    fracThetaInputs, setFracThetaInputs,
+    handleFracTrainingNext,
+    handleFracTrainingMudarFase,
+
+    // Simulação de Convergência
+    convergenceSim,
+    handleConvergenceBlock,
+
+    // Etapa 3
+    s3State,
+    setS3State,
+    handleS3ConfirmPrediction,
+    handleS3SectorBet,
+    handleS3ConfirmBet,
+    handleS3Finalize,
+    spinRouletteS3,
+    handleS3FalaciaContinu,
+    handleS3NewBetConfirm,
+    handleS3FalaciaFinish,
+
+    // Dev
+    goToPhase
+  } = useRouletteHooks();
+
+  const frequencyData = getFrequencyData();
+  const chartData = getChartData();
+
+  const [devOpen, setDevOpen] = useState(false);
+  const [devKey, setDevKey] = useState('');
+
+  // Verificar se deve mostrar o disco
+  const shouldShowRoulette = gameState.sectors.length > 0 && gameState.showDivisions;
+
+  // Cor para destacar n/n (espaço amostral): escolher uma cor NÃO presente no disco
+  const sampleSpaceColor = (() => {
+    const usedNames = new Set(gameState.sectors.map(s => s.colorName));
+    const candidates = ['Verde', 'Laranja', 'Ciano', 'Roxo', 'Rosa', 'Vermelho', 'Azul', 'Amarelo', 'Marrom', 'Cinza'];
+    const found = candidates.find(c => !usedNames.has(c));
+    return found ? ROULETTE_COLORS[found] : '#2ac000';
+  })();
+
+  // Verificar se deve mostrar o botão de sortear
+  const shouldShowSpinButton = (gameState.subStep === 7 && gameState.stage !== 2) ||
+                                gameState.subStep === 7.6 ||
+                                gameState.subStep === 8 ||
+                                (gameState.stage === 2 && gameState.subStep === 6.201 && s2SpinReflection.phase === 'spinning') ||
+                                (gameState.stage === 2 && gameState.subStep === 6.202 && s2SpinReflection.phase === 'spinning');
+
+  // Verificar se deve mostrar os botões de registro de cor
+  const shouldShowColorRegistration = gameState.pendingRegistration && shouldShowSpinButton;
+
+  return (
+    <div className="flex flex-col gap-y-xxs">
+      {/* Stage indicator */}
+      <div className="flex justify-center gap-x-macro mb-macro" role="tablist" aria-label="Etapas do disco">
+        {[1, 2, 3].map((stageNum) => {
+          const isAvailable = stageNum === 1 ||
+            (stageNum === 2 && gameState.stage2Available) ||
+            (stageNum === 3 && gameState.stage3Available);
+          const isCurrentStage = gameState.stage === stageNum;
+          const isCompleted = gameState.stage > stageNum ||
+            (stageNum === 1 && gameState.stage2Available) ||
+            (stageNum === 2 && gameState.stage3Available);
+
+          return (
+            <button
+              key={stageNum}
+              role="tab"
+              aria-selected={isCurrentStage}
+              aria-label={`Etapa ${stageNum}${isCompleted ? ' (concluída)' : ''}${!isAvailable ? ' (bloqueada)' : ''}`}
+              onClick={() => {
+                if (isAvailable && !isCurrentStage) {
+                  if (stageNum === 1) startStage1();
+                  else if (stageNum === 2) startStage2();
+                  else if (stageNum === 3) startStage3();
+                }
+              }}
+              disabled={!isAvailable || isCurrentStage}
+              className={`
+                px-macro py-micro rounded-pill ds-small-bold transition-colors min-h-[44px]
+                ${isCurrentStage
+                  ? 'bg-brand-otimath-pure text-neutral-white cursor-default'
+                  : isCompleted
+                    ? 'bg-feedback-success-lighter text-feedback-success-darkest hover:bg-feedback-success-dark hover:text-neutral-white cursor-pointer'
+                    : isAvailable
+                      ? 'bg-brand-otimath-light text-neutral-white hover:bg-brand-otimath-pure cursor-pointer'
+                      : 'bg-neutral-lighter text-neutral-medium cursor-not-allowed opacity-50'
+                }
+              `}
+            >
+              Etapa {stageNum}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Instructions — ocultar durante leitura progressiva da prob. angular (Etapa 2, subStep 7, steps 0-4) */}
+      <div aria-live="polite" aria-atomic="true">
+        {!(gameState.stage === 2 && gameState.subStep === 7 && s2AngleReadingStep >= 0 && s2AngleReadingStep <= 4) && (
+          <TextBlock
+            paragraph={<div dangerouslySetInnerHTML={{ __html: instructions }} />}
+            maxWidthParagraph="max-w-[805px]"
+            centralize={true}
+          />
+        )}
+      </div>
+
+      <div className="flex gap-x-xs gap-y-xs max-lg:flex-col">
+        {/* Left side - Roulette and controls */}
+        <div className="flex-1 flex flex-col gap-y-xxs items-center">
+          {/* Control buttons - top */}
+          <div className="flex items-center gap-x-xxxs justify-between w-full max-w-[350px]">
+            <Button
+              style="secondary"
+              size="small"
+              icon={<RefreshCw />}
+              onClick={resetGame}
+            >
+              Reiniciar
+            </Button>
+            <Button
+              style="borderless"
+              size="small"
+              icon={<X />}
+              onClick={clearFrequencies}
+              disabled={disabledClearButton}
+            >
+              Limpar
+            </Button>
+          </div>
+
+          {/* Sector slider (Stage 1, subStep 0 only) */}
+          {gameState.stage === 1 && gameState.subStep === 0 && (
+            <div className="flex flex-col gap-y-micro w-full max-w-[350px] bg-neutral-white p-macro rounded-md">
+              <label className="ds-small-bold text-brand-otimath-pure" id="slider-label-s1">
+                Número de setores: {sliderValue}
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="6"
+                value={sliderValue}
+                onChange={(e) => setSliderValue(parseInt(e.target.value))}
+                className="w-full cursor-pointer"
+                aria-labelledby="slider-label-s1"
+                aria-valuenow={sliderValue}
+              />
+              <div className="flex justify-between ds-caption text-neutral-dark" aria-hidden="true">
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>5</span>
+                <span>6</span>
+              </div>
+            </div>
+          )}
+
+          {/* Placeholder circle when Stage 1 and divisions not shown yet */}
+          {gameState.stage === 1 && gameState.subStep === 0 && (
+            <div className="w-full max-w-[300px] aspect-square rounded-full border-4 border-dashed border-neutral-dark bg-neutral-lightest flex items-center justify-center" role="img" aria-label="Disco vazio - selecione o número de setores">
+              <p className="ds-body text-neutral-dark text-center px-macro">
+                Selecione o número<br/>de setores e clique<br/>em &quot;Confirmar&quot;
+              </p>
+            </div>
+          )}
+
+          {/* Stage 2 - Sector slider (subStep 0) */}
+          {gameState.stage === 2 && gameState.subStep === 0 && (
+            <div className="flex flex-col gap-y-micro w-full max-w-[350px] bg-neutral-white p-macro rounded-md">
+              <label className="ds-small-bold text-brand-otimath-pure" id="slider-label-s2">
+                Número de setores: {sliderValue}
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="6"
+                value={sliderValue}
+                onChange={(e) => setSliderValue(parseInt(e.target.value))}
+                className="w-full cursor-pointer"
+                aria-labelledby="slider-label-s2"
+                aria-valuenow={sliderValue}
+              />
+              <div className="flex justify-between ds-caption text-neutral-dark" aria-hidden="true">
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>5</span>
+                <span>6</span>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 - Placeholder circle */}
+          {gameState.stage === 2 && gameState.subStep === 0 && (
+            <div className="w-full max-w-[300px] aspect-square rounded-full border-4 border-dashed border-neutral-dark bg-neutral-lightest flex items-center justify-center" role="img" aria-label="Disco vazio - selecione o número de setores">
+              <p className="ds-body text-neutral-dark text-center px-macro">
+                Selecione o número<br/>de setores e clique<br/>em &quot;Confirmar&quot;
+              </p>
+            </div>
+          )}
+
+          {/* Roulette wheel */}
+          {shouldShowRoulette && (
+            <div
+              className="rounded-full transition-shadow duration-500"
+              style={
+                gameState.subStep === 6.88 && compPhase === 'calc_chain' && (
+                  compStepByStep === 1 ||
+                  (compStepByStep === 0 && compChainInputs.n1 === String(gameState.sectors.length) && compChainInputs.d1 === String(gameState.sectors.length))
+                )
+                  ? { boxShadow: `0 0 0 5px ${sampleSpaceColor}`, borderRadius: '50%' }
+                  : undefined
+              }
+            >
+            <Roulette
+              sectors={
+                // Adicionar números aos setores durante conceito disjunto (6.55), União ME (6.56), Desafio Dinâmico 1 (6.6-6.69) e Eventos Complementares (6.70-6.95)
+                (gameState.subStep === 6.55 || (gameState.subStep >= 6.6 && gameState.subStep <= 6.69) || (gameState.subStep >= 6.70 && gameState.subStep <= 6.95)) && gameState.desafio1SectorNumbers.length > 0
+                  ? gameState.sectors.map((sector, index) => ({
+                      ...sector,
+                      number: gameState.desafio1SectorNumbers[index]
+                    }))
+                  : (gameState.subStep === 6.56 && unionNeedsNumbers && unionSectorNumbers.length > 0)
+                    ? gameState.sectors.map((sector, index) => ({
+                        ...sector,
+                        number: unionSectorNumbers[index]
+                      }))
+                    : gameState.sectors
+              }
+              isSpinning={gameState.isSpinning}
+              spinDuration={gameState.spinDuration}
+              targetAngle={gameState.targetAngle}
+              showAngles={gameState.showAngles}
+              showNumbers={gameState.showNumbers || gameState.stage === 3 || (gameState.subStep === 6.55 && disjointNeedsNumbers) || (gameState.subStep >= 6.6 && gameState.subStep <= 6.69) || (gameState.subStep === 6.56 && unionNeedsNumbers) || (gameState.subStep >= 6.70 && gameState.subStep <= 6.95 && gameState.compEventA?.needsNumbers)}
+              size={300}
+              largeNumbers={gameState.stage === 3}
+              onSpinEnd={handleSpinEnd}
+              useTransition={gameState.isAutoSpinning}
+              selectableMode={
+                gameState.subStep === 6.41 ||
+                gameState.subStep === 6.6 ||
+                gameState.subStep === 1.1 || // Fase de aposta
+                gameState.subStep === 1.17 || // Fase de confirmação
+                (gameState.subStep === 6.55 && (disjointExercisePhase === 'selecting_A' || disjointExercisePhase === 'selecting_B')) ||
+                (gameState.subStep === 6.56 && unionPhase === 'selecting') ||
+                (gameState.subStep === 6.70 && (compPhase === 'selecting_A' || compPhase === 'selecting_Abar')) ||
+                ((gameState.subStep === 6.85 || gameState.subStep === 6.90) && compPhase === 'calc_selectA') ||
+                ((gameState.subStep === 6.86 || gameState.subStep === 6.91) && compPhase === 'calc_selectAbar') ||
+                (gameState.stage === 2 && gameState.subStep === 0.15 && !gameState.isSpinning) ||
+                (gameState.stage === 2 && gameState.subStep === 0.16) ||
+                (gameState.stage === 2 && gameState.subStep === 0.195) ||
+                (gameState.stage === 2 && gameState.subStep === 3 && s2RatioPhase === 'init') ||
+                (gameState.stage === 2 && trainingState.active && trainingState.phase === 'identify_sector') ||
+                (gameState.stage === 2 && (gameState.subStep === 6.201 || gameState.subStep === 6.202) && s2SpinReflection.phase === 'betting') ||
+                (gameState.stage === 3 && gameState.subStep === 1)
+              }
+              selectedSectors={
+                // Exercício interativo de disjuntos: grupo A (dourado)
+                (gameState.subStep === 6.55 && disjointExercisePhase !== 'none')
+                  ? disjointUserSelectA
+                  // Eventos Complementares — seleção de A (parte 1)
+                  : (gameState.subStep === 6.70 && (compPhase === 'selecting_A' || compPhase === 'wrong_A'))
+                    ? compUserSelectA
+                  : (gameState.subStep === 6.70 && (compPhase === 'show_both' || compPhase === 'selecting_Abar' || compPhase === 'wrong_Abar'))
+                    ? (gameState.compEventA?.indicesA || [])
+                  // Eventos Complementares — intro (A highlight)
+                  : (gameState.subStep === 6.70 && compPhase === 'intro')
+                    ? (gameState.compEventA?.indicesA || [])
+                  // Eventos Complementares — cálculo: A (dourado) fixo durante selectĀ/showBoth/chain
+                  : ((gameState.subStep === 6.86 || gameState.subStep === 6.91) && (compPhase === 'calc_selectAbar' || compPhase === 'calc_showBoth'))
+                    ? (gameState.compEventA?.indicesA || [])
+                  : ((gameState.subStep === 6.87 || gameState.subStep === 6.88 || gameState.subStep === 6.92 || gameState.subStep === 6.93) && (compPhase === 'calc_showBoth' || compPhase === 'calc_chain'))
+                    ? (compStepByStep >= 1 && compStepByStep < 2 ? [] : compStepByStep >= 3 ? [] : (gameState.compEventA?.indicesA || []))
+                  // Na fase de experimentação, destacar a cor apostada (inclusive durante o giro)
+                  : ((gameState.subStep === 1.1 || gameState.subStep === 1.17 || gameState.isSpinning) && experimentacaoState.corApostada)
+                    ? [gameState.sectors.findIndex(s => s.colorName === experimentacaoState.corApostada)]
+                  // Etapa 2: destacar setor apostado na investigação inicial
+                  : (gameState.stage === 2 && (gameState.subStep === 0.15 || gameState.subStep === 0.16 || gameState.subStep === 0.17) && experimentacaoState.corApostada)
+                    ? [gameState.sectors.findIndex(s => s.colorName === experimentacaoState.corApostada)]
+                  // Etapa 2: destacar menor setor na leitura progressiva (passo de referência)
+                  : (gameState.stage === 2 && gameState.subStep === 2.9 && progressiveReadingStep === 5)
+                    ? [gameState.s2Angles.indexOf(gameState.s2M)]
+                  // Etapa 2: destacar menor setor após identificação (subStep 3, STATE >= 1)
+                  : (gameState.stage === 2 && gameState.subStep === 3 && s2UnitSectorIndex >= 0)
+                    ? [s2UnitSectorIndex]
+                  // Etapa 2: destacar setor apostado nos giros reflexivos
+                  : (gameState.stage === 2 && (gameState.subStep === 6.201 || gameState.subStep === 6.202) && s2SpinReflection.phase === 'spinning')
+                    ? [gameState.sectors.findIndex(s => s.colorName === (gameState.subStep === 6.201 ? s2SpinReflection.bet1Color : s2SpinReflection.bet2Color))]
+                    // Na união ME, não usar selectedSectors (usar highlightGroups)
+                    : gameState.subStep === 6.56
+                      ? []
+                    // Etapa 3 subStep 0.5: destacar setores da cor selecionada na previsão
+                    : (gameState.stage === 3 && gameState.subStep === 0.5 && selectedOption && selectedOption !== 'iguais')
+                      ? gameState.sectors.map((s, i) => s.colorName === selectedOption ? i : -1).filter(i => i >= 0)
+                    // Etapa 3: destacar setor apostado
+                    : (gameState.stage === 3 && s3State.betSector >= 0)
+                      ? [s3State.betSector]
+                      : gameState.selectedSectors
+              }
+              selectedSectorsB={
+                // Exercício interativo de disjuntos: grupo B (ciano)
+                (gameState.subStep === 6.55 && disjointExercisePhase !== 'none')
+                  ? disjointUserSelectB
+                  // Eventos Complementares — Ā (ciano)
+                  : (gameState.subStep === 6.70 && (compPhase === 'selecting_Abar' || compPhase === 'wrong_Abar'))
+                    ? compUserSelectAbar
+                  : (gameState.subStep === 6.70 && compPhase === 'show_both')
+                    ? (gameState.compEventA?.indicesAbar || [])
+                  : (gameState.subStep === 6.70 && compPhase === 'intro')
+                    ? (gameState.compEventA?.indicesAbar || [])
+                  // Eventos Complementares — cálculo: Ā (ciano) durante selectĀ
+                  : ((gameState.subStep === 6.86 || gameState.subStep === 6.91) && compPhase === 'calc_selectAbar')
+                    ? compUserSelectAbar
+                  // Eventos Complementares — cálculo: Ā (ciano) fixo durante showBoth/chain
+                  : ((gameState.subStep === 6.86 || gameState.subStep === 6.87 || gameState.subStep === 6.88 || gameState.subStep === 6.91 || gameState.subStep === 6.92 || gameState.subStep === 6.93) && (compPhase === 'calc_showBoth' || compPhase === 'calc_chain'))
+                    ? (compStepByStep >= 1 && compStepByStep < 3 ? [] : (gameState.compEventA?.indicesAbar || []))
+                  : []
+              }
+              highlightGroups={
+                gameState.subStep === 6.56
+                  ? (() => {
+                      const groups: Array<{indices: number[], color: string}> = [];
+                      const COLORS = ['#FFD700', '#00E5FF', '#FF69B4', '#7CFC00', '#FF8C00', '#BA55D3'];
+                      // Eventos já confirmados
+                      unionEvents.forEach((evt, i) => {
+                        if (evt.completed) {
+                          groups.push({ indices: evt.sectorIndices, color: COLORS[i] || COLORS[0] });
+                        }
+                      });
+                      // Seleção atual (evento sendo marcado)
+                      if (unionPhase === 'selecting' && unionSelectedSectors.length > 0) {
+                        groups.push({ indices: unionSelectedSectors, color: COLORS[unionCurrentEventIdx] || COLORS[0] });
+                      }
+                      // Em filling_prob, mostrar o evento atual destacado
+                      if (unionPhase === 'filling_prob' && unionCurrentEventIdx < unionEvents.length) {
+                        const evt = unionEvents[unionCurrentEventIdx];
+                        if (!evt.completed) {
+                          groups.push({ indices: evt.sectorIndices, color: COLORS[unionCurrentEventIdx] || COLORS[0] });
+                        }
+                      }
+                      return groups;
+                    })()
+                  : []
+              }
+              onSectorClick={(index) => {
+                // Etapa 3: aposta
+                if (gameState.stage === 3 && gameState.subStep === 1) {
+                  handleS3SectorBet(index);
+                  return;
+                }
+                // Giros reflexivos: apostar em um setor
+                if (gameState.stage === 2 && gameState.subStep === 6.201 && s2SpinReflection.phase === 'betting') {
+                  const corClicada = gameState.sectors[index]?.colorName;
+                  if (!corClicada) return;
+                  setS2SpinReflection(prev => ({ ...prev, bet1Color: corClicada, phase: 'spinning' }));
+                  return;
+                }
+                if (gameState.stage === 2 && gameState.subStep === 6.202 && s2SpinReflection.phase === 'betting') {
+                  handleReflectionBetClick(index);
+                  return;
+                }
+                // Treino: identificar setor de menor ângulo
+                if (gameState.stage === 2 && trainingState.active && trainingState.phase === 'identify_sector') {
+                  handleTrainingSectorClick(index);
+                  return;
+                }
+                // Exercício de união ME
+                if (gameState.subStep === 6.56 && unionPhase === 'selecting') {
+                  handleUnionSectorClick(index);
+                  return;
+                }
+                // Exercício interativo de disjuntos
+                if (gameState.subStep === 6.55 && (disjointExercisePhase === 'selecting_A' || disjointExercisePhase === 'selecting_B')) {
+                  handleDisjointSectorClick(index);
+                  return;
+                }
+                // Eventos Complementares — seleção parte 1
+                if (gameState.subStep === 6.70 && (compPhase === 'selecting_A' || compPhase === 'selecting_Abar')) {
+                  handleCompSectorClick(index);
+                  return;
+                }
+                // Eventos Complementares — seleção cálculo: selectA (partes 3 e 4)
+                if ((gameState.subStep === 6.85 || gameState.subStep === 6.90) && compPhase === 'calc_selectA') {
+                  toggleSectorSelection(index);
+                  return;
+                }
+                // Eventos Complementares — seleção cálculo: selectĀ (partes 3 e 4)
+                if ((gameState.subStep === 6.86 || gameState.subStep === 6.91) && compPhase === 'calc_selectAbar') {
+                  handleCompSectorClick(index);
+                  return;
+                }
+                // Etapa 2: identificação do menor setor (subStep 3, STATE 0)
+                if (gameState.stage === 2 && gameState.subStep === 3 && s2RatioPhase === 'init') {
+                  handleRatioSectorClick(index);
+                  return;
+                }
+                const corClicada = gameState.sectors[index]?.colorName;
+                // Etapa 2: aposta na investigação inicial
+                if (gameState.stage === 2 && gameState.subStep === 0.15) {
+                  handleApostaS2(corClicada);
+                  return;
+                }
+                // Etapa 2: confirmação do resultado na investigação inicial ou retry reflexão
+                if (gameState.stage === 2 && (gameState.subStep === 0.16 || gameState.subStep === 0.195)) {
+                  handleConfirmacaoS2(corClicada);
+                  return;
+                }
+                if (gameState.subStep === 1.1) {
+                  // Fase de aposta
+                  handleApostaExperimentacao(corClicada);
+                } else if (gameState.subStep === 1.17) {
+                  // Fase de confirmação
+                  handleConfirmacaoResultado(corClicada);
+                } else {
+                  // Outros modos de seleção
+                  toggleSectorSelection(index);
+                }
+              }}
+              highlightSelected={
+                (gameState.subStep >= 6.42 && gameState.subStep <= 6.44) ||
+                (gameState.subStep >= 6.66 && gameState.subStep <= 6.68) ||
+                (gameState.subStep === 6.55 && (disjointExercisePhase === 'correct' || disjointExercisePhase === 'wrong')) ||
+                (gameState.subStep === 6.56 && (unionPhase === 'filling_prob' || unionPhase === 'final_calc' || unionPhase === 'activity_success')) ||
+                (gameState.subStep === 6.70 && (compPhase === 'intro' || compPhase === 'show_both' || compPhase === 'selecting_Abar' || compPhase === 'wrong_Abar')) ||
+                (gameState.subStep >= 6.86 && gameState.subStep <= 6.88) ||
+                (gameState.subStep === 6.90 && compPhase === 'calc_pa') ||
+                (gameState.subStep >= 6.91 && gameState.subStep <= 6.93) ||
+                (gameState.stage === 2 && gameState.subStep === 2.9 && progressiveReadingStep === 5) ||
+                (gameState.stage === 2 && gameState.subStep === 3 && s2UnitSectorIndex >= 0) ||
+                (gameState.stage === 2 && (gameState.subStep === 6.201 || gameState.subStep === 6.202) && s2SpinReflection.phase === 'spinning') ||
+                (gameState.stage === 3 && s3State.betSector >= 0) ||
+                (gameState.stage === 3 && gameState.subStep === 0.5 && !!selectedOption && selectedOption !== 'iguais')
+              }
+            />
+            </div>
+          )}
+
+          {/* Feedback contextual: guiado calc_selectA sem setores selecionados */}
+          {gameState.stage === 1 && gameState.subStep === 6.85 && compPhase === 'calc_selectA' && compIsGuided && gameState.selectedSectors.length === 0 && (
+            <p className="ds-small-bold text-brand-otimath-pure animate-pulse text-center">
+              Selecione os setores de A
+            </p>
+          )}
+
+          {/* Spin button */}
+          {shouldShowSpinButton && !showAutoSpinButtons && (
+            <Button
+              style="primary"
+              size="medium"
+              icon={<Play />}
+              onClick={spinRoulette}
+              disabled={disabledSpinButton || gameState.isSpinning || gameState.pendingRegistration}
+            >
+              {gameState.isSpinning ? 'Girando...' : 'Sortear'}
+            </Button>
+          )}
+
+          {/* Botão Sortear para fase de experimentação */}
+          {gameState.subStep === 1.1 && experimentacaoState.corApostada && !gameState.isSpinning && (
+            <Button
+              style="primary"
+              size="medium"
+              icon={<Play />}
+              onClick={spinRouletteExperimentacao}
+              disabled={disabledSpinButton || gameState.isSpinning}
+            >
+              Sortear
+            </Button>
+          )}
+
+          {/* Indicador de cor apostada e sorteada na fase de experimentação */}
+          {((gameState.subStep === 1.1 || gameState.subStep === 1.17 || gameState.isSpinning) && experimentacaoState.corApostada) && (
+            <div className="bg-brand-otimath-lightest p-micro rounded-md border border-brand-otimath-light text-center">
+              <p className="ds-small text-brand-otimath-dark">
+                <strong>Aposta:</strong> {experimentacaoState.corApostada}
+                {(gameState.subStep === 1.17 || experimentacaoState.corRevelada) && (
+                  <> | <strong>Sorteada:</strong> {experimentacaoState.corRevelada ? experimentacaoState.corSorteadaInterna : '?'}</>
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* Color registration buttons */}
+          {shouldShowColorRegistration && (
+            <div className="flex flex-col gap-y-micro items-center bg-neutral-white p-macro rounded-md border border-brand-otimath-light">
+              <p className="ds-small-bold text-brand-otimath-pure" id="color-reg-label">Registre a cor que saiu:</p>
+              <div className="flex flex-wrap gap-micro justify-center" role="group" aria-labelledby="color-reg-label">
+                {[...new Set(gameState.sectors.map(s => s.colorName))].map((colorName) => (
+                  <Button
+                    key={colorName}
+                    style="secondary"
+                    size="small"
+                    onClick={() => registerColor(colorName)}
+                  >
+                    <span
+                      className="inline-block w-4 h-4 rounded-full mr-micro border border-neutral-medium"
+                      style={{ backgroundColor: ROULETTE_COLORS[colorName] }}
+                    ></span>
+                    {colorName}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Auto spin buttons */}
+          {showAutoSpinButtons && (
+            <div className="flex flex-wrap gap-micro justify-center" role="group" aria-label="Opções de giros automáticos">
+              {gameState.autoSpinBatches.map((batch, index) => (
+                <Button
+                  key={batch}
+                  style={index <= gameState.currentAutoBatchIndex ? 'primary' : 'secondary'}
+                  size="small"
+                  onClick={() => startAutoSpins(batch)}
+                  disabled={index < gameState.currentAutoBatchIndex || gameState.isAutoSpinning}
+                >
+                  {batch} giros
+                </Button>
+              ))}
+            </div>
+          )}
+
+          {/* Spin counter (Etapas 1 e 2 apenas) */}
+          {gameState.totalSpins > 0 && gameState.stage !== 3 && (
+            <p className="ds-small text-neutral-dark" aria-live="polite">
+              Total de giros: <strong>{gameState.totalSpins}</strong>
+              {gameState.selectedColor && (
+                <span> | Último resultado: <strong>{gameState.selectedColor}</strong></span>
+              )}
+            </p>
+          )}
+        </div>
+
+        {/* Right side - Questions, Tables, Charts */}
+        <div className="flex-1 flex flex-col gap-y-xxs max-w-[500px]" role="region" aria-label="Atividades e perguntas">
+          {/* Info box */}
+          {showInfoBox && (
+            <RouletteInfoBox
+              type={infoBoxContent.type}
+              title={infoBoxContent.title}
+              message={infoBoxContent.message}
+              showConfirmButton={
+                // Esconder botão "Li." até ver 3 exemplos (determinístico, aleatório)
+                gameState.subStep === 0.1 ? exemplosVistosDeterministico >= 3 :
+                gameState.subStep === 0.3 ? exemplosVistosAleatorio >= 3 :
+                // Disjuntos: "Li." só aparece após 3 exemplos (1 passivo + 2 interativos) e exercício correto
+                gameState.subStep === 6.55 ? disjointExercisePhase === 'correct' && exemplosDisjuntosVistos >= 3 :
+                // União ME: "Li." aparece nas definições e all_done
+                gameState.subStep === 6.56 ? (unionPhase === 'definition1' || unionPhase === 'all_done') :
+                // Eventos Complementares
+                gameState.subStep === 6.70 ? (compPhase === 'intro' || (compPhase === 'show_both' && compExamplesViewed >= 3)) :
+                gameState.subStep === 6.80 ? true :
+                // Eventos Complementares — cálculo: enunciado do problema
+                (gameState.subStep === 6.85 || gameState.subStep === 6.90) && compPhase === 'calc_enunciado' ? true :
+                // Eventos Complementares — cálculo: showBoth confirma transição
+                (gameState.subStep === 6.87 || gameState.subStep === 6.92) && compPhase === 'calc_showBoth' ? true :
+                // Sem "Li." durante outros cálculos (6.85-6.93)
+                (gameState.subStep >= 6.85 && gameState.subStep <= 6.93) ? false :
+                true
+              }
+              onConfirm={handleInfoBoxConfirm}
+              confirmButtonText={
+                gameState.subStep === 6.70 && compPhase === 'intro' ? 'Agora é sua vez!' :
+                gameState.subStep === 6.70 && compPhase === 'show_both' && compExamplesViewed >= 3 ? 'PRÓXIMO!' :
+                (gameState.subStep === 6.85 || gameState.subStep === 6.90) && compPhase === 'calc_enunciado' ? 'Veja!' :
+                (gameState.stage === 2 && gameState.subStep === 0.19) ? 'Girar novamente' :
+                'Li.'
+              }
+              secondaryButtonText={
+                // Botão "Ver mais exemplos" para experimento determinístico
+                gameState.subStep === 0.1 && exemplosVistosDeterministico < 3
+                  ? 'Clique para ver mais exemplos!'
+                  // Botão "Ver mais exemplos" para experimento aleatório
+                  : gameState.subStep === 0.3 && exemplosVistosAleatorio < 3
+                    ? 'Clique para ver mais exemplos!'
+                    // Eventos disjuntos: 1º exemplo passivo, depois exercícios interativos
+                    : gameState.subStep === 6.55 && disjointExercisePhase === 'none'
+                      ? 'Agora é sua vez!'
+                      : gameState.subStep === 6.55 && disjointExercisePhase === 'selecting_A'
+                        ? 'Confirmar evento A ✓'
+                        : gameState.subStep === 6.55 && disjointExercisePhase === 'selecting_B'
+                          ? 'Confirmar evento B ✓'
+                          : gameState.subStep === 6.55 && disjointExercisePhase === 'wrong'
+                            ? 'Tentar novamente'
+                            : gameState.subStep === 6.55 && disjointExercisePhase === 'correct' && exemplosDisjuntosVistos < 3
+                              ? 'Próximo exemplo!'
+                              // União ME: botões de ação
+                              : gameState.subStep === 6.56 && unionPhase === 'definition2'
+                                ? 'Agora é sua vez!'
+                                : gameState.subStep === 6.56 && unionPhase === 'activity_success'
+                                  ? (unionActivityNum < unionMaxActivities ? 'Próxima atividade!' : undefined)
+                                  // Eventos Complementares — parte 1
+                              : gameState.subStep === 6.70 && compPhase === 'selecting_A'
+                                ? 'Confirmar evento A ✓'
+                                : gameState.subStep === 6.70 && compPhase === 'selecting_Abar'
+                                  ? 'Confirmar evento Ā ✓'
+                                  : gameState.subStep === 6.70 && (compPhase === 'wrong_A' || compPhase === 'wrong_Abar')
+                                    ? 'Tentar novamente'
+                                    : gameState.subStep === 6.70 && compPhase === 'show_both' && compExamplesViewed < 3
+                                      ? 'Próximo exemplo!'
+                                      : gameState.subStep === 6.70 && compPhase === 'show_both' && compExamplesViewed >= 3
+                                        ? 'Ver mais exemplos'
+                                        // Botão "Treine mais" para exercícios
+                                        : (gameState.subStep === 6.45 || gameState.subStep === 6.69) && infoBoxContent.type === 'success'
+                                          ? 'TREINE MAIS UMA VEZ!'
+                                          : undefined
+              }
+              onSecondaryClick={
+                // Ver mais exemplos determinístico
+                gameState.subStep === 0.1 && exemplosVistosDeterministico < 3
+                  ? handleVerMaisExemplosDeterministico
+                  // Ver mais exemplos aleatório
+                  : gameState.subStep === 0.3 && exemplosVistosAleatorio < 3
+                    ? handleVerMaisExemplosAleatorio
+                    // Eventos disjuntos: exercício interativo
+                    : gameState.subStep === 6.55 && disjointExercisePhase === 'none'
+                      ? handleStartDisjointExercise
+                      : gameState.subStep === 6.55 && disjointExercisePhase === 'selecting_A'
+                        ? handleDisjointConfirmA
+                        : gameState.subStep === 6.55 && disjointExercisePhase === 'selecting_B'
+                          ? handleDisjointConfirmB
+                          : gameState.subStep === 6.55 && disjointExercisePhase === 'wrong'
+                            ? handleDisjointRetry
+                            : gameState.subStep === 6.55 && disjointExercisePhase === 'correct' && exemplosDisjuntosVistos < 3
+                              ? handleStartDisjointExercise
+                              // União ME: ações
+                              : gameState.subStep === 6.56 && unionPhase === 'definition2'
+                                ? handleInfoBoxConfirm
+                                : gameState.subStep === 6.56 && unionPhase === 'activity_success' && unionActivityNum < unionMaxActivities
+                                  ? handleUnionNextActivity
+                              // Eventos Complementares — parte 1
+                              : gameState.subStep === 6.70 && compPhase === 'selecting_A'
+                                ? handleCompConfirmA
+                                : gameState.subStep === 6.70 && compPhase === 'selecting_Abar'
+                                  ? handleCompConfirmAbar
+                                  : gameState.subStep === 6.70 && (compPhase === 'wrong_A' || compPhase === 'wrong_Abar')
+                                    ? handleCompRetry
+                                    : gameState.subStep === 6.70 && compPhase === 'show_both' && compExamplesViewed < 3
+                                      ? handleStartCompExercise
+                                      : gameState.subStep === 6.70 && compPhase === 'show_both' && compExamplesViewed >= 3
+                                        ? handleCompVerMaisExemplos
+                                        // Treinar exercício novamente
+                                        : gameState.subStep === 6.45 && infoBoxContent.type === 'success'
+                                          ? restartExercise
+                                          : gameState.subStep === 6.69 && infoBoxContent.type === 'success'
+                                            ? restartDesafio1
+                                            : undefined
+              }
+            >
+              {/* Contador de progresso da leitura progressiva (Etapa 2, subStep 2.9) */}
+              {gameState.stage === 2 && gameState.subStep === 2.9 && progressiveReadingStep < 5 && (
+                <p className="ds-small text-neutral-dark mt-micro italic text-right">
+                  {progressiveReadingStep + 1} / 5
+                </p>
+              )}
+            </RouletteInfoBox>
+          )}
+
+          {/* SubStep 1: Pergunta do experimento aleatório (múltipla escolha) */}
+          {currentQuestion && gameState.stage === 1 && gameState.subStep === 1 && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* SubStep 1.25: Características do experimento aleatório (múltipla seleção - checkboxes) */}
+          {gameState.stage === 1 && gameState.subStep === 1.25 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
+                Características do Experimento Aleatório
+              </h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Um experimento aleatório é aquele que satisfaz simultaneamente as seguintes características:
+                <br />
+                <span className="text-neutral-dark">(Marque todas que julgar verdadeiro considerando os exemplos vistos anteriormente)</span>
+              </p>
+              <div className="flex flex-col gap-y-micro mb-macro">
+                {caracteristicasExperimentoAleatorio.map((caracteristica, index) => (
+                  <label
+                    key={index}
+                    className={`flex items-start gap-x-micro p-micro rounded-md cursor-pointer transition-colors ${
+                      caracteristicasSelecionadas.includes(index)
+                        ? 'bg-brand-otimath-lightest border border-brand-otimath-pure'
+                        : 'bg-neutral-lightest border border-neutral-lighter hover:bg-neutral-lighter'
+                    }`}
+                    onClick={() => toggleCaracteristica(index)}
+                  >
+                    <div className={`w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center mt-0.5 ${
+                      caracteristicasSelecionadas.includes(index)
+                        ? 'bg-brand-otimath-pure border-brand-otimath-pure'
+                        : 'bg-neutral-white border-neutral-medium'
+                    }`}>
+                      {caracteristicasSelecionadas.includes(index) && (
+                        <Check size={14} className="text-neutral-white" />
+                      )}
+                    </div>
+                    <span className="ds-small text-neutral-darkest">{caracteristica}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="ds-caption text-neutral-dark mb-micro">
+                Características marcadas: {caracteristicasSelecionadas.length} de {caracteristicasExperimentoAleatorio.length}
+              </p>
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={checkAnswer}
+                disabled={caracteristicasSelecionadas.length === 0}
+              >
+                Conferir
+              </Button>
+            </div>
+          )}
+
+          {/* SubStep 2: Pergunta do espaço amostral (texto) */}
+          {gameState.stage === 1 && gameState.subStep === 2 && (
+            <RouletteQuestion
+              question="Qual o espaço amostral desse experimento aleatório?"
+              type="text"
+              textInput={{
+                ...sampleSpaceInput,
+                placeholder: 'S = {cor1, cor2, ...}',
+                setValue: (val) => setSampleSpaceInput(prev => ({ ...prev, value: val }))
+              }}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* SubStep 3: Quantidade de elementos (texto) */}
+          {gameState.stage === 1 && gameState.subStep === 3 && (
+            <RouletteQuestion
+              question="Quantos elementos possui o espaço amostral desse experimento aleatório?"
+              type="text"
+              inputPrefix="n(S) ="
+              textInput={{
+                ...sampleSpaceCountInput,
+                placeholder: 'Digite um número',
+                setValue: (val) => setSampleSpaceCountInput(prev => ({ ...prev, value: val }))
+              }}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* SubStep 4: Reflexão sim/não */}
+          {currentQuestion && gameState.stage === 1 && gameState.subStep === 4 && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="yes-no"
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* SubStep 5: Classificação equiprovável/não equiprovável */}
+          {currentQuestion && gameState.stage === 1 && gameState.subStep === 5 && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* SubStep 5.7: Probabilidade do evento certo */}
+          {gameState.stage === 1 && gameState.subStep === 5.7 && (
+            <RouletteQuestion
+              question="Qual a chance você atribui ao evento certo: girar um disco e o ponteiro indicar alguma das cores presentes no disco?"
+              hint="Atribua um número de 0% a 100%. Se preferir, utilize a forma decimal, atribuindo um valor de 0 a 1 (inclusive)."
+              type="text"
+              textInput={{
+                ...theoreticalQuestion1Input,
+                placeholder: 'Digite um número',
+                setValue: (val) => theoreticalQuestion1Input.setValue?.(val)
+              }}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* SubStep 6: Probabilidades teóricas */}
+          {gameState.stage === 1 && gameState.subStep === 6 && Object.keys(probabilityInputs).length > 0 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
+                Probabilidade de Cada Cor
+              </h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Baseando-se em elementos de simetria, atribua as probabilidades de o ponteiro parar em cada cor do disco.
+              </p>
+              <div className="flex flex-col gap-y-micro">
+                {Object.keys(probabilityInputs).map((color) => (
+                  <div key={color} className="flex items-center gap-x-macro">
+                    <span
+                      className="inline-block w-4 h-4 rounded-full mr-micro border border-neutral-medium"
+                      style={{ backgroundColor: ROULETTE_COLORS[color] }}
+                    ></span>
+                    <span className="ds-small w-[80px]">{color}:</span>
+                    <TextInput
+                      textInput={{
+                        ...probabilityInputs[color],
+                        placeholder: 'a/b',
+                        styles: 'w-[100px] text-center'
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-macro">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<Check />}
+                  onClick={checkAnswer}
+                  disabled={disabledCheckButton}
+                >
+                  Verificar Probabilidades
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* SubStep 6.1: Probabilidade do Evento Composto - Casos Favoráveis */}
+          {gameState.stage === 1 && gameState.subStep === 6.1 && gameState.eventoCompostoE.length > 0 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
+                Probabilidade do Evento Composto
+              </h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Considere o evento composto
+              </p>
+              <p className="ds-body-bold text-brand-otimath-dark mb-macro text-center">
+                E = &#123;{gameState.eventoCompostoE.join(', ')}&#125;
+              </p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Esse evento é formado por alguns resultados simples do experimento aleatório de girar o disco.
+              </p>
+              <RouletteQuestion
+                question="Qual é o número de elementos (casos favoráveis) do evento E?"
+                type="text"
+                inputPrefix="n(E) ="
+                textInput={{
+                  ...casosFavoraveisInput,
+                  placeholder: 'Digite um número',
+                  setValue: (val) => casosFavoraveisInput.setValue?.(val)
+                }}
+                onCheck={checkAnswer}
+                disabled={disabledCheckButton}
+              />
+            </div>
+          )}
+
+          {/* SubStep 6.41: Exercício Dinâmico - Seleção dos setores */}
+          {gameState.stage === 1 && gameState.subStep === 6.41 && gameState.exercicioEventoE.length > 0 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
+                Exercício — Aplicação do Modelo Probabilístico
+              </h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Clique nos setores do disco que correspondem aos casos favoráveis ao evento:
+              </p>
+              <p className="ds-body-bold text-brand-otimath-dark mb-macro text-center">
+                E = ocorre {gameState.exercicioEventoE.join(' ou ')}
+              </p>
+              {gameState.exercicioEventoE.length >= 2 && (() => {
+                const { exemplo, contagem, uniao, leitura, listaEventos, complemento } = gerarTextoNotaOU(gameState.exercicioEventoE.length);
+                return (
+                  <div className="mb-macro p-micro rounded-md bg-[#EEF2FF] border-l-4 border-[#6366F1]">
+                    <p className="ds-small text-neutral-darkest">
+                      <strong>Nota (OU – sentido matemático):</strong> Quando o enunciado diz &quot;{exemplo}&quot;, isso quer dizer &quot;pelo menos um dos {contagem}&quot;. Então, {listaEventos} {complemento}. {exemplo} significa <strong>{uniao}</strong> ({leitura}).
+                    </p>
+                  </div>
+                );
+              })()}
+              <div className="bg-neutral-lightest p-macro rounded-md border border-neutral-lighter mb-macro">
+                <p className="ds-small text-neutral-dark mb-micro">Casos favoráveis selecionados:</p>
+                <p className="ds-body-bold text-brand-otimath-dark text-center">
+                  E = &#123;{gameState.selectedSectors.length > 0
+                    ? gameState.selectedSectors.map(i => gameState.sectors[i]?.colorName).join(', ')
+                    : '...'
+                  }&#125;
+                </p>
+              </div>
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={checkAnswer}
+                disabled={gameState.selectedSectors.length === 0}
+              >
+                Conferir
+              </Button>
+            </div>
+          )}
+
+          {/* SubStep 6.42: Exercício Dinâmico - Digitar n(E) */}
+          {gameState.stage === 1 && gameState.subStep === 6.42 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
+                Exercício — Aplicação do Modelo Probabilístico
+              </h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Evento: <strong>E = &#123;{gameState.exercicioEventoE.join(', ')}&#125;</strong>
+              </p>
+              <RouletteQuestion
+                question="Digite o número de casos favoráveis ao evento E."
+                type="text"
+                inputPrefix="n(E) ="
+                textInput={{
+                  ...exercicioNEInput,
+                  placeholder: 'Digite um número',
+                  setValue: (val) => exercicioNEInput.setValue?.(val)
+                }}
+                onCheck={checkAnswer}
+                disabled={disabledCheckButton}
+              />
+            </div>
+          )}
+
+          {/* SubStep 6.43: Exercício Dinâmico - Digitar n(S) */}
+          {gameState.stage === 1 && gameState.subStep === 6.43 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
+                Exercício — Aplicação do Modelo Probabilístico
+              </h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Evento: <strong>E = &#123;{gameState.exercicioEventoE.join(', ')}&#125;</strong>
+              </p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                n(E) = {gameState.exercicioEventoE.length}
+              </p>
+              <RouletteQuestion
+                question="Digite o número de resultados possíveis do experimento aleatório (número de elementos do espaço amostral)."
+                type="text"
+                inputPrefix="n(S) ="
+                textInput={{
+                  ...exercicioNSInput,
+                  placeholder: 'Digite um número',
+                  setValue: (val) => exercicioNSInput.setValue?.(val)
+                }}
+                onCheck={checkAnswer}
+                disabled={disabledCheckButton}
+              />
+            </div>
+          )}
+
+          {/* SubStep 6.44: Exercício Dinâmico - Calcular P(E) */}
+          {gameState.stage === 1 && gameState.subStep === 6.44 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
+                Exercício — Aplicação do Modelo Probabilístico
+              </h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Evento: <strong>E = &#123;{gameState.exercicioEventoE.join(', ')}&#125;</strong>
+              </p>
+              <p className="ds-small text-neutral-dark mb-micro">
+                n(E) = {gameState.exercicioEventoE.length}
+              </p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                n(S) = {gameState.sectors.length}
+              </p>
+              <p className="ds-body text-neutral-dark mb-macro">
+                Ao girar o disco uma única vez, qual a probabilidade de ocorrer o evento E?
+              </p>
+              <div className="flex items-center justify-center gap-2 mb-macro">
+                <span className="ds-body-bold text-brand-otimath-dark">P(E) =</span>
+                <div className="flex flex-col items-center">
+                  <input
+                    type="text"
+                    value={exercicioPENumeradorInput.value}
+                    onChange={(e) => exercicioPENumeradorInput.setValue?.(e.target.value)}
+                    placeholder="?"
+                    className={`w-16 text-center bg-transparent outline-none ds-body ${
+                      exercicioPENumeradorInput.error ? 'text-feedback-negative' : ''
+                    }`}
+                  />
+                  <div className={`w-16 h-0.5 ${exercicioPENumeradorInput.error || exercicioPEDenominadorInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                  <input
+                    type="text"
+                    value={exercicioPEDenominadorInput.value}
+                    onChange={(e) => exercicioPEDenominadorInput.setValue?.(e.target.value)}
+                    placeholder="?"
+                    className={`w-16 text-center bg-transparent outline-none ds-body ${
+                      exercicioPEDenominadorInput.error ? 'text-feedback-negative' : ''
+                    }`}
+                  />
+                </div>
+              </div>
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={checkAnswer}
+                disabled={!exercicioPENumeradorInput.value || !exercicioPEDenominadorInput.value}
+              >
+                Conferir
+              </Button>
+            </div>
+          )}
+
+          {/* SubStep 6.56: Probabilidade da União de Eventos ME - Exercício */}
+          {gameState.stage === 1 && gameState.subStep === 6.56 && (unionPhase === 'selecting' || unionPhase === 'filling_prob' || unionPhase === 'final_calc') && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
+                Atividade {unionActivityNum} de {unionMaxActivities} — Probabilidade da União
+              </h3>
+
+              {/* Definições dos eventos */}
+              <div className="mb-macro space-y-micro">
+                {unionEvents.map((evt, i) => {
+                  const COLORS = ['#FFD700', '#00E5FF', '#FF69B4', '#7CFC00', '#FF8C00', '#BA55D3'];
+                  const color = COLORS[i] || COLORS[0];
+                  return (
+                    <div key={i} className="flex items-center gap-2">
+                      <span
+                        className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="ds-small text-neutral-dark">
+                        <strong>{evt.label}</strong> = {evt.description}
+                        {evt.completed && (
+                          <span className="text-feedback-positive ml-2">
+                            — P({evt.label}) = {evt.probNumerator}/{evt.probDenominator} ✓
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Fase: selecting */}
+              {unionPhase === 'selecting' && unionCurrentEventIdx < unionEvents.length && (
+                <div>
+                  <p className="ds-body text-neutral-dark mb-macro">
+                    Marque no disco os setores que pertencem ao evento <strong>{unionEvents[unionCurrentEventIdx].label}</strong>.
+                  </p>
+                  <p className="ds-caption text-neutral-dark mb-macro">
+                    Setores selecionados: {unionSelectedSectors.length}
+                  </p>
+                  <Button
+                    style="primary"
+                    size="small"
+                    icon={<Check />}
+                    onClick={handleUnionConfirmSelection}
+                    disabled={unionSelectedSectors.length === 0}
+                  >
+                    Conferir
+                  </Button>
+                </div>
+              )}
+
+              {/* Fase: filling_prob */}
+              {unionPhase === 'filling_prob' && unionCurrentEventIdx < unionEvents.length && (
+                <div>
+                  <p className="ds-body text-neutral-dark mb-macro">
+                    Calcule <strong>P({unionEvents[unionCurrentEventIdx].label})</strong>:
+                  </p>
+                  <div className="flex items-center justify-center gap-2 mb-macro">
+                    <span className="ds-body-bold text-brand-otimath-dark">P({unionEvents[unionCurrentEventIdx].label}) =</span>
+                    <div className="flex flex-col items-center">
+                      <input
+                        type="text"
+                        value={unionProbNumInput.value}
+                        onChange={(e) => setUnionProbNumInput(prev => ({ ...prev, value: e.target.value }))}
+                        placeholder="?"
+                        className={`w-16 text-center bg-transparent outline-none ds-body ${
+                          unionProbNumInput.error ? 'text-feedback-negative' : ''
+                        }`}
+                      />
+                      <div className={`w-16 h-0.5 ${unionProbNumInput.error || unionProbDenInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                      <input
+                        type="text"
+                        value={unionProbDenInput.value}
+                        onChange={(e) => setUnionProbDenInput(prev => ({ ...prev, value: e.target.value }))}
+                        placeholder="?"
+                        className={`w-16 text-center bg-transparent outline-none ds-body ${
+                          unionProbDenInput.error ? 'text-feedback-negative' : ''
+                        }`}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    style="primary"
+                    size="small"
+                    icon={<Check />}
+                    onClick={handleUnionConfirmProb}
+                    disabled={!unionProbNumInput.value || !unionProbDenInput.value}
+                  >
+                    Conferir
+                  </Button>
+                </div>
+              )}
+
+              {/* Fase: final_calc */}
+              {unionPhase === 'final_calc' && (
+                <div>
+                  {/* Listar todas as P individuais */}
+                  <div className="mb-macro p-micro rounded-md bg-[#EEF2FF] border-l-4 border-[#6366F1]">
+                    <p className="ds-small text-neutral-darkest mb-micro">
+                      <strong>Lembre-se:</strong> Para eventos mutuamente exclusivos:
+                    </p>
+                    <p className="ds-small text-neutral-darkest">
+                      P({unionEvents.map(e => e.label).join('∪')}) = {unionEvents.map(e => `P(${e.label})`).join(' + ')} = {unionEvents.map(e => `${e.probNumerator}/${e.probDenominator}`).join(' + ')}
+                    </p>
+                  </div>
+                  <p className="ds-body text-neutral-dark mb-macro">
+                    Calcule <strong>P({unionEvents.map(e => e.label).join('∪')})</strong>:
+                  </p>
+                  <div className="flex items-center justify-center gap-2 mb-macro">
+                    <span className="ds-body-bold text-brand-otimath-dark">P({unionEvents.map(e => e.label).join('∪')}) =</span>
+                    <div className="flex flex-col items-center">
+                      <input
+                        type="text"
+                        value={unionFinalNumInput.value}
+                        onChange={(e) => setUnionFinalNumInput(prev => ({ ...prev, value: e.target.value }))}
+                        placeholder="?"
+                        className={`w-16 text-center bg-transparent outline-none ds-body ${
+                          unionFinalNumInput.error ? 'text-feedback-negative' : ''
+                        }`}
+                      />
+                      <div className={`w-16 h-0.5 ${unionFinalNumInput.error || unionFinalDenInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                      <input
+                        type="text"
+                        value={unionFinalDenInput.value}
+                        onChange={(e) => setUnionFinalDenInput(prev => ({ ...prev, value: e.target.value }))}
+                        placeholder="?"
+                        className={`w-16 text-center bg-transparent outline-none ds-body ${
+                          unionFinalDenInput.error ? 'text-feedback-negative' : ''
+                        }`}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    style="primary"
+                    size="small"
+                    icon={<Check />}
+                    onClick={handleUnionConfirmFinal}
+                    disabled={!unionFinalNumInput.value || !unionFinalDenInput.value}
+                  >
+                    Conferir
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SubStep 6.6: Desafio Dinâmico 1 - Seleção de setores (Conectivo Variável) */}
+          {gameState.stage === 1 && gameState.subStep === 6.6 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
+                {gameState.desafio1Conectivo === 'ou' ? 'Desafio — União de Eventos' : 'Desafio — Interseção de Eventos'}
+              </h3>
+              <p className="ds-body-bold text-brand-otimath-dark mb-macro">
+                {gameState.desafio1InterProblemType !== null
+                  ? <>Calcule a probabilidade de, ao girar o disco uma única vez, obter um número <strong>{gameState.desafio1PropriedadeY}</strong>.</>
+                  : <>Calcule a probabilidade de, ao girar o disco uma única vez, ocorrer {gameState.desafio1EventoXTexto} {gameState.desafio1Conectivo.toUpperCase()} ocorrer um número {gameState.desafio1PropriedadeY}.</>
+                }
+              </p>
+              {gameState.desafio1Conectivo === 'ou' ? (() => {
+                const n = gameState.desafio1EventoXTexto.split(' ou ').length + 1;
+                const { exemplo, contagem, uniao, leitura, listaEventos, complemento } = gerarTextoNotaOU(n);
+                return (
+                  <div className="mb-macro p-micro rounded-md bg-[#EEF2FF] border-l-4 border-[#6366F1]">
+                    <p className="ds-small text-neutral-darkest">
+                      <strong>Nota (OU – sentido matemático):</strong> Quando o enunciado diz &quot;{exemplo}&quot;, isso quer dizer &quot;pelo menos um dos {contagem}&quot;. Então, {listaEventos} {complemento}. {exemplo} significa <strong>{uniao}</strong> ({leitura}).
+                    </p>
+                  </div>
+                );
+              })() : (
+                <div className="mb-macro p-micro rounded-md bg-[#FEF3C7] border-l-4 border-[#F59E0B]">
+                  <p className="ds-small text-neutral-darkest">
+                    <strong>Nota (E – sentido matemático):</strong> Quando o enunciado diz &quot;A e B&quot;, isso quer dizer que as duas condições devem acontecer juntas. Então, só conta quando acontece A e acontece B ao mesmo tempo (no mesmo resultado). A e B significa <strong className="text-base">A∩B</strong> (A Interseção B).
+                  </p>
+                </div>
+              )}
+              <p className="ds-small text-neutral-dark mb-macro">
+                Clique nos setores do disco que são <strong>casos favoráveis</strong> ao evento.
+              </p>
+              <p className="ds-caption text-neutral-dark mb-macro">
+                Setores selecionados: {gameState.selectedSectors.length}
+              </p>
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={checkAnswer}
+                disabled={gameState.selectedSectors.length === 0}
+              >
+                Conferir
+              </Button>
+            </div>
+          )}
+
+          {/* SubStep 6.66: Desafio Dinâmico 1 - Digitar n(E) */}
+          {gameState.stage === 1 && gameState.subStep === 6.66 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
+                Desafio — Contagem de Casos
+              </h3>
+              <p className="ds-small text-brand-otimath-dark mb-macro">
+                <strong>E = &#123;{gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.desafio1SectorNumbers[i]})`).join(', ')}&#125;</strong>
+              </p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Digite o número de casos favoráveis ao evento.
+              </p>
+              <div className="flex items-center gap-x-micro mb-macro">
+                <span className="ds-body-bold text-brand-otimath-dark">n(E) =</span>
+                <input
+                  type="text"
+                  value={exercicioNEInput.value}
+                  onChange={(e) => exercicioNEInput.setValue?.(e.target.value)}
+                  placeholder="?"
+                  className={`w-20 text-center border-b-2 bg-transparent outline-none ds-body ${
+                    exercicioNEInput.error ? 'border-feedback-negative' : 'border-brand-otimath-dark'
+                  }`}
+                />
+              </div>
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={checkAnswer}
+                disabled={!exercicioNEInput.value}
+              >
+                Conferir
+              </Button>
+            </div>
+          )}
+
+          {/* SubStep 6.67: Desafio Dinâmico 1 - Digitar n(S) */}
+          {gameState.stage === 1 && gameState.subStep === 6.67 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
+                Desafio — Casos Possíveis
+              </h3>
+              <p className="ds-small text-brand-otimath-dark mb-macro">
+                <strong>E = &#123;{gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.desafio1SectorNumbers[i]})`).join(', ')}&#125;</strong>
+              </p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Digite o número de resultados possíveis do experimento.
+              </p>
+              <div className="flex items-center gap-x-micro mb-macro">
+                <span className="ds-body-bold text-brand-otimath-dark">n(S) =</span>
+                <input
+                  type="text"
+                  value={exercicioNSInput.value}
+                  onChange={(e) => exercicioNSInput.setValue?.(e.target.value)}
+                  placeholder="?"
+                  className={`w-20 text-center border-b-2 bg-transparent outline-none ds-body ${
+                    exercicioNSInput.error ? 'border-feedback-negative' : 'border-brand-otimath-dark'
+                  }`}
+                />
+              </div>
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={checkAnswer}
+                disabled={!exercicioNSInput.value}
+              >
+                Conferir
+              </Button>
+            </div>
+          )}
+
+          {/* SubStep 6.68: Desafio Dinâmico 1 - Calcular P(E) */}
+          {gameState.stage === 1 && gameState.subStep === 6.68 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
+                Desafio — Probabilidade
+              </h3>
+              <p className="ds-small text-brand-otimath-dark mb-macro">
+                <strong>E = &#123;{gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.desafio1SectorNumbers[i]})`).join(', ')}&#125;</strong>
+              </p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Agora calcule a probabilidade.
+              </p>
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <span className="ds-body-bold text-brand-otimath-dark">P(E) =</span>
+                <div className="flex flex-col items-center py-2">
+                  <input
+                    type="text"
+                    value={exercicioPENumeradorInput.value}
+                    onChange={(e) => exercicioPENumeradorInput.setValue?.(e.target.value)}
+                    placeholder="?"
+                    className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${
+                      exercicioPENumeradorInput.error ? 'text-feedback-negative' : ''
+                    }`}
+                  />
+                  <div className={`w-16 h-0.5 my-1 ${exercicioPENumeradorInput.error || exercicioPEDenominadorInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                  <input
+                    type="text"
+                    value={exercicioPEDenominadorInput.value}
+                    onChange={(e) => exercicioPEDenominadorInput.setValue?.(e.target.value)}
+                    placeholder="?"
+                    className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${
+                      exercicioPEDenominadorInput.error ? 'text-feedback-negative' : ''
+                    }`}
+                  />
+                </div>
+              </div>
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={checkAnswer}
+                disabled={!exercicioPENumeradorInput.value || !exercicioPEDenominadorInput.value}
+              >
+                Conferir
+              </Button>
+            </div>
+          )}
+
+          {/* SubSteps 6.85/6.90: Selecionar setores de A (cálculo complementar) */}
+          {gameState.stage === 1 && (gameState.subStep === 6.85 || gameState.subStep === 6.90) && compPhase === 'calc_selectA' && (
+            compIsGuided ? (
+              <div className="flex flex-col gap-y-micro">
+                {/* Header – título e instrução */}
+                <div className="bg-brand-otimath-lightest p-macro rounded-md flex items-start gap-x-micro">
+                  <Info size={20} className="text-brand-otimath-pure mt-nano shrink-0" />
+                  <div>
+                    <h3 className="ds-body-bold text-brand-otimath-pure mb-nano">
+                      Cálculo da Probabilidade de Eventos Complementares
+                    </h3>
+                    <p className="ds-small text-brand-otimath-dark">
+                      Selecione os setores do evento A no disco e clique em Conferir.
+                    </p>
+                  </div>
+                </div>
+                {/* Card – definição do evento */}
+                <div className="bg-brand-otimath-lightest p-macro rounded-md border-l-4 border-brand-otimath-pure">
+                  <p className="ds-small-bold text-brand-otimath-dark mb-micro">
+                    Primeiro calcularemos P(A)
+                  </p>
+                  <p className="ds-small text-brand-otimath-dark">
+                    Evento A = &quot;<strong>{gameState.compEventA?.textoA}</strong>&quot;
+                  </p>
+                </div>
+                {/* Botão Conferir – pulsa quando há setores selecionados */}
+                <div className={gameState.selectedSectors.length > 0 ? 'animate-pulse' : ''}>
+                  <Button
+                    style="primary"
+                    size="small"
+                    icon={<Check />}
+                    onClick={checkAnswer}
+                    disabled={gameState.selectedSectors.length === 0}
+                  >
+                    Conferir
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-feedback-success-lighter p-macro rounded-md border-l-4 border-feedback-success-dark">
+                <h3 className="ds-body-bold text-brand-otimath-dark mb-micro">
+                  {`Treino ${compCalcExampleNum} de 3`}
+                </h3>
+                <p className="ds-small text-brand-otimath-dark mb-macro">
+                  Girando um disco ao acaso, qual a probabilidade de ocorrer o:
+                </p>
+                <p className="ds-small text-brand-otimath-dark mb-macro">
+                  <strong>A = &quot;{gameState.compEventA?.textoA}&quot;</strong>
+                </p>
+                <p className="ds-small text-brand-otimath-dark mb-macro">
+                  Primeiro, selecione os setores de A no disco.
+                </p>
+                <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={gameState.selectedSectors.length === 0}>
+                  Conferir
+                </Button>
+              </div>
+            )
+          )}
+
+          {/* SubStep 6.90: P(A) fração (independente apenas) */}
+          {gameState.stage === 1 && gameState.subStep === 6.90 && compPhase === 'calc_pa' && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
+                {`Treino ${compCalcExampleNum} de 3`}
+              </h3>
+              <p className="ds-small text-brand-otimath-dark mb-macro">
+                <strong>A = &quot;{gameState.compEventA?.textoA}&quot;</strong>
+              </p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Informe a probabilidade de A como fração.
+              </p>
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <span className="ds-body-bold text-brand-otimath-dark">P(A) =</span>
+                <div className="flex flex-col items-center py-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={compPaInput.num}
+                    onChange={(e) => setCompPaInput(prev => ({ ...prev, num: e.target.value, errNum: false }))}
+                    placeholder="?"
+                    className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${compPaInput.errNum ? 'text-feedback-negative' : ''}`}
+                  />
+                  <div className={`w-16 h-0.5 my-1 ${compPaInput.errNum || compPaInput.errDen ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={compPaInput.den}
+                    onChange={(e) => setCompPaInput(prev => ({ ...prev, den: e.target.value, errDen: false }))}
+                    placeholder="?"
+                    className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${compPaInput.errDen ? 'text-feedback-negative' : ''}`}
+                  />
+                </div>
+              </div>
+              <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!compPaInput.num || !compPaInput.den}>
+                Conferir
+              </Button>
+            </div>
+          )}
+
+          {/* SubSteps 6.86/6.91: Selecionar setores de Ā (cálculo complementar) */}
+          {gameState.stage === 1 && (gameState.subStep === 6.86 || gameState.subStep === 6.91) && compPhase === 'calc_selectAbar' && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
+                {compIsGuided ? 'Cálculo Guiado — P(Ā)' : `Treino ${compCalcExampleNum} de 3`}
+              </h3>
+              <p className="ds-small text-brand-otimath-dark mb-macro">
+                <strong>A = &quot;{gameState.compEventA?.textoA}&quot;</strong>
+              </p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Marque no disco o evento complementar <strong>Ā</strong> e clique em Conferir.
+              </p>
+              {compIsGuided && (
+                <p className="ds-small text-neutral-dark mb-macro italic">Dica: marque os setores que NÃO pertencem ao evento A.</p>
+              )}
+              <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={compUserSelectAbar.length === 0}>
+                Conferir
+              </Button>
+            </div>
+          )}
+
+          {/* SubSteps 6.88/6.93: Cadeia de cálculo P(Ā) = 1 − P(A) = n/n − m/n = (n−m)/n */}
+          {gameState.stage === 1 && (gameState.subStep === 6.88 || gameState.subStep === 6.93) && compPhase === 'calc_chain' && (() => {
+            const ev = gameState.compEventA;
+            const m = ev?.indicesA.length || 0;
+            const n = gameState.sectors.length;
+            const ci = compChainInputs;
+            const allFilled = ci.n1 && ci.d1 && ci.n2 && ci.d2 && ci.finalNum && ci.finalDen;
+            const step = compStepByStep;
+            const isStepMode = step >= 1;
+            // Cálculos para o passo a passo
+            const decVal = (n - m) / n;
+            const decStr = Number.isInteger(decVal) ? decVal.toFixed(1) : decVal % 1 === 0 ? decVal.toString() : (Math.round(decVal * 10000) / 10000).toString().replace('.', ',');
+            const pctVal = decVal * 100;
+            const pctStr = (Number.isInteger(pctVal) ? pctVal.toFixed(0) : pctVal.toFixed(1).replace('.', ',')) + '%';
+            // Fração helper para passo a passo
+            // Cores: dourado A (#CC8800 ≈ #FFD700 escuro), ciano Ā (#00838F ≈ #00E5FF escuro), azul padrão (#204478)
+            const StepFrac = ({ num, den, highlight, color }: { num: string; den: string; highlight?: boolean; color?: string }) => {
+              const c = highlight ? (color || '#2ac000') : '#204478';
+              return (
+                <div className="flex flex-col items-center">
+                  <span className="w-10 h-7 flex items-center justify-center ds-small-bold transition-all duration-300" style={{ color: c }}>{num}</span>
+                  <div className="w-10 h-0.5 my-0.5 transition-all duration-300" style={{ backgroundColor: c }}></div>
+                  <span className="w-10 h-7 flex items-center justify-center ds-small-bold transition-all duration-300" style={{ color: c }}>{den}</span>
+                </div>
+              );
+            };
+            const PlaceholderFrac = () => (
+              <div className="flex flex-col items-center">
+                <span className="w-10 h-7 flex items-center justify-center ds-small text-neutral-light">?</span>
+                <div className="w-10 h-0.5 my-0.5 bg-neutral-light"></div>
+                <span className="w-10 h-7 flex items-center justify-center ds-small text-neutral-light">?</span>
+              </div>
+            );
+            return (
+              <div className={compIsGuided
+                ? 'bg-brand-otimath-lightest p-macro rounded-md border-l-4 border-brand-otimath-pure'
+                : 'bg-neutral-white p-macro rounded-md border border-neutral-lighter'
+              }>
+                <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
+                  {compIsGuided ? 'P(Ā) a partir de P(A)' : 'Cálculo de P(Ā)'}
+                </h3>
+                {compIsGuided ? (
+                  <div className="ds-small text-brand-otimath-dark mb-macro">
+                    <p><strong>A = &quot;{ev?.textoA}&quot;</strong></p>
+                    <p>Ā = complementar de A</p>
+                  </div>
+                ) : (
+                  <div className="ds-small text-brand-otimath-dark mb-macro">
+                    <p><strong>A = &quot;{ev?.textoA}&quot;</strong></p>
+                    <p><strong>Ā = &quot;{ev?.textoAbar}&quot;</strong></p>
+                  </div>
+                )}
+
+                {/* Modo passo a passo */}
+                {isStepMode ? (
+                  <>
+                    {/* Indicador de passo */}
+                    <p className="ds-caption text-neutral-dark mb-micro text-center">Passo {Math.min(step, 4)} de 4</p>
+
+                    {/* Linha 1: P(Ā) = 1 − P(A) = frac1 − frac2 = */}
+                    <div className="flex items-center justify-center gap-1 flex-wrap mb-micro">
+                      <span className="ds-small-bold text-brand-otimath-dark">P(Ā) = 1 − P(A) =</span>
+                      {step >= 1 ? <StepFrac num={`${n}`} den={`${n}`} highlight={step === 1} color={sampleSpaceColor} /> : <PlaceholderFrac />}
+                      <span className="ds-small-bold text-brand-otimath-dark">−</span>
+                      {step >= 2 ? <StepFrac num={`${m}`} den={`${n}`} highlight={step === 2} color="#FFD700" /> : <PlaceholderFrac />}
+                      <span className="ds-small-bold text-brand-otimath-dark">=</span>
+                    </div>
+
+                    {/* Linha 2: = (n-m)/n e depois decimal/porcentagem */}
+                    <div className="flex items-center justify-center gap-1 flex-wrap mb-macro">
+                      <span className="ds-small-bold text-brand-otimath-dark">=</span>
+                      {step >= 3 ? <StepFrac num={`${n - m}`} den={`${n}`} highlight={step === 3} color="#00E5FF" /> : <PlaceholderFrac />}
+                      {step >= 4 && (
+                        <>
+                          <span className="ds-small-bold text-brand-otimath-dark">=</span>
+                          <span className="ds-small-bold transition-all duration-300" style={{ color: '#00E5FF' }}>{decStr}</span>
+                          <span className="ds-small-bold text-brand-otimath-dark">=</span>
+                          <span className="ds-small-bold transition-all duration-300" style={{ color: '#00E5FF' }}>{pctStr}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Textos auxiliares por passo */}
+                    {step === 2 && <p className="ds-caption text-neutral-dark mb-micro text-center italic">Setores de A destacados no disco.</p>}
+                    {(step === 3 || step === 4) && <p className="ds-caption text-neutral-dark mb-micro text-center italic">Setores de Ā destacados no disco.</p>}
+
+                    {/* Botões passo a passo */}
+                    <div className="flex flex-col gap-micro">
+                      {step < 4 ? (
+                        <button
+                          onClick={() => setCompStepByStep(prev => prev + 1)}
+                          className="w-full py-3 rounded-md bg-brand-otimath-pure text-neutral-white ds-body-bold hover:opacity-90 active:opacity-80 transition-opacity"
+                        >
+                          Próximo passo
+                        </button>
+                      ) : step === 4 ? (
+                        <button
+                          onClick={() => setCompStepByStep(5)}
+                          className="w-full py-3 rounded-md bg-feedback-success-dark text-neutral-white ds-body-bold hover:opacity-90 active:opacity-80 transition-opacity"
+                        >
+                          Concluir
+                        </button>
+                      ) : null}
+                      {step === 5 && (
+                        <button
+                          onClick={() => setCompStepByStep(0)}
+                          className="w-full py-3 rounded-md bg-brand-otimath-pure text-neutral-white ds-body-bold hover:opacity-90 active:opacity-80 transition-opacity"
+                        >
+                          Tentar sozinho
+                        </button>
+                      )}
+                      {step >= 1 && step < 5 && (
+                        <button
+                          onClick={() => setCompStepByStep(prev => Math.max(prev - 1, 1))}
+                          className="w-full py-2 rounded-md border border-neutral-light text-neutral-dark ds-small hover:bg-neutral-lightest active:opacity-80 transition-all"
+                        >
+                          Voltar
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Modo manual (original) */}
+                    <p className="ds-small text-neutral-dark mb-macro">
+                      {compIsGuided ? 'Continue a igualdade preenchendo a fração final.' : 'Continue com o cálculo do complementar de A.'}
+                    </p>
+
+                    {/* Linha 1: P(Ā) = 1 − P(A) = □/□ − □/□ = */}
+                    <div className="flex items-center justify-center gap-1 flex-wrap mb-micro">
+                      <span className="ds-small-bold text-brand-otimath-dark">P(Ā) = 1 − P(A) =</span>
+                      {/* Fração 1: n/n */}
+                      <div className="flex flex-col items-center">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={ci.n1}
+                          onChange={(e) => setCompChainInputs(prev => ({ ...prev, n1: e.target.value, errN1: false }))}
+                          placeholder="?"
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errN1 ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                        />
+                        <div className={`w-10 h-0.5 my-0.5 ${ci.errN1 || ci.errD1 ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={ci.d1}
+                          onChange={(e) => setCompChainInputs(prev => ({ ...prev, d1: e.target.value, errD1: false }))}
+                          placeholder="?"
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errD1 ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                        />
+                      </div>
+                      <span className="ds-small-bold text-brand-otimath-dark">−</span>
+                      {/* Fração 2: m/n */}
+                      <div className="flex flex-col items-center">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={ci.n2}
+                          onChange={(e) => setCompChainInputs(prev => ({ ...prev, n2: e.target.value, errN2: false }))}
+                          placeholder="?"
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errN2 ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                        />
+                        <div className={`w-10 h-0.5 my-0.5 ${ci.errN2 || ci.errD2 ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={ci.d2}
+                          onChange={(e) => setCompChainInputs(prev => ({ ...prev, d2: e.target.value, errD2: false }))}
+                          placeholder="?"
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errD2 ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                        />
+                      </div>
+                      <span className="ds-small-bold text-brand-otimath-dark">=</span>
+                    </div>
+
+                    {/* Linha 2: = □/□ = decimal_auto = percentage_auto */}
+                    <div className="flex items-center justify-center gap-1 flex-wrap mb-macro">
+                      <span className="ds-small-bold text-brand-otimath-dark">=</span>
+                      {/* Fração resultado: (n−m)/n */}
+                      <div className="flex flex-col items-center">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={ci.finalNum}
+                          onChange={(e) => setCompChainInputs(prev => ({ ...prev, finalNum: e.target.value, errFinalNum: false }))}
+                          placeholder="?"
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errFinalNum ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                        />
+                        <div className={`w-10 h-0.5 my-0.5 ${ci.errFinalNum || ci.errFinalDen ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={ci.finalDen}
+                          onChange={(e) => setCompChainInputs(prev => ({ ...prev, finalDen: e.target.value, errFinalDen: false }))}
+                          placeholder="?"
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errFinalDen ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                        />
+                      </div>
+                      {/* Decimal e percentual auto-calculados */}
+                      {compChainResult ? (
+                        <>
+                          <span className="ds-small-bold text-brand-otimath-dark">=</span>
+                          <span className="ds-small-bold text-feedback-success-dark">{compChainResult.decimal}</span>
+                          <span className="ds-small-bold text-brand-otimath-dark">=</span>
+                          <span className="ds-small-bold text-feedback-success-dark">{compChainResult.percentage}</span>
+                        </>
+                      ) : null}
+                    </div>
+
+                    <div className="flex gap-micro">
+                      <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!allFilled}>
+                        Conferir
+                      </Button>
+                      {compIsGuided && (
+                        <button
+                          onClick={() => setCompStepByStep(1)}
+                          className="flex-1 py-2 rounded-md border-2 border-brand-otimath-pure text-brand-otimath-pure ds-small-bold hover:bg-brand-otimath-pure hover:text-neutral-white active:opacity-80 transition-all"
+                        >
+                          Ver passo a passo
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* SubStep 6.5: Previsão do aluno */}
+          {gameState.stage === 1 && gameState.subStep === 6.5 && currentQuestion && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="text"
+              textInput={{
+                ...predictionInput,
+                placeholder: 'x',
+                setValue: (val) => predictionInput.setValue?.(val)
+              }}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* SubStep 7.5: Pergunta de incerteza */}
+          {currentQuestion && gameState.stage === 1 && gameState.subStep === 7.5 && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* SubStep 7.6: Padrão perfeito detectado */}
+          {gameState.stage === 1 && gameState.subStep === 7.6 && (
+            <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-dark">
+              <h3 className="ds-body-bold text-feedback-success-darkest mb-micro">
+                Padrão Interessante Detectado!
+              </h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Você obteve cada cor exatamente uma vez. Isso acontece sempre?<br/>
+                Continue girando o disco para observar o que acontece.
+              </p>
+              <p className="ds-caption text-neutral-dark">
+                Giros extras realizados: <strong>{gameState.perfectPatternExtraSpinsDone}</strong> / <strong>{gameState.manualSpinsRequired}</strong>
+              </p>
+            </div>
+          )}
+
+          {/* SubStep 9: Entrada de frequências relativas */}
+          {gameState.stage === 1 && gameState.subStep === 9 && Object.keys(relativeFrequencyInputs).length > 0 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
+                Frequências Relativas
+              </h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Calcule a frequência relativa de cada cor (frequência absoluta / total de giros).
+              </p>
+              <div className="flex flex-col gap-y-micro">
+                {Object.keys(relativeFrequencyInputs).map((color) => (
+                  <div key={color} className="flex items-center gap-x-macro">
+                    <span
+                      className="inline-block w-4 h-4 rounded-full mr-micro border border-neutral-medium"
+                      style={{ backgroundColor: ROULETTE_COLORS[color] }}
+                    ></span>
+                    <span className="ds-small w-[80px]">{color}:</span>
+                    <span className="ds-small w-[40px] text-center">{gameState.frequencies[color] || 0}</span>
+                    <TextInput
+                      textInput={{
+                        ...relativeFrequencyInputs[color],
+                        placeholder: 'a/b',
+                        styles: 'w-[100px] text-center'
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-macro">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<Check />}
+                  onClick={checkAnswer}
+                  disabled={disabledCheckButton}
+                >
+                  Verificar Frequências Relativas
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* SubStep 9.5: Tabela + conceito de frequência relativa + pergunta */}
+          {gameState.subStep === 9.5 && (
+            <>
+              <RouletteTable
+                title="Tabela de Frequências"
+                data={frequencyData}
+                showRelativeFrequency={true}
+                showPercentage={true}
+                showTheoreticalProbability={false}
+                totalSpins={gameState.totalSpins}
+                editable={false}
+              />
+              {freqRelQuestion && (
+                <div className="w-full max-w-[600px] mx-auto flex flex-col gap-xxxs">
+                  <div className="rounded-md p-xxs bg-brand-otimath-lightest border-hairline border-brand-otimath-light">
+                    <p className="ds-body-bold text-brand-otimath-dark mb-nano">Frequência Relativa</p>
+                    <p className="ds-body text-brand-otimath-dark">
+                      A frequência relativa de um evento é a proporção ou porcentagem de vezes que esse evento ocorre em relação ao total de repetições do experimento.
+                    </p>
+                  </div>
+                  <div className="rounded-md p-xxs bg-neutral-white border-hairline border-neutral-light">
+                    <p className="ds-body-bold text-brand-otimath-dark mb-nano">
+                      Qual é a frequência relativa (porcentagem das vezes que ocorre) da cor {freqRelQuestion.color}?
+                    </p>
+                    <div className="flex items-center gap-nano mt-nano">
+                      <input
+                        type="text"
+                        className={`w-full p-nano rounded-md border-hairline ds-body text-center ${freqRelInput.error ? 'border-feedback-error-medium bg-feedback-error-lightest' : 'border-neutral-light bg-neutral-white'}`}
+                        placeholder="Ex: 22,2"
+                        value={freqRelInput.value}
+                        onChange={(e) => setFreqRelInput({ value: e.target.value, error: false })}
+                      />
+                      <span className="ds-body text-neutral-dark">%</span>
+                    </div>
+                    <div className="mt-nano flex justify-end">
+                      <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!freqRelInput.value}>
+                        Conferir
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* SubStep 11: Pergunta de convergência */}
+          {gameState.stage === 1 && gameState.subStep === 11 && convergenceInputs.convergence && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
+                Convergência das Frequências Relativas
+              </h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                À medida que o número de giros do disco se torna muito grande, as frequências relativas estão se aproximando de qual número?
+              </p>
+              <div className="flex items-center gap-x-macro justify-center">
+                <TextInput
+                  textInput={{
+                    ...convergenceInputs.convergence,
+                    placeholder: 'a/b',
+                    styles: 'w-[150px] text-center'
+                  }}
+                />
+              </div>
+              <div className="mt-macro flex justify-center">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<Check />}
+                  onClick={checkAnswer}
+                  disabled={disabledCheckButton}
+                >
+                  Verificar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* SubStep 12: Pergunta teórica 1 */}
+          {gameState.stage === 1 && gameState.subStep === 12 && (
+            <RouletteQuestion
+              question={`Caso o disco circular fosse dividido em <strong>${gameState.theoreticalK}</strong> setores iguais, o setor h após girar o disco um número p maior que 1 bilhão de vezes terá uma frequência relativa aproximando de qual número?`}
+              type="text"
+              textInput={{
+                ...theoreticalQuestion1Input,
+                placeholder: 'Digite a fração',
+                setValue: (val) => theoreticalQuestion1Input.setValue?.(val)
+              }}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* SubStep 13: Pergunta teórica 2 */}
+          {gameState.stage === 1 && gameState.subStep === 13 && (
+            <RouletteQuestion
+              question="Então qual a probabilidade de o ponteiro do disco após um giro indicar a região h?"
+              type="text"
+              textInput={{
+                ...theoreticalQuestion2Input,
+                placeholder: 'Digite a fração',
+                setValue: (val) => theoreticalQuestion2Input.setValue?.(val)
+              }}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* Tabela de frequências (mostrar durante giros manuais e automáticos — Etapas 1 e 2) */}
+          {gameState.stage !== 3 && gameState.totalSpins > 0 && (gameState.subStep === 7 || gameState.subStep === 7.6 || gameState.subStep === 8 || gameState.subStep === 8.5) && (
+            <RouletteTable
+              title="Tabela de Frequências"
+              data={frequencyData}
+              showRelativeFrequency={false}
+              showPercentage={false}
+              showTheoreticalProbability={false}
+              totalSpins={gameState.totalSpins}
+              editable={false}
+            />
+          )}
+
+          {/* SubStep 8.5: Conceito de frequência absoluta + pergunta (Etapas 1 e 2) */}
+          {gameState.stage !== 3 && gameState.subStep === 8.5 && freqAbsQuestion && (
+            <div className="w-full max-w-[600px] mx-auto flex flex-col gap-xxxs">
+              <div className="rounded-md p-xxs bg-brand-otimath-lightest border-hairline border-brand-otimath-light">
+                <p className="ds-body-bold text-brand-otimath-dark mb-nano">Frequência Absoluta</p>
+                <p className="ds-body text-brand-otimath-dark">
+                  A frequência absoluta de um evento é o número de ocorrências desse evento em n repetições de um experimento aleatório.
+                </p>
+              </div>
+              <div className="rounded-md p-xxs bg-neutral-white border-hairline border-neutral-light">
+                <p className="ds-body-bold text-brand-otimath-dark mb-nano">
+                  Qual é a frequência absoluta do setor de cor {freqAbsQuestion.color} após {gameState.totalSpins} giros do disco?
+                </p>
+                <div className="flex items-center gap-nano mt-nano">
+                  <input
+                    type="number"
+                    className={`w-full p-nano rounded-md border-hairline ds-body text-center ${freqAbsInput.error ? 'border-feedback-error-medium bg-feedback-error-lightest' : 'border-neutral-light bg-neutral-white'}`}
+                    placeholder="Digite o valor observando a tabela de frequências"
+                    value={freqAbsInput.value}
+                    onChange={(e) => setFreqAbsInput({ value: e.target.value, error: false })}
+                  />
+                </div>
+                <div className="mt-nano flex justify-end">
+                  <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!freqAbsInput.value}>
+                    Conferir
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SubStep 8.6: Tela conceitual de frequência relativa */}
+          {gameState.subStep === 8.6 && (
+            <div className="w-full max-w-[600px] mx-auto flex flex-col gap-xxxs">
+              {/* Definição (sempre visível) */}
+              <div className="rounded-md p-xxs bg-brand-otimath-lightest border-hairline border-brand-otimath-light">
+                <p className="ds-body-bold text-brand-otimath-dark mb-nano">Definição</p>
+                <p className="ds-body text-brand-otimath-dark">
+                  Frequência relativa de um evento é a proporção entre o número de ocorrências do evento e o total de repetições do experimento, podendo ser expressa como fração, número decimal ou porcentagem.
+                </p>
+                <p className="ds-body text-brand-otimath-dark mt-nano">
+                  É a porcentagem de vezes em que um evento ocorreu após determinado número de giros, no caso particular do disco.
+                </p>
+              </div>
+
+              {/* Botão "Li." (só na fase definition) */}
+              {freqRelConceptPhase === 'definition' && (
+                <div className="flex justify-end">
+                  <Button style="primary" size="small" icon={<Check />} onClick={handleFreqRelConceptLi}>Li.</Button>
+                </div>
+              )}
+
+              {/* Exemplo + transição + Continuar (só na fase example) */}
+              {freqRelConceptPhase === 'example' && (
+                <>
+                  <div className="rounded-md p-xxs bg-neutral-white border-hairline border-neutral-light">
+                    <p className="ds-body-bold text-brand-otimath-dark mb-nano">Exemplo</p>
+                    <p className="ds-body text-brand-otimath-dark">
+                      Se uma cor apareceu 3 vezes em {gameState.totalSpins} giros, então:
+                    </p>
+                    <div className="flex items-center justify-center gap-nano mt-nano">
+                      <span className="ds-body-bold text-brand-otimath-pure">3/{gameState.totalSpins}</span>
+                      <span className="ds-body text-neutral-dark">=</span>
+                      <span className="ds-body-bold text-brand-otimath-pure">{(3 / gameState.totalSpins).toFixed(3).replace('.', ',')}</span>
+                      <span className="ds-body text-neutral-dark">≈</span>
+                      <span className="ds-body-bold text-brand-otimath-pure">{((3 / gameState.totalSpins) * 100).toFixed(1).replace('.', ',')}%</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md p-xxs bg-feedback-info-lightest border-hairline border-feedback-info-light">
+                    <p className="ds-body text-brand-otimath-dark">
+                      Agora é a sua vez de calcular as frequências relativas observando a tabela.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleFreqRelConceptContinue}>Continuar</Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Tabela de frequências completa (após giros automáticos, ocultar durante LGN — Etapas 1 e 2) */}
+          {gameState.stage !== 3 && gameState.totalSpins > 0 && gameState.subStep >= 10 && gameState.subStep !== 9 && gameState.subStep !== 15 && (
+            <RouletteTable
+              title="Tabela de Frequências"
+              data={frequencyData}
+              showRelativeFrequency={true}
+              showPercentage={true}
+              showTheoreticalProbability={true}
+              totalSpins={gameState.totalSpins}
+              editable={false}
+            />
+          )}
+
+          {/* Gráfico de frequências relativas (mostrar após giros automáticos, ocultar durante perguntas de interpretação) */}
+          {gameState.totalSpins > 10 && gameState.subStep >= 10 && gameState.subStep !== 15 && !(gameState.subStep === 14 && interpretationPhase !== 'done') && (
+            <RouletteChart
+              title="Frequências Relativas"
+              data={chartData}
+              showTheoreticalProbability={true}
+              sectorCount={gameState.sectors.length}
+            />
+          )}
+
+          {/* ===================== ETAPA 2 — PROBABILIDADE NÃO EQUIPROVÁVEL ===================== */}
+
+          {/* Stage 2 — SubStep 0.15: Botão Sortear (investigação aposta) */}
+          {gameState.stage === 2 && gameState.subStep === 0.15 && experimentacaoState.corApostada && !gameState.isSpinning && (
+            <Button
+              style="primary"
+              size="medium"
+              icon={<Play />}
+              onClick={spinRouletteS2}
+              disabled={disabledSpinButton || gameState.isSpinning}
+            >
+              Sortear
+            </Button>
+          )}
+
+          {/* Stage 2 — SubSteps 0.15/0.16/0.17: Indicador Aposta / Resultado */}
+          {gameState.stage === 2 && (gameState.subStep === 0.15 || gameState.subStep === 0.16 || gameState.subStep === 0.17) && experimentacaoState.corApostada && (
+            <div className="bg-brand-otimath-lightest p-micro rounded-md border border-brand-otimath-light text-center">
+              <p className="ds-small text-brand-otimath-dark">
+                <strong>Aposta:</strong> {experimentacaoState.corApostada}
+                {(gameState.subStep === 0.16 || gameState.subStep === 0.17) && (
+                  <> | <strong>Sorteada:</strong> {experimentacaoState.corRevelada ? experimentacaoState.corSorteadaInterna : '?'}</>
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 0.17: Quadro comparação + botão Continuar */}
+          {gameState.stage === 2 && gameState.subStep === 0.17 && !showInfoBox && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Resultado da Aposta</h3>
+              <div className="flex justify-center gap-x-macro mb-macro">
+                <div className="flex flex-col items-center gap-y-nano">
+                  <span className="ds-caption text-neutral-dark">Aposta</span>
+                  <span
+                    className="inline-block w-8 h-8 rounded-full border-2 border-neutral-dark"
+                    style={{ backgroundColor: ROULETTE_COLORS[experimentacaoState.corApostada || ''] }}
+                  />
+                  <span className="ds-small-bold">{experimentacaoState.corApostada}</span>
+                </div>
+                <div className="flex flex-col items-center gap-y-nano">
+                  <span className="ds-caption text-neutral-dark">Resultado</span>
+                  <span
+                    className="inline-block w-8 h-8 rounded-full border-2 border-neutral-dark"
+                    style={{ backgroundColor: ROULETTE_COLORS[experimentacaoState.corSorteadaInterna || ''] }}
+                  />
+                  <span className="ds-small-bold">{experimentacaoState.corSorteadaInterna}</span>
+                </div>
+              </div>
+              <p className="ds-body text-center mb-macro">
+                {experimentacaoState.corApostada === experimentacaoState.corSorteadaInterna
+                  ? 'Você ganhou a aposta!'
+                  : 'Você não ganhou desta vez.'}
+              </p>
+              <div className="flex justify-center">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<ArrowRight />}
+                  onClick={checkAnswer}
+                >
+                  Continuar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 0.185: Paleta de cores (identificar maior probabilidade) */}
+          {gameState.stage === 2 && gameState.subStep === 0.185 && !showInfoBox && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Qual cor possui a maior chance?</h3>
+              <p className="ds-small text-neutral-dark mb-macro">Clique na cor que você acredita ter a maior probabilidade de ser sorteada.</p>
+              <div className="flex flex-wrap justify-center gap-macro" role="group" aria-label="Paleta de cores">
+                {gameState.sectors.map((sector: { colorName: string }, idx: number) => (
+                  <button
+                    key={idx}
+                    className="flex flex-col items-center gap-y-nano cursor-pointer hover:opacity-80 transition-opacity min-w-[44px] min-h-[44px]"
+                    onClick={() => handleColorPaletteSelect(sector.colorName)}
+                    aria-label={`Selecionar cor ${sector.colorName}`}
+                  >
+                    <span
+                      className="inline-block w-10 h-10 rounded-full border-2 border-neutral-dark"
+                      style={{ backgroundColor: ROULETTE_COLORS[sector.colorName] }}
+                      aria-hidden="true"
+                    />
+                    <span className="ds-small-bold">{sector.colorName}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 0.19: Reflexão conceitual (múltipla escolha F/V) */}
+          {gameState.stage === 2 && gameState.subStep === 0.19 && currentQuestion && !showInfoBox && !gameState.isSpinning && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* Stage 2 — SubStep 2: Espaço amostral (texto) */}
+          {gameState.stage === 2 && gameState.subStep === 2 && (
+            <RouletteQuestion
+              question="Qual o espaço amostral desse experimento aleatório?"
+              type="text"
+              textInput={{
+                ...sampleSpaceInput,
+                placeholder: 'S = {cor1, cor2, ...}',
+                setValue: (val) => setSampleSpaceInput(prev => ({ ...prev, value: val }))
+              }}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* Stage 2 — SubStep 2.1: Quantos elementos (texto numérico) */}
+          {gameState.stage === 2 && gameState.subStep === 2.1 && (
+            <RouletteQuestion
+              question="Quantos elementos possui o espaço amostral desse experimento?"
+              type="text"
+              textInput={{
+                value: sampleSpaceCountInput.value,
+                disabled: false,
+                error: sampleSpaceCountInput.error,
+                placeholder: 'Digite o número',
+                setValue: (val) => setSampleSpaceCountInput({ value: val, disabled: false, error: false })
+              }}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* Stage 2 — SubStep 2.2: Cada setor tem probabilidade 1/k? (Sim/Não) */}
+          {gameState.stage === 2 && gameState.subStep === 2.2 && currentQuestion && (
+            <div className="flex flex-col gap-y-macro">
+              <RouletteQuestion
+                question={currentQuestion.question}
+                type="multiple-choice"
+                options={currentQuestion.options}
+                selectedOption={selectedOption}
+                onOptionSelect={setSelectedOption}
+                onCheck={checkAnswer}
+                disabled={disabledCheckButton}
+                showCheckButton={false}
+              />
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={checkAnswer}
+                disabled={disabledCheckButton || !selectedOption}
+              >
+                Verificar
+              </Button>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 2.3: P(Cor X ou Cor Y) = 2/k? (Sim/Não com cores) */}
+          {gameState.stage === 2 && gameState.subStep === 2.3 && currentQuestion && (
+            <div className="flex flex-col gap-y-macro">
+              <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                <p className="ds-body text-neutral-darkest mb-macro">
+                  A probabilidade de ocorrer um setor de Cor{' '}
+                  <span className="ds-body-bold" style={{ color: ROULETTE_COLORS[s2RandomColors.corX] || '#333' }}>{s2RandomColors.corX}</span>
+                  {' '}ou Cor{' '}
+                  <span className="ds-body-bold" style={{ color: ROULETTE_COLORS[s2RandomColors.corY] || '#333' }}>{s2RandomColors.corY}</span>
+                  {' '}é {2}/{gameState.s2K}?
+                </p>
+                <div className="flex flex-col gap-y-micro">
+                  {currentQuestion.options?.map(opt => (
+                    <label key={opt.value} className={`flex items-center gap-x-micro p-micro rounded-sm border cursor-pointer transition-colors ${selectedOption === opt.value ? 'border-brand-otimath-pure bg-brand-otimath-lightest' : 'border-neutral-lighter hover:bg-neutral-lightest'}`}>
+                      <input
+                        type="radio"
+                        name="q23"
+                        value={opt.value}
+                        checked={selectedOption === opt.value}
+                        onChange={() => setSelectedOption(opt.value)}
+                        className="mt-[1px]"
+                      />
+                      <span className="ds-body">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={checkAnswer}
+                disabled={disabledCheckButton || !selectedOption}
+              >
+                Verificar
+              </Button>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 2.4: Probabilidade Laplaciana (Equiprovável/Não equiprovável + definição) */}
+          {gameState.stage === 2 && gameState.subStep === 2.4 && currentQuestion && (
+            <div className="flex flex-col gap-y-macro">
+              <RouletteQuestion
+                question={currentQuestion.question}
+                type="multiple-choice"
+                options={currentQuestion.options}
+                selectedOption={selectedOption}
+                onOptionSelect={setSelectedOption}
+                onCheck={checkAnswer}
+                disabled={disabledCheckButton}
+                showCheckButton={false}
+              />
+              {selectedOption && (
+                <div
+                  className="bg-feedback-info-lighter p-macro rounded-md border-l-4 border-feedback-info-dark"
+                  style={{ animation: 'alertShow 0.4s ease-out' }}
+                >
+                  <h4 className="ds-body-bold text-feedback-info-darkest mb-micro">Definição</h4>
+                  {selectedOption === 'equiprovavel' ? (
+                    <div className="flex flex-col gap-y-micro">
+                      <p className="ds-small text-neutral-darkest">
+                        Um espaço amostral é <strong>equiprovável</strong> quando cada evento simples tem a mesma chance de ocorrer.
+                      </p>
+                      <p className="ds-small text-neutral-dark italic">
+                        Observe se todos os setores do disco possuem o mesmo tamanho.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-y-micro">
+                      <p className="ds-small text-neutral-darkest">
+                        Um espaço amostral é <strong>não equiprovável</strong> quando os eventos simples possuem probabilidades diferentes.
+                      </p>
+                      <p className="ds-small text-neutral-dark italic">
+                        Note que os setores têm ângulos e áreas distintos, logo alguns resultados são mais prováveis.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={checkAnswer}
+                disabled={disabledCheckButton || !selectedOption}
+              >
+                Verificar
+              </Button>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 3: Razões angulares — progressive disclosure */}
+          {gameState.stage === 2 && gameState.subStep === 3 && (
+            <div className="flex flex-col gap-y-macro">
+
+              {/* Rótulo da unidade (após acertar menor setor) */}
+              {s2RatioPhase !== 'init' && (
+                <div className="bg-feedback-success-lighter p-micro rounded-sm border-l-4 border-feedback-success-dark">
+                  <p className="ds-small-bold text-feedback-success-darkest">Unidade = {gameState.s2M}°</p>
+                </div>
+              )}
+
+              {/* Questão conceitual MC (após identificar menor setor) */}
+              {s2RatioPhase === 'unit_selected' && s2ConceptQuestion && (
+                <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter flex flex-col gap-y-macro">
+                  <p className="ds-body-bold text-brand-otimath-dark">
+                    A área de um setor circular é diretamente proporcional ao seu ângulo central. Logo, a probabilidade de um setor ser sorteado é diretamente proporcional ______ e ______.
+                  </p>
+                  <p className="ds-small text-neutral-dark">As lacunas são corretamente preenchidas por:</p>
+                  <div className="flex flex-col gap-y-micro">
+                    {s2ConceptQuestion.options.map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setS2ConceptSelected(option.value)}
+                        className={`
+                          p-micro rounded-sm border-2 text-left transition-all duration-200
+                          ${s2ConceptSelected === option.value
+                            ? 'border-brand-otimath-pure bg-brand-otimath-lightest'
+                            : 'border-neutral-lighter bg-neutral-white hover:border-brand-otimath-light'
+                          }
+                          cursor-pointer
+                        `}
+                      >
+                        <span className="ds-small">{option.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-start">
+                    <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!s2ConceptSelected}>
+                      Verificar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Pergunta 1: Razão dos ângulos */}
+              {s2RatioPhase === 'ratio_question' && (
+                <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter flex flex-col gap-y-macro">
+                  <p className="ds-body-bold text-brand-otimath-dark">
+                    Quantas vezes o ângulo do setor de cor {s2ReasoningColorY} é maior que o ângulo do menor setor?
+                  </p>
+                  <div className="flex items-center gap-x-micro">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={s2ReasoningInput}
+                      onChange={(e) => setS2ReasoningInput(e.target.value)}
+                      placeholder="Digite o valor"
+                      className="border border-neutral-light rounded-sm p-micro ds-body w-[120px] text-center focus:border-brand-otimath-pure focus:outline-none"
+                    />
+                  </div>
+                  {s2ReasoningShowHint && (
+                    <div className="bg-feedback-warning-lighter p-micro rounded-sm border-l-4 border-feedback-warning-dark">
+                      <p className="ds-small text-feedback-warning-darkest">
+                        Dica: O ângulo do setor {s2ReasoningColorY} é {s2ReasoningAngleY}° e o menor ângulo é {gameState.s2M}°. Divida {s2ReasoningAngleY} por {gameState.s2M}.
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex justify-start">
+                    <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!s2ReasoningInput.trim()}>
+                      Verificar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Pergunta 2: Razão das áreas */}
+              {s2RatioPhase === 'area_question' && (
+                <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter flex flex-col gap-y-macro">
+                  <p className="ds-body-bold text-brand-otimath-dark">
+                    Então a área do setor de cor {s2ReasoningColorY} é quantas vezes a área do menor setor do disco?
+                  </p>
+                  <div className="flex items-center gap-x-micro">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={s2ReasoningInput}
+                      onChange={(e) => setS2ReasoningInput(e.target.value)}
+                      placeholder="Digite o valor"
+                      className="border border-neutral-light rounded-sm p-micro ds-body w-[120px] text-center focus:border-brand-otimath-pure focus:outline-none"
+                    />
+                  </div>
+                  {s2ReasoningShowHint && (
+                    <div className="bg-feedback-warning-lighter p-micro rounded-sm border-l-4 border-feedback-warning-dark">
+                      <p className="ds-small text-feedback-warning-darkest">
+                        Dica: Setores com o mesmo raio têm áreas proporcionais aos ângulos. A razão dos ângulos é {s2ReasoningRatio}.
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex justify-start">
+                    <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!s2ReasoningInput.trim()}>
+                      Verificar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Pergunta 3: Probabilidade */}
+              {s2RatioPhase === 'prob_question' && (
+                <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter flex flex-col gap-y-macro">
+                  <p className="ds-body-bold text-brand-otimath-dark">
+                    Supondo que a probabilidade do setor de menor ângulo seja p, qual é a probabilidade do setor de cor {s2ReasoningColorY} ser sorteado?
+                  </p>
+                  <div className="flex items-center gap-x-micro">
+                    <input
+                      type="text"
+                      value={s2ReasoningInput}
+                      onChange={(e) => setS2ReasoningInput(e.target.value)}
+                      placeholder=""
+                      className="border border-neutral-light rounded-sm p-micro ds-body w-[120px] text-center focus:border-brand-otimath-pure focus:outline-none"
+                    />
+                  </div>
+                  {s2ReasoningShowHint && (
+                    <div className="bg-feedback-warning-lighter p-micro rounded-sm border-l-4 border-feedback-warning-dark">
+                      <p className="ds-small text-feedback-warning-darkest">
+                        Dica: A razão encontrada é {s2ReasoningRatio}. Multiplique p por esse valor.
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex justify-start">
+                    <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!s2ReasoningInput.trim()}>
+                      Verificar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tabela de razões angulares (após responder as 3 perguntas) */}
+              {(s2RatioPhase === 'question_correct' || s2RatioPhase === 'table_checked') && Object.keys(s2RatioInputs).length > 0 && (
+                <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                  <p className="ds-small text-neutral-dark italic mb-micro">
+                    Perceba que todos os cálculos utilizam a mesma unidade angular.
+                  </p>
+                  <p className="ds-small text-neutral-dark mb-micro">
+                    Quantas unidades de {gameState.s2M}° cabem em cada setor?
+                  </p>
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-brand-otimath-pure text-neutral-white">
+                        <th className="p-micro text-left ds-small-bold">Cor</th>
+                        <th className="p-micro text-center ds-small-bold">Ângulo</th>
+                        <th className="p-micro text-center ds-small-bold">Número de unidades</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gameState.sectors.map((sector, idx) => {
+                        const colorHex = ROULETTE_COLORS[sector.colorName] || '#6c6c6c';
+                        const input = s2RatioInputs[sector.colorName];
+                        return (
+                          <tr key={idx} className="border-b border-neutral-lighter">
+                            <td className="p-micro">
+                              <div className="flex items-center gap-x-micro">
+                                <div className="w-[20px] h-[20px] rounded-sm border border-neutral-dark" style={{ backgroundColor: colorHex }} />
+                                <span className="ds-small">{sector.colorName}</span>
+                              </div>
+                            </td>
+                            <td className="p-micro text-center ds-small">{gameState.s2Angles[idx]}°</td>
+                            <td className="p-micro text-center">
+                              {input?.disabled && input?.value ? (
+                                <span className="ds-small-bold text-feedback-success-dark">{input.value}</span>
+                              ) : (
+                                <TextInput
+                                  textInput={{
+                                    ...input,
+                                    styles: `w-[60px] h-[32px] text-center ds-small`,
+                                    placeholder: 'ex.: 2',
+                                    type: 'natural-number',
+                                  }}
+                                />
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="mt-micro flex gap-x-micro justify-center">
+                    {!s2TableAllCorrect && (
+                      <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer}>
+                        Verificar
+                      </Button>
+                    )}
+                    {s2TableAllCorrect && (
+                      <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleRatioTableContinue}>
+                        Continuar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 4: Probabilidades i·p (TPACK enhanced) */}
+          {gameState.stage === 2 && gameState.subStep === 4 && (
+            <div className="flex flex-col gap-y-macro">
+              {/* Phase: sum_question — pergunta sobre soma das probabilidades */}
+              {s2IxPhase === 'sum_question' && (
+                <RouletteQuestion
+                  question="Estamos atribuindo probabilidades a todos os setores do disco.<br/>O que deve acontecer quando somamos as probabilidades de todos os setores?"
+                  type="multiple-choice"
+                  options={[
+                    { value: 'deve_dar_1', label: 'Deve dar 1, que é a probabilidade do evento certo.' },
+                    { value: 'maior_valor', label: 'Deve dar o maior valor.' },
+                    { value: 'depende_cor', label: 'Depende da cor.' }
+                  ]}
+                  selectedOption={s2IxSumSelected}
+                  onOptionSelect={(v) => setS2IxSumSelected(v)}
+                  onCheck={checkAnswer}
+                  showCheckButton={!!s2IxSumSelected}
+                />
+              )}
+
+              {/* Phase: filling_table, guided_calc — tabela + cálculo guiado */}
+              {(s2IxPhase === 'filling_table' || s2IxPhase === 'guided_calc') && Object.keys(s2IxInputs).length > 0 && (
+                <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                  <h3 className="ds-body-bold text-brand-otimath-pure mb-nano">Distribuindo a probabilidade entre todos os setores</h3>
+                  <p className="ds-small text-neutral-dark mb-macro">Cada setor recebe uma quantidade proporcional à sua área. Seja p a probabilidade do setor de menor ângulo central ser sorteado. Vamos determinar o valor de p. Atribua probabilidades a cada setor na tabela em função de p.</p>
+
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-brand-otimath-pure text-neutral-white">
+                        <th className="p-micro text-left ds-small-bold">Cor</th>
+                        <th className="p-micro text-center ds-small-bold">Razão (i)</th>
+                        <th className="p-micro text-center ds-small-bold">P(cor) = i·p</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gameState.sectors.map((sector, idx) => (
+                        <tr key={idx} className="border-b border-neutral-lighter">
+                          <td className="p-micro">
+                            <div className="flex items-center gap-x-micro">
+                              <div className="w-[20px] h-[20px] rounded-sm border border-neutral-dark" style={{ backgroundColor: ROULETTE_COLORS[sector.colorName] || '#6c6c6c' }} />
+                              <span className="ds-small">{sector.colorName}</span>
+                            </div>
+                          </td>
+                          <td className="p-micro text-center ds-small-bold">{gameState.s2Ki[idx]}</td>
+                          <td className="p-micro text-center">
+                            {s2IxInputs[sector.colorName]?.disabled && s2IxInputs[sector.colorName]?.value ? (
+                              <span className="ds-small-bold text-feedback-success-dark">{s2IxInputs[sector.colorName].value}</span>
+                            ) : (
+                              <TextInput
+                                textInput={{
+                                  ...s2IxInputs[sector.colorName],
+                                  styles: 'w-[70px] h-[32px] text-center ds-small',
+                                  placeholder: '?p',
+                                }}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Linha da soma das probabilidades */}
+                      <tr className="border-t-2 border-brand-otimath-pure bg-neutral-lightest">
+                        <td className="p-micro" colSpan={2}>
+                          <span className="ds-small-bold text-neutral-darkest">Soma das probabilidades</span>
+                        </td>
+                        <td className="p-micro text-center">
+                          {s2SumEquationInput.disabled && s2SumEquationInput.value ? (
+                            <span className="ds-small-bold text-feedback-success-dark">{s2SumEquationInput.value}</span>
+                          ) : s2SumEquationInput.disabled ? (
+                            <span className="ds-small text-neutral-light">—</span>
+                          ) : (
+                            <TextInput
+                              textInput={{
+                                ...s2SumEquationInput,
+                                styles: 'w-[70px] h-[32px] text-center ds-small',
+                                placeholder: '?',
+                              }}
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Cálculo guiado passo a passo (aparece após digitar 1 na soma) */}
+                  {s2IxPhase === 'guided_calc' && (
+                    <div className="mt-macro p-macro bg-feedback-info-lighter rounded-sm border border-feedback-info-light">
+                      {/* Step 0: equação expandida */}
+                      {s2IxCalcStep === 0 && (
+                        <p className="ds-body text-neutral-darkest">
+                          {gameState.s2Ki.map(ki => `${ki}p`).join(' + ')} = 1
+                        </p>
+                      )}
+
+                      {/* Step 1: simplificação */}
+                      {s2IxCalcStep === 1 && (
+                        <p className="ds-body text-neutral-darkest">
+                          {gameState.s2SumI}p = 1
+                        </p>
+                      )}
+
+                      {/* Step 2: resolução + conclusão */}
+                      {s2IxCalcStep >= 2 && (
+                        <>
+                          <p className="ds-body-bold text-brand-otimath-dark">
+                            p = 1/{gameState.s2SumI}
+                          </p>
+                          <p className="ds-small text-feedback-success-darkest mt-micro italic">
+                            Assim, a probabilidade do menor setor ser sorteado é p = 1/{gameState.s2SumI}.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Botões */}
+                  <div className="mt-micro flex justify-center gap-x-macro">
+                    {s2IxPhase === 'filling_table' && (
+                      <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                        Verificar
+                      </Button>
+                    )}
+                    {s2IxPhase === 'guided_calc' && s2IxCalcStep < 2 && (
+                      <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleIxCalcNext}>
+                        Próximo
+                      </Button>
+                    )}
+                    {s2IxPhase === 'guided_calc' && s2IxCalcStep >= 2 && (
+                      <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleIxCalcNext}>
+                        Continuar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 5: Equação da soma = ? */}
+          {gameState.stage === 2 && gameState.subStep === 5 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Equação da Soma</h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                {gameState.s2Ki.map(ki => `${ki}x`).join(' + ')} = ?
+              </p>
+              <div className="flex items-center gap-x-macro justify-center">
+                <TextInput
+                  textInput={{
+                    ...s2SumEquationInput,
+                    placeholder: '?',
+                    styles: 'w-[100px] text-center',
+                  }}
+                />
+              </div>
+              <div className="mt-macro flex justify-center">
+                <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                  Verificar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 5.2: Determinar x */}
+          {gameState.stage === 2 && gameState.subStep === 5.2 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Determinar x</h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                {gameState.s2Ki.map(ki => `${ki}x`).join(' + ')} = 1
+              </p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                {gameState.s2SumI}x = 1 &rarr; x = ?
+              </p>
+              <div className="flex items-center gap-x-macro justify-center">
+                <TextInput
+                  textInput={{
+                    ...s2XInput,
+                    placeholder: 'a/b',
+                    styles: 'w-[100px] text-center',
+                  }}
+                />
+              </div>
+              <div className="mt-macro flex justify-center">
+                <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                  Verificar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 6: Probabilidades numéricas i·p (campo a campo) */}
+          {gameState.stage === 2 && gameState.subStep === 6 && Object.keys(s2NumProbInputs).length > 0 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Probabilidades Numéricas (p = 1/{gameState.s2SumI})</h3>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-brand-otimath-pure text-neutral-white">
+                    <th className="p-micro text-left ds-small-bold">Cor</th>
+                    <th className="p-micro text-center ds-small-bold">i·p</th>
+                    <th className="p-micro text-center ds-small-bold">P(cor)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gameState.sectors.map((sector, idx) => (
+                    <tr key={idx} className="border-b border-neutral-lighter">
+                      <td className="p-micro">
+                        <div className="flex items-center gap-x-micro">
+                          <div className="w-[20px] h-[20px] rounded-sm border border-neutral-dark" style={{ backgroundColor: ROULETTE_COLORS[sector.colorName] || '#6c6c6c' }} />
+                          <span className="ds-small">{sector.colorName}</span>
+                        </div>
+                      </td>
+                      <td className="p-micro text-center ds-small-bold">{gameState.s2Ki[idx]}p</td>
+                      <td className="p-micro text-center">
+                        {s2NumProbInputs[sector.colorName]?.disabled && s2NumProbInputs[sector.colorName]?.value ? (
+                          <span className="ds-small-bold text-feedback-success-dark">{s2NumProbInputs[sector.colorName].value}</span>
+                        ) : (
+                          <TextInput
+                            textInput={{
+                              ...s2NumProbInputs[sector.colorName],
+                              styles: 'w-[80px] h-[32px] text-center ds-small',
+                              placeholder: 'a/b',
+                            }}
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-micro flex justify-center">
+                <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                  Verificar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — Fase de Treinos (Treino 1-4) */}
+          {gameState.stage === 2 && trainingState.active && (
+            <div className="flex flex-col gap-y-macro">
+              {/* Header do treino */}
+              <div className="bg-brand-otimath-lightest p-micro rounded-sm border-l-4 border-brand-otimath-pure">
+                <p className="ds-small-bold text-brand-otimath-dark">
+                  Treino {trainingState.currentTraining} de 4
+                </p>
+                <p className="ds-small text-neutral-dark">
+                  Girando-se o disco abaixo ao acaso, determine a probabilidade de o ponteiro indicar cada uma das cores do disco.
+                </p>
+              </div>
+
+              {/* Phase: identify_sector */}
+              {trainingState.phase === 'identify_sector' && (
+                <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                  <p className="ds-body-bold text-brand-otimath-dark">
+                    Clique no setor com o menor ângulo central.
+                  </p>
+                </div>
+              )}
+
+              {/* Phase: fill_ratios */}
+              {trainingState.phase === 'fill_ratios' && Object.keys(trainRatioInputs).length > 0 && (
+                <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                  <h3 className="ds-body-bold text-brand-otimath-pure mb-nano">Divida todos os ângulos pelo menor</h3>
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-brand-otimath-pure text-neutral-white">
+                        <th className="p-micro text-left ds-small-bold">Cor</th>
+                        <th className="p-micro text-center ds-small-bold">Ângulo</th>
+                        <th className="p-micro text-center ds-small-bold">Razão (i)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trainingState.sectors.map((sector, idx) => (
+                        <tr key={idx} className="border-b border-neutral-lighter">
+                          <td className="p-micro">
+                            <div className="flex items-center gap-x-micro">
+                              <div className="w-[20px] h-[20px] rounded-sm border border-neutral-dark" style={{ backgroundColor: ROULETTE_COLORS[sector.colorName] || '#6c6c6c' }} />
+                              <span className="ds-small">{sector.colorName}</span>
+                            </div>
+                          </td>
+                          <td className="p-micro text-center ds-small">{trainingState.angles[idx]}°</td>
+                          <td className="p-micro text-center">
+                            {trainRatioInputs[sector.colorName]?.disabled && trainRatioInputs[sector.colorName]?.value ? (
+                              <span className="ds-small-bold text-feedback-success-dark">{trainRatioInputs[sector.colorName].value}</span>
+                            ) : (
+                              <TextInput
+                                textInput={{
+                                  ...trainRatioInputs[sector.colorName],
+                                  styles: 'w-[70px] h-[32px] text-center ds-small',
+                                  placeholder: '?',
+                                }}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="mt-micro flex justify-center">
+                    <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                      Verificar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Phase: fill_ip + fill_sum + guided_calc */}
+              {(trainingState.phase === 'fill_ip' || trainingState.phase === 'fill_sum' || trainingState.phase === 'guided_calc') && Object.keys(trainIxInputs).length > 0 && (
+                <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                  <h3 className="ds-body-bold text-brand-otimath-pure mb-nano">Probabilidades em função de p</h3>
+                  <p className="ds-small text-neutral-dark mb-macro">Seja p a probabilidade do setor de menor ângulo central ser sorteado. Atribua probabilidades a cada setor na tabela em função de p.</p>
+
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-brand-otimath-pure text-neutral-white">
+                        <th className="p-micro text-left ds-small-bold">Cor</th>
+                        <th className="p-micro text-center ds-small-bold">Razão (i)</th>
+                        <th className="p-micro text-center ds-small-bold">P(cor) = i·p</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trainingState.sectors.map((sector, idx) => (
+                        <tr key={idx} className="border-b border-neutral-lighter">
+                          <td className="p-micro">
+                            <div className="flex items-center gap-x-micro">
+                              <div className="w-[20px] h-[20px] rounded-sm border border-neutral-dark" style={{ backgroundColor: ROULETTE_COLORS[sector.colorName] || '#6c6c6c' }} />
+                              <span className="ds-small">{sector.colorName}</span>
+                            </div>
+                          </td>
+                          <td className="p-micro text-center ds-small-bold">{trainingState.ki[idx]}</td>
+                          <td className="p-micro text-center">
+                            {trainIxInputs[sector.colorName]?.disabled && trainIxInputs[sector.colorName]?.value ? (
+                              <span className="ds-small-bold text-feedback-success-dark">{trainIxInputs[sector.colorName].value}</span>
+                            ) : (
+                              <TextInput
+                                textInput={{
+                                  ...trainIxInputs[sector.colorName],
+                                  styles: 'w-[70px] h-[32px] text-center ds-small',
+                                  placeholder: '?p',
+                                }}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Linha da soma das probabilidades */}
+                      <tr className="border-t-2 border-brand-otimath-pure bg-neutral-lightest">
+                        <td className="p-micro" colSpan={2}>
+                          <span className="ds-small-bold text-neutral-darkest">Soma das probabilidades</span>
+                        </td>
+                        <td className="p-micro text-center">
+                          {trainSumInput.disabled && trainSumInput.value ? (
+                            <span className="ds-small-bold text-feedback-success-dark">{trainSumInput.value}</span>
+                          ) : trainSumInput.disabled ? (
+                            <span className="ds-small text-neutral-light">—</span>
+                          ) : (
+                            <TextInput
+                              textInput={{
+                                ...trainSumInput,
+                                styles: 'w-[70px] h-[32px] text-center ds-small',
+                                placeholder: '?',
+                              }}
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Cálculo guiado passo a passo */}
+                  {trainingState.phase === 'guided_calc' && (
+                    <div className="mt-macro p-macro bg-feedback-info-lighter rounded-sm border border-feedback-info-light">
+                      {trainingState.calcStep === 0 && (
+                        <p className="ds-body text-neutral-darkest">
+                          {trainingState.ki.map(ki => `${ki}p`).join(' + ')} = 1
+                        </p>
+                      )}
+                      {trainingState.calcStep === 1 && (
+                        <p className="ds-body text-neutral-darkest">
+                          {trainingState.S}p = 1
+                        </p>
+                      )}
+                      {trainingState.calcStep >= 2 && (
+                        <>
+                          <p className="ds-body-bold text-brand-otimath-dark">
+                            p = 1/{trainingState.S}
+                          </p>
+                          <p className="ds-small text-feedback-success-darkest mt-micro italic">
+                            Assim, a probabilidade do menor setor ser sorteado é p = 1/{trainingState.S}.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Botões */}
+                  <div className="mt-micro flex justify-center gap-x-macro">
+                    {(trainingState.phase === 'fill_ip' || trainingState.phase === 'fill_sum') && (
+                      <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                        Verificar
+                      </Button>
+                    )}
+                    {trainingState.phase === 'guided_calc' && trainingState.calcStep < 2 && (
+                      <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleTrainingCalcNext}>
+                        Próximo
+                      </Button>
+                    )}
+                    {trainingState.phase === 'guided_calc' && trainingState.calcStep >= 2 && (
+                      <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleTrainingCalcNext}>
+                        Continuar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Phase: fill_prob — Probabilidades numéricas */}
+              {trainingState.phase === 'fill_prob' && Object.keys(trainProbInputs).length > 0 && (
+                <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                  <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Probabilidades Numéricas (p = 1/{trainingState.S})</h3>
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-brand-otimath-pure text-neutral-white">
+                        <th className="p-micro text-left ds-small-bold">Cor</th>
+                        <th className="p-micro text-center ds-small-bold">i·p</th>
+                        <th className="p-micro text-center ds-small-bold">P(cor)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trainingState.sectors.map((sector, idx) => (
+                        <tr key={idx} className="border-b border-neutral-lighter">
+                          <td className="p-micro">
+                            <div className="flex items-center gap-x-micro">
+                              <div className="w-[20px] h-[20px] rounded-sm border border-neutral-dark" style={{ backgroundColor: ROULETTE_COLORS[sector.colorName] || '#6c6c6c' }} />
+                              <span className="ds-small">{sector.colorName}</span>
+                            </div>
+                          </td>
+                          <td className="p-micro text-center ds-small-bold">{trainingState.ki[idx]}p</td>
+                          <td className="p-micro text-center">
+                            {trainProbInputs[sector.colorName]?.disabled && trainProbInputs[sector.colorName]?.value ? (
+                              <span className="ds-small-bold text-feedback-success-dark">{trainProbInputs[sector.colorName].value}</span>
+                            ) : (
+                              <TextInput
+                                textInput={{
+                                  ...trainProbInputs[sector.colorName],
+                                  styles: 'w-[80px] h-[32px] text-center ds-small',
+                                  placeholder: 'a/b',
+                                }}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="mt-micro flex justify-center">
+                    <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                      Verificar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Phase: completed */}
+              {trainingState.phase === 'completed' && (
+                <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-light">
+                  <p className="ds-body-bold text-feedback-success-darkest mb-macro">
+                    Treino {trainingState.currentTraining} concluído!
+                  </p>
+                  <div className="flex gap-x-macro justify-center">
+                    <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleTrainingNext}>
+                      Próximo
+                    </Button>
+                    {trainingState.currentTraining < 4 && (
+                      <Button style="secondary" size="small" onClick={handleTrainingContinue}>
+                        Continuar Treino
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Stage 2 — Giros Reflexivos (subSteps 6.201-6.205) */}
+          {gameState.stage === 2 && gameState.subStep === 6.201 && s2SpinReflection.phase === 'betting' && (
+            <div className="flex flex-col gap-y-macro">
+              <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                <p className="ds-body-bold text-brand-otimath-dark mb-micro">Primeiro giro</p>
+                <p className="ds-body text-neutral-dark">Clique no setor da cor em que deseja apostar.</p>
+              </div>
+            </div>
+          )}
+          {gameState.stage === 2 && gameState.subStep === 6.201 && s2SpinReflection.phase === 'spinning' && (
+            <div className="flex flex-col gap-y-macro">
+              <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                <p className="ds-body-bold text-brand-otimath-dark mb-micro">Primeiro giro</p>
+                <p className="ds-body text-neutral-dark">
+                  Você apostou em <span className="ds-body-bold" style={{ color: ROULETTE_COLORS[s2SpinReflection.bet1Color] || '#333' }}>{s2SpinReflection.bet1Color}</span>. Agora clique em <strong>Sortear</strong> para girar o disco.
+                </p>
+              </div>
+            </div>
+          )}
+          {gameState.stage === 2 && gameState.subStep === 6.202 && !gameState.isSpinning && (
+            <div className="flex flex-col gap-y-macro">
+              <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                <p className="ds-body-bold text-brand-otimath-dark mb-micro">
+                  Foi sorteada a cor <span style={{ color: ROULETTE_COLORS[s2SpinReflection.spin1Color] || '#333' }}>{s2SpinReflection.spin1Color}</span>.
+                </p>
+                <p className="ds-body text-neutral-dark mb-macro">Se você fosse apostar novamente, o que faria?</p>
+                <div className="flex flex-col gap-y-micro">
+                  {[
+                    { value: 'apostar_mesma', label: 'Apostaria nela porque ela acabou de ser sorteada.' },
+                    { value: 'nao_apostar', label: 'Não apostaria nela, pois ela já foi sorteada e não poderá ser sorteada novamente em duas vezes consecutivas.' },
+                    { value: 'apostar_outra', label: 'Apostaria em outra cor, pois ainda não foi sorteada.' },
+                    { value: 'maior_setor', label: 'Sempre apostaria na cor do setor de maior ângulo central.' },
+                  ].map(opt => (
+                    <label key={opt.value} className={`flex items-start gap-x-micro p-micro rounded-sm border cursor-pointer transition-colors ${s2SpinReflection.selectedOption === opt.value ? 'border-brand-otimath-pure bg-brand-otimath-lightest' : 'border-neutral-lighter hover:bg-neutral-lightest'}`}>
+                      <input
+                        type="radio"
+                        name="spin1_question"
+                        value={opt.value}
+                        checked={s2SpinReflection.selectedOption === opt.value}
+                        onChange={() => handleReflectionOptionChange(opt.value)}
+                        className="mt-[3px]"
+                      />
+                      <span className="ds-small">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {s2SpinReflection.betConstraint === 'not_same' && !s2SpinReflection.bet2Color && (
+                  <p className="ds-small text-brand-otimath-dark mt-micro animate-pulse text-center">
+                    Clique no setor da cor em que deseja apostar (exceto {s2SpinReflection.spin1Color}).
+                  </p>
+                )}
+                {s2SpinReflection.bet2Color && (
+                  <p className="ds-small text-neutral-dark mt-micro text-center">
+                    Aposta em <span className="ds-small-bold" style={{ color: ROULETTE_COLORS[s2SpinReflection.bet2Color] || '#333' }}>{s2SpinReflection.bet2Color}</span>. Clique em <strong>Sortear</strong>.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {gameState.stage === 2 && gameState.subStep === 6.204 && (
+            <div className="flex flex-col gap-y-macro">
+              <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                <p className="ds-body-bold text-brand-otimath-dark mb-micro">
+                  Foi sorteada a cor <span style={{ color: ROULETTE_COLORS[s2SpinReflection.spin2Color] || '#333' }}>{s2SpinReflection.spin2Color}</span>.
+                </p>
+                <p className="ds-body text-neutral-dark mb-macro">Se você fosse apostar novamente, o que faria?</p>
+                <div className="flex flex-col gap-y-micro">
+                  {[
+                    { value: 'apostar_mesma', label: 'Apostaria nela porque ela acabou de ser sorteada.' },
+                    { value: 'nao_apostar', label: 'Não apostaria nela, pois ela já foi sorteada e não poderá ser sorteada novamente em duas vezes consecutivas.' },
+                    { value: 'apostar_outra', label: 'Apostaria em outra cor, pois ainda não foi sorteada.' },
+                    { value: 'maior_setor', label: 'Sempre apostaria na cor do setor de maior ângulo central.' },
+                  ].map(opt => (
+                    <label key={opt.value} className={`flex items-start gap-x-micro p-micro rounded-sm border cursor-pointer transition-colors ${s2SpinReflection.selectedOption === opt.value ? 'border-brand-otimath-pure bg-brand-otimath-lightest' : 'border-neutral-lighter hover:bg-neutral-lightest'}`}>
+                      <input
+                        type="radio"
+                        name="spin2_question"
+                        value={opt.value}
+                        checked={s2SpinReflection.selectedOption === opt.value}
+                        onChange={() => setS2SpinReflection(prev => ({ ...prev, selectedOption: opt.value }))}
+                        className="mt-[3px]"
+                      />
+                      <span className="ds-small">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-macro flex justify-center">
+                  <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!s2SpinReflection.selectedOption}>
+                    Responder
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {gameState.stage === 2 && gameState.subStep === 6.205 && (
+            <div className="flex flex-col gap-y-macro">
+              <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">Suas decisões</h3>
+
+                <div className="flex flex-col gap-y-micro mb-macro">
+                  <div className="p-micro rounded-sm bg-neutral-lightest border border-neutral-lighter">
+                    <p className="ds-small-bold text-neutral-darkest">Tentativa 1:</p>
+                    <p className="ds-small text-neutral-dark">
+                      {s2SpinReflection.resposta1 === 'maior_setor'
+                        ? '→ Considerou o tamanho do setor.'
+                        : '→ Não considerou o tamanho do setor.'}
+                    </p>
+                  </div>
+                  <div className="p-micro rounded-sm bg-neutral-lightest border border-neutral-lighter">
+                    <p className="ds-small-bold text-neutral-darkest">Tentativa 2:</p>
+                    <p className="ds-small text-neutral-dark">
+                      {s2SpinReflection.resposta2 === 'maior_setor'
+                        ? '→ Considerou o tamanho do setor.'
+                        : '→ Não considerou o tamanho do setor.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-macro bg-feedback-info-lighter rounded-sm border border-feedback-info-light mb-macro">
+                  <p className="ds-small text-neutral-darkest">
+                    Em um disco, setores maiores possuem maior área e, portanto, maior probabilidade de serem sorteados.
+                  </p>
+                  <p className="ds-small text-neutral-darkest mt-micro">
+                    A probabilidade está diretamente relacionada ao tamanho do setor, e não ao resultado anterior.
+                  </p>
+                </div>
+
+                <div className="flex justify-center">
+                  <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleSpinReflectionContinue}>
+                    Vamos calcular as probabilidades
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 7: Leitura progressiva + Probabilidade angular θ/360 */}
+          {gameState.stage === 2 && gameState.subStep === 7 && s2AngleReadingStep >= 0 && s2AngleReadingStep <= 3 && (
+            <div
+              className="bg-neutral-white p-macro rounded-md border-l-4 border-brand-otimath-dark shadow-sm w-full max-w-[480px] mx-auto"
+              style={{ animation: 'alertShow 0.4s ease-out' }}
+            >
+              <p className="ds-body text-brand-otimath-dark leading-relaxed">
+                {s2AngleReadingStep === 0 && (<>O disco representa todos os resultados possíveis do experimento.<br />Por isso, a probabilidade de o ponteiro parar em algum setor é <strong>1</strong>.</>)}
+                {s2AngleReadingStep === 1 && (<>Observe que cada setor ocupa uma parte do disco e que quanto maior o ângulo central do setor, maior é a sua área.</>)}
+                {s2AngleReadingStep === 2 && (<>Como as probabilidades são proporcionais às áreas, podemos comparar cada setor com o disco completo.</>)}
+                {s2AngleReadingStep === 3 && (<>Assim, para calcular a probabilidade de um setor ser sorteado, basta dividir a medida do seu ângulo central por <strong>360°</strong>, que é o ângulo total do disco.</>)}
+              </p>
+              <div className="mt-macro flex justify-end">
+                <Button style="primary" size="small" onClick={handleAngleReadingNext}>
+                  Li.
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 7: Pergunta de ativação cognitiva (90°) */}
+          {gameState.stage === 2 && gameState.subStep === 7 && s2AngleReadingStep === 4 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter" style={{ animation: 'alertShow 0.4s ease-out' }}>
+              <p className="ds-body text-neutral-darkest mb-macro">Se um setor mede 90°, qual fração do disco ele representa?</p>
+              <div className="flex flex-col gap-y-micro">
+                {[
+                  { value: '90/360', label: '90/360' },
+                  { value: '1/90', label: '1/90' },
+                  { value: '360/90', label: '360/90' },
+                ].map(opt => (
+                  <label key={opt.value} className={`flex items-center gap-x-micro p-micro rounded-sm border cursor-pointer transition-colors ${selectedOption === opt.value ? 'border-brand-otimath-pure bg-brand-otimath-lightest' : 'border-neutral-lighter hover:bg-neutral-lightest'}`}>
+                    <input
+                      type="radio"
+                      name="q90"
+                      value={opt.value}
+                      checked={selectedOption === opt.value}
+                      onChange={() => setSelectedOption(opt.value)}
+                      className="mt-[1px]"
+                    />
+                    <span className="ds-body">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="mt-macro flex justify-center">
+                <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!selectedOption}>
+                  Verificar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 7: Tabela θ/360 (após leitura progressiva) */}
+          {gameState.stage === 2 && gameState.subStep === 7 && s2AngleReadingStep >= 5 && Object.keys(s2AngleProbInputs).length > 0 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Probabilidade Angular (θ/360)</h3>
+              <p className="ds-small text-neutral-dark mb-micro">Estamos comparando cada setor com o disco completo (360°).</p>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-brand-otimath-pure text-neutral-white">
+                    <th className="p-micro text-left ds-small-bold">Cor</th>
+                    <th className="p-micro text-center ds-small-bold">θ</th>
+                    <th className="p-micro text-center ds-small-bold">θ/360</th>
+                    <th className="p-micro text-center ds-small-bold">Decimal</th>
+                    <th className="p-micro text-center ds-small-bold">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gameState.sectors.map((sector, idx) => (
+                    <tr key={idx} className="border-b border-neutral-lighter">
+                      <td className="p-micro">
+                        <div className="flex items-center gap-x-micro">
+                          <div className="w-[20px] h-[20px] rounded-sm border border-neutral-dark" style={{ backgroundColor: ROULETTE_COLORS[sector.colorName] || '#6c6c6c' }} />
+                          <span className="ds-small">{sector.colorName}</span>
+                        </div>
+                      </td>
+                      <td className="p-micro text-center ds-small">{gameState.s2Angles[idx]}°</td>
+                      <td className="p-micro text-center">
+                        {s2AngleProbInputs[sector.colorName]?.disabled && s2AngleProbInputs[sector.colorName]?.value ? (
+                          <span className="ds-small-bold text-feedback-success-dark">{s2AngleProbInputs[sector.colorName].value}</span>
+                        ) : (
+                          <TextInput
+                            textInput={{
+                              ...s2AngleProbInputs[sector.colorName],
+                              styles: 'w-[80px] h-[32px] text-center ds-small',
+                              placeholder: 'a/b',
+                            }}
+                          />
+                        )}
+                      </td>
+                      <td className="p-micro text-center ds-small">
+                        {gameState.s2AngleProbDecimals[idx] || '-'}
+                      </td>
+                      <td className="p-micro text-center ds-small">
+                        {gameState.s2AngleProbPercents[idx] || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-micro flex justify-center">
+                <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                  Verificar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 8: Treinos de Fração θ/360 */}
+          {gameState.stage === 2 && gameState.subStep === 8 && fracTraining.currentTraining > 0 && (
+            <div className="flex flex-col gap-y-macro">
+              {/* Título */}
+              <h3 className="ds-body-bold text-brand-otimath-pure">
+                Frequência Relativa e Probabilidade
+              </h3>
+
+              {/* Barra de progresso + Indicador do treino */}
+              <div className="bg-brand-otimath-lightest p-micro rounded-sm border-l-4 border-brand-otimath-pure">
+                <div className="flex items-center justify-between mb-nano">
+                  <p className="ds-small-bold text-brand-otimath-dark">
+                    Treino {fracTraining.currentTraining} de 5
+                    {fracTraining.completedCount >= 2 && fracTraining.currentTraining > 2 && (
+                      <span className="text-neutral-dark ds-caption ml-nano">(opcional)</span>
+                    )}
+                  </p>
+                  <span className="ds-caption text-brand-otimath-medium">
+                    {fracTraining.completedCount}/5 concluídos
+                  </span>
+                </div>
+                <div className="w-full h-[6px] bg-neutral-lighter rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-brand-otimath-pure rounded-full transition-all duration-500"
+                    style={{ width: `${(fracTraining.completedCount / 5) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Enunciado */}
+              <p className="ds-small text-neutral-dark leading-relaxed">
+                Ao girar o disco ao acaso um número muito grande de vezes (superior a 1 bilhão), determine a probabilidade de cada cor, isto é, o valor para o qual tende a frequência relativa.
+              </p>
+
+              {/* Lembre (regra conceitual) */}
+              <div className="bg-feedback-info-lighter px-micro py-nano rounded-sm border-l-4 border-feedback-info-dark">
+                <p className="ds-small text-neutral-darkest">
+                  <strong>Lembre:</strong> A frequência relativa indica a proporção de vezes em que um resultado ocorre e, quando o experimento é repetido muitas vezes, tende à probabilidade do evento.
+                </p>
+              </div>
+
+              {/* Tabela: Cor | Fração (θ/360) | Percentual | Status */}
+              <div className="bg-neutral-white rounded-md border border-neutral-lighter overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-brand-otimath-pure text-neutral-white">
+                      <th className="p-micro text-left ds-small-bold">Cor</th>
+                      <th className="p-micro text-center ds-small-bold">Fração (θ/360)</th>
+                      <th className="p-micro text-center ds-small-bold">Percentual</th>
+                      <th className="p-micro text-center ds-small-bold w-[40px]"><span className="hidden">Header de marcação</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fracTraining.colors.map((color, idx) => {
+                      const thetaInp = fracThetaInputs[color];
+                      if (!thetaInp) return null;
+                      const angle = fracTraining.angles[idx];
+                      const pct = ((angle / 360) * 100);
+                      const pctStr = Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(2).replace(/\.?0+$/, '')}%`;
+                      return (
+                        <tr key={idx} className={`border-b border-neutral-lighter transition-colors duration-300 ${thetaInp.status === 'correct' ? 'bg-feedback-success-lighter/40' : ''}`}>
+                          {/* Cor */}
+                          <td className="p-micro">
+                            <div className="flex items-center gap-x-micro">
+                              <div className="w-[20px] h-[20px] rounded-full border-2 border-neutral-light shadow-sm"
+                                   style={{ backgroundColor: ROULETTE_COLORS[color] || '#6c6c6c' }} />
+                              <span className="ds-small-bold text-neutral-darkest">{color}</span>
+                            </div>
+                          </td>
+                          {/* Fração θ/360 — input do aluno */}
+                          <td className="p-micro text-center">
+                            <div className="flex flex-col items-center gap-y-nano">
+                              {thetaInp.status === 'correct' ? (
+                                <span className="ds-small-bold text-feedback-success-dark">{thetaInp.value}</span>
+                              ) : (
+                                <TextInput textInput={{
+                                  value: thetaInp.value,
+                                  error: thetaInp.error,
+                                  disabled: false,
+                                  styles: 'w-[90px] h-[32px] text-center ds-small',
+                                  placeholder: 'θ/360',
+                                  setValue: (val: string) => {
+                                    setFracThetaInputs(prev => ({
+                                      ...prev,
+                                      [color]: { ...prev[color], value: val, error: false, errorMsg: '' }
+                                    }));
+                                  }
+                                }} />
+                              )}
+                              {thetaInp.error && thetaInp.errorMsg && (
+                                <span className="ds-caption text-feedback-error-dark leading-tight">{thetaInp.errorMsg}</span>
+                              )}
+                            </div>
+                          </td>
+                          {/* Percentual — auto-preenchido quando θ/360 está correto */}
+                          <td className="p-micro text-center">
+                            {thetaInp.status === 'correct' ? (
+                              <span className="ds-small-bold text-brand-otimath-dark">{pctStr}</span>
+                            ) : (
+                              <span className="ds-small text-neutral-light">—</span>
+                            )}
+                          </td>
+                          {/* Status */}
+                          <td className="p-micro text-center">
+                            {thetaInp.status === 'correct' ? (
+                              <Check className="w-[18px] h-[18px] text-feedback-success-dark mx-auto" />
+                            ) : thetaInp.error ? (
+                              <X className="w-[18px] h-[18px] text-feedback-error-dark mx-auto" />
+                            ) : (
+                              <span className="ds-small text-neutral-light">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {/* Conferir — só aparece enquanto não completou */}
+                {!fracTraining.allCorrect && (
+                  <div className="p-micro flex justify-center border-t border-neutral-lighter">
+                    <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                      Conferir
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Treino concluído — botões abaixo da tabela */}
+              {fracTraining.allCorrect && (
+                <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-light">
+                  <div className="flex items-center gap-x-micro mb-micro">
+                    <Check className="w-[20px] h-[20px] text-feedback-success-dark" />
+                    <p className="ds-body-bold text-feedback-success-darkest">
+                      Treino {fracTraining.currentTraining} concluído!
+                    </p>
+                  </div>
+                  <div className="flex gap-x-macro justify-center flex-wrap">
+                    {fracTraining.completedCount >= 2 && (
+                      <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleFracTrainingMudarFase}>
+                        Mudar de fase
+                      </Button>
+                    )}
+                    {fracTraining.currentTraining < 5 && (
+                      <Button style="secondary" size="small" onClick={handleFracTrainingNext}>
+                        Próximo exercício
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 8.7: Simulação de Convergência */}
+          {gameState.stage === 2 && gameState.subStep === 8.7 && (() => {
+            const BLOCK_LABELS = ['10', '500', '1.000', '10.000', '20.000'];
+            const BLOCK_SIZES = [10, 500, 1000, 10000, 20000];
+            return (
+            <div className="flex flex-col gap-y-macro">
+              {/* Título */}
+              <h3 className="ds-body-bold text-brand-otimath-pure">
+                Simulação e Convergência das Frequências Relativas
+              </h3>
+
+              {/* Orientação */}
+              <p className="ds-small text-neutral-dark leading-relaxed">
+                Comece com poucos giros para perceber a variação. Depois, avance para blocos maiores e observe a convergência.
+              </p>
+
+              {/* Instrução visual */}
+              <div className="bg-feedback-info-lighter px-micro py-nano rounded-sm border-l-4 border-feedback-info-dark">
+                <p className="ds-small text-neutral-darkest">
+                  Observe como a diferença entre a frequência relativa e a probabilidade teórica diminui à medida que o número de giros aumenta.
+                </p>
+              </div>
+
+              {/* Painel de ações — blocos completados + botão atual */}
+              <div className="bg-neutral-white rounded-md border border-neutral-lighter p-micro">
+                {/* Blocos já completados */}
+                {convergenceSim.currentBlock > 0 && (
+                  <div className="flex flex-wrap gap-x-micro gap-y-nano mb-micro">
+                    {BLOCK_LABELS.slice(0, convergenceSim.currentBlock).map((label, i) => (
+                      <span key={i} className="inline-flex items-center gap-x-nano ds-caption text-feedback-success-dark bg-feedback-success-lighter px-nano py-nano rounded-sm">
+                        <Check className="w-[12px] h-[12px]" /> {label} giros
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Barra de progresso (enquanto roda um bloco) */}
+                {convergenceSim.running && (
+                  <div className="mb-micro">
+                    <div className="flex items-center justify-between mb-nano">
+                      <span className="ds-caption text-brand-otimath-medium">
+                        Simulando +{BLOCK_LABELS[convergenceSim.currentBlock]} giros...
+                      </span>
+                      <span className="ds-caption text-brand-otimath-dark">{convergenceSim.progress}%</span>
+                    </div>
+                    <div className="w-full h-[6px] bg-neutral-lighter rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-brand-otimath-medium transition-all duration-300"
+                        style={{ width: `${convergenceSim.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Botão do bloco atual */}
+                {convergenceSim.currentBlock < BLOCK_SIZES.length && !convergenceSim.running && (
+                  <div className="flex justify-center">
+                    <Button style="primary" size="small" icon={<Play />} onClick={handleConvergenceBlock}>
+                      Girar {BLOCK_LABELS[convergenceSim.currentBlock]} vezes
+                    </Button>
+                  </div>
+                )}
+
+                {/* Total acumulado */}
+                {gameState.totalSpins > 0 && (
+                  <div className="flex justify-end mt-micro">
+                    <span className="ds-small-bold text-brand-otimath-dark">
+                      Total: {gameState.totalSpins.toLocaleString('pt-BR')} giros
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Tabela dinâmica */}
+              {gameState.totalSpins > 0 && (
+              <div className="bg-neutral-white rounded-md border border-neutral-lighter overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-brand-otimath-pure text-neutral-white">
+                      <th className="p-micro text-left ds-small-bold">Cor</th>
+                      <th className="p-micro text-center ds-small-bold">P. Teórica</th>
+                      <th className="p-micro text-center ds-small-bold">Freq. Relativa</th>
+                      <th className="p-micro text-center ds-small-bold">Diferença</th>
+                      <th className="p-micro text-center ds-small-bold w-[80px]"><span className="hidden">Header de marcação</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gameState.sectors.map((sector, idx) => {
+                      const angle = sector.angle;
+                      const theorProb = angle / 360;
+                      const theorPct = (theorProb * 100).toFixed(1).replace('.', ',') + '%';
+                      const absFreq = gameState.frequencies[sector.colorName] || 0;
+                      const relFreq = gameState.totalSpins > 0 ? absFreq / gameState.totalSpins : 0;
+                      const relFreqPct = (relFreq * 100).toFixed(1).replace('.', ',') + '%';
+                      const diff = Math.abs(relFreq - theorProb);
+                      const diffStr = diff.toFixed(4).replace('.', ',');
+
+                      // Formato da freq. relativa: primeiros 10 giros → fração = decimal = %, depois → fração (%)
+                      let freqRelStr: string;
+                      if (gameState.totalSpins <= 10) {
+                        const decStr = relFreq.toFixed(4).replace(/0+$/, '').replace(/\,$/, '').replace('.', ',');
+                        freqRelStr = `${absFreq}/${gameState.totalSpins} = ${decStr} = ${relFreqPct}`;
+                      } else {
+                        freqRelStr = `${absFreq}/${gameState.totalSpins.toLocaleString('pt-BR')} (${relFreqPct})`;
+                      }
+
+                      // Cor da barra de convergência
+                      let barColor = 'bg-feedback-error-lighter';
+                      let barWidth = 100;
+                      if (diff <= 0.005) { barColor = 'bg-feedback-success-light'; barWidth = 100; }
+                      else if (diff <= 0.01) { barColor = 'bg-feedback-success-lighter'; barWidth = 75; }
+                      else if (diff <= 0.05) { barColor = 'bg-feedback-warning-lighter'; barWidth = 50; }
+                      else { barColor = 'bg-feedback-error-lighter'; barWidth = 25; }
+
+                      return (
+                        <tr key={idx} className="border-b border-neutral-lighter">
+                          <td className="p-micro">
+                            <div className="flex items-center gap-x-micro">
+                              <div className="w-[16px] h-[16px] rounded-full border-2 border-neutral-light"
+                                   style={{ backgroundColor: ROULETTE_COLORS[sector.colorName] || '#6c6c6c' }} />
+                              <span className="ds-small-bold text-neutral-darkest">{sector.colorName}</span>
+                            </div>
+                          </td>
+                          <td className="p-micro text-center">
+                            <span className="ds-small text-neutral-dark">{angle}/360</span>
+                            <span className="ds-caption text-neutral-dark block">({theorPct})</span>
+                          </td>
+                          <td className="p-micro text-center">
+                            <span className="ds-caption text-neutral-darkest">{freqRelStr}</span>
+                          </td>
+                          <td className="p-micro text-center">
+                            <span className="ds-caption text-neutral-dark">{diffStr}</span>
+                          </td>
+                          <td className="p-micro">
+                            <div className="w-full h-[8px] bg-neutral-lighter rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                                style={{ width: `${barWidth}%` }}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              )}
+
+              {/* Card final — Lei dos Grandes Números (após todos os blocos) */}
+              {convergenceSim.currentBlock >= BLOCK_SIZES.length && !convergenceSim.running && (
+                <div className="bg-feedback-info-lighter p-macro rounded-md border border-feedback-info-light">
+                  <p className="ds-body-bold text-brand-otimath-dark mb-micro">
+                    Lei dos Grandes Números
+                  </p>
+                  <p className="ds-small text-neutral-darkest leading-relaxed mb-micro">
+                    À medida que você aumenta o número de giros, as frequências relativas se aproximam das probabilidades teóricas.
+                    Isso ilustra a <strong>Lei dos Grandes Números</strong>.
+                  </p>
+                  <p className="ds-small text-neutral-dark leading-relaxed mb-macro">
+                    Note que a diferença entre os valores tende a diminuir, evidenciando a convergência.
+                  </p>
+                  <div className="flex justify-center">
+                    <Button style="primary" size="small" icon={<ArrowRight />} onClick={startStage3}>
+                      Ir para a Etapa 3
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+            );
+          })()}
+
+          {/* Stage 2 — SubStep 9: Botão Sortear (giros manuais) */}
+          {gameState.stage === 2 && gameState.subStep === 9 && !gameState.pendingRegistration && (
+            <Button
+              style="primary"
+              size="medium"
+              icon={<Play />}
+              onClick={spinRoulette}
+              disabled={disabledSpinButton || gameState.isSpinning}
+            >
+              {gameState.isSpinning ? 'Girando...' : 'Sortear'}
+            </Button>
+          )}
+
+          {/* Stage 2 — SubStep 9: Registro de cor (giros manuais) */}
+          {gameState.stage === 2 && gameState.subStep === 9 && gameState.pendingRegistration && (
+            <div className="flex flex-col gap-y-micro items-center bg-neutral-white p-macro rounded-md border border-brand-otimath-light">
+              <p className="ds-small-bold text-brand-otimath-pure">Registre a cor que saiu:</p>
+              <div className="flex flex-wrap gap-micro justify-center">
+                {[...new Set(gameState.sectors.map(s => s.colorName))].map((colorName) => (
+                  <Button
+                    key={colorName}
+                    style="secondary"
+                    size="small"
+                    onClick={() => registerColor(colorName)}
+                  >
+                    <span
+                      className="inline-block w-4 h-4 rounded-full mr-micro border border-neutral-medium"
+                      style={{ backgroundColor: ROULETTE_COLORS[colorName] }}
+                    ></span>
+                    {colorName}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 9: Tabela de frequências durante giros manuais */}
+          {gameState.stage === 2 && gameState.subStep === 9 && gameState.totalSpins > 0 && (
+            <RouletteTable
+              title="Tabela de Frequências"
+              data={frequencyData}
+              showRelativeFrequency={false}
+              showPercentage={false}
+              showTheoreticalProbability={false}
+              totalSpins={gameState.totalSpins}
+              editable={false}
+            />
+          )}
+
+          {/* Stage 2 — SubStep 9.1: Verificar frequências absolutas */}
+          {gameState.stage === 2 && gameState.subStep === 9.1 && Object.keys(s2FreqAbsInputs).length > 0 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Verificação das Frequências Absolutas</h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Preencha a frequência absoluta observada para cada cor:
+              </p>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-brand-otimath-pure text-neutral-white">
+                    <th className="p-micro text-left ds-small-bold">Cor</th>
+                    <th className="p-micro text-center ds-small-bold">Freq. Absoluta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gameState.sectors.map((sector, idx) => (
+                    <tr key={idx} className="border-b border-neutral-lighter">
+                      <td className="p-micro">
+                        <div className="flex items-center gap-x-micro">
+                          <div className="w-[20px] h-[20px] rounded-sm border border-neutral-dark" style={{ backgroundColor: ROULETTE_COLORS[sector.colorName] || '#6c6c6c' }} />
+                          <span className="ds-small">{sector.colorName}</span>
+                        </div>
+                      </td>
+                      <td className="p-micro text-center">
+                        <TextInput
+                          textInput={{
+                            ...s2FreqAbsInputs[sector.colorName],
+                            styles: 'w-[60px] h-[32px] text-center ds-small',
+                            placeholder: '?',
+                            type: 'natural-number',
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-micro flex justify-center">
+                <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                  Verificar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 9.2: Pergunta de incerteza */}
+          {gameState.stage === 2 && gameState.subStep === 9.2 && currentQuestion && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={disabledCheckButton}
+            />
+          )}
+
+          {/* Stage 2 — SubStep 9.3: Frequência relativa (campo a campo) */}
+          {gameState.stage === 2 && gameState.subStep === 9.3 && Object.keys(s2FreqRelInputs).length > 0 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Frequência Relativa</h3>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-brand-otimath-pure text-neutral-white">
+                    <th className="p-micro text-left ds-small-bold">Cor</th>
+                    <th className="p-micro text-center ds-small-bold">Freq. Abs.</th>
+                    <th className="p-micro text-center ds-small-bold">Freq. Rel.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gameState.sectors.map((sector, idx) => (
+                    <tr key={idx} className="border-b border-neutral-lighter">
+                      <td className="p-micro">
+                        <div className="flex items-center gap-x-micro">
+                          <div className="w-[20px] h-[20px] rounded-sm border border-neutral-dark" style={{ backgroundColor: ROULETTE_COLORS[sector.colorName] || '#6c6c6c' }} />
+                          <span className="ds-small">{sector.colorName}</span>
+                        </div>
+                      </td>
+                      <td className="p-micro text-center ds-small">{gameState.frequencies[sector.colorName] || 0}</td>
+                      <td className="p-micro text-center">
+                        {s2FreqRelInputs[sector.colorName]?.disabled && s2FreqRelInputs[sector.colorName]?.value ? (
+                          <span className="ds-small-bold text-feedback-success-dark">{s2FreqRelInputs[sector.colorName].value}</span>
+                        ) : (
+                          <TextInput
+                            textInput={{
+                              ...s2FreqRelInputs[sector.colorName],
+                              styles: 'w-[80px] h-[32px] text-center ds-small',
+                              placeholder: `a/${gameState.s2ManualSpinsP}`,
+                            }}
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-neutral-lighter">
+                    <td className="p-micro ds-small-bold">Total:</td>
+                    <td className="p-micro text-center ds-small-bold">{gameState.totalSpins}</td>
+                    <td className="p-micro text-center ds-small-bold">-</td>
+                  </tr>
+                </tfoot>
+              </table>
+              <div className="mt-micro flex justify-center">
+                <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                  Verificar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 11: Conclusão */}
+          {gameState.stage === 2 && gameState.subStep === 11 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Conclusão</h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                À medida que o número de giros aumenta, as frequências relativas se aproximam de quais valores?
+              </p>
+              <div className="flex items-center gap-x-macro justify-center">
+                <TextInput
+                  textInput={{
+                    ...s2ConclusionInput,
+                    placeholder: 'Digite sua resposta',
+                    styles: 'w-[250px] text-center',
+                  }}
+                />
+              </div>
+              <div className="mt-macro flex justify-center">
+                <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
+                  Verificar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 2 — SubStep 12: Etapa 2 Concluída */}
+          {gameState.stage === 2 && gameState.subStep === 12 && (
+            <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-light text-center">
+              <p className="ds-body-bold text-feedback-success-darkest mb-micro">Etapa 2 Concluída!</p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Você explorou frequências relativas e a Lei dos Grandes Números. Clique abaixo para avançar.
+              </p>
+              <div className="flex justify-center">
+                <Button style="primary" size="medium" icon={<ArrowRight />} onClick={startStage3}>
+                  Ir para a Etapa 3
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ===================== FIM ETAPA 2 ===================== */}
+
+          {/* ===================== ETAPA 3 ===================== */}
+
+          {/* Badge da aposta (persistente durante toda a Etapa 3) */}
+          {gameState.stage === 3 && s3State.betColor && (
+            <div className="bg-neutral-white rounded-sm px-micro py-nano border border-neutral-lighter flex items-center gap-x-micro">
+              <span className="ds-caption text-neutral-dark">Sua aposta:</span>
+              <div className="w-[14px] h-[14px] rounded-full border border-neutral-lighter" style={{ backgroundColor: ROULETTE_COLORS[s3State.betColor] }} />
+              <span className="ds-small-bold">{s3State.betColor} (Setor {s3State.betSector + 1})</span>
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 0.5: Previsão visual (antes da aposta) */}
+          {gameState.stage === 3 && gameState.subStep === 0.5 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Previsão inicial</h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Observando o disco, qual cor parece ocupar <strong>mais espaço</strong>?
+              </p>
+              <div className="flex flex-col gap-y-micro mb-macro" role="radiogroup" aria-label="Escolha a cor que ocupa mais espaço">
+                {Object.keys(s3State.colorCounts).map(color => (
+                  <button
+                    key={color}
+                    className={`flex items-center gap-x-micro p-micro rounded-sm border text-left transition-all min-h-[44px] ${
+                      selectedOption === color
+                        ? 'border-brand-otimath-pure bg-brand-otimath-lightest'
+                        : 'border-neutral-lighter bg-neutral-white hover:bg-neutral-lightest'
+                    }`}
+                    onClick={() => setSelectedOption(color)}
+                    aria-pressed={selectedOption === color}
+                  >
+                    <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter shrink-0" style={{ backgroundColor: ROULETTE_COLORS[color] }} aria-hidden="true" />
+                    <span className="ds-small-bold">{color}</span>
+                  </button>
+                ))}
+                <button
+                  className={`flex items-center gap-x-micro p-micro rounded-sm border text-left transition-all min-h-[44px] ${
+                    selectedOption === 'iguais'
+                      ? 'border-brand-otimath-pure bg-brand-otimath-lightest'
+                      : 'border-neutral-lighter bg-neutral-white hover:bg-neutral-lightest'
+                  }`}
+                  onClick={() => setSelectedOption('iguais')}
+                  aria-pressed={selectedOption === 'iguais'}
+                >
+                  <span className="ds-small-bold">Todas parecem ocupar o mesmo espaço</span>
+                </button>
+              </div>
+              <div className="flex justify-center">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<ArrowRight />}
+                  onClick={() => handleS3ConfirmPrediction(selectedOption)}
+                  disabled={!selectedOption}
+                >
+                  Continuar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 1: Aposta (clique no disco) */}
+          {gameState.stage === 3 && gameState.subStep === 1 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Faça sua aposta!</h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Clique em um setor do disco para apostar em uma cor. Escolha a cor que você acha que tem maior probabilidade de ser sorteada.
+              </p>
+              {s3State.betColor && (
+                <div className="flex items-center gap-x-micro mb-macro p-micro rounded-sm bg-feedback-info-lighter border border-feedback-info-light">
+                  <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter" style={{ backgroundColor: ROULETTE_COLORS[s3State.betColor] }} />
+                  <span className="ds-small-bold text-feedback-info-darkest">
+                    Cor selecionada: {s3State.betColor} (Setor {s3State.betSector + 1})
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-center">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<Check />}
+                  onClick={handleS3ConfirmBet}
+                  disabled={!s3State.betColor}
+                >
+                  Confirmar aposta
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 1.5: Questão diagnóstica (justificativa) */}
+          {gameState.stage === 3 && gameState.subStep === 1.5 && currentQuestion && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={!selectedOption}
+            />
+          )}
+
+          {/* Stage 3 — SubStep 1.75: Contagem de setores por cor */}
+          {gameState.stage === 3 && gameState.subStep === 1.75 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Observe os setores</h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Quantos setores de cada cor existem no disco?
+              </p>
+              <div className="flex flex-col gap-y-micro mb-macro">
+                {Object.keys(s3State.colorCounts).map(color => {
+                  const inp = s3State.countInputs[color];
+                  if (!inp) return null;
+                  return (
+                    <div key={color} className="flex items-center gap-x-micro">
+                      <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter shrink-0" style={{ backgroundColor: ROULETTE_COLORS[color] }} />
+                      <span className="ds-small-bold w-[80px]">{color}</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="?"
+                        className={`w-[50px] p-nano rounded-sm border-hairline ds-small text-center ${
+                          inp.correct
+                            ? 'border-feedback-success-medium bg-feedback-success-lightest text-feedback-success-darkest'
+                            : inp.error
+                              ? 'border-feedback-error-medium bg-feedback-error-lightest'
+                              : 'border-neutral-light bg-neutral-white'
+                        }`}
+                        value={inp.value}
+                        onChange={(e) => {
+                          if (inp.correct) return;
+                          const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 1);
+                          setS3State(prev => ({
+                            ...prev,
+                            countInputs: {
+                              ...prev.countInputs,
+                              [color]: { ...prev.countInputs[color], value: v, error: false }
+                            }
+                          }));
+                        }}
+                        disabled={inp.correct}
+                      />
+                      {inp.correct && (
+                        <span className="ds-caption text-feedback-success-dark">setor(es)</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-center">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<Check />}
+                  onClick={() => checkAnswer()}
+                >
+                  Verificar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 2: Tabela P(cor) = a/b */}
+          {gameState.stage === 3 && gameState.subStep === 2 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Probabilidade de cada cor</h3>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Ao girar aleatoriamente o disco apresentado, calcule a probabilidade de o ponteiro parar em cada uma das cores indicadas.
+              </p>
+              <div className="flex flex-col gap-y-micro">
+                {Object.entries(s3State.colorCounts).map(([color]) => {
+                  const inp = s3State.probInputs[color];
+                  if (!inp) return null;
+                  const isCorrect = inp.status === 'correct';
+                  return (
+                    <div key={color} className="flex items-center gap-x-micro flex-wrap">
+                      <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter shrink-0" style={{ backgroundColor: ROULETTE_COLORS[color] }} />
+                      <span className="ds-small-bold w-[80px]">{color}</span>
+                      <span className="ds-small text-neutral-dark">P =</span>
+                      <div className="flex items-center gap-x-nano">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="a"
+                          className={`w-[42px] p-nano rounded-sm border-hairline ds-small text-center ${
+                            isCorrect
+                              ? 'border-feedback-success-medium bg-feedback-success-lightest text-feedback-success-darkest'
+                              : inp.errorNum
+                                ? 'border-feedback-error-medium bg-feedback-error-lightest'
+                                : 'border-neutral-light bg-neutral-white'
+                          }`}
+                          value={inp.num}
+                          onChange={(e) => {
+                            if (isCorrect) return;
+                            setS3State(prev => ({
+                              ...prev,
+                              probInputs: {
+                                ...prev.probInputs,
+                                [color]: { ...prev.probInputs[color], num: e.target.value, errorNum: false, errorMsg: '' }
+                              }
+                            }));
+                          }}
+                          disabled={isCorrect}
+                        />
+                        <span className="ds-body-bold text-neutral-dark">/</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="b"
+                          className={`w-[42px] p-nano rounded-sm border-hairline ds-small text-center ${
+                            isCorrect
+                              ? 'border-feedback-success-medium bg-feedback-success-lightest text-feedback-success-darkest'
+                              : inp.errorDen
+                                ? 'border-feedback-error-medium bg-feedback-error-lightest'
+                                : 'border-neutral-light bg-neutral-white'
+                          }`}
+                          value={inp.den}
+                          onChange={(e) => {
+                            if (isCorrect) return;
+                            setS3State(prev => ({
+                              ...prev,
+                              probInputs: {
+                                ...prev.probInputs,
+                                [color]: { ...prev.probInputs[color], den: e.target.value, errorDen: false, errorMsg: '' }
+                              }
+                            }));
+                          }}
+                          disabled={isCorrect}
+                        />
+                      </div>
+                      {(() => {
+                        const numVal = parseFloat(inp.num);
+                        const denVal = parseFloat(inp.den);
+                        if (!isNaN(numVal) && !isNaN(denVal) && denVal > 0) {
+                          const decimal = (numVal / denVal).toFixed(4).replace('.', ',').replace(/0+$/, '').replace(/,$/, '');
+                          const percent = ((numVal / denVal) * 100).toFixed(2).replace('.', ',').replace(/0+$/, '').replace(/,$/, '');
+                          return (
+                            <span className={`ds-caption ${isCorrect ? 'text-feedback-success-dark' : 'text-neutral-dark'}`}>
+                              = {decimal} = {percent}%
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
+                      {inp.errorMsg && !isCorrect && (
+                        <span className="ds-caption text-feedback-error-dark">{inp.errorMsg}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-macro flex justify-center">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<Check />}
+                  onClick={checkAnswer}
+                  disabled={Object.values(s3State.probInputs).every(i => i.status === 'correct')}
+                >
+                  Conferir
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 3: P(setor) = 1/n */}
+          {gameState.stage === 3 && gameState.subStep === 3 && currentQuestion && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={!selectedOption}
+            />
+          )}
+
+          {/* Stage 3 — SubStep 4: Comparação dos espaços */}
+          {gameState.stage === 3 && gameState.subStep === 4 && currentQuestion && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={!selectedOption}
+            />
+          )}
+
+          {/* Stage 3 — SubStep 5: Falácia do jogador */}
+          {gameState.stage === 3 && gameState.subStep === 5 && currentQuestion && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={!selectedOption}
+            />
+          )}
+
+          {/* Stage 3 — SubStep 6: Ancoragem numérica */}
+          {gameState.stage === 3 && gameState.subStep === 6 && currentQuestion && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={!selectedOption}
+            />
+          )}
+
+          {/* Stage 3 — SubStep 7: Generalização */}
+          {gameState.stage === 3 && gameState.subStep === 7 && currentQuestion && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={!selectedOption}
+            />
+          )}
+
+          {/* Stage 3 — SubStep 8: Autoconfrontação */}
+          {gameState.stage === 3 && gameState.subStep === 8 && currentQuestion && (
+            <RouletteQuestion
+              question={currentQuestion.question}
+              type="multiple-choice"
+              options={currentQuestion.options}
+              selectedOption={selectedOption}
+              onOptionSelect={setSelectedOption}
+              onCheck={checkAnswer}
+              disabled={!selectedOption}
+            />
+          )}
+
+          {/* Stage 3 — SubStep 8.1: Falácia do jogador — girar 5 vezes */}
+          {gameState.stage === 3 && gameState.subStep === 8.1 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Observe os resultados do disco</h3>
+              <p className="ds-small text-neutral-dark mb-micro">
+                Você havia escolhido a cor <strong>{s3State.betColor}</strong>.
+                Agora observe alguns resultados. Gire o disco 5 vezes.
+              </p>
+              <p className="ds-small-bold text-brand-otimath-dark mb-macro">
+                Giro {s3State.spinCount} de 5
+              </p>
+
+              {/* Histórico visual */}
+              {s3State.spinHistory.length > 0 && (
+                <div className="flex flex-wrap gap-micro mb-macro">
+                  {s3State.spinHistory.map((color, idx) => (
+                    <div key={idx} className="flex items-center gap-x-nano px-micro py-nano rounded-sm bg-neutral-lightest border border-neutral-lighter">
+                      <div className="w-[14px] h-[14px] rounded-full border border-neutral-lighter" style={{ backgroundColor: ROULETTE_COLORS[color] }} />
+                      <span className="ds-caption">{color}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-x-macro justify-center">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<Play />}
+                  onClick={spinRouletteS3}
+                  disabled={gameState.isSpinning || s3State.spinCount >= 5}
+                >
+                  {gameState.isSpinning ? 'Girando...' : 'Girar'}
+                </Button>
+                <Button
+                  style="secondary"
+                  size="small"
+                  icon={<ArrowRight />}
+                  onClick={handleS3FalaciaContinu}
+                  disabled={s3State.spinCount < 5}
+                >
+                  Continuar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 8.2: Percepção do padrão */}
+          {gameState.stage === 3 && gameState.subStep === 8.2 && currentQuestion && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              {/* Histórico visual (persistente) */}
+              <div className="flex flex-wrap gap-micro mb-macro">
+                {s3State.spinHistory.map((color, idx) => (
+                  <div key={idx} className="flex items-center gap-x-nano px-micro py-nano rounded-sm bg-neutral-lightest border border-neutral-lighter">
+                    <div className="w-[14px] h-[14px] rounded-full border border-neutral-lighter" style={{ backgroundColor: ROULETTE_COLORS[color] }} />
+                    <span className="ds-caption">{color}</span>
+                  </div>
+                ))}
+              </div>
+              <RouletteQuestion
+                question={currentQuestion.question}
+                type="multiple-choice"
+                options={currentQuestion.options}
+                selectedOption={selectedOption}
+                onOptionSelect={setSelectedOption}
+                onCheck={checkAnswer}
+                disabled={!selectedOption}
+              />
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 8.3: Nova aposta */}
+          {gameState.stage === 3 && gameState.subStep === 8.3 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Faça sua aposta novamente</h3>
+              <p className="ds-small text-neutral-dark mb-micro">
+                Com base nos resultados observados, você pode manter ou mudar sua aposta.
+              </p>
+              <p className="ds-small text-neutral-dark mb-macro">
+                Aposta anterior: <strong>{s3State.betColor}</strong>
+              </p>
+              {/* Histórico visual */}
+              <div className="flex flex-wrap gap-micro mb-macro">
+                {s3State.spinHistory.map((color, idx) => (
+                  <div key={idx} className="flex items-center gap-x-nano px-micro py-nano rounded-sm bg-neutral-lightest border border-neutral-lighter">
+                    <div className="w-[14px] h-[14px] rounded-full border border-neutral-lighter" style={{ backgroundColor: ROULETTE_COLORS[color] }} />
+                    <span className="ds-caption">{color}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Botões de cores */}
+              <div className="flex flex-col gap-y-micro mb-macro" role="radiogroup" aria-label="Escolha a cor para nova aposta">
+                {Object.keys(s3State.colorCounts).map(color => (
+                  <button
+                    key={color}
+                    className={`flex items-center gap-x-micro p-micro rounded-sm border text-left transition-all min-h-[44px] ${
+                      s3State.newBetColor === color
+                        ? 'border-brand-otimath-pure bg-brand-otimath-lightest'
+                        : 'border-neutral-lighter bg-neutral-white hover:bg-neutral-lightest'
+                    }`}
+                    onClick={() => setS3State(prev => ({ ...prev, newBetColor: color }))}
+                    aria-pressed={s3State.newBetColor === color}
+                  >
+                    <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter shrink-0" style={{ backgroundColor: ROULETTE_COLORS[color] }} aria-hidden="true" />
+                    <span className="ds-small-bold">{color}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-center">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<ArrowRight />}
+                  onClick={handleS3NewBetConfirm}
+                  disabled={!s3State.newBetColor}
+                >
+                  Confirmar aposta
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 8.4: Conflito cognitivo */}
+          {gameState.stage === 3 && gameState.subStep === 8.4 && currentQuestion && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <div className="bg-feedback-info-lighter p-micro rounded-sm border border-feedback-info-light mb-macro">
+                <p className="ds-small text-neutral-dark">
+                  O disco utilizado no simulador é justo. Todos os {s3State.n} setores possuem o mesmo tamanho.
+                </p>
+                <p className="ds-small-bold text-brand-otimath-dark mt-nano">
+                  P(setor) = 1/{s3State.n} = {((1 / s3State.n) * 100).toFixed(1).replace('.', ',')}%
+                </p>
+              </div>
+              <RouletteQuestion
+                question={currentQuestion.question}
+                type="multiple-choice"
+                options={currentQuestion.options}
+                selectedOption={selectedOption}
+                onOptionSelect={setSelectedOption}
+                onCheck={checkAnswer}
+                disabled={!selectedOption}
+              />
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 8.5: Institucionalização da Falácia do Jogador */}
+          {gameState.stage === 3 && gameState.subStep === 8.5 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Falácia do Jogador</h3>
+              <div className="ds-small text-neutral-dark space-y-micro">
+                <p>
+                  A <strong>Falácia do Jogador</strong> ocorre quando acreditamos que resultados passados influenciam resultados futuros em experimentos aleatórios independentes.
+                </p>
+                <p>
+                  No caso do disco:
+                </p>
+                <p className="ds-small-bold text-brand-otimath-dark text-center">
+                  P(setor) = 1/{s3State.n} = {((1 / s3State.n) * 100).toFixed(1).replace('.', ',')}%
+                </p>
+                <p>
+                  Essa probabilidade permanece sempre a mesma, independentemente dos resultados anteriores. Mesmo que uma cor tenha aparecido muitas vezes seguidas, a chance de cada setor ser sorteado continua sendo 1/{s3State.n}.
+                </p>
+              </div>
+              <div className="mt-macro flex justify-center">
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<ArrowRight />}
+                  onClick={handleS3FalaciaFinish}
+                >
+                  Continuar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 9: Institucionalização final */}
+          {gameState.stage === 3 && gameState.subStep === 9 && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Resumo — Etapa 3</h3>
+              <div className="flex flex-col gap-y-micro ds-small text-neutral-dark">
+                <p>
+                  <strong>Espaço equiprovável vs. não equiprovável:</strong> Quando os setores de um disco são iguais, o espaço dos setores numerados é equiprovável — cada setor tem probabilidade 1/{s3State.n}. Porém, o espaço das cores pode não ser equiprovável, pois cores diferentes podem ocupar quantidades diferentes de setores.
+                </p>
+                <p>
+                  <strong>Viés de proporção visual:</strong> Setores agrupados de uma mesma cor podem criar a impressão de que aquela cor ocupa mais espaço, mesmo que outra cor tenha mais setores dispersos. A contagem, e não a impressão visual, deve guiar o cálculo.
+                </p>
+                <p>
+                  <strong>Falácia do jogador:</strong> Resultados passados não alteram probabilidades futuras em eventos independentes. Cada giro do disco é independente dos anteriores.
+                </p>
+<p>
+                  <strong>Generalização:</strong> Se cada cor ocupa exatamente um setor de mesmo tamanho, o espaço das cores herda a equiprobabilidade do espaço dos setores.
+                </p>
+              </div>
+              <div className="mt-macro flex justify-center">
+                <Button
+                  style="primary"
+                  size="medium"
+                  icon={<Check />}
+                  onClick={handleS3Finalize}
+                >
+                  Finalizar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 3 — SubStep 10: Tela final */}
+          {gameState.stage === 3 && gameState.subStep === 10 && (
+            <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-light text-center flex flex-col items-center gap-y-macro">
+              <p className="ds-body-bold text-feedback-success-darkest">Atividade Concluída!</p>
+              <p className="ds-small text-neutral-dark">
+                Você explorou espaços equiprováveis e não equiprováveis, identificou vieses cognitivos e refletiu sobre suas escolhas. Parabéns!
+              </p>
+              <Button style="secondary" size="medium" icon={<RefreshCw />} onClick={startStage3}>
+                Interagir de Novo
+              </Button>
+            </div>
+          )}
+
+          {/* ===================== FIM ETAPA 3 ===================== */}
+
+          {/* Bloco de Interpretação dos Resultados (subStep 14, antes de "Próxima Etapa") */}
+          {gameState.subStep === 14 && interpretationPhase !== 'done' && (() => {
+            const n = gameState.targetSectorCount;
+            const probPercent = ((1 / n) * 100).toFixed(1).replace('.', ',');
+            return (
+              <div className="w-full max-w-[600px] mx-auto flex flex-col gap-xxxs">
+                <h3 className="ds-body-large-bold text-brand-otimath-dark text-center">Interpretação dos Resultados</h3>
+
+                {/* Pergunta 1 — só aparece na fase q1 */}
+                {interpretationPhase === 'q1' && (
+                  <div className="rounded-md p-xxs border-hairline border-neutral-light bg-neutral-white">
+                    <p className="ds-body-bold text-brand-otimath-dark mb-nano">Todos os setores tiveram frequências relativas iguais no experimento?</p>
+                    <div className="flex flex-col gap-nano">
+                      <label className="flex items-start gap-nano ds-body cursor-pointer">
+                        <input type="radio" name="interp_q1" className="mt-1 shrink-0" value="sim" checked={interpretationSelected === 'sim'} onChange={() => setInterpretationSelected('sim')} />
+                        <span>Sim</span>
+                      </label>
+                      <label className="flex items-start gap-nano ds-body cursor-pointer">
+                        <input type="radio" name="interp_q1" className="mt-1 shrink-0" value="nao" checked={interpretationSelected === 'nao'} onChange={() => setInterpretationSelected('nao')} />
+                        <span>Não</span>
+                      </label>
+                    </div>
+                    <div className="mt-nano flex justify-end">
+                      <Button style="primary" size="small" icon={<Check />} onClick={handleInterpretationCheck} disabled={!interpretationSelected}>Conferir</Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pergunta 2 — só aparece na fase q2 */}
+                {interpretationPhase === 'q2' && (
+                  <div className="rounded-md p-xxs border-hairline border-neutral-light bg-neutral-white">
+                    <p className="ds-body-bold text-brand-otimath-dark mb-nano">As frequências relativas ficaram muito próximas da probabilidade teórica (1/{n} ≈ {probPercent}%)?</p>
+                    <div className="flex flex-col gap-nano">
+                      <label className="flex items-start gap-nano ds-body cursor-pointer">
+                        <input type="radio" name="interp_q2" className="mt-1 shrink-0" value="sim" checked={interpretationSelected === 'sim'} onChange={() => setInterpretationSelected('sim')} />
+                        <span>Sim</span>
+                      </label>
+                      <label className="flex items-start gap-nano ds-body cursor-pointer">
+                        <input type="radio" name="interp_q2" className="mt-1 shrink-0" value="nao" checked={interpretationSelected === 'nao'} onChange={() => setInterpretationSelected('nao')} />
+                        <span>Não</span>
+                      </label>
+                    </div>
+                    <div className="mt-nano flex justify-end">
+                      <Button style="primary" size="small" icon={<Check />} onClick={handleInterpretationCheck} disabled={!interpretationSelected}>Conferir</Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pergunta 3 — alternativas dinâmicas, só aparece na fase q3 */}
+                {interpretationPhase === 'q3' && interpretationQ3 && (
+                  <div className="rounded-md p-xxs border-hairline border-neutral-light bg-neutral-white">
+                    <p className="ds-body-bold text-brand-otimath-dark mb-nano">Por qual motivo as frequências relativas não ficaram exatamente iguais a 1/{n} (≈ {probPercent}%)?</p>
+                    <div className="flex flex-col gap-nano">
+                      {interpretationQ3.alternatives.map((alt) => (
+                        <label key={alt.id} className="flex items-start gap-nano ds-body cursor-pointer">
+                          <input type="radio" name="interp_q3" className="mt-1 shrink-0" value={alt.id} checked={interpretationSelected === alt.id} onChange={() => setInterpretationSelected(alt.id)} />
+                          <span>{alt.text}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-nano flex justify-end">
+                      <Button style="primary" size="small" icon={<Check />} onClick={handleInterpretationCheck} disabled={!interpretationSelected}>Conferir</Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Feedback pedagógico */}
+                {interpretationPhase === 'feedback' && (
+                  <div className="rounded-md p-xxs bg-brand-otimath-lightest border-hairline border-brand-otimath-light">
+                    <p className="ds-body-bold text-brand-otimath-dark mb-nano">A variabilidade amostral diminui quando o número de repetições cresce, mas não desaparece completamente.</p>
+                    <p className="ds-small text-brand-otimath-dark">Mesmo com muitas repetições, os resultados observados raramente ficam exatamente iguais à probabilidade teórica. A Lei dos Grandes Números afirma apenas que eles tendem a se aproximar.</p>
+                    <div className="mt-nano flex justify-end">
+                      <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleInterpretationContinue}>Continuar</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* SubStep 15: Problemas de consolidação LGN */}
+          {gameState.subStep === 15 && (
+            <div className="w-full max-w-[600px] mx-auto flex flex-col gap-xxxs">
+              <h3 className="ds-body-large-bold text-brand-otimath-dark text-center">Consolidação: Lei dos Grandes Números</h3>
+
+              {/* Fase: escolher n */}
+              {/* Fase: Problema 1 — Disco */}
+              {lgnPhase === 'problem1' && lgnParams && (
+                <div className="rounded-md p-xxs bg-neutral-white border-hairline border-neutral-light">
+                  <p className="ds-body-bold text-brand-otimath-dark mb-nano">Problema 1</p>
+                  <p className="ds-body text-brand-otimath-dark">
+                    Um disco está dividido em <strong>{lgnN}</strong> partes iguais. Considere a cor {lgnParams.color} ocupando exatamente 1 dessas {lgnN} partes.
+                  </p>
+                  <p className="ds-body text-brand-otimath-dark mt-nano">
+                    Após o disco girar <strong>{lgnParams.m.toLocaleString('pt-BR')}</strong> vezes, quantas vezes se espera que ocorra a cor {lgnParams.color}?
+                  </p>
+                  <div className="flex items-center gap-nano mt-nano">
+                    <input
+                      type="number"
+                      className={`w-full p-nano rounded-md border-hairline ds-body text-center ${lgnInput.error ? 'border-feedback-error-medium bg-feedback-error-lightest' : 'border-neutral-light bg-neutral-white'}`}
+                      placeholder="Digite sua resposta"
+                      value={lgnInput.value}
+                      onChange={(e) => setLgnInput({ value: e.target.value, error: false })}
+                    />
+                  </div>
+                  <div className="mt-nano flex justify-end">
+                    <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!lgnInput.value}>
+                      Conferir
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Fase: Problema 2 — Medicamento */}
+              {lgnPhase === 'problem2' && lgnParams && (
+                <div className="rounded-md p-xxs bg-neutral-white border-hairline border-neutral-light">
+                  <p className="ds-body-bold text-brand-otimath-dark mb-nano">Problema 2</p>
+                  <p className="ds-body text-brand-otimath-dark">
+                    Um medicamento tem <strong>{lgnParams.p}%</strong> de chance de curar um paciente quando aplicado no início dos sintomas.
+                  </p>
+                  <p className="ds-body text-brand-otimath-dark mt-nano">
+                    Aplicando esse medicamento em <strong>{lgnParams.m.toLocaleString('pt-BR')}</strong> pacientes, quantos pacientes se espera que sejam curados?
+                  </p>
+                  <div className="flex items-center gap-nano mt-nano">
+                    <input
+                      type="number"
+                      className={`w-full p-nano rounded-md border-hairline ds-body text-center ${lgnInput.error ? 'border-feedback-error-medium bg-feedback-error-lightest' : 'border-neutral-light bg-neutral-white'}`}
+                      placeholder="Digite sua resposta"
+                      value={lgnInput.value}
+                      onChange={(e) => setLgnInput({ value: e.target.value, error: false })}
+                    />
+                  </div>
+                  <div className="mt-nano flex justify-end">
+                    <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!lgnInput.value}>
+                      Conferir
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Fase: Nota obrigatória */}
+              {lgnPhase === 'note' && (
+                <div className="rounded-md p-xxs bg-feedback-warning-lightest border-hairline border-feedback-warning-medium">
+                  <p className="ds-body-bold text-brand-otimath-dark mb-nano">NOTA (obrigatória)</p>
+                  <p className="ds-body text-brand-otimath-dark">
+                    Você sabe por que o número real de pacientes curados pode ser diferente desse valor?
+                  </p>
+                  <div className="mt-nano flex justify-end">
+                    <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleLgnQueroSaber}>
+                      Quero saber!
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Fase: Explicação */}
+              {lgnPhase === 'explanation' && (
+                <div className="rounded-md p-xxs bg-brand-otimath-lightest border-hairline border-brand-otimath-light">
+                  <p className="ds-body text-brand-otimath-dark">
+                    Mesmo conhecendo a probabilidade de cura, o resultado real pode variar porque cada paciente é um caso sujeito ao acaso.
+                  </p>
+                  <p className="ds-body text-brand-otimath-dark mt-nano">
+                    O valor calculado representa o <strong>número esperado</strong>: um valor em torno do qual os resultados tendem a se aproximar quando repetimos o experimento muitas vezes.
+                  </p>
+                  <p className="ds-body text-brand-otimath-dark mt-nano">
+                    Isso é uma consequência da <strong>Lei dos Grandes Números</strong>.
+                  </p>
+                  <div className="mt-nano flex justify-end">
+                    <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleLgnContinue}>
+                      Continuar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Check and Next buttons (apenas no subStep 0 e 16) */}
+          {(gameState.subStep === 0 || gameState.subStep === 16) && (
+            <div className="flex gap-xxxs items-center justify-center">
+              {gameState.subStep === 0 && (
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<Check />}
+                  onClick={checkAnswer}
+                  disabled={disabledCheckButton}
+                >
+                  Confirmar
+                </Button>
+              )}
+              {gameState.subStep === 16 && (
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<ArrowRight />}
+                  onClick={nextStep}
+                  disabled={disabledNextButton}
+                >
+                  Próxima Etapa
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Alerts and Modal */}
+      <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts} />
+      <Modal modal={modal} updateModal={updateModal} />
+
+      {/* Dialog de Reinício */}
+      {restartPhase !== 'hidden' && (
+        <div
+          className="w-full h-full fixed bg-opacity-modal flex items-center justify-center z-11 top-0 left-0"
+          onClick={handleRestartCancel}
+        >
+          <dialog
+            className="w-[500px] h-fit max-w-[calc(100%-32px)] flex flex-col left-[50%] -translate-x-[50%]
+              rounded-md solid border-hairline border-neutral-lightest bg-neutral-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {restartPhase === 'choosing' ? (
+              <>
+                <div className="p-xxxs flex justify-between">
+                  <h3 className="ds-body-large-bold text-brand-otimath-pure">Reiniciar Atividade</h3>
+                  <Button style="neutral" size="medium" icon={<X />} onClick={handleRestartCancel} ariaLabel="Fechar" />
+                </div>
+                <div className="pt-micro pb-micro pl-xxxs pr-xxxs border-t-hairline border-neutral-lightest">
+                  <p className="ds-body">Como deseja reiniciar?</p>
+                </div>
+                <div className="p-xxxs flex flex-col gap-xxs">
+                  <Button style="secondary" size="small" onClick={() => handleRestartChoice('stage1')}>
+                    Voltar para o início da Etapa 1
+                  </Button>
+                  <Button style="secondary" size="small" onClick={() => handleRestartChoice('stage2')}>
+                    Voltar para o início da Etapa 2
+                  </Button>
+                  <Button style="secondary" size="small" onClick={() => handleRestartChoice('stage3')}>
+                    Voltar para o início da Etapa 3
+                  </Button>
+                  <Button style="secondary" size="small" onClick={() => handleRestartChoice('previous')}>
+                    Voltar para a fase anterior
+                  </Button>
+                  <Button style="secondary" size="small" onClick={() => handleRestartChoice('back')}>
+                    Voltar para a tela anterior
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="p-xxxs">
+                  <h3 className="ds-body-large-bold text-brand-otimath-pure">Tem certeza?</h3>
+                </div>
+                <div className="pt-micro pb-micro pl-xxxs pr-xxxs border-t-hairline border-neutral-lightest">
+                  <p className="ds-body">
+                    {restartPhase === 'confirm_stage1'
+                      ? 'Você voltará para o início da Etapa 1. O progresso atual será perdido.'
+                      : restartPhase === 'confirm_stage2'
+                        ? 'Você voltará para o início da Etapa 2. O progresso atual será perdido.'
+                        : restartPhase === 'confirm_stage3'
+                          ? 'Você voltará para o início da Etapa 3. O progresso atual será perdido.'
+                          : restartPhase === 'confirm_previous'
+                            ? 'Você voltará para a fase anterior e terá de refazê-la.'
+                            : 'Você sairá desta atividade e voltará para a tela anterior.'}
+                  </p>
+                </div>
+                <div className="p-xxxs flex justify-end gap-xxs">
+                  <Button style="secondary" size="small" onClick={handleRestartCancel}>Cancelar</Button>
+                  <Button style="primary" size="small" onClick={handleRestartConfirm}>Confirmar</Button>
+                </div>
+              </>
+            )}
+          </dialog>
+        </div>
+      )}
+
+      {/* Hidden dev trigger */}
+      <div
+        onClick={() => setDevOpen(true)}
+        style={{ position: 'fixed', bottom: 10, right: 10, width: 20, height: 20, zIndex: 9998, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eee', borderRadius: '50%', border: '1px solid #ccc' }}
+      >
+        <span style={{ fontSize: 9, color: '#aaa', lineHeight: 1 }}>·</span>
+      </div>
+      {devOpen && (
+        <div style={{ position: 'fixed', bottom: 8, right: 8, zIndex: 9999, background: '#fff', border: '1px solid #ccc', borderRadius: 4, padding: 6, display: 'flex', gap: 4, alignItems: 'center' }}>
+          <input
+            value={devKey}
+            onChange={e => setDevKey(e.target.value)}
+            style={{ width: 38, fontSize: 12, border: '1px solid #ddd', borderRadius: 2, padding: '1px 3px' }}
+            autoFocus
+          />
+          {devKey === 'w' && (
+            <button
+              onClick={() => {
+                const next = getPhaseIndex(gameState.subStep) + 1;
+                goToPhase(next);
+                setDevKey('');
+                setDevOpen(false);
+              }}
+              style={{ fontSize: 11, padding: '1px 5px', cursor: 'pointer' }}
+            >ok</button>
+          )}
+          {devKey === 'e1' && (
+            <button
+              onClick={() => {
+                startStage1();
+                setDevKey('');
+                setDevOpen(false);
+              }}
+              style={{ fontSize: 11, padding: '1px 5px', cursor: 'pointer' }}
+            >ok</button>
+          )}
+          {devKey === 'e2' && (
+            <button
+              onClick={() => {
+                startStage2();
+                setDevKey('');
+                setDevOpen(false);
+              }}
+              style={{ fontSize: 11, padding: '1px 5px', cursor: 'pointer' }}
+            >ok</button>
+          )}
+          {devKey === 'e3' && (
+            <button
+              onClick={() => {
+                startStage3();
+                setDevKey('');
+                setDevOpen(false);
+              }}
+              style={{ fontSize: 11, padding: '1px 5px', cursor: 'pointer' }}
+            >ok</button>
+          )}
+          <button onClick={() => { setDevOpen(false); setDevKey(''); }} style={{ fontSize: 10, cursor: 'pointer', color: '#999' }}>x</button>
+        </div>
+      )}
+    </div>
+  );
+}

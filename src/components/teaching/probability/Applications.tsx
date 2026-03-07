@@ -4,6 +4,8 @@ import { TextBlock } from '@/components/global/TextBlock';
 import { CardResize } from "@/components/global/CardResize";
 import twoDiceImage from "@/images/teaching/probability/twoDice.webp";
 import treeImage from "@/images/teaching/probability/tree.webp";
+import rouletteImage from "@/images/teaching/probability/roulette.webp";
+
 
 export function Applications() {
   return (
@@ -20,6 +22,7 @@ export function Applications() {
         <div className="flex flex-wrap gap-xs">
           <CardResize image={twoDiceImage} alt="Dois dados: um verde e outro azul" href="/ensino/probabilidade/dois-dados" category="Espaço amostral equiprovável" title="Dois dados" />
           <CardResize image={treeImage} alt="Árvore de probabilidade" href="/ensino/probabilidade/arvore" category="Probabilidade condicional" title="Probabilidade de Árvore" />
+          <CardResize image={rouletteImage} alt="Disco dividido em seis setores coloridos" href="/ensino/probabilidade/disco" category="Probabilidade Frequentista" title="Disco de Probabilidade" />
         </div>
     </GridItem>
   </Grid>
