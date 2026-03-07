@@ -32,8 +32,8 @@ export function RouletteInstructionsSection() {
 
                 <List>
                   <li><strong>Etapa 1 - Probabilidade em um Espaço Amostral Equiprovável:</strong> O disco é dividido em setores iguais com cores diferentes. Você identificará o experimento aleatório, o espaço amostral e calculará probabilidades baseando-se na simetria.</li>
-                  <li><strong>Etapa 2 - Probabilidade em um Espaço Amostral Não Equiprovável:</strong> O disco possui setores de tamanhos diferentes. Você aprenderá que a probabilidade de cada cor depende da medida do ângulo central do setor.</li>
-                  <li><strong>Etapa 3 - Setores Iguais com Cores Repetidas:</strong> O disco tem setores iguais, mas algumas cores se repetem. Você calculará probabilidades com base na frequência de cada cor.</li>
+                  <li><strong>Etapa 2 - Probabilidade em um Espaço Amostral Não Equiprovável por área:</strong> O disco possui setores de tamanhos diferentes. Você aprenderá que a probabilidade de cada cor depende da medida do ângulo central do setor.</li>
+                  <li><strong>Etapa 3 - Probabilidade em um espaço Amostral Não Equiprovável por cores:</strong> O disco tem setores iguais, mas algumas cores se repetem. Você calculará probabilidades com base na frequência de cada cor.</li>
                 </List>
 
                 <br />
