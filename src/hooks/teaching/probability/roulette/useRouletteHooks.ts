@@ -4061,8 +4061,26 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Continue girando o disco para observar o que acontece.</p>`);
         setDisabledSpinButton(false);
       } else {
-        // Padrão quebrado - mostrar pergunta de incerteza
-        showUncertaintyQuestion(newFrequencies);
+        // Confronto previsão vs. resultado (Melhoria 4 — Artigue/Brousseau)
+        // Mostrar InfoBox comparando a previsão do aluno com o resultado observado
+        const predColor = gameState.predictionColor;
+        const predVal = gameState.predictionValue;
+        const observedCount = newFrequencies[predColor] || 0;
+        const totalGiros = gameState.manualSpinsRequired;
+
+        const match = parseInt(predVal, 10) === observedCount;
+        setGameState(prev => ({ ...prev, subStep: 7.1 }));
+        setDisabledSpinButton(true);
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: match ? 'success' : 'info',
+          title: 'Confronto: Previsão × Resultado',
+          message: `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${totalGiros} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
+            ? 'Sua previsão coincidiu com o resultado! Mas isso <strong>sempre</strong> aconteceria se repetíssemos o experimento?'
+            : 'Sua previsão não coincidiu com o resultado. Isso acontece porque cada giro é um <strong>experimento aleatório</strong> — não é possível prever com certeza o resultado.'}`
+        });
+        setInstructions(`<p class="ds-body"><strong>Confronto: Previsão × Resultado</strong></p>
+          <p class="ds-body">Compare sua previsão com o que realmente aconteceu.</p>`);
       }
     }
     // SubStep 7.6 - giros extras após padrão perfeito
@@ -4074,8 +4092,25 @@ export const useRouletteHooks = () => {
                            Object.values(newFrequencies).every(f => f === Math.floor(newTotalSpins / gameState.targetSectorCount));
 
       if (!stillPerfect || newExtraSpins >= gameState.manualSpinsRequired) {
-        // Padrão quebrado - mostrar pergunta de incerteza
-        showUncertaintyQuestion(newFrequencies);
+        // Confronto previsão vs. resultado (Melhoria 4 — Artigue/Brousseau)
+        const predColor = gameState.predictionColor;
+        const predVal = gameState.predictionValue;
+        const observedCount = newFrequencies[predColor] || 0;
+        const totalGiros = Object.values(newFrequencies).reduce((a, b) => a + b, 0);
+
+        const match = parseInt(predVal, 10) === observedCount;
+        setGameState(prev => ({ ...prev, subStep: 7.1 }));
+        setDisabledSpinButton(true);
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: match ? 'success' : 'info',
+          title: 'Confronto: Previsão × Resultado',
+          message: `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${gameState.manualSpinsRequired} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
+            ? 'Sua previsão coincidiu com o resultado! Mas isso <strong>sempre</strong> aconteceria se repetíssemos o experimento?'
+            : 'Sua previsão não coincidiu com o resultado. Isso acontece porque cada giro é um <strong>experimento aleatório</strong> — não é possível prever com certeza o resultado.'}`
+        });
+        setInstructions(`<p class="ds-body"><strong>Confronto: Previsão × Resultado</strong></p>
+          <p class="ds-body">Compare sua previsão com o que realmente aconteceu.</p>`);
       } else {
         setGameState(prev => ({
           ...prev,
@@ -8546,6 +8581,26 @@ export const useRouletteHooks = () => {
 
     const { stage, subStep, sectors, targetSectorCount } = gameState;
 
+    // ===== CONFRONTO PREVISÃO × RESULTADO (Melhoria 4 — Artigue/Brousseau) =====
+
+    // Stage 1 - SubStep 7.1: Após confronto, avançar para pergunta de incerteza
+    if (stage === 1 && subStep === 7.1) {
+      showUncertaintyQuestion(gameState.frequencies);
+      return;
+    }
+
+    // ===== TRANSIÇÕES — InfoBox de ruptura do contrato didático (Brousseau) =====
+
+    // Stage 2 - SubStep 0: Transição E1→E2 → apenas fechar InfoBox
+    if (stage === 2 && subStep === 0) {
+      return;
+    }
+
+    // Stage 3 - SubStep 0.5: Transição E2→E3 → apenas fechar InfoBox
+    if (stage === 3 && subStep === 0.5) {
+      return;
+    }
+
     // ===== ETAPA 2 — handleInfoBoxConfirm =====
 
     // Stage 2 - SubStep 2.9: Leitura progressiva → avançar frase ou ir para tabela
@@ -9467,7 +9522,7 @@ export const useRouletteHooks = () => {
         <p class="ds-body">Responda a pergunta teórica abaixo.</p>`);
       return;
     }
-  }, [gameState, unionPhase, initUnionActivity, handleUnionNextActivity, compPhase, compIsGuided, compExamplesViewed, compCalcExampleNum, progressiveReadingStep]);
+  }, [gameState, unionPhase, initUnionActivity, handleUnionNextActivity, compPhase, compIsGuided, compExamplesViewed, compCalcExampleNum, progressiveReadingStep, showUncertaintyQuestion]);
 
   // Função para iniciar giros automáticos
   const startAutoSpins = useCallback((batchSize: number) => {
@@ -9753,6 +9808,14 @@ export const useRouletteHooks = () => {
 
     setInstructions(`<p class="ds-body"><strong>Etapa 2 — Probabilidade Não Equiprovável</strong></p>
       <p class="ds-body">Use o controle deslizante para dividir o disco em <strong>${targetK}</strong> setores e clique em <strong>Confirmar</strong>.</p>`);
+
+    // InfoBox de transição: ruptura do contrato didático (Brousseau)
+    setShowInfoBox(true);
+    setInfoBoxContent({
+      type: 'concept',
+      title: 'Transição para a Etapa 2',
+      message: 'Na etapa anterior, você trabalhou com um disco dividido em <strong>setores de mesmo tamanho</strong>. Por isso, todas as cores tinham a <strong>mesma probabilidade</strong> de serem sorteadas.<br/><br/>Na próxima etapa, os setores terão <strong>tamanhos diferentes</strong>. Observe com atenção: <strong>como isso pode afetar as chances de cada cor?</strong>'
+    });
   }, []);
 
   // Função para iniciar Etapa 3
@@ -9799,6 +9862,14 @@ export const useRouletteHooks = () => {
 
     setInstructions(`<p class="ds-body"><strong>Etapa 3 — Espaços Amostrais e Vieses Cognitivos</strong></p>
       <p class="ds-body">Observe o disco com atenção antes de prosseguir.</p>`);
+
+    // InfoBox de transição: ruptura do contrato didático (Brousseau)
+    setShowInfoBox(true);
+    setInfoBoxContent({
+      type: 'concept',
+      title: 'Transição para a Etapa 3',
+      message: 'Nas etapas anteriores, cada cor aparecia em <strong>apenas um setor</strong> do disco. Na Etapa 1, os setores tinham o mesmo tamanho; na Etapa 2, tamanhos diferentes.<br/><br/>Na próxima etapa, os setores terão o <strong>mesmo tamanho</strong>, mas <strong>algumas cores se repetirão</strong> em mais de um setor. Isso muda as chances de cada cor?'
+    });
   }, [playSound]);
 
   // Handler: confirmar previsão visual (subStep 0.5 → subStep 1)
@@ -10265,7 +10336,12 @@ export const useRouletteHooks = () => {
     const { sectors, desafio1SectorNumbers } = gameState;
     const n = sectors.length;
 
-    const ev = generateComplementaryEvent(sectors, desafio1SectorNumbers, compUsedBitmasks);
+    let ev = generateComplementaryEvent(sectors, desafio1SectorNumbers, compUsedBitmasks);
+    // Se esgotou bitmasks, limpar e tentar novamente
+    if (!ev) {
+      setCompUsedBitmasks([]);
+      ev = generateComplementaryEvent(sectors, desafio1SectorNumbers, []);
+    }
     if (!ev) return;
 
     const bm = computeBitmask(ev.indicesA);

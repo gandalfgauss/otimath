@@ -353,9 +353,9 @@ export function RouletteGame() {
         })}
       </div>
 
-      {/* Instructions — ocultar durante leitura progressiva da prob. angular (Etapa 2, subStep 7, steps 0-4) */}
+      {/* Instructions — ocultar durante leitura progressiva da prob. angular (Etapa 2, subStep 7, steps 0-4) e durante InfoBox de transição entre etapas */}
       <div aria-live="polite" aria-atomic="true">
-        {!(gameState.stage === 2 && gameState.subStep === 7 && s2AngleReadingStep >= 0 && s2AngleReadingStep <= 4) && (
+        {!(gameState.stage === 2 && gameState.subStep === 7 && s2AngleReadingStep >= 0 && s2AngleReadingStep <= 4) && !(showInfoBox && ((gameState.stage === 2 && gameState.subStep === 0) || (gameState.stage === 3 && gameState.subStep === 0.5))) && (
           <TextBlock
             paragraph={<div dangerouslySetInnerHTML={{ __html: instructions }} />}
             maxWidthParagraph="max-w-[805px]"
@@ -424,8 +424,8 @@ export function RouletteGame() {
             </div>
           )}
 
-          {/* Stage 2 - Sector slider (subStep 0) */}
-          {gameState.stage === 2 && gameState.subStep === 0 && (
+          {/* Stage 2 - Sector slider (subStep 0) — oculto durante InfoBox de transição */}
+          {gameState.stage === 2 && gameState.subStep === 0 && !showInfoBox && (
             <div className="flex flex-col gap-y-micro w-full max-w-[350px] bg-neutral-white p-macro rounded-md">
               <label className="ds-small-bold text-brand-otimath-pure" id="slider-label-s2">
                 Número de setores: {sliderValue}
@@ -451,8 +451,8 @@ export function RouletteGame() {
             </div>
           )}
 
-          {/* Stage 2 - Placeholder circle */}
-          {gameState.stage === 2 && gameState.subStep === 0 && (
+          {/* Stage 2 - Placeholder circle — oculto durante InfoBox de transição */}
+          {gameState.stage === 2 && gameState.subStep === 0 && !showInfoBox && (
             <div className="w-full max-w-[300px] aspect-square rounded-full border-4 border-dashed border-neutral-dark bg-neutral-lightest flex items-center justify-center" role="img" aria-label="Disco vazio - selecione o número de setores">
               <p className="ds-body text-neutral-dark text-center px-macro">
                 Selecione o número<br/>de setores e clique<br/>em &quot;Confirmar&quot;
@@ -3966,8 +3966,8 @@ export function RouletteGame() {
             </div>
           )}
 
-          {/* Stage 3 — SubStep 0.5: Previsão visual (antes da aposta) */}
-          {gameState.stage === 3 && gameState.subStep === 0.5 && (
+          {/* Stage 3 — SubStep 0.5: Previsão visual (antes da aposta) — oculto durante InfoBox de transição */}
+          {gameState.stage === 3 && gameState.subStep === 0.5 && !showInfoBox && (
             <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
               <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Previsão inicial</h3>
               <p className="ds-small text-neutral-dark mb-macro">
