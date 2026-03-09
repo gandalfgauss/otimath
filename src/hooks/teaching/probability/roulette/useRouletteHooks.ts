@@ -4171,8 +4171,16 @@ export const useRouletteHooks = () => {
       <p class="ds-body">Digite na forma de fração (ex: 3/${gameState.ySpins}).</p>`);
   }, [gameState.sectors, gameState.ySpins]);
 
+  // Scroll suave para o topo da seção do disco após resposta correta
+  const goToTopOfChallenge = () => {
+    requestAnimationFrame(() => {
+      document.getElementById("disco")?.scrollIntoView({ behavior: 'smooth' });
+    });
+  };
+
   // Função para verificar resposta
   const checkAnswer = useCallback(() => {
+    goToTopOfChallenge();
     const { stage, subStep, targetSectorCount, sectors } = gameState;
 
     // TREINOS: lógica de verificação inline se treino ativo
@@ -6917,6 +6925,7 @@ export const useRouletteHooks = () => {
 
   // Função para confirmar o resultado na fase de experimentação (clique na cor onde parou)
   const handleConfirmacaoResultado = useCallback((corClicada: string) => {
+    goToTopOfChallenge();
     const { subStep } = gameState;
 
     // Só permite confirmação no subStep 1.17 (aguardando confirmação)
@@ -8403,6 +8412,7 @@ export const useRouletteHooks = () => {
 
   const handleUnionConfirmSelection = useCallback(() => {
     if (unionSelectedSectors.length === 0) return;
+    goToTopOfChallenge();
 
     const currentEvent = unionEvents[unionCurrentEventIdx];
     const sortedUser = [...unionSelectedSectors].sort((a, b) => a - b);
@@ -8426,6 +8436,7 @@ export const useRouletteHooks = () => {
   }, [unionSelectedSectors, unionEvents, unionCurrentEventIdx, createAlert]);
 
   const handleUnionConfirmProb = useCallback(() => {
+    goToTopOfChallenge();
     const numerador = parseInt(unionProbNumInput.value || '');
     const denominador = parseInt(unionProbDenInput.value || '');
 
@@ -8477,6 +8488,7 @@ export const useRouletteHooks = () => {
   }, [unionProbNumInput, unionProbDenInput, unionEvents, unionCurrentEventIdx, gameState.sectors, createAlert]);
 
   const handleUnionConfirmFinal = useCallback(() => {
+    goToTopOfChallenge();
     const numerador = parseInt(unionFinalNumInput.value || '');
     const denominador = parseInt(unionFinalDenInput.value || '');
 
@@ -8529,6 +8541,7 @@ export const useRouletteHooks = () => {
 
   // Função para lidar com confirmação do InfoBox
   const handleInfoBoxConfirm = useCallback(() => {
+    goToTopOfChallenge();
     setShowInfoBox(false);
 
     const { stage, subStep, sectors, targetSectorCount } = gameState;

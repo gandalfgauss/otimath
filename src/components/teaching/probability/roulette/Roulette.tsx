@@ -237,7 +237,7 @@ export function Roulette({
                     onSectorClick?.(index);
                   }
                 }}
-                style={{ cursor: selectableMode ? 'pointer' : 'default' }}
+                style={{ cursor: selectableMode ? 'pointer' : 'default', outline: 'none' }}
                 role={selectableMode ? 'button' : undefined}
                 tabIndex={selectableMode ? 0 : undefined}
                 aria-label={selectableMode ? `Setor ${sector.colorName}${sector.number !== undefined ? ` (${sector.number})` : ''} - ${sector.angle}°${isSelected ? ' (selecionado)' : ''}` : undefined}
