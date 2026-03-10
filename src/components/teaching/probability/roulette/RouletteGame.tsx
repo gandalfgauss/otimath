@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/global/Button";
-import { RefreshCw, Play, X, ArrowRight, Check, Info } from "lucide-react";
+import { RefreshCw, Play, X, ArrowRight, Check, Info, Download } from "lucide-react";
 import { Alerts } from "@/components/global/Alerts";
 import { Modal } from "@/components/global/Modal";
 import { TextBlock } from "@/components/global/TextBlock";
@@ -205,8 +205,12 @@ export function RouletteGame() {
     lgnN,
     lgnParams,
     lgnInput, setLgnInput,
+    lgnVerbalInput, setLgnVerbalInput,
     handleLgnQueroSaber,
     handleLgnContinue,
+    handleLgnVerbalConfirm,
+    diceState, diceInput, setDiceInput,
+    handleDiceRoll, handleDiceAnswer,
 
     // Etapa 2 — Probabilidade Não Equiprovável
     s2RatioPhase,
@@ -278,7 +282,11 @@ export function RouletteGame() {
     handleS3FalaciaFinish,
 
     // Dev
-    goToPhase
+    goToPhase,
+
+    // Log de desempenho
+    downloadLog,
+    getLogSummary
   } = useRouletteHooks();
 
   const frequencyData = getFrequencyData();
@@ -4475,48 +4483,85 @@ export function RouletteGame() {
           )}
 
           {/* Stage 3 — SubStep 9: Institucionalização final */}
-          {gameState.stage === 3 && gameState.subStep === 9 && (
-            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
-              <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Resumo — Etapa 3</h3>
-              <div className="flex flex-col gap-y-micro ds-small text-neutral-dark">
-                <p>
-                  <strong>Espaço equiprovável vs. não equiprovável:</strong> Quando os setores de um disco são iguais, o espaço dos setores numerados é equiprovável — cada setor tem probabilidade 1/{s3State.n}. Porém, o espaço das cores pode não ser equiprovável, pois cores diferentes podem ocupar quantidades diferentes de setores.
-                </p>
-                <p>
-                  <strong>Viés de proporção visual:</strong> Setores agrupados de uma mesma cor podem criar a impressão de que aquela cor ocupa mais espaço, mesmo que outra cor tenha mais setores dispersos. A contagem, e não a impressão visual, deve guiar o cálculo.
-                </p>
-                <p>
-                  <strong>Falácia do jogador:</strong> Resultados passados não alteram probabilidades futuras em eventos independentes. Cada giro do disco é independente dos anteriores.
-                </p>
-<p>
-                  <strong>Generalização:</strong> Se cada cor ocupa exatamente um setor de mesmo tamanho, o espaço das cores herda a equiprobabilidade do espaço dos setores.
-                </p>
+          {gameState.stage === 3 && gameState.subStep === 9 && (() => {
+            const mfc = s3State.mostFreqColor;
+            const sfc = s3State.secondFreqColor;
+            const mfcCount = s3State.colorCounts[mfc] || 0;
+            const sfcCount = s3State.colorCounts[sfc] || 0;
+            const pred = s3State.predictionColor;
+            const bet = s3State.betColor;
+            const predAcertou = pred === mfc;
+            const betAcertou = bet === mfc;
+
+            return (
+              <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
+                <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Sua jornada na Etapa 3</h3>
+                <div className="flex flex-col gap-y-micro ds-small text-neutral-dark">
+                  <p>
+                    <strong>Sua previsão visual:</strong> Ao observar o disco, você indicou que <strong>{pred === 'iguais' ? 'todas as cores pareciam ocupar o mesmo espaço' : `a cor ${pred} parecia ocupar mais espaço`}</strong>.
+                    {predAcertou
+                      ? ` De fato, ${mfc} é a cor com mais setores (${mfcCount} de ${s3State.n}).`
+                      : pred === 'iguais'
+                        ? ` Porém, ${mfc} possui ${mfcCount} setores e ${sfc} possui ${sfcCount} — as cores não ocupam o mesmo espaço. Isso é o viés perceptual.`
+                        : ` Porém, a cor com mais setores é ${mfc} (${mfcCount} setores), não ${pred}. A disposição agrupada de ${sfc} (${sfcCount} setores) criou uma ilusão visual — isso é o viés perceptual.`
+                    }
+                  </p>
+                  <p>
+                    <strong>Sua aposta:</strong> Você apostou na cor <strong>{bet}</strong>.
+                    {betAcertou
+                      ? ` Boa escolha! ${bet} é de fato a cor mais provável, com P(${bet}) = ${mfcCount}/${s3State.n}.`
+                      : ` A cor mais provável era ${mfc}, com P(${mfc}) = ${mfcCount}/${s3State.n}. A aparência visual pode ter influenciado sua escolha.`
+                    }
+                  </p>
+                  <p>
+                    <strong>Falácia do jogador:</strong> Sobre a influência de giros anteriores, {s3State.perceptionAnswer === 'sim'
+                      ? 'você indicou que resultados passados influenciam os futuros — essa é a chamada falácia do jogador.'
+                      : s3State.perceptionAnswer === 'nao'
+                        ? 'você reconheceu corretamente que cada giro é independente.'
+                        : 'você refletiu sobre essa questão.'
+                    } Cada giro do disco é um experimento <strong>independente</strong>: o disco não tem memória.
+                  </p>
+                  <p>
+                    <strong>Conceito-chave:</strong> Quando os setores são iguais, cada setor tem probabilidade 1/{s3State.n}. Mas o espaço das <em>cores</em> pode não ser equiprovável — a contagem de setores por cor, e não a impressão visual, deve guiar o cálculo.
+                  </p>
+                </div>
+                <div className="mt-macro flex justify-center">
+                  <Button
+                    style="primary"
+                    size="medium"
+                    icon={<Check />}
+                    onClick={handleS3Finalize}
+                  >
+                    Finalizar
+                  </Button>
+                </div>
               </div>
-              <div className="mt-macro flex justify-center">
-                <Button
-                  style="primary"
-                  size="medium"
-                  icon={<Check />}
-                  onClick={handleS3Finalize}
-                >
-                  Finalizar
-                </Button>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Stage 3 — SubStep 10: Tela final */}
-          {gameState.stage === 3 && gameState.subStep === 10 && (
-            <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-light text-center flex flex-col items-center gap-y-macro">
-              <p className="ds-body-bold text-feedback-success-darkest">Atividade Concluída!</p>
-              <p className="ds-small text-neutral-dark">
-                Você explorou espaços equiprováveis e não equiprováveis, identificou vieses cognitivos e refletiu sobre suas escolhas. Parabéns!
-              </p>
-              <Button style="secondary" size="medium" icon={<RefreshCw />} onClick={startStage3}>
-                Interagir de Novo
-              </Button>
-            </div>
-          )}
+          {gameState.stage === 3 && gameState.subStep === 10 && (() => {
+            const summary = getLogSummary();
+            return (
+              <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-light text-center flex flex-col items-center gap-y-macro">
+                <p className="ds-body-bold text-feedback-success-darkest">Atividade Concluída!</p>
+                <p className="ds-small text-neutral-dark">
+                  Você explorou espaços equiprováveis e não equiprováveis, identificou vieses cognitivos e refletiu sobre suas escolhas. Parabéns!
+                </p>
+                <p className="ds-caption text-neutral-dark">
+                  Tempo total: <strong>{summary.totalTime}</strong> | Interações: <strong>{summary.totalEntries}</strong> | Tentativas: <strong>{summary.attempts}</strong> | Erros: <strong>{summary.errors}</strong>
+                </p>
+                <div className="flex gap-x-micro">
+                  <Button style="secondary" size="medium" icon={<RefreshCw />} onClick={startStage3}>
+                    Interagir de Novo
+                  </Button>
+                  <Button style="secondary" size="medium" icon={<Download />} onClick={downloadLog}>
+                    Exportar Dados
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ===================== FIM ETAPA 3 ===================== */}
 
@@ -4601,7 +4646,7 @@ export function RouletteGame() {
           })()}
 
           {/* SubStep 15: Problemas de consolidação LGN */}
-          {gameState.subStep === 15 && (
+          {(gameState.subStep === 15 || gameState.subStep === 15.5) && (
             <div className="w-full max-w-[600px] mx-auto flex flex-col gap-xxxs">
               <h3 className="ds-body-large-bold text-brand-otimath-dark text-center">Consolidação: Lei dos Grandes Números</h3>
 
@@ -4690,6 +4735,140 @@ export function RouletteGame() {
                   <div className="mt-nano flex justify-end">
                     <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleLgnContinue}>
                       Continuar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Melhoria 7 — Consolidação verbal (Almouloud/Duval) */}
+              {lgnPhase === 'verbal' && (
+                <div className="rounded-md p-xxs bg-brand-otimath-lightest border-hairline border-brand-otimath-light">
+                  <p className="ds-body-bold text-brand-otimath-dark mb-nano">Consolidação</p>
+                  <p className="ds-body text-brand-otimath-dark mb-micro">
+                    Explique com suas palavras: <strong>por que a frequência relativa de cada cor se aproximou de 1/{gameState.targetSectorCount} após muitos giros?</strong>
+                  </p>
+                  <textarea
+                    className={`w-full p-nano rounded-md border-hairline ds-body ${lgnVerbalInput.error ? 'border-feedback-error-medium bg-feedback-error-lightest' : 'border-neutral-light bg-neutral-white'}`}
+                    rows={3}
+                    placeholder="Escreva sua explicação aqui..."
+                    value={lgnVerbalInput.value}
+                    onChange={(e) => setLgnVerbalInput({ value: e.target.value, error: false })}
+                  />
+                  <div className="mt-nano flex justify-end">
+                    <Button style="primary" size="small" icon={<Check />} onClick={handleLgnVerbalConfirm} disabled={!lgnVerbalInput.value.trim()}>
+                      Confirmar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Melhoria 10 — Descontextualização: dado de 6 faces (subStep 15.6) */}
+          {gameState.stage === 1 && (gameState.subStep === 15.6 || gameState.subStep === 15.7) && (
+            <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter flex flex-col items-center gap-y-micro">
+              <h3 className="ds-body-bold text-brand-otimath-pure">Generalização: Dado de 6 Faces</h3>
+              <p className="ds-small text-neutral-dark text-center">
+                A Lei dos Grandes Números funciona apenas com o disco? Vamos testar com outro experimento aleatório.
+              </p>
+
+              {/* Dado 3D em CSS */}
+              {(() => {
+                const DOT_PATTERNS = [
+                  [0,0,0, 0,1,0, 0,0,0], // 1
+                  [0,0,1, 0,0,0, 1,0,0], // 2
+                  [0,0,1, 0,1,0, 1,0,0], // 3
+                  [1,0,1, 0,0,0, 1,0,1], // 4
+                  [1,0,1, 0,1,0, 1,0,1], // 5
+                  [1,0,1, 1,0,1, 1,0,1], // 6
+                ];
+                const renderFace = (faceNum: number, bg: string) => (
+                  <div className={`absolute w-full h-full rounded-md border border-neutral-light ${bg} grid gap-0.5 p-2.5`} style={{
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gridTemplateRows: 'repeat(3, 1fr)',
+                    backfaceVisibility: 'hidden'
+                  }}>
+                    {DOT_PATTERNS[faceNum - 1].map((dot, i) => (
+                      <div key={i} className="flex items-center justify-center">
+                        {dot ? <div className="w-3 h-3 rounded-full bg-brand-otimath-pure" /> : null}
+                      </div>
+                    ))}
+                  </div>
+                );
+                // Rotação final para cada face: [rotateX, rotateY]
+                // Rotação base para pousar em cada face + voltas extras para animação
+                const FACE_ROT_X: { [key: number]: number } = { 1: 0, 2: 0, 3: -90, 4: 90, 5: 0, 6: 180 };
+                const FACE_ROT_Y: { [key: number]: number } = { 1: 0, 2: -90, 3: 0, 4: 0, 5: 90, 6: 0 };
+                const f = diceState.face || 1;
+                const rollingTransform = (diceState.rolling || diceState.rolled)
+                  ? `rotateX(${720 + FACE_ROT_X[f]}deg) rotateY(${720 + FACE_ROT_Y[f]}deg)`
+                  : 'rotateX(-20deg) rotateY(30deg)';
+
+                return (
+                  <div style={{ perspective: '400px', width: '96px', height: '96px' }}>
+                    <div style={{
+                      width: '96px',
+                      height: '96px',
+                      position: 'relative',
+                      transformStyle: 'preserve-3d',
+                      transform: rollingTransform,
+                      transition: (diceState.rolling || diceState.rolled) ? 'transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1)' : 'none',
+                    }}>
+                      {/* Face 1 — frente */}
+                      <div style={{ position: 'absolute', transform: 'translateZ(48px)' }}>
+                        {renderFace(1, 'bg-neutral-white')}
+                      </div>
+                      {/* Face 6 — trás */}
+                      <div style={{ position: 'absolute', transform: 'rotateX(180deg) translateZ(48px)' }}>
+                        {renderFace(6, 'bg-neutral-white')}
+                      </div>
+                      {/* Face 2 — direita */}
+                      <div style={{ position: 'absolute', transform: 'rotateY(90deg) translateZ(48px)' }}>
+                        {renderFace(2, 'bg-neutral-white')}
+                      </div>
+                      {/* Face 5 — esquerda */}
+                      <div style={{ position: 'absolute', transform: 'rotateY(-90deg) translateZ(48px)' }}>
+                        {renderFace(5, 'bg-neutral-white')}
+                      </div>
+                      {/* Face 3 — cima */}
+                      <div style={{ position: 'absolute', transform: 'rotateX(90deg) translateZ(48px)' }}>
+                        {renderFace(3, 'bg-neutral-white')}
+                      </div>
+                      {/* Face 4 — baixo */}
+                      <div style={{ position: 'absolute', transform: 'rotateX(-90deg) translateZ(48px)' }}>
+                        {renderFace(4, 'bg-neutral-white')}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Botão de lançar */}
+              {!diceState.rolled && (
+                <Button style="primary" size="medium" icon={<Play />} onClick={handleDiceRoll} disabled={diceState.rolling}>
+                  {diceState.rolling ? 'Lançando...' : 'Lançar o dado'}
+                </Button>
+              )}
+
+              {/* Resultado + Pergunta */}
+              {diceState.rolled && !diceState.answered && (
+                <div className="w-full max-w-[500px] flex flex-col gap-y-micro">
+                  <p className="ds-body text-brand-otimath-dark text-center">
+                    O dado caiu na face <strong>{diceState.face}</strong>.
+                  </p>
+                  <p className="ds-body-bold text-brand-otimath-dark text-center">
+                    Se você lançasse esse dado 10.000 vezes, para qual valor a frequência relativa de cada face se aproximaria?
+                  </p>
+                  <div className="flex items-center justify-center gap-x-micro">
+                    <input
+                      type="text"
+                      className={`w-24 p-nano rounded-md border-hairline ds-body text-center ${diceInput.error ? 'border-feedback-error-medium bg-feedback-error-lightest' : 'border-neutral-light bg-neutral-white'}`}
+                      placeholder="?/?"
+                      value={diceInput.value}
+                      onChange={(e) => setDiceInput({ value: e.target.value, error: false })}
+                    />
+                    <Button style="primary" size="small" icon={<Check />} onClick={handleDiceAnswer} disabled={!diceInput.value.trim()}>
+                      Verificar
                     </Button>
                   </div>
                 </div>

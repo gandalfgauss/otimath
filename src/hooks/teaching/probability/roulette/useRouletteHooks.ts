@@ -9,6 +9,8 @@ import { FrequencyData } from '@/components/teaching/probability/roulette/Roulet
 import { ChartData } from '@/components/teaching/probability/roulette/RouletteChart';
 import { TextInputInterface } from '@/components/global/TextInput';
 import { QuestionOption } from '@/components/teaching/probability/roulette/RouletteQuestion';
+import { AlertType } from '@/components/global/Alert';
+import { logTransition, logAttempt, logText, logBet, logSpinResult, downloadLog, getLogSummary } from './useRouletteLog';
 
 // Cores disponíveis para o disco
 const AVAILABLE_COLORS = ['Vermelho', 'Azul', 'Verde', 'Amarelo', 'Roxo', 'Rosa'];
@@ -3630,10 +3632,15 @@ export const useRouletteHooks = () => {
   const [freqRelInput, setFreqRelInput] = useState<{ value: string; error: boolean }>({ value: '', error: false });
 
   // Problemas de consolidação LGN (subStep 15)
-  const [lgnPhase, setLgnPhase] = useState<'problem1' | 'problem2' | 'note' | 'explanation'>('problem1');
+  const [lgnPhase, setLgnPhase] = useState<'problem1' | 'problem2' | 'note' | 'explanation' | 'verbal'>('problem1');
+  const [lgnVerbalInput, setLgnVerbalInput] = useState<{ value: string; error: boolean }>({ value: '', error: false });
   const [lgnN, setLgnN] = useState(0);
   const [lgnParams, setLgnParams] = useState<{ k: number; m: number; p: number; answer1: number; answer2: number; color: string } | null>(null);
   const [lgnInput, setLgnInput] = useState<{ value: string; error: boolean }>({ value: '', error: false });
+
+  // Melhoria 10 — Descontextualização (dado de 6 faces)
+  const [diceState, setDiceState] = useState<{ face: number; rolling: boolean; rolled: boolean; answered: boolean }>({ face: 0, rolling: false, rolled: false, answered: false });
+  const [diceInput, setDiceInput] = useState<{ value: string; error: boolean }>({ value: '', error: false });
 
   // ===== ESTADOS ETAPA 2 =====
   const [s2RatioInputs, setS2RatioInputs] = useState<{ [color: string]: TextInputInterface }>({});
@@ -3825,8 +3832,21 @@ export const useRouletteHooks = () => {
   const [showAutoSpinButtons, setShowAutoSpinButtons] = useState(false);
 
   // Hooks globais
-  const { alerts, createAlert, updateAlert, deleteAlerts } = useAlerts();
+  const { alerts, createAlert: _createAlert, updateAlert, deleteAlerts } = useAlerts();
   const { modal, updateModal } = useModal();
+
+  // Melhoria 12 — Wrapper de createAlert que loga tentativas automaticamente
+  const gameStateRef = useRef<{ stage: number; subStep: number }>({ stage: 1, subStep: 0 });
+  const createAlert = useCallback((title: string, message: string, type: AlertType, duration?: number) => {
+    _createAlert(title, message, type, duration);
+    // Logar tentativas baseado no tipo de alerta
+    const s = gameStateRef.current;
+    if (type === 'error') {
+      logAttempt(s.stage, s.subStep, false, title);
+    } else if (type === 'success') {
+      logAttempt(s.stage, s.subStep, true, title);
+    }
+  }, [_createAlert]);
 
   // Refs
   const _autoSpinIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -3840,6 +3860,20 @@ export const useRouletteHooks = () => {
   useEffect(() => {
     startGame();
   }, []);
+
+  // Melhoria 12 — Log de desempenho: registrar transições de subStep
+  const prevSubStepRef = useRef<number>(-1);
+  const prevStageRef = useRef<number>(-1);
+  useEffect(() => {
+    gameStateRef.current = { stage: gameState.stage, subStep: gameState.subStep };
+    if (prevSubStepRef.current !== gameState.subStep || prevStageRef.current !== gameState.stage) {
+      if (prevSubStepRef.current >= 0) {
+        logTransition(gameState.stage, gameState.subStep, prevSubStepRef.current);
+      }
+      prevSubStepRef.current = gameState.subStep;
+      prevStageRef.current = gameState.stage;
+    }
+  }, [gameState.stage, gameState.subStep]);
 
   // Função para iniciar o jogo
   const startGame = useCallback(() => {
@@ -3971,8 +4005,8 @@ export const useRouletteHooks = () => {
         subStep: 6.202,
       }));
       setS2SpinReflection(prev => ({ ...prev, spin1Color: resultColor, selectedOption: '', phase: 'question' }));
-      playSound("/sounds/correct.mp3");
-      createAlert(won ? "Acertou!" : "Errou!", `Você apostou em ${betColor}. Foi sorteada a cor ${resultColor}.`, won ? "success" : "info", 3000);
+      playSound(won ? "/sounds/correct.mp3" : "/sounds/incorrect.mp3");
+      createAlert(won ? "Acertou!" : "Errou!", `Você apostou em ${betColor}. Foi sorteada a cor ${resultColor}.`, won ? "success" : "error", 3000);
       setInstructions(`<p class="ds-body"><strong>Resultado do giro</strong></p>
         <p class="ds-body">Você apostou em <strong>${betColor}</strong>. Foi sorteada a cor <strong>${resultColor}</strong>. Agora responda à pergunta abaixo.</p>`);
       return;
@@ -3990,8 +4024,8 @@ export const useRouletteHooks = () => {
         subStep: 6.204,
       }));
       setS2SpinReflection(prev => ({ ...prev, resposta1: prev.selectedOption, spin2Color: resultColor, selectedOption: '', phase: 'question', bet2Color: '', betConstraint: 'none' }));
-      playSound("/sounds/correct.mp3");
-      createAlert(won ? "Acertou!" : "Errou!", `Você apostou em ${betColor}. Foi sorteada a cor ${resultColor}.`, won ? "success" : "info", 3000);
+      playSound(won ? "/sounds/correct.mp3" : "/sounds/incorrect.mp3");
+      createAlert(won ? "Acertou!" : "Errou!", `Você apostou em ${betColor}. Foi sorteada a cor ${resultColor}.`, won ? "success" : "error", 3000);
       setInstructions(`<p class="ds-body"><strong>Resultado do segundo giro</strong></p>
         <p class="ds-body">Você apostou em <strong>${betColor}</strong>. Foi sorteada a cor <strong>${resultColor}</strong>. Responda novamente à pergunta.</p>`);
       return;
@@ -4040,6 +4074,7 @@ export const useRouletteHooks = () => {
 
     playSound("/sounds/correct.mp3");
     createAlert("Correto!", `Cor ${colorName} registrada.`, "success", 2000);
+    logSpinResult(gameState.stage, gameState.subStep, colorName);
 
     // Verificar se completou os giros manuais da primeira rodada (subStep 7)
     if (gameState.subStep === 7 && newManualSpinsDone >= gameState.manualSpinsRequired) {
@@ -4689,6 +4724,7 @@ export const useRouletteHooks = () => {
 
       playSound("/sounds/correct.mp3");
       createAlert("Previsão registrada!", `Sua previsão: "${predictionText}". Vamos verificar!`, "info", 3000);
+      logText(1, 6.5, 'prediction', `${gameState.predictionColor}: ${predictionText}`);
 
       setInstructions(`<p class="ds-body"><strong>Giros Manuais</strong></p>
         <p class="ds-body">Gire o disco ${targetSectorCount} vezes clicando em <strong>Sortear</strong>.</p>
@@ -5569,13 +5605,17 @@ export const useRouletteHooks = () => {
       if (selectedOption === 'v_correct') {
         playSound("/sounds/correct.mp3");
         createAlert("Exatamente!", "A probabilidade está relacionada à medida do setor.", "success", 3000);
-        setShowInfoBox(false);
 
-        // Avançar para espaço amostral
-        setSampleSpaceInput({ value: '', disabled: false, error: false });
-        setGameState(prev => ({ ...prev, subStep: 2 }));
-        setInstructions(`<p class="ds-body"><strong>Espaço Amostral</strong></p>
-          <p class="ds-body"><strong>Gira-se o disco, que está dividido em setores coloridos. Quando ele para, observa-se a cor do setor indicado pelo ponteiro.</strong></p>`);
+        // Melhoria 8 — Nomear o viés de equiprobabilidade (Almouloud/Saddo, Lecoutre 1992)
+        setGameState(prev => ({ ...prev, subStep: 0.191 }));
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: 'concept',
+          title: 'Viés de Equiprobabilidade',
+          message: 'O erro de pensar que todos os resultados têm a mesma chance, mesmo quando as condições são diferentes, é chamado de <strong>viés de equiprobabilidade</strong> (Lecoutre, 1992).<br/><br/>Na Etapa 1, essa suposição era correta — os setores tinham o mesmo tamanho. Mas agora, com setores de tamanhos diferentes, <strong>a probabilidade de cada cor depende da área que ela ocupa no disco</strong>.<br/><br/>Nomear esse erro ajuda a reconhecê-lo e evitá-lo.'
+        });
+        setInstructions(`<p class="ds-body"><strong>Conceito Importante</strong></p>
+          <p class="ds-body">Leia o conceito sobre o viés de equiprobabilidade.</p>`);
       } else if (selectedOption) {
         // Erro: micro-feedback perceptivo + obrigar novo giro
         playSound("/sounds/incorrect.mp3");
@@ -6944,6 +6984,7 @@ export const useRouletteHooks = () => {
     if (subStep !== 1.1) return;
 
     playSound("/sounds/click.mp3");
+    logBet(gameState.stage, gameState.subStep, corClicada);
 
     setExperimentacaoState(prev => ({
       ...prev,
@@ -7121,6 +7162,7 @@ export const useRouletteHooks = () => {
     if (gameState.stage !== 2 || gameState.subStep !== 0.15) return;
 
     playSound("/sounds/click.mp3");
+    logBet(gameState.stage, gameState.subStep, corClicada);
 
     setExperimentacaoState(prev => ({
       ...prev,
@@ -8589,6 +8631,30 @@ export const useRouletteHooks = () => {
       return;
     }
 
+    // ===== CONSOLIDAÇÃO VERBAL (Melhoria 7 — Almouloud/Duval) =====
+
+    // Stage 1 - SubStep 15.5: Após InfoBox de reforço verbal → descontextualização (dado)
+    if (stage === 1 && subStep === 15.5) {
+      setGameState(prev => ({ ...prev, subStep: 15.6 }));
+      setDiceState({ face: 0, rolling: false, rolled: false, answered: false });
+      setDiceInput({ value: '', error: false });
+      setInstructions(`<p class="ds-body"><strong>Generalização</strong></p>
+        <p class="ds-body">A Lei dos Grandes Números vale apenas para o disco? Vamos testar com outro objeto.</p>`);
+      return;
+    }
+
+    // Stage 1 - SubStep 15.7: Após InfoBox de reforço do dado → celebração Etapa 1
+    if (stage === 1 && subStep === 15.7) {
+      playSound("/sounds/gameFinished.mp3");
+      createAlert("Parabéns!", "Você completou a Etapa 1! A Etapa 2 foi desbloqueada.", "success", 5000);
+      setGameState(prev => ({ ...prev, subStep: 16, stage2Available: true }));
+      setDisabledNextButton(false);
+      setInstructions(`<p class="ds-body"><strong>Etapa 1 Concluída!</strong></p>
+        <p class="ds-body">Você aprendeu sobre probabilidade equiprovável e a Lei dos Grandes Números.</p>
+        <p class="ds-body">Clique em <strong>Próxima Etapa</strong> para continuar.</p>`);
+      return;
+    }
+
     // ===== TRANSIÇÕES — InfoBox de ruptura do contrato didático (Brousseau) =====
 
     // Stage 2 - SubStep 0: Transição E1→E2 → apenas fechar InfoBox
@@ -8702,6 +8768,15 @@ export const useRouletteHooks = () => {
       setGameState(prev => ({ ...prev, subStep: 0.19 }));
       setInstructions(`<p class="ds-body"><strong>Reflexão Conceitual</strong></p>
         <p class="ds-body">Responda a pergunta abaixo.</p>`);
+      return;
+    }
+
+    // Stage 2 - SubStep 0.191: Viés de equiprobabilidade lido → avançar para espaço amostral
+    if (stage === 2 && subStep === 0.191) {
+      setSampleSpaceInput({ value: '', disabled: false, error: false });
+      setGameState(prev => ({ ...prev, subStep: 2 }));
+      setInstructions(`<p class="ds-body"><strong>Espaço Amostral</strong></p>
+        <p class="ds-body"><strong>Gira-se o disco, que está dividido em setores coloridos. Quando ele para, observa-se a cor do setor indicado pelo ponteiro.</strong></p>`);
       return;
     }
 
@@ -9887,6 +9962,8 @@ export const useRouletteHooks = () => {
     const sector = gameState.sectors[sectorIndex];
     if (!sector) return;
 
+    logBet(gameState.stage, gameState.subStep, sector.colorName);
+
     setS3State(prev => ({
       ...prev,
       betColor: sector.colorName,
@@ -11039,16 +11116,77 @@ export const useRouletteHooks = () => {
       <p class="ds-body">Leia a explicação abaixo.</p>`);
   }, []);
 
-  // Handler para "Continuar" após explicação → celebração Etapa 1
+  // Handler para "Continuar" após explicação → consolidação verbal (Melhoria 7)
   const handleLgnContinue = useCallback(() => {
-    playSound("/sounds/gameFinished.mp3");
-    createAlert("Parabéns!", "Você completou a Etapa 1! A Etapa 2 foi desbloqueada.", "success", 5000);
-    setGameState(prev => ({ ...prev, subStep: 16, stage2Available: true }));
-    setDisabledNextButton(false);
-    setInstructions(`<p class="ds-body"><strong>Etapa 1 Concluída!</strong></p>
-      <p class="ds-body">Você aprendeu sobre probabilidade equiprovável e a Lei dos Grandes Números.</p>
-      <p class="ds-body">Clique em <strong>Próxima Etapa</strong> para continuar.</p>`);
-  }, [playSound, createAlert]);
+    setLgnPhase('verbal');
+    setLgnVerbalInput({ value: '', error: false });
+    setInstructions(`<p class="ds-body"><strong>Consolidação</strong></p>
+      <p class="ds-body">Responda a pergunta abaixo com suas próprias palavras.</p>`);
+  }, []);
+
+  // Handler para confirmar resposta verbal → celebração Etapa 1
+  const handleLgnVerbalConfirm = useCallback(() => {
+    const text = lgnVerbalInput.value.trim();
+    if (text.length < 10) {
+      playSound("/sounds/incorrect.mp3");
+      setLgnVerbalInput(prev => ({ ...prev, error: true }));
+      createAlert("Resposta muito curta", "Escreva uma explicação com pelo menos 10 caracteres.", "error", 3000);
+      return;
+    }
+
+    // Melhoria 12 — Logar resposta textual
+    logText(1, 15, 'consolidacao_verbal_lgn', text);
+
+    playSound("/sounds/correct.mp3");
+    setShowInfoBox(true);
+    setInfoBoxContent({
+      type: 'concept',
+      title: 'Lei dos Grandes Números',
+      message: 'O fenômeno que você descreveu é a <strong>Lei dos Grandes Números</strong>: quanto maior o número de repetições de um experimento aleatório, mais a frequência relativa se aproxima da probabilidade teórica.<br/><br/>Esse é um dos resultados mais importantes da teoria da probabilidade.'
+    });
+    setLgnPhase('verbal'); // manter na fase verbal para o InfoBox
+    setGameState(prev => ({ ...prev, subStep: 15.5 })); // subStep intermediário para o InfoBox
+    setInstructions(`<p class="ds-body"><strong>Lei dos Grandes Números</strong></p>
+      <p class="ds-body">Leia a formalização do conceito.</p>`);
+  }, [lgnVerbalInput.value, playSound, createAlert]);
+
+  // Melhoria 10 — Handlers do dado de 6 faces (descontextualização)
+  const handleDiceRoll = useCallback(() => {
+    if (diceState.rolling) return;
+    const finalFace = Math.floor(Math.random() * 6) + 1;
+    // Iniciar rotação 3D — definir face final e ativar rolling
+    setDiceState({ face: finalFace, rolling: true, rolled: false, answered: false });
+    playSound("/sounds/nextChallenge.mp3");
+
+    // Após a animação CSS (1.2s), marcar como concluído
+    setTimeout(() => {
+      setDiceState(prev => ({ ...prev, rolling: false, rolled: true }));
+      setInstructions(`<p class="ds-body"><strong>Generalização</strong></p>
+        <p class="ds-body">O dado caiu na face <strong>${finalFace}</strong>. Agora responda a pergunta.</p>`);
+    }, 1300);
+  }, [diceState.rolling, playSound]);
+
+  const handleDiceAnswer = useCallback(() => {
+    const val = diceInput.value.trim();
+    if (areFractionsEquivalent(val, '1/6')) {
+      playSound("/sounds/correct.mp3");
+      logText(1, 15.6, 'descontextualizacao_dado', val);
+      setDiceState(prev => ({ ...prev, answered: true }));
+      setGameState(prev => ({ ...prev, subStep: 15.7 }));
+      setShowInfoBox(true);
+      setInfoBoxContent({
+        type: 'success',
+        title: 'Generalização',
+        message: 'A Lei dos Grandes Números não se limita ao disco colorido. Para <strong>qualquer</strong> experimento aleatório com resultados equiprováveis, a frequência relativa se aproxima da probabilidade teórica quando o número de repetições é grande.<br/><br/>O dado tem 6 faces iguais, então cada face tem probabilidade <strong>1/6</strong>. Após 10.000 lançamentos, a frequência relativa de cada face se aproximaria desse valor.'
+      });
+      setInstructions(`<p class="ds-body"><strong>Generalização</strong></p>
+        <p class="ds-body">Leia a conclusão.</p>`);
+    } else {
+      playSound("/sounds/incorrect.mp3");
+      setDiceInput(prev => ({ ...prev, error: true }));
+      createAlert("Tente novamente", "Pense: o dado tem 6 faces iguais. Qual a probabilidade de cada face? Use a notação de fração.", "error", 5000);
+    }
+  }, [diceInput.value, playSound, createAlert]);
 
   // Handler para avançar do feedback para fase LGN (subStep 15)
   const handleInterpretationContinue = useCallback(() => {
@@ -11288,8 +11426,12 @@ export const useRouletteHooks = () => {
     lgnN,
     lgnParams,
     lgnInput, setLgnInput,
+    lgnVerbalInput, setLgnVerbalInput,
     handleLgnQueroSaber,
     handleLgnContinue,
+    handleLgnVerbalConfirm,
+    diceState, diceInput, setDiceInput,
+    handleDiceRoll, handleDiceAnswer,
 
     // Etapa 2 — Probabilidade Não Equiprovável
     s2RatioInputs, setS2RatioInputs,
@@ -11327,6 +11469,10 @@ export const useRouletteHooks = () => {
     handleS3FalaciaFinish,
 
     // Dev
-    goToPhase
+    goToPhase,
+
+    // Melhoria 12 — Log de desempenho
+    downloadLog,
+    getLogSummary
   };
 };
