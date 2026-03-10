@@ -3425,7 +3425,7 @@ export const useRouletteHooks = () => {
     stage3Available: false,
     pendingRegistration: false,
     isAutoSpinning: false,
-    autoSpinBatches: [10, 20, 30, 50, 70, 100],
+    autoSpinBatches: [50, 100, 150, 200],
     currentAutoBatchIndex: 0,
     manualSpinsRequired: 0,
     manualSpinsDone: 0,
@@ -4862,7 +4862,7 @@ export const useRouletteHooks = () => {
         setShowAutoSpinButtons(true);
         setInstructions(`<p class="ds-body"><strong>Giros Automáticos</strong></p>
           <p class="ds-body">Agora você realizará giros automáticos para observar a <strong>Lei dos Grandes Números</strong>.</p>
-          <p class="ds-body">Clique nos botões para executar os blocos de giros (10→20→30→50→70→100).</p>`);
+          <p class="ds-body">Clique nos botões para executar os blocos de giros.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
         setFreqRelInput(prev => ({ ...prev, error: true }));
@@ -9882,7 +9882,7 @@ export const useRouletteHooks = () => {
       showNumbers: false,
       pendingRegistration: false,
       isAutoSpinning: false,
-      autoSpinBatches: [50, 100, 200, 150],
+      autoSpinBatches: [50, 100, 150, 200],
       currentAutoBatchIndex: 0,
       manualSpinsDone: 0,
       selectedSectors: [],
@@ -10935,7 +10935,7 @@ export const useRouletteHooks = () => {
         setShowAutoSpinButtons(true);
         setInstructions(`<p class="ds-body"><strong>Giros Automáticos</strong></p>
           <p class="ds-body">Agora você realizará giros automáticos para observar a <strong>Lei dos Grandes Números</strong>.</p>
-          <p class="ds-body">Clique nos botões para executar os blocos de giros (10→20→30→50→70→100).</p>`);
+          <p class="ds-body">Clique nos botões para executar os blocos de giros.</p>`);
         break;
       }
 
