@@ -4774,6 +4774,8 @@ export function RouletteGame() {
 
               {/* Dado 3D em CSS */}
               {(() => {
+                const SIZE = 96;
+                const HALF = SIZE / 2;
                 const DOT_PATTERNS = [
                   [0,0,0, 0,1,0, 0,0,0], // 1
                   [0,0,1, 0,0,0, 1,0,0], // 2
@@ -4782,61 +4784,105 @@ export function RouletteGame() {
                   [1,0,1, 0,1,0, 1,0,1], // 5
                   [1,0,1, 1,0,1, 1,0,1], // 6
                 ];
-                const renderFace = (faceNum: number, bg: string) => (
-                  <div className={`absolute w-full h-full rounded-md border border-neutral-light ${bg} grid gap-0.5 p-2.5`} style={{
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gridTemplateRows: 'repeat(3, 1fr)',
-                    backfaceVisibility: 'hidden'
-                  }}>
-                    {DOT_PATTERNS[faceNum - 1].map((dot, i) => (
-                      <div key={i} className="flex items-center justify-center">
-                        {dot ? <div className="w-3 h-3 rounded-full bg-brand-otimath-pure" /> : null}
-                      </div>
-                    ))}
-                  </div>
-                );
-                // Rotação final para cada face: [rotateX, rotateY]
-                // Rotação base para pousar em cada face + voltas extras para animação
-                const FACE_ROT_X: { [key: number]: number } = { 1: 0, 2: 0, 3: -90, 4: 90, 5: 0, 6: 180 };
-                const FACE_ROT_Y: { [key: number]: number } = { 1: 0, 2: -90, 3: 0, 4: 0, 5: 90, 6: 0 };
+
+                const faceStyle = (transform: string): React.CSSProperties => ({
+                  position: 'absolute',
+                  width: SIZE,
+                  height: SIZE,
+                  backfaceVisibility: 'hidden',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gridTemplateRows: 'repeat(3, 1fr)',
+                  gap: 2,
+                  padding: 10,
+                  borderRadius: 12,
+                  border: '2px solid #cbd5e1',
+                  background: '#fff',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                  transform,
+                });
+
+                // Rotação para mostrar cada face no topo (virada para o observador, inclinada)
+                // A face "frente" (1) fica em translateZ(+HALF), a face "cima" (3) em rotateX(90deg)
+                // Para mostrar face N no topo, precisamos rotacionar o cubo de modo que N fique virada para cima
+                const FACE_ROT_X: Record<number, number> = { 1: 0, 2: 0, 3: -90, 4: 90, 5: 0, 6: 180 };
+                const FACE_ROT_Y: Record<number, number> = { 1: 0, 2: -90, 3: 0, 4: 0, 5: 90, 6: 0 };
+
                 const f = diceState.face || 1;
-                const rollingTransform = (diceState.rolling || diceState.rolled)
-                  ? `rotateX(${720 + FACE_ROT_X[f]}deg) rotateY(${720 + FACE_ROT_Y[f]}deg)`
-                  : 'rotateX(-20deg) rotateY(30deg)';
+
+                let cubeTransform: string;
+                if (diceState.rolling) {
+                  // Animação de rolagem: várias voltas + pouso na face correta
+                  cubeTransform = `rotateX(${720 + FACE_ROT_X[f]}deg) rotateY(${720 + FACE_ROT_Y[f]}deg)`;
+                } else if (diceState.rolled) {
+                  // Já parou: mostra a face sorteada com leve inclinação para dar profundidade
+                  cubeTransform = `rotateX(${FACE_ROT_X[f] - 15}deg) rotateY(${FACE_ROT_Y[f] + 20}deg)`;
+                } else {
+                  // Estado inicial: inclinação 3D para mostrar que é um cubo
+                  cubeTransform = 'rotateX(-20deg) rotateY(30deg)';
+                }
 
                 return (
-                  <div style={{ perspective: '400px', width: '96px', height: '96px' }}>
+                  <div style={{ width: SIZE + 48, height: SIZE + 48, margin: '8px auto', display: 'flex', alignItems: 'center', justifyContent: 'center', perspective: 600 }}>
                     <div style={{
-                      width: '96px',
-                      height: '96px',
+                      width: SIZE,
+                      height: SIZE,
                       position: 'relative',
                       transformStyle: 'preserve-3d',
-                      transform: rollingTransform,
-                      transition: (diceState.rolling || diceState.rolled) ? 'transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1)' : 'none',
+                      transform: cubeTransform,
+                      transition: diceState.rolling
+                        ? 'transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1)'
+                        : diceState.rolled
+                          ? 'transform 0.6s ease-out'
+                          : 'none',
                     }}>
-                      {/* Face 1 — frente */}
-                      <div style={{ position: 'absolute', transform: 'translateZ(48px)' }}>
-                        {renderFace(1, 'bg-neutral-white')}
+                      {/* Face 1 — frente (+Z) */}
+                      <div style={faceStyle(`rotateY(0deg) translateZ(${HALF}px)`)}>
+                        {DOT_PATTERNS[0].map((dot, i) => (
+                          <div key={i} className="flex items-center justify-center">
+                            {dot ? <div className="w-3.5 h-3.5 rounded-full bg-brand-otimath-pure" /> : null}
+                          </div>
+                        ))}
                       </div>
-                      {/* Face 6 — trás */}
-                      <div style={{ position: 'absolute', transform: 'rotateX(180deg) translateZ(48px)' }}>
-                        {renderFace(6, 'bg-neutral-white')}
+                      {/* Face 6 — trás (-Z) */}
+                      <div style={faceStyle(`rotateY(180deg) translateZ(${HALF}px)`)}>
+                        {DOT_PATTERNS[5].map((dot, i) => (
+                          <div key={i} className="flex items-center justify-center">
+                            {dot ? <div className="w-3.5 h-3.5 rounded-full bg-brand-otimath-pure" /> : null}
+                          </div>
+                        ))}
                       </div>
-                      {/* Face 2 — direita */}
-                      <div style={{ position: 'absolute', transform: 'rotateY(90deg) translateZ(48px)' }}>
-                        {renderFace(2, 'bg-neutral-white')}
+                      {/* Face 2 — direita (+X) */}
+                      <div style={faceStyle(`rotateY(90deg) translateZ(${HALF}px)`)}>
+                        {DOT_PATTERNS[1].map((dot, i) => (
+                          <div key={i} className="flex items-center justify-center">
+                            {dot ? <div className="w-3.5 h-3.5 rounded-full bg-brand-otimath-pure" /> : null}
+                          </div>
+                        ))}
                       </div>
-                      {/* Face 5 — esquerda */}
-                      <div style={{ position: 'absolute', transform: 'rotateY(-90deg) translateZ(48px)' }}>
-                        {renderFace(5, 'bg-neutral-white')}
+                      {/* Face 5 — esquerda (-X) */}
+                      <div style={faceStyle(`rotateY(-90deg) translateZ(${HALF}px)`)}>
+                        {DOT_PATTERNS[4].map((dot, i) => (
+                          <div key={i} className="flex items-center justify-center">
+                            {dot ? <div className="w-3.5 h-3.5 rounded-full bg-brand-otimath-pure" /> : null}
+                          </div>
+                        ))}
                       </div>
-                      {/* Face 3 — cima */}
-                      <div style={{ position: 'absolute', transform: 'rotateX(90deg) translateZ(48px)' }}>
-                        {renderFace(3, 'bg-neutral-white')}
+                      {/* Face 3 — cima (+Y) */}
+                      <div style={faceStyle(`rotateX(90deg) translateZ(${HALF}px)`)}>
+                        {DOT_PATTERNS[2].map((dot, i) => (
+                          <div key={i} className="flex items-center justify-center">
+                            {dot ? <div className="w-3.5 h-3.5 rounded-full bg-brand-otimath-pure" /> : null}
+                          </div>
+                        ))}
                       </div>
-                      {/* Face 4 — baixo */}
-                      <div style={{ position: 'absolute', transform: 'rotateX(-90deg) translateZ(48px)' }}>
-                        {renderFace(4, 'bg-neutral-white')}
+                      {/* Face 4 — baixo (-Y) */}
+                      <div style={faceStyle(`rotateX(-90deg) translateZ(${HALF}px)`)}>
+                        {DOT_PATTERNS[3].map((dot, i) => (
+                          <div key={i} className="flex items-center justify-center">
+                            {dot ? <div className="w-3.5 h-3.5 rounded-full bg-brand-otimath-pure" /> : null}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>

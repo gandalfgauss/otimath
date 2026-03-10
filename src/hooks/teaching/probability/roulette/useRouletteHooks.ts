@@ -3282,38 +3282,59 @@ function gcd(a: number, b: number): number {
   return a;
 }
 
-// Função para verificar equivalência de frações
+// Função para verificar equivalência de frações (validação matemática por produto cruzado)
+// Aceita: frações (a/b), inteiros, decimais e porcentagens.
+// Regra: a/b = c/d ⟺ a×d = b×c
 function areFractionsEquivalent(input: string, expected: string): boolean {
-  const parseValue = (val: string): number | null => {
+  const parseFraction = (val: string): [number, number] | null => {
     val = val.trim().replace(/\s/g, '').replace(',', '.');
 
-    // Porcentagem
+    // Porcentagem (ex: "33.3%")
     if (val.endsWith('%')) {
       const num = parseFloat(val.slice(0, -1));
-      return isNaN(num) ? null : num / 100;
+      return isNaN(num) ? null : [num, 100];
     }
 
-    // Fração
+    // Fração (ex: "2/6", "1/3")
     if (val.includes('/')) {
       const parts = val.split('/');
       if (parts.length !== 2) return null;
       const num = parseFloat(parts[0]);
       const den = parseFloat(parts[1]);
       if (isNaN(num) || isNaN(den) || den === 0) return null;
-      return num / den;
+      return [num, den];
     }
 
-    // Decimal
+    // Decimal ou inteiro (ex: "0.5", "1")
     const num = parseFloat(val);
-    return isNaN(num) ? null : num;
+    return isNaN(num) ? null : [num, 1];
   };
 
-  const inputVal = parseValue(input);
-  const expectedVal = parseValue(expected);
+  const a = parseFraction(input);
+  const b = parseFraction(expected);
 
-  if (inputVal === null || expectedVal === null) return false;
+  if (!a || !b) return false;
 
-  return Math.abs(inputVal - expectedVal) < 0.0001;
+  // Produto cruzado: a[0]/a[1] = b[0]/b[1] ⟺ a[0]×b[1] = a[1]×b[0]
+  const lhs = a[0] * b[1];
+  const rhs = a[1] * b[0];
+
+  // Se ambos os lados são inteiros, comparação exata (sem erro de ponto flutuante)
+  if (Number.isInteger(a[0]) && Number.isInteger(a[1]) &&
+      Number.isInteger(b[0]) && Number.isInteger(b[1])) {
+    return lhs === rhs;
+  }
+
+  // Para decimais/porcentagens, tolerância relativa
+  const maxVal = Math.max(1, Math.abs(lhs), Math.abs(rhs));
+  return Math.abs(lhs - rhs) < 0.001 * maxVal;
+}
+
+// Função auxiliar para verificar equivalência de frações em campos separados (numerador e denominador)
+// Aceita qualquer fração equivalente: 2/6 é aceito quando o esperado é 1/3
+function areSplitFractionsEquivalent(num: number, den: number, expectedNum: number, expectedDen: number): boolean {
+  if (isNaN(num) || isNaN(den) || den === 0 || isNaN(expectedNum) || isNaN(expectedDen) || expectedDen === 0) return false;
+  return num * expectedDen === den * expectedNum;
 }
 
 // Função para validar o espaço amostral
@@ -4318,7 +4339,7 @@ export const useRouletteHooks = () => {
 
       if (phase === 'fill_sum') {
         const val = (trainSumInput.value || '').trim();
-        if (val === '1' || val === '1.0') {
+        if (areFractionsEquivalent(val, '1')) {
           playSound("/sounds/correct.mp3");
           createAlert("Correto!", "A soma das probabilidades é igual a 1.", "success", 2000);
           setTrainSumInput(prev => ({ ...prev, value: '1', disabled: true }));
@@ -4578,7 +4599,7 @@ export const useRouletteHooks = () => {
     // STAGE 1 - SubStep 5.7: Verificar probabilidade do evento certo
     if (stage === 1 && subStep === 5.7) {
       const value = (theoreticalQuestion1Input.value || '').trim();
-      if (value === '1' || value === '100%' || value === '100') {
+      if (areFractionsEquivalent(value, '1')) {
         playSound("/sounds/correct.mp3");
         createAlert("Parabéns!", "Correto! A probabilidade do evento certo é 1 (ou 100%).", "success", 3000);
 
@@ -5036,7 +5057,7 @@ export const useRouletteHooks = () => {
       const expectedNumerador = gameState.exercicioEventoE.length;
       const expectedDenominador = sectors.length;
 
-      if (numerador === expectedNumerador && denominador === expectedDenominador) {
+      if (areSplitFractionsEquivalent(numerador, denominador, expectedNumerador, expectedDenominador)) {
         playSound("/sounds/correct.mp3");
 
         // Calcular decimal e porcentagem
@@ -5233,7 +5254,7 @@ export const useRouletteHooks = () => {
       }
       const expectedDenominador = sectors.length;
 
-      if (numerador === expectedNumerador && denominador === expectedDenominador) {
+      if (areSplitFractionsEquivalent(numerador, denominador, expectedNumerador, expectedDenominador)) {
         playSound("/sounds/correct.mp3");
 
         // Calcular decimal e porcentagem
@@ -5320,8 +5341,9 @@ export const useRouletteHooks = () => {
       const denVal = parseInt(compPaInput.den);
       let hasErr = false;
       const errs = { errNum: false, errDen: false };
-      if (numVal !== m) { errs.errNum = true; hasErr = true; }
-      if (denVal !== n) { errs.errDen = true; hasErr = true; }
+      if (!areSplitFractionsEquivalent(numVal, denVal, m, n)) {
+        errs.errNum = true; errs.errDen = true; hasErr = true;
+      }
       if (hasErr) {
         playSound("/sounds/incorrect.mp3");
         setCompPaInput(prev => ({ ...prev, ...errs }));
@@ -5988,7 +6010,7 @@ export const useRouletteHooks = () => {
         // Verificação da soma (após todos os i·p preenchidos)
         if (idx >= colors.length) {
           const val = (s2SumEquationInput.value || '').trim();
-          if (val === '1' || val === '1.0') {
+          if (areFractionsEquivalent(val, '1')) {
             playSound("/sounds/correct.mp3");
             createAlert("Correto!", "A soma das probabilidades de todos os setores é 1.", "success", 3000);
             setS2SumEquationInput(prev => ({ ...prev, disabled: true, error: false }));
@@ -6049,7 +6071,7 @@ export const useRouletteHooks = () => {
     // STAGE 2 - SubStep 5: Soma = 1
     if (stage === 2 && subStep === 5) {
       const val = (s2SumEquationInput.value || '').trim();
-      if (val === '1' || val === '1.0' || val === '100%') {
+      if (areFractionsEquivalent(val, '1')) {
         playSound("/sounds/correct.mp3");
         createAlert("Correto!", "A soma das probabilidades de todos os eventos simples é igual a 1.", "success", 3000);
 
@@ -6601,12 +6623,12 @@ export const useRouletteHooks = () => {
           errDen = isNaN(denVal);
           errMsg = 'Preencha numerador e denominador.';
           allOk = false;
-        } else if (numVal === count && denVal === n) {
+        } else if (areSplitFractionsEquivalent(numVal, denVal, count, n)) {
           upd[color] = { ...inp, errorNum: false, errorDen: false, status: 'correct', errorMsg: '' };
           return;
         } else {
-          errNum = numVal !== count;
-          errDen = denVal !== n;
+          errNum = true;
+          errDen = true;
           errMsg = 'Observe quantos setores possuem essa cor e o total de setores do disco.';
           allOk = false;
         }
@@ -7771,7 +7793,7 @@ export const useRouletteHooks = () => {
     // Phase: fill_sum
     if (phase === 'fill_sum') {
       const val = (trainSumInput.value || '').trim();
-      if (val === '1' || val === '1.0') {
+      if (areFractionsEquivalent(val, '1')) {
         playSound("/sounds/correct.mp3");
         createAlert("Correto!", "A soma das probabilidades é igual a 1.", "success", 2000);
         setTrainSumInput(prev => ({ ...prev, value: '1', disabled: true }));
@@ -8521,7 +8543,7 @@ export const useRouletteHooks = () => {
     const expectedNum = currentEvent.sectorIndices.length;
     const expectedDen = gameState.sectors.length;
 
-    if (numerador === expectedNum && denominador === expectedDen) {
+    if (areSplitFractionsEquivalent(numerador, denominador, expectedNum, expectedDen)) {
       playSound("/sounds/correct.mp3");
 
       const updatedEvents = unionEvents.map((e, i) =>
@@ -8572,7 +8594,7 @@ export const useRouletteHooks = () => {
     const expectedNum = unionEvents.reduce((sum, e) => sum + e.probNumerator, 0);
     const expectedDen = gameState.sectors.length;
 
-    if (numerador === expectedNum && denominador === expectedDen) {
+    if (areSplitFractionsEquivalent(numerador, denominador, expectedNum, expectedDen)) {
       playSound("/sounds/challengeFinished.mp3");
 
       const unionLabel = unionEvents.map(e => e.label).join('∪');
@@ -9860,7 +9882,7 @@ export const useRouletteHooks = () => {
       showNumbers: false,
       pendingRegistration: false,
       isAutoSpinning: false,
-      autoSpinBatches: [50, 100, 200, 500],
+      autoSpinBatches: [50, 100, 200, 150],
       currentAutoBatchIndex: 0,
       manualSpinsDone: 0,
       selectedSectors: [],
