@@ -1673,7 +1673,7 @@ function computeMinM(nums: number[]): number {
     while (x % 2 === 0) { va++; x /= 2; }
     while (x % 3 === 0) { vb++; x /= 3; }
     while (x % 5 === 0) { vc++; x /= 5; }
-    if (x > 1) return -1; // has prime factor > 5
+    if (x > 1) return -1; // possui fator primo > 5
     a = Math.max(a, va); b = Math.max(b, vb); c = Math.max(c, vc);
   }
   return Math.pow(2, a) * Math.pow(3, b) * Math.pow(5, c);
@@ -1757,28 +1757,28 @@ function getCompatibleChallengeTypes(sectors: RouletteSector[]): ChallengeType[]
   const nc = uniqueCores.length;
   const types: ChallengeType[] = [];
 
-  // Types 2, 3: no color needed, just n ≥ 2
+  // Tipos 2, 3: não precisa de cor, apenas n ≥ 2
   types.push(2, 3);
 
-  // Check if any color X has ≥1 X-sector AND ≥2 non-X sectors
+  // Verificar se alguma cor X tem ≥1 setor-X E ≥2 setores não-X
   const hasGoodSingleColor = nc >= 2 && uniqueCores.some(c => {
     const cx = cores.filter(cc => cc === c).length;
     return cx >= 1 && n - cx >= 2;
   });
 
-  // Type 1: X ∨ div ∨ mult — needs ≥2 non-X sectors
+  // Tipo 1: X ∨ div ∨ mult — precisa de ≥2 setores não-X
   if (hasGoodSingleColor) types.push(1);
-  // Type 6: X ∧ div — needs X + another color
+  // Tipo 6: X ∧ div — precisa de X + outra cor
   if (nc >= 2) types.push(6);
-  // Types 7, 9: ¬X ∧ prop + X — needs ≥2 non-X sectors
+  // Tipos 7, 9: ¬X ∧ prop + X — precisa de ≥2 setores não-X
   if (hasGoodSingleColor) types.push(7, 9);
-  // Types 8, 10: ¬Y ∧ prop + Y — same structure
+  // Tipos 8, 10: ¬Y ∧ prop + Y — mesma estrutura
   if (hasGoodSingleColor) types.push(8, 10);
 
-  // Types needing ≥3 colors: X, Y, and outside X∪Y
+  // Tipos que precisam de ≥3 cores: X, Y e fora de X∪Y
   if (nc >= 3) {
     types.push(4, 5);
-    // Types 11-14: need ≥1 sector outside X∪Y
+    // Tipos 11-14: precisa de ≥1 setor fora de X∪Y
     types.push(11, 12, 13, 14);
   }
 
@@ -1882,7 +1882,7 @@ function genType3(_s: RouletteSector[], _c: string[], _uc: string[], n: number):
   const [idxPrimoPar, idxCompImpar, idxNeither] = partitionIndices(indices, [1, Math.max(1, Math.round((n - 1) / 2))]);
 
   const values: number[] = new Array(n).fill(0);
-  idxPrimoPar.forEach(idx => values[idx] = 2); // only even prime
+  idxPrimoPar.forEach(idx => values[idx] = 2); // único primo par
   const compOddNums = pickDistinct(CH_COMP_ODD, idxCompImpar.length);
   idxCompImpar.forEach((idx, i) => values[idx] = compOddNums[i]);
   // Neither: odd primes (not 2) or even composites
@@ -2542,7 +2542,7 @@ function evalInterPred(v: number, pred: string, m: number|null, p: number|null, 
     case 'prime':  return ehPrimo(v);
     case '!prime': return !ehPrimo(v);
     case 'comp':   return v > 1 && !ehPrimo(v);
-    case '!comp':  return ehPrimo(v); // for v >= 2 (we avoid 1)
+    case '!comp':  return ehPrimo(v); // para v >= 2 (evitamos 1)
     case 'sq':     return INTER_SQUARES.includes(v);
     case '!sq':    return !INTER_SQUARES.includes(v);
     default:       return false;
@@ -2578,9 +2578,9 @@ function validateIntersection(
 function getCompatibleInterTypes(n: number): number[] {
   const types: number[] = [];
   for (let t = 1; t <= 45; t++) {
-    // Type 26 (prime ∩ even) requires placing 2 — only viable if n >= 2 (always)
-    // Type 36 (multp ∩ prime) requires placing p — viable always
-    // Types 43-45 (k): always viable
+    // Tipo 26 (primo ∩ par) requer colocar 2 — viável se n >= 2 (sempre)
+    // Tipo 36 (múlt ∩ primo) requer colocar p — sempre viável
+    // Tipos 43-45 (k): sempre viáveis
     types.push(t);
   }
   return types;
@@ -2622,7 +2622,7 @@ function scoreParam(
   const fail = interFailPool(c1, c2, m, p, k);
   if (sat.length === 0 || fail.length === 0) return -9999;
   const alvo = n >= 4 ? 2 : 1;
-  // Score: closeness to target count from available satisfying numbers
+  // Pontuação: proximidade da contagem-alvo a partir dos números satisfatórios disponíveis
   const possibleSat = Math.min(sat.length, n);
   return -Math.abs(possibleSat - alvo) - (m !== null ? 0.0005 * m : 0);
 }
@@ -2674,9 +2674,9 @@ function tryGenerateInterType(
         const sat = interSatisfyPool(spec.c1, spec.c2, mVal, pVal, kVal);
         const fail = interFailPool(spec.c1, spec.c2, mVal, pVal, kVal);
         if (sat.length === 0) continue;
-        if (n >= 3 && fail.length === 0) continue; // would be trivial
+        if (n >= 3 && fail.length === 0) continue; // seria trivial
 
-        // Construct values: target count of satisfying sectors
+        // Construir valores: contagem-alvo de setores satisfatórios
         const alvo = n >= 4 ? 2 : 1;
         const numSat = Math.min(alvo, sat.length, n - (n >= 3 ? 1 : 0));
         const numFail = n - numSat;

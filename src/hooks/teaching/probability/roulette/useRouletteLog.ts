@@ -32,14 +32,14 @@ function getLog(): SessionLog {
       const parsed = JSON.parse(raw) as SessionLog;
       if (parsed.sessionId === getSessionId()) return parsed;
     }
-  } catch { /* ignore parse errors */ }
+  } catch { /* ignorar erros de parsing */ }
   return { sessionId: getSessionId(), startTime: Date.now(), entries: [] };
 }
 
 function saveLog(log: SessionLog): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(log));
-  } catch { /* localStorage full or unavailable */ }
+  } catch { /* localStorage cheio ou indisponível */ }
 }
 
 export function logEntry(entry: Omit<LogEntry, 'timestamp'>): void {

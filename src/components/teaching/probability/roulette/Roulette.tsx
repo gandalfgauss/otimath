@@ -85,7 +85,7 @@ export function Roulette({
         const elapsed = timestamp - startTimeRef.current;
         const progress = Math.min(elapsed / spinDuration, 1);
 
-        // Easing function for smooth deceleration
+        // Função de suavização para desaceleração gradual
         const easeOut = 1 - Math.pow(1 - progress, 3);
 
         const totalRotation = targetAngle - startRotationRef.current;
@@ -115,7 +115,7 @@ export function Roulette({
   const centerX = radius;
   const centerY = radius;
 
-  // Calculate sector paths
+  // Calcular os caminhos dos setores
   const getSectorPath = (startAngle: number, endAngle: number) => {
     const startRad = (startAngle - 90) * Math.PI / 180;
     const endRad = (endAngle - 90) * Math.PI / 180;
@@ -130,7 +130,7 @@ export function Roulette({
     return `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
   };
 
-  // Calculate text position for sector label
+  // Calcular posição do texto do rótulo do setor
   const getTextPosition = (startAngle: number, endAngle: number, radiusOffset: number = 0.6) => {
     const midAngle = ((startAngle + endAngle) / 2 - 90) * Math.PI / 180;
     const textRadius = radius * radiusOffset;
@@ -198,11 +198,11 @@ export function Roulette({
 
             const colorHex = ROULETTE_COLORS[sector.colorName] || sector.color;
 
-            // Calculate if text should be light or dark based on background
+            // Calcular se o texto deve ser claro ou escuro com base no fundo
             const isLightBackground = ['Amarelo', 'Rosa', 'Ciano'].includes(sector.colorName);
             const textColor = isLightBackground ? '#2e2e2e' : '#ffffff';
 
-            // Auto-flip text when upside down (considering wheel rotation)
+            // Inverter texto automaticamente quando de cabeça para baixo (considerando a rotação da roleta)
             const midAngle = (startAngle + endAngle) / 2;
             const effectiveAngle = ((midAngle + currentRotation) % 360 + 360) % 360;
             const isUpsideDown = effectiveAngle > 90 && effectiveAngle < 270;
