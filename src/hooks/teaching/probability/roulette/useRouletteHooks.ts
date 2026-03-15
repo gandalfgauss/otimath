@@ -10088,6 +10088,12 @@ export const useRouletteHooks = () => {
       <p class="ds-body">Você completou todas as 3 etapas do simulador. Parabéns!</p>`);
   }, [playSound, createAlert]);
 
+  // Handler: avançar para reflexão de ponte com OVA 2 (subStep 11)
+  const handleS3GoToReflection = useCallback(() => {
+    setGameState(prev => ({ ...prev, subStep: 11 }));
+    setInstructions(`<p class="ds-body"><strong>Reflexão para o próximo desafio</strong></p>`);
+  }, []);
+
   // Função para iniciar Etapa 1
   const startStage1 = useCallback(() => {
     startGame();
@@ -11485,6 +11491,7 @@ export const useRouletteHooks = () => {
     handleS3SectorBet,
     handleS3ConfirmBet,
     handleS3Finalize,
+    handleS3GoToReflection,
     spinRouletteS3,
     handleS3FalaciaContinu,
     handleS3NewBetConfirm,

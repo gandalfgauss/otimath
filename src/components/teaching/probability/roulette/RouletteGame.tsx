@@ -276,6 +276,7 @@ export function RouletteGame() {
     handleS3SectorBet,
     handleS3ConfirmBet,
     handleS3Finalize,
+    handleS3GoToReflection,
     spinRouletteS3,
     handleS3FalaciaContinu,
     handleS3NewBetConfirm,
@@ -4559,9 +4560,42 @@ export function RouletteGame() {
                     Exportar Dados
                   </Button>
                 </div>
+                <div className="mt-macro">
+                  <Button style="primary" size="medium" icon={<ArrowRight />} onClick={handleS3GoToReflection}>
+                    Continuar
+                  </Button>
+                </div>
               </div>
             );
           })()}
+
+          {/* Stage 3 — SubStep 11: Reflexão de ponte com OVA 2 */}
+          {gameState.stage === 3 && gameState.subStep === 11 && (
+            <div className="flex flex-col items-center gap-y-xxs">
+              <div className="w-full max-w-[650px] rounded-lg p-xxs border-l-4 border-brand-otimath-pure bg-brand-otimath-lightest">
+                <p className="ds-body-bold text-brand-otimath-dark mb-micro">Reflexão para o próximo desafio</p>
+                <p className="ds-body mb-micro">
+                  Você verificou que, ao lançar um dado justo, cada face tem a mesma probabilidade: <strong>1/6</strong>.
+                </p>
+                <p className="ds-body mb-micro">
+                  Agora imagine lançar <strong>dois dados</strong> e somar os resultados. As somas possíveis são: 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 e 12.
+                </p>
+                <p className="ds-body mb-micro">
+                  Será que todas essas somas têm a mesma chance de ocorrer? Se cada face isolada é equiprovável... as somas também seriam?
+                </p>
+                <p className="ds-body text-brand-otimath-dark" style={{ fontStyle: 'italic' }}>
+                  Pense nisso. A resposta pode te surpreender.
+                </p>
+              </div>
+              <a
+                href="/ensino/probabilidade/dois-dados"
+                className="ds-body-bold inline-block bg-brand-otimath-pure text-neutral-white rounded-md no-underline"
+                style={{ padding: '12px 24px', textDecoration: 'none' }}
+              >
+                Ir para o OVA: Probabilidade com Dois Dados →
+              </a>
+            </div>
+          )}
 
           {/* ===================== FIM ETAPA 3 ===================== */}
 
