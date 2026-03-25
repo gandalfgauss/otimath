@@ -155,7 +155,7 @@ export function RouletteGame() {
     disabledNextButton,
     showAutoSpinButtons,
 
-    // Alerts and Modal
+    // Alertas e Modal
     alerts,
     updateAlert,
     deleteAlerts,

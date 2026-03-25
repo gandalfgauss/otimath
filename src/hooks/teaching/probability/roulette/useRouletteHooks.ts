@@ -755,7 +755,7 @@ type ReceitaFn = (
   n: number
 ) => { events: UnionEvent[], needsNumbers: boolean } | null;
 
-// Helper: criar um UnionEvent
+// Auxiliar: criar um UnionEvent
 function criarEvento(label: string, desc: string, indices: number[], n: number): UnionEvent {
   return {
     label, description: desc,
@@ -764,12 +764,12 @@ function criarEvento(label: string, desc: string, indices: number[], n: number):
   };
 }
 
-// Helper: índices de uma cor
+// Auxiliar: índices de uma cor
 function indicesCor(cores: string[], cor: string): number[] {
   return cores.map((c, i) => c === cor ? i : -1).filter(i => i >= 0);
 }
 
-// Helper: índices que satisfazem propriedade numérica
+// Auxiliar: índices que satisfazem propriedade numérica
 function indicesProp(sectorNumbers: number[], prop: string, valorP?: number): number[] {
   return sectorNumbers.map((num, i) => verificaPropriedade(num, prop, valorP) ? i : -1).filter(i => i >= 0);
 }
@@ -1228,7 +1228,7 @@ const receitaMistaN: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
 
 // ======= RECEITAS ADICIONAIS — COMBINAÇÕES AVANÇADAS =======
 
-// Helper: encontrar somas interessantes entre números dos setores
+// Auxiliar: encontrar somas interessantes entre números dos setores
 function encontrarSomasInteressantes(sectorNumbers: number[]): Array<{ soma: number; parcelas: number[]; indicesAlvo: number[] }> {
   const resultados: Array<{ soma: number; parcelas: number[]; indicesAlvo: number[] }> = [];
   const n = sectorNumbers.length;
@@ -1245,7 +1245,7 @@ function encontrarSomasInteressantes(sectorNumbers: number[]): Array<{ soma: num
   return resultados;
 }
 
-// Helper: índices de "cor X ou prop numérica" (união de cor com propriedade)
+// Auxiliar: índices de "cor X ou prop numérica" (união de cor com propriedade)
 function indicesCorOuProp(cores: string[], cor: string, sn: number[], prop: string): number[] {
   const set = new Set<number>();
   cores.forEach((c, i) => { if (c === cor) set.add(i); });
@@ -1253,12 +1253,12 @@ function indicesCorOuProp(cores: string[], cor: string, sn: number[], prop: stri
   return [...set].sort((a, b) => a - b);
 }
 
-// Helper: índices de "cor X e prop numérica" (interseção)
+// Auxiliar: índices de "cor X e prop numérica" (interseção)
 function indicesCorEProp(cores: string[], cor: string, sn: number[], prop: string): number[] {
   return cores.map((c, i) => c === cor && verificaPropriedade(sn[i], prop) ? i : -1).filter(i => i >= 0);
 }
 
-// Helper: verificar que grupos são ME (sem interseção)
+// Auxiliar: verificar que grupos são ME (sem interseção)
 function gruposME(groups: number[][]): boolean {
   const all = new Set<number>();
   for (const g of groups) {
@@ -1665,7 +1665,7 @@ interface ChallengeGenResult {
   events: UnionEvent[];
 }
 
-// Compute minimum m = 2^a * 3^b * 5^c such that all nums divide m
+// Calcular o menor m = 2^a * 3^b * 5^c tal que todos os números dividam m
 function computeMinM(nums: number[]): number {
   let a = 0, b = 0, c = 0;
   for (const v of nums) {
@@ -1679,7 +1679,7 @@ function computeMinM(nums: number[]): number {
   return Math.pow(2, a) * Math.pow(3, b) * Math.pow(5, c);
 }
 
-// Find m = 2^a * 3^b * 5^c where mustDivide divides m, mustNotDivide doesn't
+// Encontrar m = 2^a * 3^b * 5^c onde mustDivide divide m e mustNotDivide não divide
 function findCompatibleM(mustDivide: number[], mustNotDivide: number[]): number | null {
   const candidates: number[] = [];
   for (let a = 0; a <= 5; a++) {
@@ -1697,7 +1697,7 @@ function findCompatibleM(mustDivide: number[], mustNotDivide: number[]): number 
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
-// Pick distinct numbers from a pool; allows repeats if pool is exhausted
+// Selecionar números distintos de um conjunto; permite repetições se o conjunto se esgotar
 function pickDistinct(pool: number[], count: number): number[] {
   const shuffled = shuffleArray([...pool]);
   const result: number[] = [];
@@ -1707,12 +1707,12 @@ function pickDistinct(pool: number[], count: number): number[] {
   return result;
 }
 
-// Safe multiples of p that DON'T divide m
+// Múltiplos seguros de p que NÃO dividem m
 function safeMultiples(p: number, m: number): number[] {
   return CH_MULT_OK[p].filter(v => m % v !== 0);
 }
 
-// Safe "neither" numbers: not divisor of m, not multiple of p
+// Números "nem um nem outro": não divisor de m, não múltiplo de p
 function safeNeither(m: number | null, p: number | null): number[] {
   return CH_DIV_NO.filter(v => {
     if (m !== null && m % v === 0) return false;
@@ -1721,7 +1721,7 @@ function safeNeither(m: number | null, p: number | null): number[] {
   });
 }
 
-// Partition array indices into random groups of given sizes
+// Particionar índices do array em grupos aleatórios dos tamanhos fornecidos
 function partitionIndices(indices: number[], sizes: number[]): number[][] {
   const shuffled = shuffleArray([...indices]);
   const groups: number[][] = [];
@@ -1736,12 +1736,12 @@ function partitionIndices(indices: number[], sizes: number[]): number[][] {
   return groups;
 }
 
-// Compute target distribution: split n into k groups each ≥1, with optional remainder
+// Calcular distribuição-alvo: dividir n em k grupos de pelo menos 1, com resto opcional
 function targetSplit(total: number, numGroups: number, minEach: number = 1): number[] | null {
   if (total < numGroups * minEach) return null;
   const sizes = new Array(numGroups).fill(minEach);
   let remaining = total - numGroups * minEach;
-  // Distribute remaining randomly
+  // Distribuir restante aleatoriamente
   while (remaining > 0) {
     sizes[Math.floor(Math.random() * numGroups)]++;
     remaining--;
@@ -1749,7 +1749,7 @@ function targetSplit(total: number, numGroups: number, minEach: number = 1): num
   return sizes;
 }
 
-// Get compatible challenge types for given sector config
+// Obter tipos de desafio compatíveis para a configuração de setores
 function getCompatibleChallengeTypes(sectors: RouletteSector[]): ChallengeType[] {
   const n = sectors.length;
   const cores = sectors.map(s => s.colorName);
@@ -1785,9 +1785,9 @@ function getCompatibleChallengeTypes(sectors: RouletteSector[]): ChallengeType[]
   return types;
 }
 
-// === TYPE-SPECIFIC GENERATORS ===
+// === GERADORES ESPECÍFICOS POR TIPO ===
 
-// Type 1: cor X OU divisor de m OU múltiplo de p
+// Tipo 1: cor X OU divisor de m OU múltiplo de p
 function genType1(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   const corX = shuffleArray([...uniqueCores]).find(c => {
     const cx = cores.filter(cc => cc === c).length;
@@ -1801,22 +1801,22 @@ function genType1(sectors: RouletteSector[], cores: string[], uniqueCores: strin
 
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
 
-  // Partition rest: ≥1 div, ≥1 mult, rest = neither (if possible)
+  // Particionar restante: ≥1 div, ≥1 múlt, resto = nenhum (se possível)
   const numDiv = Math.max(1, Math.round(idxRest.length / 3));
   const numMult = Math.max(1, Math.round((idxRest.length - numDiv) / 2));
   const [idxDiv, idxMult, idxNeither] = partitionIndices(idxRest, [numDiv, numMult]);
 
-  // Assign div numbers
+  // Atribuir números divisores
   const divNums = pickDistinct(CH_DIV_OK, idxDiv.length);
   const m = computeMinM(divNums);
   if (m < 2) return null;
 
-  // Filter safe multiples for p that don't divide m
+  // Filtrar múltiplos seguros de p que não dividem m
   const multPool = safeMultiples(p, m);
   if (multPool.length === 0) return null;
   const multNums = pickDistinct(multPool, idxMult.length);
 
-  // X and neither: DIV_NO (primes > 5, never divide m, never mult of 2/3/5)
+  // X e nenhum: DIV_NO (primos > 5, nunca dividem m, nunca múltiplos de 2/3/5)
   const xNums = pickDistinct(CH_DIV_NO, idxX.length);
   const neitherNums = pickDistinct(safeNeither(m, p), (idxNeither || []).length);
 
@@ -1826,7 +1826,7 @@ function genType1(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   idxMult.forEach((idx, i) => values[idx] = multNums[i]);
   (idxNeither || []).forEach((idx, i) => values[idx] = neitherNums[i]);
 
-  // Compute actual event indices
+  // Calcular os índices reais dos eventos
   const evA = idxX;
   const evB = values.map((v, i) => m % v === 0 ? i : -1).filter(i => i >= 0);
   const evC = values.map((v, i) => v % p === 0 ? i : -1).filter(i => i >= 0);
@@ -1844,18 +1844,18 @@ function genType1(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   };
 }
 
-// Type 2: par OU primo (ME: avoid 2 so par ∩ primo = ∅)
+// Tipo 2: par OU primo (ME: evitar 2 para que par ∩ primo = ∅)
 function genType2(_s: RouletteSector[], _c: string[], _uc: string[], n: number): ChallengeGenResult | null {
   const indices = Array.from({ length: n }, (_, i) => i);
-  // Need ≥1 even, ≥1 prime, ≥1 neither for non-trivial (if n≥3)
+  // Precisa de ≥1 par, ≥1 primo, ≥1 nenhum para ser não-trivial (se n≥3)
   const numEven = Math.max(1, Math.round(n * 0.35));
   const numPrime = Math.max(1, Math.round((n - numEven) * 0.5));
   const [idxEven, idxPrime, idxNeither] = partitionIndices(indices, [numEven, numPrime]);
 
   const values: number[] = new Array(n).fill(0);
-  const evenNums = pickDistinct(CH_COMP_EVEN, idxEven.length); // even non-prime
-  const primeNums = pickDistinct(CH_PRIME_ODD, idxPrime.length); // odd primes (no 2!)
-  const neitherNums = pickDistinct(CH_COMP_ODD, (idxNeither || []).length); // odd composites
+  const evenNums = pickDistinct(CH_COMP_EVEN, idxEven.length); // pares não-primos
+  const primeNums = pickDistinct(CH_PRIME_ODD, idxPrime.length); // primos ímpares (sem 2!)
+  const neitherNums = pickDistinct(CH_COMP_ODD, (idxNeither || []).length); // compostos ímpares
 
   idxEven.forEach((idx, i) => values[idx] = evenNums[i]);
   idxPrime.forEach((idx, i) => values[idx] = primeNums[i]);
@@ -1876,7 +1876,7 @@ function genType2(_s: RouletteSector[], _c: string[], _uc: string[], n: number):
   };
 }
 
-// Type 3: primo par OU ímpar composto
+// Tipo 3: primo par OU ímpar composto
 function genType3(_s: RouletteSector[], _c: string[], _uc: string[], n: number): ChallengeGenResult | null {
   const indices = Array.from({ length: n }, (_, i) => i);
   const [idxPrimoPar, idxCompImpar, idxNeither] = partitionIndices(indices, [1, Math.max(1, Math.round((n - 1) / 2))]);
@@ -1885,7 +1885,7 @@ function genType3(_s: RouletteSector[], _c: string[], _uc: string[], n: number):
   idxPrimoPar.forEach(idx => values[idx] = 2); // único primo par
   const compOddNums = pickDistinct(CH_COMP_ODD, idxCompImpar.length);
   idxCompImpar.forEach((idx, i) => values[idx] = compOddNums[i]);
-  // Neither: odd primes (not 2) or even composites
+  // Nenhum: primos ímpares (não 2) ou compostos pares
   const nPool = [...CH_PRIME_ODD.filter(v => v !== 2), ...CH_COMP_EVEN];
   const neitherNums = pickDistinct(nPool, (idxNeither || []).length);
   (idxNeither || []).forEach((idx, i) => values[idx] = neitherNums[i]);
@@ -1904,7 +1904,7 @@ function genType3(_s: RouletteSector[], _c: string[], _uc: string[], n: number):
   };
 }
 
-// Type 4: cor X OU cor Y OU divisor de m
+// Tipo 4: cor X OU cor Y OU divisor de m
 function genType4(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   if (uniqueCores.length < 3) return null;
   const [corX, corY] = shuffleArray([...uniqueCores]);
@@ -1915,13 +1915,13 @@ function genType4(sectors: RouletteSector[], cores: string[], uniqueCores: strin
 
   const values: number[] = new Array(n).fill(0);
 
-  // X and Y sectors: numbers from DIV_NO (never divide m)
+  // Setores X e Y: números de DIV_NO (nunca dividem m)
   const xNums = pickDistinct(CH_DIV_NO, idxX.length);
   const yNums = pickDistinct(CH_DIV_NO, idxY.length);
   idxX.forEach((idx, i) => values[idx] = xNums[i]);
   idxY.forEach((idx, i) => values[idx] = yNums[i]);
 
-  // Outside sectors: some divisors, some neither
+  // Setores externos: alguns divisores, alguns nenhum
   const numDiv = Math.max(1, Math.round(idxO.length / 2));
   const [idxDiv, idxNeith] = partitionIndices(idxO, [numDiv]);
   const divNums = pickDistinct(CH_DIV_OK, idxDiv.length);
@@ -1948,7 +1948,7 @@ function genType4(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   };
 }
 
-// Type 5: cor X OU cor Y OU múltiplo de p
+// Tipo 5: cor X OU cor Y OU múltiplo de p
 function genType5(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   if (uniqueCores.length < 3) return null;
   const [corX, corY] = shuffleArray([...uniqueCores]);
@@ -1960,18 +1960,18 @@ function genType5(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
   const values: number[] = new Array(n).fill(0);
 
-  // X and Y: not multiples of p → use DIV_NO (all > 5, odd, not mult of 2/3/5)
+  // X e Y: não múltiplos de p → usar DIV_NO (todos > 5, ímpares, não múlt de 2/3/5)
   const xNums = pickDistinct(CH_DIV_NO, idxX.length);
   const yNums = pickDistinct(CH_DIV_NO, idxY.length);
   idxX.forEach((idx, i) => values[idx] = xNums[i]);
   idxY.forEach((idx, i) => values[idx] = yNums[i]);
 
-  // Outside: some multiples, some neither
+  // Externos: alguns múltiplos, alguns nenhum
   const numMult = Math.max(1, Math.round(idxO.length / 2));
   const [idxMult, idxNeith] = partitionIndices(idxO, [numMult]);
   const multNums = pickDistinct(CH_MULT_OK[p], idxMult.length);
   idxMult.forEach((idx, i) => values[idx] = multNums[i]);
-  // Neither: not mult of p
+  // Nenhum: não múltiplo de p
   const nPool = CH_DIV_NO.filter(v => v % p !== 0);
   const nNums = pickDistinct(nPool.length > 0 ? nPool : CH_DIV_NO, (idxNeith || []).length);
   (idxNeith || []).forEach((idx, i) => values[idx] = nNums[i]);
@@ -1993,7 +1993,7 @@ function genType5(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   };
 }
 
-// Type 6: cor X E divisor de m (paired with cor Y)
+// Tipo 6: cor X E divisor de m (pareado com cor Y)
 function genType6(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   if (uniqueCores.length < 2) return null;
   const [corX, corY] = shuffleArray([...uniqueCores]);
@@ -2003,7 +2003,7 @@ function genType6(sectors: RouletteSector[], cores: string[], uniqueCores: strin
 
   const values: number[] = new Array(n).fill(0);
 
-  // Some X sectors get divisors of m, others get DIV_NO
+  // Alguns setores X recebem divisores de m, outros recebem DIV_NO
   const numXDiv = Math.max(1, Math.round(idxX.length / 2));
   const [idxXDiv, idxXNo] = partitionIndices(idxX, [numXDiv]);
   const divNums = pickDistinct(CH_DIV_OK, idxXDiv.length);
@@ -2013,11 +2013,11 @@ function genType6(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   const xNoNums = pickDistinct(CH_DIV_NO, (idxXNo || []).length);
   (idxXNo || []).forEach((idx, i) => values[idx] = xNoNums[i]);
 
-  // Y sectors: DIV_NO (not divisors)
+  // Setores Y: DIV_NO (não divisores)
   const yNums = pickDistinct(CH_DIV_NO, idxY.length);
   idxY.forEach((idx, i) => values[idx] = yNums[i]);
 
-  // Remaining sectors: DIV_NO
+  // Setores restantes: DIV_NO
   const idxRest = cores.map((c, i) => c !== corX && c !== corY ? i : -1).filter(i => i >= 0);
   const rNums = pickDistinct(CH_DIV_NO, idxRest.length);
   idxRest.forEach((idx, i) => values[idx] = rNums[i]);
@@ -2037,7 +2037,7 @@ function genType6(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   };
 }
 
-// Type 7: NÃO cor X E primo (paired with cor X)
+// Tipo 7: NÃO cor X E primo (pareado com cor X)
 function genType7(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   const corX = shuffleArray([...uniqueCores]).find(c => {
     const cx = cores.filter(cc => cc === c).length;
@@ -2051,11 +2051,11 @@ function genType7(sectors: RouletteSector[], cores: string[], uniqueCores: strin
 
   const values: number[] = new Array(n).fill(0);
 
-  // X sectors: non-prime numbers (so they're NOT in event A)
+  // Setores X: números não-primos (para que NÃO estejam no evento A)
   const xNums = pickDistinct(CH_COMP_EVEN, idxX.length);
   idxX.forEach((idx, i) => values[idx] = xNums[i]);
 
-  // Non-X: some prime, some non-prime (for non-trivial)
+  // Não-X: alguns primos, alguns não-primos (para ser não-trivial)
   const numPrime = Math.max(1, Math.round(idxNotX.length * 0.5));
   const [idxPrime, idxNonPrime] = partitionIndices(idxNotX, [numPrime]);
   const primeNums = pickDistinct(CH_PRIME_ODD, idxPrime.length);
@@ -2077,7 +2077,7 @@ function genType7(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   };
 }
 
-// Type 8: NÃO cor Y E NÃO divisor de m (paired with cor Y)
+// Tipo 8: NÃO cor Y E NÃO divisor de m (pareado com cor Y)
 function genType8(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   const corY = shuffleArray([...uniqueCores]).find(c => {
     const cy = cores.filter(cc => cc === c).length;
@@ -2091,11 +2091,11 @@ function genType8(sectors: RouletteSector[], cores: string[], uniqueCores: strin
 
   const values: number[] = new Array(n).fill(0);
 
-  // Y sectors: any numbers
+  // Setores Y: quaisquer números
   const yNums = pickDistinct([...CH_DIV_OK, ...CH_DIV_NO], idxY.length);
   idxY.forEach((idx, i) => values[idx] = yNums[i]);
 
-  // Non-Y: some with DIV_NO (not divisors), some with DIV_OK (divisors)
+  // Não-Y: alguns com DIV_NO (não divisores), alguns com DIV_OK (divisores)
   const numNonDiv = Math.max(1, Math.round(idxNotY.length * 0.5));
   const numDiv = Math.max(1, idxNotY.length - numNonDiv);
   const [idxNonDiv, idxDiv] = partitionIndices(idxNotY, [numNonDiv, numDiv]);
@@ -2105,12 +2105,12 @@ function genType8(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   const divNums = pickDistinct(CH_DIV_OK, (idxDiv || []).length);
   (idxDiv || []).forEach((idx, i) => values[idx] = divNums[i]);
 
-  // Find m that works with div numbers
+  // Encontrar m que funcione com os números divisores
   const actualDivNums = (idxDiv || []).map(idx => values[idx]);
   const allNonDivNums = [...idxNonDiv.map(idx => values[idx]), ...idxY.map(idx => values[idx])];
   const m = findCompatibleM(actualDivNums, allNonDivNums.filter(v => CH_DIV_OK.includes(v) || v <= 30));
   if (m === null) {
-    // Fallback: m=30 and ensure non-Y non-div sectors have DIV_NO numbers
+    // Fallback: m=30 e garantir que setores não-Y não-div tenham números DIV_NO
     const mFallback = 30;
     const evA = values.map((v, i) => cores[i] !== corY && mFallback % v !== 0 ? i : -1).filter(i => i >= 0);
     const evB = idxY;
@@ -2139,7 +2139,7 @@ function genType8(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   };
 }
 
-// Type 9: NÃO cor X E múltiplo de p (paired with cor X)
+// Tipo 9: NÃO cor X E múltiplo de p (pareado com cor X)
 function genType9(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   const corX = shuffleArray([...uniqueCores]).find(c => {
     const cx = cores.filter(cc => cc === c).length;
@@ -2154,11 +2154,11 @@ function genType9(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
   const values: number[] = new Array(n).fill(0);
 
-  // X sectors: not multiples of p → DIV_NO
+  // Setores X: não múltiplos de p → DIV_NO
   const xNums = pickDistinct(CH_DIV_NO, idxX.length);
   idxX.forEach((idx, i) => values[idx] = xNums[i]);
 
-  // Non-X: some multiples of p, some not
+  // Não-X: alguns múltiplos de p, alguns não
   const numMult = Math.max(1, Math.round(idxNotX.length * 0.5));
   const [idxMult, idxNonMult] = partitionIndices(idxNotX, [numMult]);
   const multNums = pickDistinct(CH_MULT_OK[p], idxMult.length);
@@ -2181,7 +2181,7 @@ function genType9(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   };
 }
 
-// Type 10: NÃO cor Y E múltiplo de p (paired with cor Y)
+// Tipo 10: NÃO cor Y E múltiplo de p (pareado com cor Y)
 function genType10(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   const corY = shuffleArray([...uniqueCores]).find(c => {
     const cy = cores.filter(cc => cc === c).length;
@@ -2196,11 +2196,11 @@ function genType10(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
   const values: number[] = new Array(n).fill(0);
 
-  // Y sectors: not multiples of p
+  // Setores Y: não múltiplos de p
   const yNums = pickDistinct(CH_DIV_NO, idxY.length);
   idxY.forEach((idx, i) => values[idx] = yNums[i]);
 
-  // Non-Y: some multiples, some not
+  // Não-Y: alguns múltiplos, alguns não
   const numMult = Math.max(1, Math.round(idxNotY.length * 0.5));
   const [idxMult, idxNonMult] = partitionIndices(idxNotY, [numMult]);
   const multNums = pickDistinct(CH_MULT_OK[p], idxMult.length);
@@ -2223,7 +2223,7 @@ function genType10(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   };
 }
 
-// Type 11: NÃO (X ou Y) E divisor de m (+ cor X + cor Y)
+// Tipo 11: NÃO (X ou Y) E divisor de m (+ cor X + cor Y)
 function genType11(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   if (uniqueCores.length < 3) return null;
   const [corX, corY] = shuffleArray([...uniqueCores]);
@@ -2234,13 +2234,13 @@ function genType11(sectors: RouletteSector[], cores: string[], uniqueCores: stri
 
   const values: number[] = new Array(n).fill(0);
 
-  // X and Y: DIV_NO
+  // X e Y: DIV_NO
   const xNums = pickDistinct(CH_DIV_NO, idxX.length);
   const yNums = pickDistinct(CH_DIV_NO, idxY.length);
   idxX.forEach((idx, i) => values[idx] = xNums[i]);
   idxY.forEach((idx, i) => values[idx] = yNums[i]);
 
-  // Outside: some divisors, some neither
+  // Externos: alguns divisores, alguns nenhum
   const numDiv = Math.max(1, Math.round(idxO.length * 0.5));
   const [idxDiv, idxNeith] = partitionIndices(idxO, [numDiv]);
   const divNums = pickDistinct(CH_DIV_OK, idxDiv.length);
@@ -2266,7 +2266,7 @@ function genType11(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   };
 }
 
-// Type 12: NÃO (X ou Y) E múltiplo de p (+ cor X + cor Y)
+// Tipo 12: NÃO (X ou Y) E múltiplo de p (+ cor X + cor Y)
 function genType12(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   if (uniqueCores.length < 3) return null;
   const [corX, corY] = shuffleArray([...uniqueCores]);
@@ -2278,13 +2278,13 @@ function genType12(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
   const values: number[] = new Array(n).fill(0);
 
-  // X and Y: not mult of p
+  // X e Y: não múltiplos de p
   const xNums = pickDistinct(CH_DIV_NO, idxX.length);
   const yNums = pickDistinct(CH_DIV_NO, idxY.length);
   idxX.forEach((idx, i) => values[idx] = xNums[i]);
   idxY.forEach((idx, i) => values[idx] = yNums[i]);
 
-  // Outside: some mult of p, some neither
+  // Externos: alguns múltiplos de p, alguns nenhum
   const numMult = Math.max(1, Math.round(idxO.length * 0.5));
   const [idxMult, idxNeith] = partitionIndices(idxO, [numMult]);
   const multNums = pickDistinct(CH_MULT_OK[p], idxMult.length);
@@ -2309,7 +2309,7 @@ function genType12(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   };
 }
 
-// Type 13: NÃO (X ou Y) E NÃO múltiplo de p (+ cor X + cor Y e primo)
+// Tipo 13: NÃO (X ou Y) E NÃO múltiplo de p (+ cor X + cor Y e primo)
 function genType13(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   if (uniqueCores.length < 3) return null;
   const [corX, corY] = shuffleArray([...uniqueCores]);
@@ -2321,24 +2321,24 @@ function genType13(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
   const values: number[] = new Array(n).fill(0);
 
-  // X sectors: any (event B = cor X)
+  // Setores X: quaisquer (evento B = cor X)
   const xNums = pickDistinct(CH_COMP_EVEN, idxX.length);
   idxX.forEach((idx, i) => values[idx] = xNums[i]);
 
-  // Y sectors: primes (event C = cor Y e primo)
+  // Setores Y: primos (evento C = cor Y e primo)
   const yPrimeNums = pickDistinct(CH_PRIME_ODD, idxY.length);
   idxY.forEach((idx, i) => values[idx] = yPrimeNums[i]);
 
-  // Outside: some NOT mult of p (event A), some mult of p (neither)
+  // Externos: alguns NÃO múlt de p (evento A), alguns múlt de p (nenhum)
   const numNotMult = Math.max(1, Math.round(idxO.length * 0.5));
   const [idxNotMult, idxMult] = partitionIndices(idxO, [numNotMult]);
 
-  // Not mult of p: use DIV_NO numbers not divisible by p
+  // Não múlt de p: usar números DIV_NO não divisíveis por p
   const nmPool = CH_DIV_NO.filter(v => v % p !== 0);
   const nmNums = pickDistinct(nmPool.length > 0 ? nmPool : CH_DIV_NO, idxNotMult.length);
   idxNotMult.forEach((idx, i) => values[idx] = nmNums[i]);
 
-  // Mult of p: these are "neither" (outside X∪Y but ARE mult of p)
+  // Múlt de p: estes são "nenhum" (fora de X∪Y mas SÃO múlt de p)
   const mNums = pickDistinct(CH_MULT_OK[p], (idxMult || []).length);
   (idxMult || []).forEach((idx, i) => values[idx] = mNums[i]);
 
@@ -2358,7 +2358,7 @@ function genType13(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   };
 }
 
-// Type 14: NÃO (X ou Y) E NÃO divisor de m (+ cor X e par + cor Y)
+// Tipo 14: NÃO (X ou Y) E NÃO divisor de m (+ cor X e par + cor Y)
 function genType14(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
   if (uniqueCores.length < 3) return null;
   const [corX, corY] = shuffleArray([...uniqueCores]);
@@ -2369,15 +2369,15 @@ function genType14(sectors: RouletteSector[], cores: string[], uniqueCores: stri
 
   const values: number[] = new Array(n).fill(0);
 
-  // X sectors: even numbers (event B = cor X e par)
+  // Setores X: números pares (evento B = cor X e par)
   const xNums = pickDistinct(CH_COMP_EVEN, idxX.length);
   idxX.forEach((idx, i) => values[idx] = xNums[i]);
 
-  // Y sectors: DIV_NO
+  // Setores Y: DIV_NO
   const yNums = pickDistinct(CH_DIV_NO, idxY.length);
   idxY.forEach((idx, i) => values[idx] = yNums[i]);
 
-  // Outside: some non-divisors (event A), some divisors (neither)
+  // Externos: alguns não-divisores (evento A), alguns divisores (nenhum)
   const numNonDiv = Math.max(1, Math.round(idxO.length * 0.5));
   const [idxNonDiv, idxDiv] = partitionIndices(idxO, [numNonDiv]);
 
@@ -2387,12 +2387,12 @@ function genType14(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   const divNums = pickDistinct(CH_DIV_OK, (idxDiv || []).length);
   (idxDiv || []).forEach((idx, i) => values[idx] = divNums[i]);
 
-  // Find m: div nums must divide m, non-div nums must NOT
+  // Encontrar m: números div devem dividir m, números não-div NÃO devem
   const actualDivNums = (idxDiv || []).map(idx => values[idx]);
   const m = actualDivNums.length > 0 ? computeMinM(actualDivNums) : 30;
   if (m < 2) return null;
 
-  // Verify non-div and Y sectors don't divide m
+  // Verificar que setores não-div e Y não dividem m
   const evACheck = [...idxNonDiv, ...idxY].every(idx => m % values[idx] !== 0);
   if (!evACheck) return null;
 
@@ -2412,7 +2412,7 @@ function genType14(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   };
 }
 
-// Main challenge generator — tries shuffled compatible types with retry
+// Gerador principal de desafios — tenta tipos compatíveis embaralhados com repetição
 function generateUnionChallenge(
   sectors: RouletteSector[],
   problemType?: ChallengeType
@@ -2429,7 +2429,7 @@ function generateUnionChallenge(
     11: genType11, 12: genType12, 13: genType13, 14: genType14,
   };
 
-  // If specific type requested and compatible, try it first
+  // Se tipo específico solicitado e compatível, tentar primeiro
   if (problemType && compatibleTypes.includes(problemType)) {
     for (let attempt = 0; attempt < 10; attempt++) {
       const result = generators[problemType](sectors, cores, uniqueCores, n);
@@ -2437,7 +2437,7 @@ function generateUnionChallenge(
     }
   }
 
-  // Try all compatible types in random order
+  // Tentar todos os tipos compatíveis em ordem aleatória
   const shuffledTypes = shuffleArray([...compatibleTypes]);
   for (const type of shuffledTypes) {
     for (let attempt = 0; attempt < 10; attempt++) {
@@ -2526,7 +2526,7 @@ const INTER_TYPES: Record<number, InterTypeSpec> = {
   45: { c1:'multk',c2:'div',   mReq:true,  pReq:false, kReq:true,  desc:(m,_,k)=>`${descMultK(k)} e ${descDiv(m)}` },
 };
 
-// Evaluate a single predicate on a value
+// Avaliar um único predicado sobre um valor
 function evalInterPred(v: number, pred: string, m: number|null, p: number|null, k: number|null): boolean {
   switch (pred) {
     case 'div':    return m !== null && m % v === 0;
@@ -2549,7 +2549,7 @@ function evalInterPred(v: number, pred: string, m: number|null, p: number|null, 
   }
 }
 
-// Compute the solve set for a given intersection problem
+// Calcular o conjunto solução para um problema de interseção
 function solveIntersectionSet(
   problemType: number, values: number[], m: number|null, p: number|null, k: number|null
 ): Set<number> {
@@ -2564,17 +2564,17 @@ function solveIntersectionSet(
   return result;
 }
 
-// Validate that a problem is well-formed
+// Validar que um problema está bem formulado
 function validateIntersection(
   problemType: number, values: number[], m: number|null, p: number|null, k: number|null, n: number
 ): boolean {
   const sol = solveIntersectionSet(problemType, values, m, p, k);
-  if (sol.size === 0) return false; // event must not be empty
-  if (n >= 3 && sol.size >= n) return false; // avoid trivial P=1 when N permits
+  if (sol.size === 0) return false; // evento não pode ser vazio
+  if (n >= 3 && sol.size >= n) return false; // evitar P=1 trivial quando N permite
   return true;
 }
 
-// Get compatible intersection types for a given N
+// Obter tipos de interseção compatíveis para um dado N
 function getCompatibleInterTypes(n: number): number[] {
   const types: number[] = [];
   for (let t = 1; t <= 45; t++) {
@@ -2586,21 +2586,21 @@ function getCompatibleInterTypes(n: number): number[] {
   return types;
 }
 
-// Find numbers from master pool satisfying both conditions
+// Encontrar números do pool mestre que satisfazem ambas as condições
 function interSatisfyPool(c1: string, c2: string, m: number|null, p: number|null, k: number|null): number[] {
   return INTER_MASTER_POOL.filter(v =>
     evalInterPred(v, c1, m, p, k) && evalInterPred(v, c2, m, p, k)
   );
 }
 
-// Find numbers from master pool failing at least one condition
+// Encontrar números do pool mestre que falham em pelo menos uma condição
 function interFailPool(c1: string, c2: string, m: number|null, p: number|null, k: number|null): number[] {
   return INTER_MASTER_POOL.filter(v =>
     !evalInterPred(v, c1, m, p, k) || !evalInterPred(v, c2, m, p, k)
   );
 }
 
-// Generate all candidate m values (2^a * 3^b * 5^c, 2 ≤ m ≤ 3000)
+// Gerar todos os valores candidatos de m (2^a * 3^b * 5^c, 2 ≤ m ≤ 3000)
 function allCandidateM(): number[] {
   const ms: number[] = [];
   for (let a = 0; a <= 5; a++) {
@@ -2614,7 +2614,7 @@ function allCandidateM(): number[] {
   return ms;
 }
 
-// Score m or p based on how many master pool numbers satisfy both conditions
+// Pontuar m ou p com base em quantos números do pool mestre satisfazem ambas as condições
 function scoreParam(
   c1: string, c2: string, m: number|null, p: number|null, k: number|null, n: number
 ): number {
@@ -2627,7 +2627,7 @@ function scoreParam(
   return -Math.abs(possibleSat - alvo) - (m !== null ? 0.0005 * m : 0);
 }
 
-// Main generator
+// Gerador principal
 function generateIntersectionChallenge(
   sectors: RouletteSector[],
   requestedType?: number
@@ -2636,12 +2636,12 @@ function generateIntersectionChallenge(
   const compatible = getCompatibleInterTypes(n);
   if (compatible.length === 0) return null;
 
-  // Try requested type first, then fallback to random
+  // Tentar tipo solicitado primeiro, depois fallback para aleatório
   const typesToTry: number[] = [];
   if (requestedType && compatible.includes(requestedType)) {
     typesToTry.push(requestedType);
   }
-  // Add shuffled remaining types
+  // Adicionar tipos restantes embaralhados
   const remaining = shuffleArray(compatible.filter(t => t !== requestedType));
   typesToTry.push(...remaining);
 
@@ -2658,13 +2658,13 @@ function tryGenerateInterType(
   const spec = INTER_TYPES[pType];
   if (!spec) return null;
 
-  // Determine parameter candidates
+  // Determinar candidatos de parâmetros
   const mCandidates = spec.mReq ? shuffleArray(allCandidateM()).slice(0, 40) : [null];
   const pCandidates = spec.pReq ? shuffleArray([2, 3, 5]) : [null];
   const kCandidates = spec.kReq ? shuffleArray([3, 4, 6]) : [null];
 
-  // Special case: type 26 (prime ∩ even) needs number 2
-  // Special case: type 36 (multp ∩ prime) needs p itself as number
+  // Caso especial: tipo 26 (primo ∩ par) precisa do número 2
+  // Caso especial: tipo 36 (múlt ∩ primo) precisa do próprio p como número
 
   let bestResult: { values: number[]; m: number|null; p: number|null; k: number|null; score: number } | null = null;
 
@@ -2684,20 +2684,20 @@ function tryGenerateInterType(
         if (numSat <= 0) continue;
         if (n >= 3 && numFail <= 0) continue;
 
-        // Pick numbers
+        // Selecionar números
         const satNums = pickDistinct(shuffleArray([...sat]), numSat);
         const failNums = pickDistinct(shuffleArray([...fail]), numFail);
 
-        // Assign to random sector positions
+        // Atribuir a posições aleatórias dos setores
         const indices = shuffleArray(Array.from({length: n}, (_, i) => i));
         const values: number[] = new Array(n).fill(0);
         for (let i = 0; i < numSat; i++) values[indices[i]] = satNums[i];
         for (let i = 0; i < numFail; i++) values[indices[numSat + i]] = failNums[i];
 
-        // Validate
+        // Validar
         if (!validateIntersection(pType, values, mVal, pVal, kVal, n)) continue;
 
-        // Score
+        // Pontuar
         const solSize = solveIntersectionSet(pType, values, mVal, pVal, kVal).size;
         const score = -Math.abs(solSize - alvo) - (mVal !== null ? 0.0005 * mVal : 0);
 
@@ -2705,7 +2705,7 @@ function tryGenerateInterType(
           bestResult = { values, m: mVal, p: pVal, k: kVal, score };
         }
 
-        // Early exit if good enough
+        // Saída antecipada se suficientemente bom
         if (score >= -0.5) break;
       }
       if (bestResult && bestResult.score >= -0.5) break;
@@ -3375,7 +3375,7 @@ function validateSampleSpace(input: string, colors: string[]): boolean {
   return true;
 }
 
-// Helper: mapear subStep atual para índice de fase (em ordem de fluxo)
+// Auxiliar: mapear subStep atual para índice de fase (em ordem de fluxo)
 export function getPhaseIndex(subStep: number): number {
   // Verificar subSteps específicos primeiro (fora de ordem numérica no fluxo)
   if (subStep === 6.55) return 9;
@@ -8879,9 +8879,9 @@ export const useRouletteHooks = () => {
       return;
     }
 
-    // Stage 2 - SubStep 2: Info box dica espaço amostral (close and retry)
+    // Etapa 2 - SubStep 2: Info box dica espaço amostral (fechar e tentar novamente)
     if (stage === 2 && subStep === 2) {
-      // Just close info box, user retries
+      // Apenas fechar info box, aluno tenta novamente
       return;
     }
 
@@ -10534,7 +10534,7 @@ export const useRouletteHooks = () => {
       setCompExamplesViewed(prev => prev + 1);
       setShowInfoBox(true);
 
-      const total = compExamplesViewed + 1; // +1 counting this one
+      const total = compExamplesViewed + 1; // +1 contando este
       if (total < 3) {
         setInfoBoxContent({
           type: 'success',
@@ -10631,7 +10631,7 @@ export const useRouletteHooks = () => {
       setCompCalcExampleNum(prev => prev + 1);
     }
 
-    // Reset calculation inputs
+    // Resetar entradas de cálculo
     setCompUserSelectAbar([]);
     setCompChainInputs({
       n1: '', d1: '', n2: '', d2: '',
@@ -11404,7 +11404,7 @@ export const useRouletteHooks = () => {
     disabledNextButton,
     showAutoSpinButtons,
 
-    // Alerts and Modal
+    // Alertas e Modal
     alerts,
     updateAlert,
     deleteAlerts,

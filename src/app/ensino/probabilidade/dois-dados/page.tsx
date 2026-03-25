@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import heroBannerTwoDicesImage from '@/images/teaching/probability/two-dices/twoDicesBanner.webp';
 import TwoDicesActivity from "@/components/teaching/probability/two-dices/TwoDicesActivity";
+import { TwoDicesPresentation } from "@/components/teaching/probability/two-dices/TwoDicesPresentation";
 
 export const generateMetadata = (): Metadata => {
   return {
     title: 'Dois Dados',
     description: 'Aprenda a calcular probabilidades em espaços amostrais equiprováveis por meio do lançamento de dois dados.',
     keywords: [
-      'matemática', 
+      'matemática',
       'ensino de matemática',
       'probabilidade',
       'dois-dados',
@@ -45,7 +46,9 @@ export const generateMetadata = (): Metadata => {
 
 export default function TwoDices() {
   return (
-    <TwoDicesActivity />
+    <TwoDicesPresentation>
+      <TwoDicesActivity />
+    </TwoDicesPresentation>
   );
 }
 
