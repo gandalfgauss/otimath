@@ -11,11 +11,12 @@ import { playSound } from '@/hooks/global/useSound';
 
 // ── Constantes de física ──
 const TABLE_Y  = -0.52;
-const REST_Y   = TABLE_Y + 0.5;   // centro do dado apoiado
-const LAUNCH_Y = 2.4;
-const GRAVITY  = -18;
-const BOUNCE_C = 0.25;
-const FRICTION = 0.6;
+const REST_Y   = TABLE_Y + 0.82;  // centro do dado acima da superfície (cubo 1.21)
+const LAUNCH_Y = 2.6;             // altura de lançamento
+const GRAVITY  = -16;             // gravidade
+const MAX_BOUNCES = 2;            // bounces antes de assentar
+const BOUNCE_RESTITUTION = [0.30, 0.15]; // energia retida em cada bounce
+const BOUNCE_FRICTION    = [0.50, 0.30]; // atrito angular em cada bounce
 
 // ── xoshiro256** simplificado para física visual ──
 class RNG {
@@ -43,12 +44,12 @@ const rng = new RNG();
 function buildSnapRot() {
   const PI = Math.PI;
   return {
-    1: new THREE.Quaternion().setFromEuler(new THREE.Euler(-PI / 2, 0.12, 0)),
+    1: new THREE.Quaternion().setFromEuler(new THREE.Euler(-PI / 2, 0, 0)),
     2: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.12, PI / 2)),
     3: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.12, 0)),
     4: new THREE.Quaternion().setFromEuler(new THREE.Euler(PI, 0.12, 0)),
     5: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.12, -PI / 2)),
-    6: new THREE.Quaternion().setFromEuler(new THREE.Euler(PI / 2, 0.12, 0)),
+    6: new THREE.Quaternion().setFromEuler(new THREE.Euler(PI / 2, 0, 0)),
   } as Record<number, THREE.Quaternion>;
 }
 
@@ -168,7 +169,7 @@ function faceTex(value: number, baseHex: number, pipColor: string, maxAniso: num
 
 // ── Criar dado ──
 function makeDie(baseHex: number, roughness: number, maxAniso: number) {
-  const geo = roundedBox(1.0, 0.13, 5);
+  const geo = roundedBox(1.21, 0.15, 5);
   const mats = [2, 5, 3, 4, 1, 6].map(v =>
     new THREE.MeshStandardMaterial({
       map: faceTex(v, baseHex, '#ffffff', maxAniso),
@@ -306,14 +307,22 @@ function makeBackground() {
   return new THREE.CanvasTexture(cv);
 }
 
+// ═══════ Cores disponíveis ═══════
+export const DICE_COLORS = {
+  blue: 0x0a1f6e,
+  green: 0x0d3d1a,
+} as const;
+export type DiceColor = keyof typeof DICE_COLORS;
+
 // ═══════ Interface pública ═══════
 export interface DiceSceneHandle {
   roll: (targetFace: number) => Promise<void>;
   setIdle: (idle: boolean) => void;
+  setColor: (color: DiceColor) => void;
 }
 
-const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string }>(function DiceScene(
-  { aspectRatio = '16 / 10' },
+const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialColor?: DiceColor }>(function DiceScene(
+  { aspectRatio = '16 / 10', initialColor = 'blue' },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -326,9 +335,11 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string }>(function
     snapRot: Record<number, THREE.Quaternion>;
     clock: THREE.Clock;
     animId: number;
+    maxAniso: number;
     mode: 'idle' | 'rolling' | 'settle' | 'resting';
     rollVel: number;
     rollAng: { x: number; y: number; z: number };
+    rollHorVel: { x: number; z: number } | null;
     rollBounces: number;
     rollTarget: number;
     rollResolve: (() => void) | null;
@@ -415,8 +426,8 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string }>(function
     rimMesh.position.y = TABLE_Y;
     scene.add(rimMesh);
 
-    // Dado azul-marinho (um só, centralizado)
-    const die = makeDie(0x0a1f6e, 0.88, maxAniso);
+    // Dado (um só, centralizado) — cor inicial via prop
+    const die = makeDie(DICE_COLORS[initialColor], 0.88, maxAniso);
     die.position.set(0, REST_Y, 0);
     scene.add(die);
 
@@ -435,11 +446,12 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string }>(function
     const clock = new THREE.Clock();
 
     const state = {
-      renderer, scene, camera, die, contactShadow, snapRot, clock,
+      renderer, scene, camera, die, contactShadow, snapRot, clock, maxAniso,
       animId: 0,
       mode: 'idle' as const,
       rollVel: 0,
       rollAng: { x: 0, y: 0, z: 0 },
+      rollHorVel: null,
       rollBounces: 0,
       rollTarget: 1,
       rollResolve: null as (() => void) | null,
@@ -475,39 +487,59 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string }>(function
         contactShadow.visible = true;
         contactShadow.material.opacity = 0.32;
       } else if (s.mode === 'rolling') {
+        // Física adaptada do código de lançamento com copo
         s.rollVel += GRAVITY * dt;
         die.position.y += s.rollVel * dt;
+
+        // Movimento horizontal suave (dado se desloca lateralmente)
+        if (s.rollHorVel) {
+          die.position.x += s.rollHorVel.x * dt;
+          die.position.z += s.rollHorVel.z * dt;
+          // Atrito horizontal
+          s.rollHorVel.x *= (1 - 1.8 * dt);
+          s.rollHorVel.z *= (1 - 1.8 * dt);
+        }
 
         die.rotation.x += s.rollAng.x * dt;
         die.rotation.y += s.rollAng.y * dt;
         die.rotation.z += s.rollAng.z * dt;
 
-        // Sombra acompanha altura
+        // Sombra acompanha altura — mais dramática
         const h = Math.max(0, die.position.y - REST_Y);
-        contactShadow.material.opacity = Math.max(0.05, 0.32 - h * 0.12);
-        contactShadow.scale.setScalar(1 + h * 0.15);
+        contactShadow.material.opacity = Math.max(0.04, 0.32 - h * 0.08);
+        contactShadow.scale.setScalar(1 + h * 0.2);
+        // Sombra acompanha posição horizontal
+        contactShadow.position.x = die.position.x;
 
         if (die.position.y <= REST_Y) {
           die.position.y = REST_Y;
           s.rollBounces++;
-          playSound('/sounds/click.mp3');
 
-          if (s.rollBounces >= 2) {
+          // Som de impacto — volume proporcional à velocidade
+          const impactVol = Math.min(0.6, Math.abs(s.rollVel) * 0.04);
+          if (impactVol > 0.05) playSound('/sounds/click.mp3');
+
+          if (s.rollBounces >= MAX_BOUNCES) {
+            // Último bounce → assentar na face correta
             s.settleStart = die.quaternion.clone();
             s.settleTarget = s.snapRot[s.rollTarget].clone();
             s.settleElapsed = 0;
             s.mode = 'settle';
           } else {
-            s.rollVel = Math.abs(s.rollVel) * BOUNCE_C;
-            s.rollAng.x *= FRICTION;
-            s.rollAng.y *= FRICTION;
-            s.rollAng.z *= FRICTION;
+            // Bounce com restituição decrescente
+            const bi = Math.min(s.rollBounces - 1, BOUNCE_RESTITUTION.length - 1);
+            s.rollVel = Math.abs(s.rollVel) * BOUNCE_RESTITUTION[bi];
+            const fric = BOUNCE_FRICTION[bi];
+            s.rollAng.x *= fric;
+            s.rollAng.y *= fric;
+            s.rollAng.z *= fric;
           }
         }
       } else if (s.mode === 'settle') {
         s.settleElapsed += dt;
-        const t = Math.min(s.settleElapsed / 0.3, 1);
-        const ease = 1 - (1 - t) * (1 - t);
+        const t = Math.min(s.settleElapsed / 0.35, 1);
+        // Ease-out cúbico — mais suave que quadrático
+        const ease = 1 - Math.pow(1 - t, 3);
 
         if (s.settleStart && s.settleTarget) {
           const q = s.settleStart.clone();
@@ -520,6 +552,10 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string }>(function
 
         if (t >= 1) {
           if (s.settleTarget) die.quaternion.copy(s.settleTarget);
+          // Resetar posição horizontal para centro
+          die.position.x = 0;
+          die.position.z = 0;
+          contactShadow.position.x = 0;
           s.mode = 'resting';
           if (s.rollResolve) {
             s.rollResolve();
@@ -554,13 +590,23 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string }>(function
       s.rollResolve = resolve;
       s.rollBounces = 0;
 
-      s.die.position.y = LAUNCH_Y;
-      s.rollVel = 0.5;
+      // Posição de lançamento — centralizada
+      s.die.position.set(0, LAUNCH_Y, 0);
+
+      // Velocidade vertical inicial
+      s.rollVel = rng.n(0.5, 1.5);
+
+      // Sem movimento horizontal — dado fica no centro
+      s.rollHorVel = null;
+
+      // Rotação angular
       s.rollAng = {
-        x: (rng.n(6, 14)) * (rng.f() > 0.5 ? 1 : -1),
-        y: (rng.n(6, 14)) * (rng.f() > 0.5 ? 1 : -1),
-        z: (rng.n(3, 8)) * (rng.f() > 0.5 ? 1 : -1),
+        x: rng.n(6, 14) * (rng.f() > 0.5 ? 1 : -1),
+        y: rng.n(6, 14) * (rng.f() > 0.5 ? 1 : -1),
+        z: rng.n(3, 8) * (rng.f() > 0.5 ? 1 : -1),
       };
+
+      // Orientação inicial aleatória
       s.die.rotation.set(
         rng.f() * Math.PI * 2,
         rng.f() * Math.PI * 2,
@@ -583,7 +629,25 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string }>(function
     }
   }, []);
 
-  useImperativeHandle(ref, () => ({ roll, setIdle }), [roll, setIdle]);
+  const setColor = useCallback((color: DiceColor) => {
+    const s = internals.current;
+    if (!s) return;
+    // Remove dado antigo
+    s.scene.remove(s.die);
+    // Dispõe geometria e materiais antigos
+    s.die.geometry.dispose();
+    if (Array.isArray(s.die.material)) {
+      s.die.material.forEach(m => { m.map?.dispose(); m.dispose(); });
+    }
+    // Cria dado novo com a cor solicitada
+    const newDie = makeDie(DICE_COLORS[color], 0.88, s.maxAniso);
+    newDie.position.copy(s.die.position);
+    newDie.quaternion.copy(s.die.quaternion);
+    s.scene.add(newDie);
+    s.die = newDie;
+  }, []);
+
+  useImperativeHandle(ref, () => ({ roll, setIdle, setColor }), [roll, setIdle, setColor]);
 
   return (
     <div
