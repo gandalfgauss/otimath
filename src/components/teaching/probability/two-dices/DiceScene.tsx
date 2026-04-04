@@ -329,11 +329,24 @@ export const DICE_COLORS = {
 } as const;
 export type DiceColor = keyof typeof DICE_COLORS;
 
+// ═══════ Mapeamento faces ↔ materiais ═══════
+// BoxGeometry: +X, -X, +Y, -Y, +Z, -Z → materiais [2, 5, 3, 4, 1, 6]
+const FACE_MAP = [
+  { mat: 0, face: 2, normal: new THREE.Vector3(1, 0, 0) },
+  { mat: 1, face: 5, normal: new THREE.Vector3(-1, 0, 0) },
+  { mat: 2, face: 3, normal: new THREE.Vector3(0, 1, 0) },
+  { mat: 3, face: 4, normal: new THREE.Vector3(0, -1, 0) },
+  { mat: 4, face: 1, normal: new THREE.Vector3(0, 0, 1) },
+  { mat: 5, face: 6, normal: new THREE.Vector3(0, 0, -1) },
+];
+
 // ═══════ Interface pública ═══════
 export interface DiceSceneHandle {
   roll: (targetFace: number) => Promise<void>;
   setIdle: (idle: boolean) => void;
   setColor: (color: DiceColor) => void;
+  setBetting: (betting: boolean, onSelect?: (face: number) => void) => void;
+  highlightFace: (face: number | null) => void;
 }
 
 const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialColor?: DiceColor }>(function DiceScene(
@@ -351,7 +364,7 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     clock: THREE.Clock;
     animId: number;
     maxAniso: number;
-    mode: 'idle' | 'rolling' | 'settle' | 'resting';
+    mode: 'idle' | 'rolling' | 'settle' | 'resting' | 'betting';
     rollVel: number;
     rollAng: { x: number; y: number; z: number };
     rollHorVel: { x: number; z: number } | null;
@@ -361,6 +374,18 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     settleStart: THREE.Quaternion | null;
     settleTarget: THREE.Quaternion | null;
     settleElapsed: number;
+    // Betting mode
+    bettingOnSelect: ((face: number) => void) | null;
+    // Highlight
+    highlightedFace: number | null;
+    highlightedMatIdx: number | null;
+    // Pointer tracking
+    pointerDown: boolean;
+    pointerStartX: number;
+    pointerStartY: number;
+    pointerLastX: number;
+    pointerLastY: number;
+    pointerMoved: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -463,16 +488,28 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     const state = {
       renderer, scene, camera, die, contactShadow, snapRot, clock, maxAniso,
       animId: 0,
-      mode: 'idle' as const,
+      mode: 'idle' as 'idle' | 'rolling' | 'settle' | 'resting' | 'betting',
       rollVel: 0,
       rollAng: { x: 0, y: 0, z: 0 },
-      rollHorVel: null,
+      rollHorVel: null as { x: number; z: number } | null,
       rollBounces: 0,
       rollTarget: 1,
       rollResolve: null as (() => void) | null,
       settleStart: null as THREE.Quaternion | null,
       settleTarget: null as THREE.Quaternion | null,
       settleElapsed: 0,
+      // Betting
+      bettingOnSelect: null as ((face: number) => void) | null,
+      // Highlight
+      highlightedFace: null as number | null,
+      highlightedMatIdx: null as number | null,
+      // Pointer
+      pointerDown: false,
+      pointerStartX: 0,
+      pointerStartY: 0,
+      pointerLastX: 0,
+      pointerLastY: 0,
+      pointerMoved: false,
     };
     internals.current = state;
 
@@ -498,7 +535,14 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       const d = s.die;
       const cs = s.contactShadow;
 
-      if (s.mode === 'idle') {
+      if (s.mode === 'betting') {
+        // Dado fica parado na posição onde o usuário deixou — sem rotação automática
+        d.position.y = REST_Y;
+        d.position.x = 0;
+        d.position.z = 0;
+        cs.visible = true;
+        (cs.material as THREE.MeshBasicMaterial).opacity = 0.32;
+      } else if (s.mode === 'idle') {
         d.rotation.x += 0.008;
         d.rotation.y += 0.012;
         d.rotation.z += 0.005;
@@ -589,9 +633,80 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     clock.start();
     animate();
 
+    // ── Pointer events para modo betting (drag = gira, click = seleciona) ──
+    const DRAG_THRESHOLD = 5; // px mínimo para considerar drag
+    const ROTATION_SPEED = 0.012; // radianos por pixel — fluido em qualquer direção
+
+    const onPointerDown = (e: PointerEvent) => {
+      const s = internals.current;
+      if (!s || s.mode !== 'betting') return;
+      s.pointerDown = true;
+      s.pointerMoved = false;
+      s.pointerStartX = e.clientX;
+      s.pointerStartY = e.clientY;
+      s.pointerLastX = e.clientX;
+      s.pointerLastY = e.clientY;
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      el.style.cursor = 'grabbing';
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      const s = internals.current;
+      if (!s || !s.pointerDown || s.mode !== 'betting') return;
+      const dx = e.clientX - s.pointerLastX;
+      const dy = e.clientY - s.pointerLastY;
+      // Verificar se moveu o suficiente para ser drag
+      const totalDx = e.clientX - s.pointerStartX;
+      const totalDy = e.clientY - s.pointerStartY;
+      if (Math.abs(totalDx) > DRAG_THRESHOLD || Math.abs(totalDy) > DRAG_THRESHOLD) {
+        s.pointerMoved = true;
+      }
+      if (s.pointerMoved && (Math.abs(dx) > 0 || Math.abs(dy) > 0)) {
+        // Rotação por quaternion no espaço da tela (evita gimbal lock)
+        const angleX = dy * ROTATION_SPEED; // arrastar vertical → gira em X
+        const angleY = dx * ROTATION_SPEED; // arrastar horizontal → gira em Y
+        const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), angleX);
+        const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angleY);
+        // Aplicar rotação no espaço do mundo (não local)
+        s.die.quaternion.premultiply(qy).premultiply(qx);
+      }
+      s.pointerLastX = e.clientX;
+      s.pointerLastY = e.clientY;
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      const s = internals.current;
+      if (!s || s.mode !== 'betting') { if (s) s.pointerDown = false; return; }
+      s.pointerDown = false;
+      el.style.cursor = s.mode === 'betting' ? 'grab' : 'default';
+      // Se não arrastou: click → detectar face frontal
+      if (!s.pointerMoved) {
+        const camDir = s.camera.position.clone().sub(s.die.position).normalize();
+        let bestDot = -Infinity;
+        let bestFace = 1;
+        for (const fm of FACE_MAP) {
+          const wn = fm.normal.clone().applyQuaternion(s.die.quaternion);
+          const dot = wn.dot(camDir);
+          if (dot > bestDot) { bestDot = dot; bestFace = fm.face; }
+        }
+        if (s.bettingOnSelect) s.bettingOnSelect(bestFace);
+      }
+    };
+
+    const el = renderer.domElement;
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointermove', onPointerMove);
+    el.addEventListener('pointerup', onPointerUp);
+    el.addEventListener('pointerleave', onPointerUp);
+    el.style.touchAction = 'none'; // previne scroll no touch
+
     return () => {
       cancelAnimationFrame(state.animId);
       ro.disconnect();
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', onPointerUp);
+      el.removeEventListener('pointerleave', onPointerUp);
       renderer.dispose();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
@@ -665,9 +780,59 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     newDie.quaternion.copy(s.die.quaternion);
     s.scene.add(newDie);
     s.die = newDie;
+    // Re-aplicar highlight se ativo
+    if (s.highlightedFace !== null) {
+      const fm = FACE_MAP.find(f => f.face === s.highlightedFace);
+      if (fm && Array.isArray(newDie.material)) {
+        const mat = newDie.material[fm.mat] as THREE.MeshStandardMaterial;
+        mat.emissive.setHex(0xaa8822);
+        mat.emissiveIntensity = 0.5;
+        s.highlightedMatIdx = fm.mat;
+      }
+    }
   }, []);
 
-  useImperativeHandle(ref, () => ({ roll, setIdle, setColor }), [roll, setIdle, setColor]);
+  const setBetting = useCallback((betting: boolean, onSelect?: (face: number) => void) => {
+    const s = internals.current;
+    if (!s) return;
+    const canvas = s.renderer.domElement;
+    if (betting) {
+      s.mode = 'betting';
+      s.bettingOnSelect = onSelect || null;
+      s.die.position.set(0, REST_Y, 0);
+      canvas.style.cursor = 'grab';
+      canvas.style.touchAction = 'none';
+    } else {
+      s.bettingOnSelect = null;
+      if (s.mode === 'betting') s.mode = 'resting';
+      canvas.style.cursor = 'default';
+      canvas.style.touchAction = 'auto';
+    }
+  }, []);
+
+  const highlightFace = useCallback((face: number | null) => {
+    const s = internals.current;
+    if (!s || !Array.isArray(s.die.material)) return;
+    // Limpar highlight anterior
+    if (s.highlightedMatIdx !== null) {
+      const prevMat = s.die.material[s.highlightedMatIdx] as THREE.MeshStandardMaterial;
+      prevMat.emissive.setHex(0x000000);
+      prevMat.emissiveIntensity = 0;
+      s.highlightedMatIdx = null;
+    }
+    s.highlightedFace = face;
+    if (face !== null) {
+      const fm = FACE_MAP.find(f => f.face === face);
+      if (fm) {
+        const mat = s.die.material[fm.mat] as THREE.MeshStandardMaterial;
+        mat.emissive.setHex(0xaa8822);
+        mat.emissiveIntensity = 0.5;
+        s.highlightedMatIdx = fm.mat;
+      }
+    }
+  }, []);
+
+  useImperativeHandle(ref, () => ({ roll, setIdle, setColor, setBetting, highlightFace }), [roll, setIdle, setColor, setBetting, highlightFace]);
 
   return (
     <div

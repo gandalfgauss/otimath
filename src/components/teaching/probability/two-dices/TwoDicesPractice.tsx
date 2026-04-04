@@ -135,10 +135,11 @@ const A2: E[] = [
   e('Sair número que pode ser escrito como soma de dois números primos.', f => isSumOfTwoPrimes(f)),
   e('Sair número que não tem nenhum divisor em comum com 6, exceto o 1.', f => gcd(f, 6) === 1),
   e('Sair número que não tem nenhum divisor em comum com 4, exceto o 1.', f => gcd(f, 4) === 1),
-  e('Sair número que é divisor de 4.', f => isDivisorOf(f, 4)),
-  e('Sair número que é divisor de 6.', f => isDivisorOf(f, 6)),
   e('Sair número cujo quadrado também é uma face do dado.', f => f * f >= 1 && f * f <= 6),
   e('Sair número que é raiz quadrada exata de outra face do dado.', f => [1, 2].includes(f)),
+  // Eventos dinâmicos: "pelo menos X"
+  ...([2, 3, 4, 5, 6] as const).map(x => e(`Sair número pelo menos ${x}.`, f => f >= x)),
+  ...([1, 2, 3, 4, 5] as const).map(x => e(`Sair número no máximo ${x}.`, f => f <= x)),
 ];
 
 const A3: E[] = [
@@ -148,12 +149,10 @@ const A3: E[] = [
   e('Sair número primo ou divisor de 4.', f => isPrime(f) || isDivisorOf(f, 4)),
   e('Sair número quadrado perfeito ou número ímpar.', f => isPerfectSquare(f) || !isMultOf(f, 2)),
   e('Sair número par ou divisor de 3.', f => isMultOf(f, 2) || isDivisorOf(f, 3)),
-  e('Sair número composto ou igual a 1.', f => isComposite(f) || f === 1),
   e('Sair número primo ou múltiplo de 3.', f => isPrime(f) || isMultOf(f, 3)),
   e('Sair número ímpar ou múltiplo de 2.', f => !isMultOf(f, 2) || isMultOf(f, 2)),
   e('Sair número quadrado perfeito ou primo.', f => isPerfectSquare(f) || isPrime(f)),
   e('Sair número que pode ser escrito como soma de dois primos ou é divisor de 6.', f => isSumOfTwoPrimes(f) || isDivisorOf(f, 6)),
-  e('Sair número múltiplo de 2 ou múltiplo de 3.', f => isMultOf(f, 2) || isMultOf(f, 3)),
   e('Sair número primo ou maior que 4.', f => isPrime(f) || f > 4),
   e('Sair número menor que 3 ou maior que 5.', f => f < 3 || f > 5),
   e('Sair número divisor de 6 ou divisor de 4.', f => isDivisorOf(f, 6) || isDivisorOf(f, 4)),
@@ -168,6 +167,52 @@ const A3: E[] = [
   e('Sair número par ou divisor de 6.', f => isMultOf(f, 2) || isDivisorOf(f, 6)),
   e('Sair número primo ou divisor de 20.', f => isPrime(f) || isDivisorOf(f, 20)),
   e('Sair número divisor de 90 ou divisor de 80.', f => isDivisorOf(f, 90) || isDivisorOf(f, 80)),
+  // Eventos dinâmicos: "pelo menos x ou no máximo y" (x > y+1)
+  ...(() => {
+    const result: E[] = [];
+    for (let x = 3; x <= 6; x++) {
+      for (let y = 1; y <= x - 2; y++) {
+        let fav = 0;
+        for (let f = 1; f <= 6; f++) if (f >= x || f <= y) fav++;
+        if (fav >= 1 && fav <= 5) {
+          result.push(e(`Sair número pelo menos ${x} ou no máximo ${y}.`, f => f >= x || f <= y));
+        }
+      }
+    }
+    return result;
+  })(),
+  // Eventos dinâmicos: "estritamente menor que x ou exatamente igual a y" (y >= x)
+  ...(() => {
+    const result: E[] = [];
+    for (let x = 2; x <= 5; x++) {
+      for (let y = x; y <= 6; y++) {
+        let fav = 0;
+        for (let f = 1; f <= 6; f++) if (f < x || f === y) fav++;
+        if (fav >= 1 && fav <= 5) {
+          result.push(e(`Sair número estritamente menor que ${x} ou exatamente igual a ${y}.`, f => f < x || f === y));
+        }
+      }
+    }
+    return result;
+  })(),
+  // Eventos dinâmicos: "fator de x ou estritamente maior que y"
+  ...(() => {
+    const result: E[] = [];
+    const seen = new Set<string>();
+    const xs = [2, 3, 4, 5, 6];
+    for (const x of xs) {
+      for (let y = 2; y <= 6; y++) {
+        const faces: number[] = [];
+        for (let f = 1; f <= 6; f++) if (x % f === 0 || f > y) faces.push(f);
+        const key = faces.join(',');
+        if (faces.length >= 1 && faces.length <= 5 && !seen.has(key)) {
+          seen.add(key);
+          result.push(e(`Sair número que seja fator de ${x} ou estritamente maior que ${y}.`, f => x % f === 0 || f > y));
+        }
+      }
+    }
+    return result;
+  })(),
 ];
 
 const A4: E[] = [
@@ -184,7 +229,6 @@ const A4: E[] = [
   e('Sair número par e maior que 2.', f => isMultOf(f, 2) && f > 2),
   e('Sair número par e menor que 5.', f => isMultOf(f, 2) && f < 5),
   e('Sair número ímpar e maior que 2.', f => !isMultOf(f, 2) && f > 2),
-  e('Sair número primo e menor que 4.', f => isPrime(f) && f < 4),
   e('Sair número divisor de 6 e par.', f => isDivisorOf(f, 6) && isMultOf(f, 2)),
   e('Sair número composto e divisor de 12.', f => isComposite(f) && isDivisorOf(f, 12)),
   e('Sair número maior que 1 e menor que 5.', f => f > 1 && f < 5),
@@ -209,7 +253,6 @@ const A4: E[] = [
   e('Sair número que divide 720 e é maior que 1.', f => isDivisorOf(f, 720) && f > 1),
   e('Sair número divisor de 120 e não é igual a 1.', f => isDivisorOf(f, 120) && f !== 1),
   e('Sair número divisor de 60 e maior que 1.', f => isDivisorOf(f, 60) && f > 1),
-  e('Sair número primo e ímpar.', f => isPrime(f) && !isMultOf(f, 2)),
   e('Sair número múltiplo de 3 e divisor de 6.', f => isMultOf(f, 3) && isDivisorOf(f, 6)),
   e('Sair número ímpar e menor que 6.', f => !isMultOf(f, 2) && f < 6),
   e('Sair número divisor de 6 e maior que 1.', f => isDivisorOf(f, 6) && f > 1),
@@ -226,6 +269,32 @@ const A4: E[] = [
   e('Sair número divisor de 12 e divisor de 60.', f => isDivisorOf(f, 12) && isDivisorOf(f, 60)),
   e('Sair número divisor de 30 e divisor de 60.', f => isDivisorOf(f, 30) && isDivisorOf(f, 60)),
   e('Sair número não múltiplo de 6 e divisor de 60.', f => !isMultOf(f, 6) && isDivisorOf(f, 60)),
+  // Eventos dinâmicos: "entre x e y, inclusive" (x < y, não consecutivos)
+  ...([[1,3],[1,4],[1,5],[2,4],[2,5],[2,6],[3,5],[3,6],[4,6]] as const).map(
+    ([x, y]) => e(`Sair número entre ${x} e ${y}, inclusive.`, f => f >= x && f <= y)
+  ),
+  // Eventos dinâmicos: "fator de X e pelo menos Y"
+  ...(() => {
+    const xs = [6, 10, 12, 15, 18, 20, 24, 30];
+    const result: E[] = [];
+    for (const x of xs) {
+      for (let y = 2; y <= 6; y++) {
+        // Contar favoráveis: faces do dado que são divisor de x E >= y
+        let fav = 0;
+        for (let f = 1; f <= 6; f++) if (x % f === 0 && f >= y) fav++;
+        // Manter apenas combinações não triviais (1 a 5 favoráveis)
+        if (fav >= 1 && fav <= 5) {
+          result.push(e(`Sair número que seja fator de ${x} e pelo menos ${y}.`, f => x % f === 0 && f >= y));
+        }
+      }
+    }
+    // Casos adicionais com 4 e 5 favoráveis
+    // fator de 60 e pelo menos 2 → {2,3,4,5,6} → 5 favoráveis
+    result.push(e('Sair número que seja fator de 60 e pelo menos 2.', f => 60 % f === 0 && f >= 2));
+    // fator de 12 e pelo menos 2 → {2,3,4,6} → 4 favoráveis
+    result.push(e('Sair número que seja fator de 12 e pelo menos 2.', f => 12 % f === 0 && f >= 2));
+    return result;
+  })(),
 ];
 
 const EVENT_CATEGORIES: E[][] = [A1, A2, A3, A4];
@@ -272,8 +341,8 @@ function pickRandom<T>(arr: T[]): T {
 
 // ═══════ Tipos de fase ═══════
 type MainPhase = 'intro' | 'experimentA' | 'experimentB' | 'exercises' | 'finished';
-type ExpSubPhase = 'bet' | 'rolling' | 'compare' | 'markResult';
-type ExSubPhase = 'mark' | 'bet' | 'rolling' | 'readDice' | 'result' | 'calc' | 'next';
+type ExpSubPhase = 'bet' | 'rolling' | 'landed' | 'compare' | 'markResult';
+type ExSubPhase = 'mark' | 'bet' | 'rolling' | 'landed' | 'readDice' | 'result' | 'calc' | 'next';
 
 // ═══════ Componente Principal ═══════
 interface TwoDicesPracticeProps {
@@ -297,7 +366,19 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
     const countFavorable = (ev: SingleDieEvent) => {
       let c = 0; for (let f = 1; f <= 6; f++) if (ev.validation(f)) c++; return c;
     };
-    const picked = EVENT_CATEGORIES.map(cat => pickRandom(cat));
+    // Sortear eventos garantindo que nenhuma descrição se repita
+    const picked: SingleDieEvent[] = [];
+    const usedDescriptions = new Set<string>();
+    for (const cat of EVENT_CATEGORIES) {
+      let ev: SingleDieEvent;
+      let attempts = 0;
+      do {
+        ev = rng.pick(cat);
+        attempts++;
+      } while (usedDescriptions.has(ev.description) && attempts < 50);
+      picked.push(ev);
+      usedDescriptions.add(ev.description);
+    }
     const hasThree = picked.some(ev => countFavorable(ev) === 3);
     if (!hasThree) {
       // Encontrar uma categoria que tenha evento com 3 favoráveis e substituir
@@ -385,22 +466,40 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
     return exerciseIdx % 2 === 0 ? colors[0] : colors[1];
   };
 
-  // Mudar cor do dado ao mudar fase
+  // Mudar cor do dado e modo ao mudar fase/exercício
+  const lastColorRef = useRef<DiceColor | null>(null);
   useEffect(() => {
     if (mainPhase !== 'intro' && mainPhase !== 'finished') {
       const color = currentColor();
-      diceRef.current?.setColor(color);
-      diceRef.current?.setIdle(true);
+      // Só recriar dado se cor realmente mudou
+      if (color !== lastColorRef.current) {
+        diceRef.current?.setColor(color);
+        lastColorRef.current = color;
+      }
+      // Experimentação: modo betting (girar com dedo/mouse)
+      if (mainPhase === 'experimentA' || mainPhase === 'experimentB') {
+        diceRef.current?.highlightFace(null);
+        diceRef.current?.setBetting(true, (face: number) => {
+          setBet(String(face));
+          diceRef.current?.highlightFace(face);
+          playSound('/sounds/correct.mp3');
+        });
+      } else {
+        diceRef.current?.setBetting(false);
+        diceRef.current?.setIdle(true);
+      }
       onColorChange(color);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mainPhase, exerciseIdx]);
 
-  // ── Aposta ──
+  // ── Confirmar aposta e lançar ──
   const submitBet = () => {
     const v = parseInt(bet);
     if (v >= 1 && v <= 6) {
       setBetError(false);
+      // Sair do modo betting antes de lançar
+      diceRef.current?.setBetting(false);
       launchDie();
     } else {
       setBetError(true);
@@ -423,11 +522,15 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
     const result = rng.die();
     setDiceResult(result);
 
-    // Dado 3D: sair do idle antes de lançar
+    // Dado 3D: sair do idle/betting antes de lançar
+    diceRef.current?.setBetting(false);
     diceRef.current?.setIdle(false);
     if (diceRef.current) {
       await diceRef.current.roll(result);
     }
+
+    // Dado já caiu
+    setExpSubPhase('landed');
 
     // Esperar o aluno ver o resultado no dado
     await new Promise(r => setTimeout(r, 800));
@@ -459,6 +562,8 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
 
   // ── Avançar após comparação ──
   const goToNextRound = () => {
+    // Limpar highlight da aposta anterior
+    diceRef.current?.highlightFace(null);
     if (mainPhase === 'experimentA') {
       setMainPhase('experimentB');
       setExpSubPhase('bet');
@@ -512,22 +617,16 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
       await diceRef.current.roll(result);
     }
 
-    // Esperar o aluno ver o resultado no dado
-    await new Promise(r => setTimeout(r, 800));
+    // Dado já caiu — mudar texto imediatamente
+    setExSubPhase('landed');
+
+    // Esperar o aluno ver o resultado no dado (1.5s)
+    await new Promise(r => setTimeout(r, 1500));
 
     // Scroll de volta ao card do exercício
     exerciseCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     rolling.current = false;
-
-    // Verificar se resultado pertence ao evento
-    const belongsToEvent = events[exerciseIdx].validation(result);
-    let fav = 0;
-    for (let f = 1; f <= 6; f++) if (events[exerciseIdx].validation(f)) fav++;
-    const isIndifferentCorrect = fav === 3;
-    const won = (exBet === 'indiferente' && isIndifferentCorrect)
-      || (exBet === 'favor' && belongsToEvent)
-      || (exBet === 'contra' && !belongsToEvent);
     setExSubPhase('readDice');
   }, [diceRef, diceContainerRef]);
 
@@ -741,45 +840,44 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
             Dado {colorLabel(currentColor())} — Rodada {mainPhase === 'experimentA' ? '1' : '2'} de 2
           </p>
 
-          {/* Apostar */}
+          {/* Apostar — girar o dado e clicar na face */}
           {expSubPhase === 'bet' && (
             <div className="flex flex-col gap-y-micro items-center">
-              <p className="ds-body-bold text-neutral-black text-center">
-                Em qual face você <strong>aposta</strong> que o dado vai cair?
-              </p>
-              <div className="flex items-center gap-x-micro">
-                <span className="ds-body-bold text-neutral-black">Minha aposta:</span>
-                <input
-                  type="number" min="1" max="6" value={bet}
-                  onChange={e => { setBet(e.target.value); setBetError(false); }}
-                  placeholder="?"
-                  className="ds-body-bold"
-                  style={{
-                    border: `2px solid ${betError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                    borderRadius: 8, padding: '6px 10px', width: 64, textAlign: 'center', outline: 'none',
-                  }}
-                />
-                <Button style="primary" size="extra-small" onClick={submitBet}>
-                  🎲 Lançar dado
-                </Button>
-              </div>
-              {betError && (
-                <p className="ds-small-bold" style={{ color: 'var(--color-feedback-error-dark)' }}>
-                  Digite um número de 1 a 6.
-                </p>
+              {!bet ? (
+                <>
+                  <p className="ds-body-bold text-neutral-black text-center">
+                    <strong>Gire o dado</strong> arrastando com o dedo ou mouse e <strong>clique na face</strong> em que deseja apostar.
+                  </p>
+                  <p className="ds-small text-neutral-dark text-center" style={{ fontStyle: 'italic' }}>
+                    Posicione a face desejada voltada para você e clique sobre o dado.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-col items-center">
+                    <span className="ds-caption-bold text-neutral-dark">Sua aposta</span>
+                    <DiceFaceIcon face={parseInt(bet)} size={48} color={currentColor()} />
+                    <span className="ds-body-bold text-neutral-black">{bet}</span>
+                  </div>
+                  <Button style="primary" size="small" onClick={submitBet}>
+                    🎲 Lançar dado
+                  </Button>
+                </>
               )}
             </div>
           )}
 
           {/* Lançando */}
-          {expSubPhase === 'rolling' && (
+          {(expSubPhase === 'rolling' || expSubPhase === 'landed') && (
             <>
               <div className="flex flex-col items-center mb-micro">
                 <span className="ds-caption-bold text-neutral-dark">Sua aposta</span>
                 <DiceFaceIcon face={parseInt(bet)} size={48} color={currentColor()} />
                 <span className="ds-body-bold text-neutral-black">{bet}</span>
               </div>
-              <p className="ds-body-bold text-neutral-dark text-center">Lançando o dado...</p>
+              <p className="ds-body-bold text-neutral-dark text-center">
+                {expSubPhase === 'rolling' ? 'Lançando o dado...' : 'Observe o resultado no dado.'}
+              </p>
             </>
           )}
 
@@ -978,10 +1076,12 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
             </div>
           )}
 
-          {/* ETAPA 2b — Lançando */}
-          {exSubPhase === 'rolling' && (
+          {/* ETAPA 2b — Lançando / Dado caiu */}
+          {(exSubPhase === 'rolling' || exSubPhase === 'landed') && (
             <div className="mt-micro border-t border-neutral-lighter pt-micro">
-              <p className="ds-body-bold text-neutral-dark text-center">Lançando o dado...</p>
+              <p className="ds-body-bold text-neutral-dark text-center">
+                {exSubPhase === 'rolling' ? 'Lançando o dado...' : 'Observe o resultado no dado.'}
+              </p>
             </div>
           )}
 
