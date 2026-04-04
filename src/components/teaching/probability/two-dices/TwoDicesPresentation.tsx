@@ -129,8 +129,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   // Banner de retomada
   const [showBanner, setShowBanner] = useState(true);
 
-  // Ref do dado 3D
+  // Ref do dado 3D e seu container (para scroll programático)
   const diceRef = useRef<DiceSceneHandle>(null);
+  const diceContainerRef = useRef<HTMLDivElement>(null);
 
   // Cena 2: face atual na sequência
   const [currentFaceIdx, setCurrentFaceIdx] = useState(-1);
@@ -452,7 +453,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
             )}
 
             {/* Dado 3D — montado uma vez, oculto na cena 4 */}
-            <div style={{ display: showDice ? 'block' : 'none', width: '100%' }}>
+            <div ref={diceContainerRef} style={{ display: showDice ? 'block' : 'none', width: '100%' }}>
               <DiceScene ref={diceRef} />
             </div>
 
@@ -906,6 +907,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
             {scene === 5 && (
               <TwoDicesPractice
                 diceRef={diceRef}
+                diceContainerRef={diceContainerRef}
                 onColorChange={setScene5DiceColor}
                 onFinished={() => {
                   setScene5Finished(true);
