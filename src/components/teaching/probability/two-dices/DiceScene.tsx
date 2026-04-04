@@ -18,20 +18,35 @@ const MAX_BOUNCES = 2;            // bounces antes de assentar
 const BOUNCE_RESTITUTION = [0.30, 0.15]; // energia retida em cada bounce
 const BOUNCE_FRICTION    = [0.50, 0.30]; // atrito angular em cada bounce
 
-// ── xoshiro256** simplificado para física visual ──
+// ── xoshiro128** (Blackman & Vigna, 2021) — PRNG para física visual ──
+// Uint32Array nativo, período 2^128−1, passa BigCrush/PractRand.
 class RNG {
-  s: number[];
+  s: Uint32Array;
   constructor() {
-    this.s = [Date.now(), Date.now() ^ 0xdeadbeef, Date.now() ^ 0xcafebabe, Date.now() ^ 0x12345678];
+    this.s = new Uint32Array(4);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(this.s);
+    } else {
+      const t = Date.now();
+      this.s[0] = t >>> 0; this.s[1] = (t ^ 0xdeadbeef) >>> 0;
+      this.s[2] = (t ^ 0xcafebabe) >>> 0; this.s[3] = (t ^ 0x12345678) >>> 0;
+    }
+    if (this.s[0] === 0 && this.s[1] === 0 && this.s[2] === 0 && this.s[3] === 0) this.s[0] = 1;
   }
-  f() {
+  private _rotl(x: number, k: number) { return ((x << k) | (x >>> (32 - k))) >>> 0; }
+  private _next() {
     const s = this.s;
-    const r = (s[1] * 5 >>> 0);
-    const t = s[1] << 9;
-    s[2] ^= s[0]; s[3] ^= s[1]; s[1] ^= s[2]; s[0] ^= s[3];
-    s[2] ^= t; s[3] = (s[3] << 11) | (s[3] >>> 21);
-    return (r >>> 0) / 4294967296;
+    const result = (this._rotl(Math.imul(s[1], 5) >>> 0, 7) * 9) >>> 0;
+    const t = (s[1] << 9) >>> 0;
+    s[2] = (s[2] ^ s[0]) >>> 0;
+    s[3] = (s[3] ^ s[1]) >>> 0;
+    s[1] = (s[1] ^ s[2]) >>> 0;
+    s[0] = (s[0] ^ s[3]) >>> 0;
+    s[2] = (s[2] ^ t) >>> 0;
+    s[3] = this._rotl(s[3], 11);
+    return result;
   }
+  f() { return this._next() / 4294967296; }
   n(a: number, b: number) { return a + this.f() * (b - a); }
 }
 const rng = new RNG();
@@ -479,40 +494,44 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       const s = internals.current;
       if (!s) return;
 
+      // IMPORTANTE: usar s.die (não a closure die) para funcionar após setColor()
+      const d = s.die;
+      const cs = s.contactShadow;
+
       if (s.mode === 'idle') {
-        die.rotation.x += 0.008;
-        die.rotation.y += 0.012;
-        die.rotation.z += 0.005;
-        die.position.y = REST_Y;
-        contactShadow.visible = true;
-        contactShadow.material.opacity = 0.32;
+        d.rotation.x += 0.008;
+        d.rotation.y += 0.012;
+        d.rotation.z += 0.005;
+        d.position.y = REST_Y;
+        cs.visible = true;
+        (cs.material as THREE.MeshBasicMaterial).opacity = 0.32;
       } else if (s.mode === 'rolling') {
         // Física adaptada do código de lançamento com copo
         s.rollVel += GRAVITY * dt;
-        die.position.y += s.rollVel * dt;
+        d.position.y += s.rollVel * dt;
 
         // Movimento horizontal suave (dado se desloca lateralmente)
         if (s.rollHorVel) {
-          die.position.x += s.rollHorVel.x * dt;
-          die.position.z += s.rollHorVel.z * dt;
+          d.position.x += s.rollHorVel.x * dt;
+          d.position.z += s.rollHorVel.z * dt;
           // Atrito horizontal
           s.rollHorVel.x *= (1 - 1.8 * dt);
           s.rollHorVel.z *= (1 - 1.8 * dt);
         }
 
-        die.rotation.x += s.rollAng.x * dt;
-        die.rotation.y += s.rollAng.y * dt;
-        die.rotation.z += s.rollAng.z * dt;
+        d.rotation.x += s.rollAng.x * dt;
+        d.rotation.y += s.rollAng.y * dt;
+        d.rotation.z += s.rollAng.z * dt;
 
         // Sombra acompanha altura — mais dramática
-        const h = Math.max(0, die.position.y - REST_Y);
-        contactShadow.material.opacity = Math.max(0.04, 0.32 - h * 0.08);
-        contactShadow.scale.setScalar(1 + h * 0.2);
+        const h = Math.max(0, d.position.y - REST_Y);
+        (cs.material as THREE.MeshBasicMaterial).opacity = Math.max(0.04, 0.32 - h * 0.08);
+        cs.scale.setScalar(1 + h * 0.2);
         // Sombra acompanha posição horizontal
-        contactShadow.position.x = die.position.x;
+        cs.position.x = d.position.x;
 
-        if (die.position.y <= REST_Y) {
-          die.position.y = REST_Y;
+        if (d.position.y <= REST_Y) {
+          d.position.y = REST_Y;
           s.rollBounces++;
 
           // Som de impacto — volume proporcional à velocidade
@@ -521,7 +540,7 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
 
           if (s.rollBounces >= MAX_BOUNCES) {
             // Último bounce → assentar na face correta
-            s.settleStart = die.quaternion.clone();
+            s.settleStart = d.quaternion.clone();
             s.settleTarget = s.snapRot[s.rollTarget].clone();
             s.settleElapsed = 0;
             s.mode = 'settle';
@@ -544,18 +563,18 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
         if (s.settleStart && s.settleTarget) {
           const q = s.settleStart.clone();
           q.slerp(s.settleTarget, ease);
-          die.quaternion.copy(q);
+          d.quaternion.copy(q);
         }
-        die.position.y = REST_Y;
-        contactShadow.material.opacity = 0.32;
-        contactShadow.scale.setScalar(1);
+        d.position.y = REST_Y;
+        (cs.material as THREE.MeshBasicMaterial).opacity = 0.32;
+        cs.scale.setScalar(1);
 
         if (t >= 1) {
-          if (s.settleTarget) die.quaternion.copy(s.settleTarget);
+          if (s.settleTarget) d.quaternion.copy(s.settleTarget);
           // Resetar posição horizontal para centro
-          die.position.x = 0;
-          die.position.z = 0;
-          contactShadow.position.x = 0;
+          d.position.x = 0;
+          d.position.z = 0;
+          cs.position.x = 0;
           s.mode = 'resting';
           if (s.rollResolve) {
             s.rollResolve();
@@ -590,8 +609,9 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       s.rollResolve = resolve;
       s.rollBounces = 0;
 
-      // Posição de lançamento — centralizada
-      s.die.position.set(0, LAUNCH_Y, 0);
+      // Posição de lançamento — centralizada (usa s.die, não closure)
+      const d = s.die;
+      d.position.set(0, LAUNCH_Y, 0);
 
       // Velocidade vertical inicial
       s.rollVel = rng.n(0.5, 1.5);
@@ -607,7 +627,7 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       };
 
       // Orientação inicial aleatória
-      s.die.rotation.set(
+      d.rotation.set(
         rng.f() * Math.PI * 2,
         rng.f() * Math.PI * 2,
         rng.f() * Math.PI * 2,
@@ -623,7 +643,7 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     if (!s) return;
     if (idle) {
       s.mode = 'idle';
-      s.die.position.y = REST_Y;
+      s.die.position.set(0, REST_Y, 0);
     } else {
       if (s.mode === 'idle') s.mode = 'resting';
     }
@@ -637,7 +657,7 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     // Dispõe geometria e materiais antigos
     s.die.geometry.dispose();
     if (Array.isArray(s.die.material)) {
-      s.die.material.forEach(m => { m.map?.dispose(); m.dispose(); });
+      (s.die.material as THREE.MeshStandardMaterial[]).forEach(m => { m.map?.dispose(); m.dispose(); });
     }
     // Cria dado novo com a cor solicitada
     const newDie = makeDie(DICE_COLORS[color], 0.88, s.maxAniso);

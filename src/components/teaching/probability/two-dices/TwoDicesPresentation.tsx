@@ -166,6 +166,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   const [scene4VicError, setScene4VicError] = useState(false);
   const [scene4SumAnswer, setScene4SumAnswer] = useState('');
   const [scene4SumError, setScene4SumError] = useState(false);
+  // Ordem aleatória: [radio pergunta1, radio pergunta2, ordem das perguntas]
+  // Ressorteada a cada vez que a Cena 4 é acessada
+  const [scene4RadioOrder, setScene4RadioOrder] = useState<[boolean, boolean, boolean]>([true, true, true]);
 
   // ═══════ Cena 5: delegada ao componente TwoDicesPractice ═══════
   const [scene5Finished, setScene5Finished] = useState(false);
@@ -238,6 +241,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
           setScene4VicAnswer('');
           setScene4EqError(false);
           setScene4VicError(false);
+          setScene4RadioOrder([Math.random() > 0.5, Math.random() > 0.5, Math.random() > 0.5]);
           setTimeout(() => {
             setCompareBarsAnimated(true);
             setTimeout(() => setScene4Step(1), 1500);
@@ -767,7 +771,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                       ))}
                     </div>
                     <p className="ds-small-bold text-neutral-black mt-micro">
-                      Todas as faces têm a mesma probabilidade
+                      Todas as faces têm a mesma probabilidade.
                     </p>
                   </div>
 
@@ -788,7 +792,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                       ))}
                     </div>
                     <p className="ds-small-bold text-neutral-black mt-micro">
-                      Algumas faces teriam maior probabilidade por não estarem presentes todas as condições de simetria
+                      Algumas faces teriam maior probabilidade por não estarem presentes todas as condições de simetria.
                     </p>
                   </div>
                 </div>
@@ -798,69 +802,48 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[580px] w-full mt-xs"
                     style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
                     <div className="flex flex-col gap-y-macro">
-                      {/* Pergunta 1 — Dado equilibrado */}
-                      <div className="flex flex-col gap-y-micro">
-                        <p className="ds-body-bold text-neutral-black" style={{ textAlign: 'justify' }}>
-                          Quando utilizamos dados <strong>equilibrados</strong>, o espaço amostral é:
-                        </p>
-                        <div className="flex gap-x-macro">
-                          <label className="flex items-center gap-x-nano cursor-pointer">
-                            <input
-                              type="radio" name="scene4eq" value="equiprovavel"
-                              checked={scene4EqAnswer === 'equiprovavel'}
-                              onChange={() => { setScene4EqAnswer('equiprovavel'); setScene4EqError(false); }}
-                              style={{ accentColor: 'var(--color-brand-otimath-pure)', width: 18, height: 18 }}
-                            />
-                            <span className={`ds-body-bold ${scene4EqError ? 'text-feedback-error-dark' : 'text-neutral-black'}`}>Equiprovável</span>
-                          </label>
-                          <label className="flex items-center gap-x-nano cursor-pointer">
-                            <input
-                              type="radio" name="scene4eq" value="nao-equiprovavel"
-                              checked={scene4EqAnswer === 'nao-equiprovavel'}
-                              onChange={() => { setScene4EqAnswer('nao-equiprovavel'); setScene4EqError(false); }}
-                              style={{ accentColor: 'var(--color-brand-otimath-pure)', width: 18, height: 18 }}
-                            />
-                            <span className={`ds-body-bold ${scene4EqError ? 'text-feedback-error-dark' : 'text-neutral-black'}`}>Não equiprovável</span>
-                          </label>
-                        </div>
-                        {scene4EqError && (
-                          <p className="ds-small-bold" style={{ color: 'var(--color-feedback-error-dark)' }}>
-                            Releia o texto acima e tente novamente.
+                      {/* Perguntas com ordem sorteada (perguntas e radios) */}
+                      {(scene4RadioOrder[2]
+                        ? (['eq', 'vic'] as const)
+                        : (['vic', 'eq'] as const)
+                      ).map(tipo => (
+                        <div key={tipo} className="flex flex-col gap-y-micro">
+                          <p className="ds-body-bold text-neutral-black" style={{ textAlign: 'justify' }}>
+                            {tipo === 'eq'
+                              ? <>Quando utilizamos dados <strong>equilibrados</strong>, o espaço amostral é:</>
+                              : <>Quando utilizamos dados <strong>não equilibrados</strong> (viciados), o espaço amostral é:</>
+                            }
                           </p>
-                        )}
-                      </div>
-
-                      {/* Pergunta 2 — Dado viciado */}
-                      <div className="flex flex-col gap-y-micro">
-                        <p className="ds-body-bold text-neutral-black" style={{ textAlign: 'justify' }}>
-                          Quando utilizamos dados <strong>não equilibrados</strong> (viciados), o espaço amostral é:
-                        </p>
-                        <div className="flex gap-x-macro">
-                          <label className="flex items-center gap-x-nano cursor-pointer">
-                            <input
-                              type="radio" name="scene4vic" value="equiprovavel"
-                              checked={scene4VicAnswer === 'equiprovavel'}
-                              onChange={() => { setScene4VicAnswer('equiprovavel'); setScene4VicError(false); }}
-                              style={{ accentColor: 'var(--color-brand-otimath-pure)', width: 18, height: 18 }}
-                            />
-                            <span className={`ds-body-bold ${scene4VicError ? 'text-feedback-error-dark' : 'text-neutral-black'}`}>Equiprovável</span>
-                          </label>
-                          <label className="flex items-center gap-x-nano cursor-pointer">
-                            <input
-                              type="radio" name="scene4vic" value="nao-equiprovavel"
-                              checked={scene4VicAnswer === 'nao-equiprovavel'}
-                              onChange={() => { setScene4VicAnswer('nao-equiprovavel'); setScene4VicError(false); }}
-                              style={{ accentColor: 'var(--color-brand-otimath-pure)', width: 18, height: 18 }}
-                            />
-                            <span className={`ds-body-bold ${scene4VicError ? 'text-feedback-error-dark' : 'text-neutral-black'}`}>Não equiprovável</span>
-                          </label>
+                          <div className="flex gap-x-macro">
+                            {((tipo === 'eq' ? scene4RadioOrder[0] : scene4RadioOrder[1])
+                              ? ['equiprovavel', 'nao-equiprovavel'] as const
+                              : ['nao-equiprovavel', 'equiprovavel'] as const
+                            ).map(val => (
+                              <label key={val} className="flex items-center gap-x-nano cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name={tipo === 'eq' ? 'scene4eq' : 'scene4vic'}
+                                  value={val}
+                                  checked={tipo === 'eq' ? scene4EqAnswer === val : scene4VicAnswer === val}
+                                  onChange={() => {
+                                    if (tipo === 'eq') { setScene4EqAnswer(val); setScene4EqError(false); }
+                                    else { setScene4VicAnswer(val); setScene4VicError(false); }
+                                  }}
+                                  style={{ accentColor: 'var(--color-brand-otimath-pure)', width: 18, height: 18 }}
+                                />
+                                <span className={`ds-body-bold ${(tipo === 'eq' ? scene4EqError : scene4VicError) ? 'text-feedback-error-dark' : 'text-neutral-black'}`}>
+                                  {val === 'equiprovavel' ? 'Equiprovável' : 'Não equiprovável'}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                          {(tipo === 'eq' ? scene4EqError : scene4VicError) && (
+                            <p className="ds-small-bold" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                              Releia o texto acima e tente novamente.
+                            </p>
+                          )}
                         </div>
-                        {scene4VicError && (
-                          <p className="ds-small-bold" style={{ color: 'var(--color-feedback-error-dark)' }}>
-                            Releia o texto acima e tente novamente.
-                          </p>
-                        )}
-                      </div>
+                      ))}
 
                       <div className="flex justify-center">
                         <Button style="primary" size="small" onClick={validateScene4}>Conferir</Button>

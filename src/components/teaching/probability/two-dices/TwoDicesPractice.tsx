@@ -230,14 +230,50 @@ const A4: E[] = [
 
 const EVENT_CATEGORIES: E[][] = [A1, A2, A3, A4];
 
+// ── xoshiro128** (Blackman & Vigna, 2021) — PRNG para sorteios ──
+class RNG {
+  private s: Uint32Array;
+  constructor() {
+    this.s = new Uint32Array(4);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(this.s);
+    } else {
+      const t = Date.now();
+      this.s[0] = t >>> 0; this.s[1] = (t ^ 0xdeadbeef) >>> 0;
+      this.s[2] = (t ^ 0xcafebabe) >>> 0; this.s[3] = (t ^ 0x12345678) >>> 0;
+    }
+    if (this.s[0] === 0 && this.s[1] === 0 && this.s[2] === 0 && this.s[3] === 0) this.s[0] = 1;
+  }
+  private _rotl(x: number, k: number) { return ((x << k) | (x >>> (32 - k))) >>> 0; }
+  private _next() {
+    const s = this.s;
+    const result = (this._rotl(Math.imul(s[1], 5) >>> 0, 7) * 9) >>> 0;
+    const t = (s[1] << 9) >>> 0;
+    s[2] = (s[2] ^ s[0]) >>> 0; s[3] = (s[3] ^ s[1]) >>> 0;
+    s[1] = (s[1] ^ s[2]) >>> 0; s[0] = (s[0] ^ s[3]) >>> 0;
+    s[2] = (s[2] ^ t) >>> 0; s[3] = this._rotl(s[3], 11);
+    return result;
+  }
+  f() { return this._next() / 4294967296; }
+  /** Inteiro em [a, b] inclusive */
+  i(a: number, b: number) { return a + Math.floor(this.f() * (b - a + 1)); }
+  /** Dado [1,6] */
+  die() { return this.i(1, 6); }
+  /** Cor aleatória */
+  color(): DiceColor { return (this._next() & 1) ? 'green' : 'blue'; }
+  /** Escolhe elemento aleatório */
+  pick<T>(arr: T[]): T { return arr[this.i(0, arr.length - 1)]; }
+}
+const rng = new RNG();
+
 function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return rng.pick(arr);
 }
 
 // ═══════ Tipos de fase ═══════
 type MainPhase = 'intro' | 'experimentA' | 'experimentB' | 'exercises' | 'finished';
 type ExpSubPhase = 'bet' | 'rolling' | 'compare' | 'markResult';
-type ExSubPhase = 'mark' | 'calc';
+type ExSubPhase = 'mark' | 'bet' | 'rolling' | 'result' | 'calc' | 'next';
 
 // ═══════ Componente Principal ═══════
 interface TwoDicesPracticeProps {
@@ -247,9 +283,9 @@ interface TwoDicesPracticeProps {
 }
 
 export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonly<TwoDicesPracticeProps>) {
-  // Cor inicial sorteada
+  // Cor inicial sorteada via xoshiro128** — segundo é sempre o oposto
   const [colors] = useState<[DiceColor, DiceColor]>(() => {
-    const first: DiceColor = Math.random() > 0.5 ? 'green' : 'blue';
+    const first: DiceColor = rng.color();
     const second: DiceColor = first === 'green' ? 'blue' : 'green';
     return [first, second];
   });
@@ -281,6 +317,11 @@ export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonl
   const [eventChecks, setEventChecks] = useState<boolean[]>([false, false, false, false, false, false]);
   const [eventChecksDisabled, setEventChecksDisabled] = useState(false);
   const [eventChecksError, setEventChecksError] = useState(false);
+
+  // Aposta no evento (exercícios): true = aposta que será favorável
+  const [exBet, setExBet] = useState<boolean | null>(null);
+  // Resultado do dado no exercício
+  const [exDiceResult, setExDiceResult] = useState(0);
 
   // Cálculo de probabilidade
   const [calcNum, setCalcNum] = useState('');
@@ -324,30 +365,17 @@ export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonl
     }
   };
 
-  // ── CSPRNG — resultado do dado via crypto (sem bias de módulo) ──
-  const secureRoll = (): number => {
-    if (typeof window !== 'undefined' && window.crypto) {
-      const LIMIT = 4294967292; // maior múltiplo de 6 < 2^32
-      const buf = new Uint32Array(1);
-      let v: number;
-      do { window.crypto.getRandomValues(buf); v = buf[0]; }
-      while (v >= LIMIT);
-      return (v % 6) + 1;
-    }
-    return Math.floor(Math.random() * 6) + 1;
-  };
-
   // ── Lançar dado (mesma mecânica da Cena 2 — sem copo) ──
   const launchDie = useCallback(async () => {
     if (rolling.current) return;
     rolling.current = true;
     setExpSubPhase('rolling');
 
-    // Resultado via CSPRNG
-    const result = secureRoll();
+    // Resultado via xoshiro128**
+    const result = rng.die();
     setDiceResult(result);
 
-    // Dado 3D cai na mesa (mesma animação da apresentação)
+    // Dado 3D: sair do idle antes de lançar
     diceRef.current?.setIdle(false);
     if (diceRef.current) {
       await diceRef.current.roll(result);
@@ -405,14 +433,57 @@ export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonl
       setEventChecksError(false);
       setEventChecksDisabled(true);
       playSound('/sounds/correct.mp3');
-      setExSubPhase('calc');
+      setExSubPhase('bet');
     } else {
       setEventChecksError(true);
       playSound('/sounds/incorrect.mp3');
     }
   };
 
+  // ── Lançar dado no exercício ──
+  const launchExDie = useCallback(async () => {
+    if (rolling.current) return;
+    rolling.current = true;
+    setExSubPhase('rolling');
+
+    const result = rng.die();
+    setExDiceResult(result);
+
+    diceRef.current?.setIdle(false);
+    if (diceRef.current) {
+      await diceRef.current.roll(result);
+    }
+
+    rolling.current = false;
+
+    // Verificar se resultado pertence ao evento
+    const belongsToEvent = events[exerciseIdx].validation(result);
+    const won = exBet === belongsToEvent;
+    playSound(won ? '/sounds/correct.mp3' : '/sounds/incorrect.mp3');
+
+    setExSubPhase('result');
+  }, [diceRef, events, exerciseIdx, exBet]);
+
   // ── Validar cálculo de P(A) ──
+  // ── Avançar para próximo exercício ou finalizar ──
+  const goToNextExercise = () => {
+    const next = exerciseIdx + 1;
+    if (next >= 4) {
+      playSound('/sounds/challengeFinished.mp3');
+      setMainPhase('finished');
+    } else {
+      setExerciseIdx(next);
+      setExSubPhase('mark');
+      setEventChecks([false, false, false, false, false, false]);
+      setEventChecksDisabled(false);
+      setEventChecksError(false);
+      setExBet(null);
+      setExDiceResult(0);
+      setCalcNum('');
+      setCalcDen('');
+    }
+  };
+
   const validateCalc = () => {
     const event = events[exerciseIdx];
     let favorable = 0;
@@ -430,31 +501,19 @@ export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonl
 
     if (numOk && denOk) {
       playSound('/sounds/correct.mp3');
-      const next = exerciseIdx + 1;
-      if (next >= 4) {
-        playSound('/sounds/challengeFinished.mp3');
-        setMainPhase('finished');
-      } else {
-        setExerciseIdx(next);
-        setExSubPhase('mark');
-        setEventChecks([false, false, false, false, false, false]);
-        setEventChecksDisabled(false);
-        setEventChecksError(false);
-        setCalcNum('');
-        setCalcDen('');
-      }
+      setExSubPhase('next');
     } else {
       playSound('/sounds/incorrect.mp3');
       if (!numOk && !denOk) {
         setCalcNumError(true);
         setCalcDenError(true);
-        setCalcFeedback(`Verifique quantos casos são favoráveis ao evento "${event.description}" e quantos são possíveis no lançamento de um dado equilibrado.`);
+        setCalcFeedback('P(A) = nº de resultados favoráveis ao evento A / nº de elementos do espaço amostral. Revise ambos.');
       } else if (!denOk) {
         setCalcDenError(true);
-        setCalcFeedback('Quantos resultados possíveis existem no lançamento de um dado equilibrado? Revise o denominador.');
+        setCalcFeedback('Revise o denominador: quantos elementos tem o espaço amostral?');
       } else {
         setCalcNumError(true);
-        setCalcFeedback(`Quantos resultados satisfazem "${event.description}"? Revise o numerador.`);
+        setCalcFeedback('Revise o numerador: quantos resultados são favoráveis ao evento A?');
       }
     }
   };
@@ -599,30 +658,22 @@ export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonl
             <p className="ds-body-bold text-neutral-dark text-center">Lançando o dado...</p>
           )}
 
-          {/* Comparação */}
+          {/* Comparação — só mostra a aposta, resultado deve ser lido no dado 3D */}
           {expSubPhase === 'compare' && (
             <div className="flex flex-col gap-y-micro items-center">
-              <div className="flex gap-x-xs items-center flex-wrap justify-center">
-                <div className="flex flex-col items-center">
-                  <span className="ds-caption-bold text-neutral-dark">Sua aposta</span>
-                  <DiceFaceIcon face={parseInt(bet)} size={48} color={currentColor()} />
-                  <span className="ds-body-bold text-neutral-black">{bet}</span>
-                </div>
-                <span className="ds-heading-large text-neutral-dark">×</span>
-                <div className="flex flex-col items-center">
-                  <span className="ds-caption-bold text-neutral-dark">Resultado</span>
-                  <DiceFaceIcon face={diceResult} size={48} color={currentColor()} />
-                  <span className="ds-body-bold text-neutral-black">{diceResult}</span>
-                </div>
+              <div className="flex flex-col items-center">
+                <span className="ds-caption-bold text-neutral-dark">Sua aposta</span>
+                <DiceFaceIcon face={parseInt(bet)} size={48} color={currentColor()} />
+                <span className="ds-body-bold text-neutral-black">{bet}</span>
               </div>
               <p className="ds-body-bold text-center" style={{
                 color: parseInt(bet) === diceResult ? 'var(--color-feedback-success-dark)' : 'var(--color-feedback-error-dark)',
                 fontSize: '1.1rem',
               }}>
-                {parseInt(bet) === diceResult ? '✅ Acertou!' : '❌ Não acertou!'}
+                {parseInt(bet) === diceResult ? '✅ Você ganhou a aposta!' : '❌ Você não ganhou a aposta! O dado é imprevisível.'}
               </p>
               <Button style="primary" size="extra-small" onClick={() => setExpSubPhase('markResult')}>
-                Marcar resultado na tabela
+                Próximo: marcar o resultado na tabela
               </Button>
             </div>
           )}
@@ -631,7 +682,7 @@ export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonl
           {expSubPhase === 'markResult' && (
             <div className="flex flex-col gap-y-micro">
               <p className="ds-body-bold text-neutral-black text-center">
-                Marque na tabela o resultado <strong>{diceResult}</strong> do lançamento:
+                Marque na tabela o resultado do experimento aleatório:
               </p>
               {renderMatrix(
                 resultCheck, false,
@@ -657,7 +708,14 @@ export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonl
       )}
 
       {/* ═══════ FASE C — Exercícios de eventos ═══════ */}
-      {mainPhase === 'exercises' && (
+      {mainPhase === 'exercises' && (() => {
+        const event = events[exerciseIdx];
+        const belongsToEvent = exDiceResult > 0 ? event.validation(exDiceResult) : false;
+        const won = exBet !== null && exDiceResult > 0 ? exBet === belongsToEvent : false;
+        // Conta favoráveis para feedback
+        let favorable = 0;
+        for (let f = 1; f <= 6; f++) if (event.validation(f)) favorable++;
+        return (
         <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
           style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
 
@@ -685,15 +743,25 @@ export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonl
           <div className="border-b border-neutral-lighter pb-micro mb-micro">
             <p className="ds-heading-large text-brand-otimath-pure text-center mb-nano">Evento A</p>
             <p className="ds-body-bold text-neutral-black text-center">
-              {events[exerciseIdx].description}
+              {event.description}
             </p>
+            {/ ou / .test(event.description) && (
+              <p className="ds-small text-neutral-dark text-center mt-nano" style={{ fontStyle: 'italic' }}>
+                Lembre-se: na Matemática, &quot;ou&quot; significa um, outro, ou ambos.
+              </p>
+            )}
+            {/ e /.test(event.description) && !/ ou /.test(event.description) && (
+              <p className="ds-small text-neutral-dark text-center mt-nano" style={{ fontStyle: 'italic' }}>
+                Lembre-se: na Matemática, &quot;e&quot; exige que ambas as condições sejam satisfeitas.
+              </p>
+            )}
           </div>
 
+          {/* ETAPA 1 — Marcar favoráveis */}
           <p className="ds-body-bold text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
-            Lança-se um dado honesto (equilibrado) aleatoriamente. Marque os <strong>casos favoráveis</strong> ao evento A na tabela abaixo:
+            Considere o lançamento de um dado equilibrado. Marque os <strong>resultados favoráveis</strong> ao evento A:
           </p>
 
-          {/* Matriz */}
           {renderMatrix(
             eventChecks, eventChecksDisabled,
             (idx, val) => {
@@ -705,24 +773,95 @@ export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonl
             eventChecksError
           )}
 
-          {/* Botão conferir marcação */}
           {exSubPhase === 'mark' && (
             <div className="flex flex-col items-center gap-y-micro">
               <Button style="primary" size="extra-small" onClick={validateEventMarks}>Conferir</Button>
               {eventChecksError && (
                 <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
-                  Verifique quais resultados satisfazem o evento &quot;{events[exerciseIdx].description}&quot;.
+                  Verifique quais resultados satisfazem o evento &quot;{event.description}&quot;.
                 </p>
               )}
             </div>
           )}
 
-          {/* Cálculo de P(A) */}
+          {/* ETAPA 2 — Apostar no evento */}
+          {exSubPhase === 'bet' && (
+            <div className="flex flex-col gap-y-micro mt-micro border-t border-neutral-lighter pt-micro">
+              <p className="ds-body-bold text-neutral-black text-center">
+                Você <strong>aposta</strong> que o resultado do lançamento será favorável ao evento A?
+              </p>
+              <div className="flex justify-center gap-x-macro">
+                <Button
+                  style={exBet === true ? 'primary' : 'secondary'}
+                  size="extra-small"
+                  onClick={() => setExBet(true)}
+                >
+                  Sim, aposto a favor de A
+                </Button>
+                <Button
+                  style={exBet === false ? 'primary' : 'secondary'}
+                  size="extra-small"
+                  onClick={() => setExBet(false)}
+                >
+                  Não, aposto contra A (complementar de A)
+                </Button>
+              </div>
+              {exBet === false && (
+                <p className="ds-small text-neutral-dark text-center mt-nano" style={{ fontStyle: 'italic' }}>
+                  Ao apostar contra o evento A, você está apostando no <strong>evento complementar</strong> Ā — formado por todos os resultados que <strong>não</strong> pertencem a A.
+                </p>
+              )}
+              {exBet !== null && (
+                <div className="flex justify-center mt-micro">
+                  <Button style="primary" size="small" onClick={launchExDie}>
+                    🎲 Lançar dado
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ETAPA 2b — Lançando */}
+          {exSubPhase === 'rolling' && (
+            <div className="mt-micro border-t border-neutral-lighter pt-micro">
+              <p className="ds-body-bold text-neutral-dark text-center">Lançando o dado...</p>
+            </div>
+          )}
+
+          {/* ETAPA 3 — Resultado do lançamento */}
+          {exSubPhase === 'result' && (
+            <div className="flex flex-col gap-y-micro mt-micro border-t border-neutral-lighter pt-micro">
+              <div className="flex justify-center gap-x-xs items-center flex-wrap">
+                <div className="flex flex-col items-center">
+                  <span className="ds-caption-bold text-neutral-dark">Resultado</span>
+                  <DiceFaceIcon face={exDiceResult} size={48} color={currentColor()} />
+                  <span className="ds-body-bold text-neutral-black">{exDiceResult}</span>
+                </div>
+              </div>
+              <p className="ds-body-bold text-center" style={{
+                color: belongsToEvent ? 'var(--color-feedback-success-dark)' : 'var(--color-feedback-error-dark)',
+              }}>
+                O resultado {exDiceResult} {belongsToEvent ? 'pertence' : 'não pertence'} ao evento A.
+              </p>
+              <p className="ds-body-bold text-center" style={{
+                color: won ? 'var(--color-feedback-success-dark)' : 'var(--color-feedback-error-dark)',
+                fontSize: '1.1rem',
+              }}>
+                {won ? '✅ Você ganhou a aposta!' : '❌ Você não ganhou a aposta!'}
+              </p>
+              <div className="flex justify-center">
+                <Button style="primary" size="extra-small" onClick={() => setExSubPhase('calc')}>
+                  Próximo: calcular P(A)
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ETAPA 4 — Cálculo de P(A) */}
           {exSubPhase === 'calc' && (
             <div className="flex flex-col gap-y-micro mt-micro border-t border-neutral-lighter pt-micro">
-              <p className="ds-heading-large text-brand-otimath-pure text-center mb-nano">Cálculo</p>
               <p className="ds-body-bold text-neutral-black text-center">
-                Calcule a probabilidade do evento A:
+                Qual era a probabilidade de você ganhar a aposta?
               </p>
               <div className="flex items-center justify-center gap-x-micro flex-wrap">
                 <span className="ds-body-bold text-neutral-black">P(A) =</span>
@@ -756,8 +895,21 @@ export function TwoDicesPractice({ diceRef, onColorChange, onFinished }: Readonl
               )}
             </div>
           )}
+
+          {/* ETAPA 5 — Transição para próximo exercício */}
+          {exSubPhase === 'next' && (
+            <div className="flex justify-center mt-micro border-t border-neutral-lighter pt-micro">
+              <Button style="primary" size="small" onClick={goToNextExercise}>
+                {exerciseIdx + 1 >= 4
+                  ? 'Próximo: finalizar'
+                  : `Próximo: exercício ${exerciseIdx + 2} de 4`
+                }
+              </Button>
+            </div>
+          )}
         </div>
-      )}
+        );
+      })()}
 
       {/* ═══════ FINALIZAÇÃO ═══════ */}
       {mainPhase === 'finished' && (
