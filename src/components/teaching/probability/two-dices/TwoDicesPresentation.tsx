@@ -8,10 +8,13 @@ import { GridItem } from '@/components/global/GridItem';
 import { ArrowRight, Dices } from 'lucide-react';
 import { playSound } from '@/hooks/global/useSound';
 import type { DiceSceneHandle } from './DiceScene';
+import type { TwoDiceSceneHandle } from './TwoDiceScene';
 import { TwoDicesPractice } from './TwoDicesPractice';
+import { TwoDicesExperiment } from './TwoDicesExperiment';
 
-// Importação dinâmica do DiceScene (Three.js precisa do browser)
+// Importação dinâmica dos componentes 3D (Three.js precisa do browser)
 const DiceScene = dynamic(() => import('./DiceScene'), { ssr: false });
+const TwoDiceScene = dynamic(() => import('./TwoDiceScene'), { ssr: false });
 
 // ═══════ Constantes ═══════
 
@@ -132,6 +135,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   // Ref do dado 3D e seu container (para scroll programático)
   const diceRef = useRef<DiceSceneHandle>(null);
   const diceContainerRef = useRef<HTMLDivElement>(null);
+  // Ref da cena de dois dados (Cena 6)
+  const twoDiceRef = useRef<TwoDiceSceneHandle>(null);
+  const twoDiceContainerRef = useRef<HTMLDivElement>(null);
 
   // Cena 2: face atual na sequência
   const [currentFaceIdx, setCurrentFaceIdx] = useState(-1);
@@ -174,6 +180,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   // ═══════ Cena 5: delegada ao componente TwoDicesPractice ═══════
   const [scene5Finished, setScene5Finished] = useState(false);
   const [scene5DiceColor, setScene5DiceColor] = useState<'green' | 'blue'>('green');
+
+  // ═══════ Cena 6: experimento com dois dados ═══════
+  const [scene6Finished, setScene6Finished] = useState(false);
 
   // Banner desaparece após 4s
   useEffect(() => {
@@ -398,13 +407,18 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
     if (transitioning) return;
 
     if (scene === 5 && scene5Finished) {
+      goToScene(6);
+      return;
+    }
+
+    if (scene === 6 && scene6Finished) {
       playSound("/sounds/gameFinished.mp3");
       setDone(true);
       return;
     }
 
     if (scene < 5) goToScene(scene + 1);
-  }, [scene, transitioning, goToScene, scene5Finished]);
+  }, [scene, transitioning, goToScene, scene5Finished, scene6Finished]);
 
   // Se apresentação finalizada, mostrar o OVA
   if (done) return <>{children}</>;
@@ -915,6 +929,22 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
               />
             )}
 
+            {/* ═══════ CENA 6 — Dois dados 3D + tabela 6×6 ═══════ */}
+            {scene === 6 && (
+              <>
+                <div ref={twoDiceContainerRef} style={{ width: '100%' }}>
+                  <TwoDiceScene ref={twoDiceRef} />
+                </div>
+                <TwoDicesExperiment
+                  diceSceneRef={twoDiceRef}
+                  diceContainerRef={twoDiceContainerRef}
+                  onFinished={() => {
+                    setScene6Finished(true);
+                  }}
+                />
+              </>
+            )}
+
           </div>
         </GridItem>
       </Grid>
@@ -927,7 +957,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
         <span className="ds-caption text-neutral-medium">
           OVA Probabilidade — Dois Dados · Rangel Freitas dos Santos · PROFMAT / UFVJM
         </span>
-        {scene !== 2 && !(scene === 3 && scene3Step < 6) && !(scene === 4 && scene4Step < 3) && !(scene === 5 && !scene5Finished) && (
+        {scene !== 2 && !(scene === 3 && scene3Step < 6) && !(scene === 4 && scene4Step < 3) && !(scene === 5 && !scene5Finished) && !(scene === 6 && !scene6Finished) && (
           <Button
             style="primary"
             size="small"
@@ -935,7 +965,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
             onClick={handleNext}
             disabled={transitioning}
           >
-            {scene === 5 ? 'Iniciar Simulação' : scene === 4 ? 'Próximo' : 'Próximo'}
+            {scene === 5 ? 'Próximo: dois dados' : scene === 6 ? 'Iniciar Simulação' : 'Próximo'}
           </Button>
         )}
       </div>
