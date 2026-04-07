@@ -748,7 +748,6 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
         rng.f() * Math.PI * 2,
       );
 
-      playSound('/sounds/nextChallenge.mp3');
       s.mode = 'rolling';
     });
   }, []);

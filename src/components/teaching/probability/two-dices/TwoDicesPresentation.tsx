@@ -9,12 +9,15 @@ import { ArrowRight, Dices } from 'lucide-react';
 import { playSound } from '@/hooks/global/useSound';
 import type { DiceSceneHandle } from './DiceScene';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
+import type { DiceMachineSceneHandle } from './DiceMachineScene';
 import { TwoDicesPractice } from './TwoDicesPractice';
 import { TwoDicesExperiment } from './TwoDicesExperiment';
+import { DiceMachineExperiment } from './DiceMachineExperiment';
 
 // Importação dinâmica dos componentes 3D (Three.js precisa do browser)
 const DiceScene = dynamic(() => import('./DiceScene'), { ssr: false });
 const TwoDiceScene = dynamic(() => import('./TwoDiceScene'), { ssr: false });
+const DiceMachineScene = dynamic(() => import('./DiceMachineScene'), { ssr: false });
 
 // ═══════ Constantes ═══════
 
@@ -138,6 +141,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   // Ref da cena de dois dados (Cena 6)
   const twoDiceRef = useRef<TwoDiceSceneHandle>(null);
   const twoDiceContainerRef = useRef<HTMLDivElement>(null);
+  // Ref da máquina de lançamento (Cena 7)
+  const diceMachineRef = useRef<DiceMachineSceneHandle>(null);
+  const diceMachineContainerRef = useRef<HTMLDivElement>(null);
 
   // Cena 2: face atual na sequência
   const [currentFaceIdx, setCurrentFaceIdx] = useState(-1);
@@ -184,6 +190,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   // ═══════ Cena 6: experimento com dois dados ═══════
   const [scene6Finished, setScene6Finished] = useState(false);
 
+  // ═══════ Cena 7: máquina automática de lançamento ═══════
+  const [scene7Finished, setScene7Finished] = useState(false);
+
   // Banner desaparece após 4s
   useEffect(() => {
     const t = setTimeout(() => setShowBanner(false), 4000);
@@ -203,6 +212,11 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
     if (scene2Running.current) return;
     scene2Running.current = true;
     diceRef.current?.setIdle(false);
+
+    // Som único no início — evita conflito com sons de impacto (click.mp3)
+    // que tocam durante a animação de cada roll(). O singleton playSound
+    // não suporta bem chamadas rápidas em sequência, causando travamento.
+    playSound('/sounds/nextChallenge.mp3');
 
     for (let i = 0; i < 6; i++) {
       setCurrentFaceIdx(i);
@@ -412,13 +426,18 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
     }
 
     if (scene === 6 && scene6Finished) {
+      goToScene(7);
+      return;
+    }
+
+    if (scene === 7 && scene7Finished) {
       playSound("/sounds/gameFinished.mp3");
       setDone(true);
       return;
     }
 
     if (scene < 5) goToScene(scene + 1);
-  }, [scene, transitioning, goToScene, scene5Finished, scene6Finished]);
+  }, [scene, transitioning, goToScene, scene5Finished, scene6Finished, scene7Finished]);
 
   // Se apresentação finalizada, mostrar o OVA
   if (done) return <>{children}</>;
@@ -925,6 +944,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                 onColorChange={setScene5DiceColor}
                 onFinished={() => {
                   setScene5Finished(true);
+                  // Avança imediatamente para a Cena 6 (botão "Iniciar Simulação com Dois Dados"
+                  // no corpo da Cena 5 deve transicionar sem depender do botão do rodapé)
+                  goToScene(6);
                 }}
               />
             )}
@@ -945,6 +967,22 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
               </>
             )}
 
+            {/* ═══════ CENA 7 — Máquina automática de lançamento ═══════ */}
+            {scene === 7 && (
+              <>
+                <div ref={diceMachineContainerRef} style={{ width: '100%' }}>
+                  <DiceMachineScene ref={diceMachineRef} />
+                </div>
+                <DiceMachineExperiment
+                  diceMachineRef={diceMachineRef}
+                  diceContainerRef={diceMachineContainerRef}
+                  onFinished={() => {
+                    setScene7Finished(true);
+                  }}
+                />
+              </>
+            )}
+
           </div>
         </GridItem>
       </Grid>
@@ -957,7 +995,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
         <span className="ds-caption text-neutral-medium">
           OVA Probabilidade — Dois Dados · Rangel Freitas dos Santos · PROFMAT / UFVJM
         </span>
-        {scene !== 2 && !(scene === 3 && scene3Step < 6) && !(scene === 4 && scene4Step < 3) && !(scene === 5 && !scene5Finished) && !(scene === 6 && !scene6Finished) && (
+        {scene !== 2 && !(scene === 3 && scene3Step < 6) && !(scene === 4 && scene4Step < 3) && !(scene === 5 && !scene5Finished) && !(scene === 6 && !scene6Finished) && !(scene === 7 && !scene7Finished) && (
           <Button
             style="primary"
             size="small"
@@ -965,7 +1003,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
             onClick={handleNext}
             disabled={transitioning}
           >
-            {scene === 5 ? 'Próximo: dois dados' : scene === 6 ? 'Iniciar Simulação' : 'Próximo'}
+            {scene === 5 ? 'Próximo: dois dados' : scene === 6 ? 'Próximo: máquina automática' : scene === 7 ? 'Concluir apresentação' : 'Próximo'}
           </Button>
         )}
       </div>

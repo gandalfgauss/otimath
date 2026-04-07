@@ -125,6 +125,69 @@ Consulte-o sempre que precisar de detalhe de checklist, fase ou regra.
 | R11 | Autores gatilhados por evidência no OVA | Não decorativo |
 | R12 | Ativação Seletiva de Teorias (3 camadas) | Sem evidência = sem teoria |
 | R13 | Viabilidade escolar é requisito de design | Checklist na Fase 4 |
+| R14 | Aceitar frações equivalentes em probabilidade | Multiplicação cruzada |
+
+---
+
+## ▌R14 — PADRÃO DE VALIDAÇÃO DE FRAÇÕES PROBABILÍSTICAS
+
+**Princípio:** Toda vez que um OVA pedir ao aluno digitar uma probabilidade
+na forma de fração `num/den`, a validação deve aceitar **qualquer fração
+matematicamente equivalente** à resposta esperada — não apenas a forma
+canônica `favorable/total`. Isso inclui:
+
+- **Forma canônica:** ex.: 4/6 quando favorable=4, total=6
+- **Forma simplificada:** ex.: 2/3
+- **Forma reduzida ao máximo:** ex.: 1/3 quando aplicável
+- **Múltiplos válidos:** ex.: 8/12, 40/60, 200/300
+- **Caso impossível:** 0/n para qualquer n > 0
+- **Caso certo:** n/n para qualquer n > 0
+
+**Justificativa científica:**
+
+📚 (DUVAL, 1995, p. 17–43) — A capacidade de transitar entre diferentes
+representações de uma mesma quantidade racional é a operação cognitiva
+central do letramento numérico. Recusar uma fração equivalente é
+recusar a evidência de que o aluno **dominou** essa transição.
+
+📚 (BATANERO, 2005) — A probabilidade é uma medida no intervalo [0,1];
+qualquer representação numérica equivalente da mesma medida deve ser
+aceita matematicamente, sob pena de confundir notação com conceito.
+
+**Implementação obrigatória — comparação por multiplicação cruzada:**
+
+```typescript
+// Aceita num/den ≡ favorable/total
+const equivalent = num * total === den * favorable;
+```
+
+Essa comparação evita imprecisão de ponto flutuante (que apareceria
+em `num/den === favorable/total` com decimais) e funciona inclusive
+para os casos limite P=0 e P=1.
+
+**Validações estruturais que devem preceder a comparação:**
+
+1. `num` e `den` devem ser inteiros não-negativos (validar com regex `/^\d+$/`)
+2. `den > 0` (denominador zero é matematicamente indefinido)
+3. Campos vazios → erro estrutural específico, não comparação
+
+**Mensagem de erro recomendada (quando a fração não é equivalente):**
+
+> *"A fração X/Y não é equivalente a P(A). Lembre: P(A) = nº de favoráveis
+> / nº total de resultados. Frações equivalentes são aceitas (por exemplo,
+> 2/4 = 1/2 = 3/6)."*
+
+A última frase é **didaticamente essencial**: ela ensina ao aluno que
+o sistema *aceita* equivalentes — informação que ele só pode aprender
+recebendo essa orientação no momento do erro.
+
+**Aplicação obrigatória:** todos os OVAs do projeto, presentes e
+futuros, que pedirem probabilidade em forma de fração — incluindo
+P(A), P(Ā), P(A∩B), P(A∪B), P(A|B), e quaisquer outras.
+
+**Implementação de referência:**
+[`TwoDicesPractice.tsx`](src/components/teaching/probability/two-dices/TwoDicesPractice.tsx) —
+funções `validateCalc` e `validateCompCalc`.
 
 ---
 

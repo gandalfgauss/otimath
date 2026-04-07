@@ -452,6 +452,20 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
   const [compOperatorError, setCompOperatorError] = useState(false);
   const [compValidated, setCompValidated] = useState(false);
 
+  // ── Caso degenerado: evento certo (P(A) = 1, A = S, favorable === 6) ──
+  // Pergunta de nomeação canônica: o aluno precisa identificar que esse caso
+  // limite é chamado "evento certo" antes de avançar para o próximo exercício.
+  const [certainNameAnswer, setCertainNameAnswer] = useState('');
+  const [certainNameValidated, setCertainNameValidated] = useState(false);
+  const [certainNameError, setCertainNameError] = useState(false);
+
+  // ── Caso degenerado simétrico: evento impossível (P(A) = 0, A = ∅, favorable === 0) ──
+  // Pergunta de nomeação canônica: o aluno precisa identificar que esse caso
+  // limite é chamado "evento impossível" antes de avançar para o próximo exercício.
+  const [impossibleNameAnswer, setImpossibleNameAnswer] = useState('');
+  const [impossibleNameValidated, setImpossibleNameValidated] = useState(false);
+  const [impossibleNameError, setImpossibleNameError] = useState(false);
+
   // Rolling state
   const rolling = useRef(false);
   // Ref do card de exercício (para scroll de volta)
@@ -513,7 +527,10 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
     rolling.current = true;
     setExpSubPhase('rolling');
 
-    // Scroll suave até o dado 3D
+    // Som imediato ao clicar — sincroniza com a intenção do usuário
+    playSound('/sounds/nextChallenge.mp3');
+
+    // Scroll suave até o dado 3D (paralelo ao som)
     diceContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     // Esperar scroll completar antes de lançar (400ms)
     await new Promise(r => setTimeout(r, 400));
@@ -605,6 +622,9 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
     rolling.current = true;
     setExSubPhase('rolling');
 
+    // Som imediato ao clicar — sincroniza com a intenção do usuário
+    playSound('/sounds/nextChallenge.mp3');
+
     // Scroll suave até o dado 3D
     diceContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     await new Promise(r => setTimeout(r, 400));
@@ -658,6 +678,14 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
       setCompOperator('');
       setCompOperatorError(false);
       setCompValidated(false);
+      // Reset do caso degenerado (evento certo)
+      setCertainNameAnswer('');
+      setCertainNameValidated(false);
+      setCertainNameError(false);
+      // Reset do caso degenerado simétrico (evento impossível)
+      setImpossibleNameAnswer('');
+      setImpossibleNameValidated(false);
+      setImpossibleNameError(false);
     }
   };
 
@@ -667,31 +695,39 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
     let favorable = 0;
     for (let f = 1; f <= 6; f++) if (event.validation(f)) favorable++;
     const compFavorable = 6 - favorable;
-    const num = parseInt(calcCompNum);
-    const den = parseInt(calcCompDen);
-    const numOk = num === compFavorable;
-    const denOk = den === 6;
+    // ── Padrão de projeto: aceitar qualquer fração equivalente a P(Ā) ──
+    // Comparação por multiplicação cruzada: num/den ≡ compFavorable/6.
+    const numStr = calcCompNum.trim();
+    const denStr = calcCompDen.trim();
+    const numIsValid = /^\d+$/.test(numStr);
+    const denIsValid = /^\d+$/.test(denStr);
+    const num = numIsValid ? parseInt(numStr, 10) : NaN;
+    const den = denIsValid ? parseInt(denStr, 10) : NaN;
 
     setCalcCompNumError(false);
     setCalcCompDenError(false);
     setCalcCompFeedback('');
 
-    if (numOk && denOk) {
+    if (!numIsValid || !denIsValid || den === 0) {
+      playSound('/sounds/incorrect.mp3');
+      if (!numIsValid) setCalcCompNumError(true);
+      if (!denIsValid || den === 0) setCalcCompDenError(true);
+      setCalcCompFeedback('Preencha numerador e denominador com números inteiros (denominador maior que zero).');
+      return;
+    }
+
+    const equivalent = num * 6 === den * compFavorable;
+
+    if (equivalent) {
       playSound('/sounds/correct.mp3');
       setBothCalcCorrect(true);
     } else {
       playSound('/sounds/incorrect.mp3');
-      if (!numOk && !denOk) {
-        setCalcCompNumError(true);
-        setCalcCompDenError(true);
-        setCalcCompFeedback('P(Ā) = nº de resultados que não pertencem a A / nº de elementos do espaço amostral. Revise ambos.');
-      } else if (!denOk) {
-        setCalcCompDenError(true);
-        setCalcCompFeedback('Revise o denominador: quantos elementos tem o espaço amostral?');
-      } else {
-        setCalcCompNumError(true);
-        setCalcCompFeedback('Revise o numerador: quantos resultados não pertencem ao evento A?');
-      }
+      setCalcCompNumError(true);
+      setCalcCompDenError(true);
+      setCalcCompFeedback(
+        `A fração ${num}/${den} não é equivalente a P(Ā). Lembre: P(Ā) = nº de resultados que não pertencem a A / nº total de resultados. Frações equivalentes são aceitas (por exemplo, 2/4 = 1/2 = 3/6).`
+      );
     }
   };
 
@@ -701,16 +737,34 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
     for (let f = 1; f <= 6; f++) {
       if (event.validation(f)) favorable++;
     }
-    const num = parseInt(calcNum);
-    const den = parseInt(calcDen);
-    const numOk = num === favorable;
-    const denOk = den === 6;
+    // ── Padrão de projeto: aceitar qualquer fração equivalente a P(A) ──
+    // Comparação por multiplicação cruzada: num/den ≡ favorable/6 ⇔ num·6 = den·favorable.
+    // Aceita forma canônica (favorable/6), simplificada (ex.: 2/3 quando favorable=4),
+    // e qualquer múltiplo válido (ex.: 8/12, 40/60). Caso impossível: aceita 0/n para n>0.
+    const numStr = calcNum.trim();
+    const denStr = calcDen.trim();
+    const numIsValid = /^\d+$/.test(numStr);
+    const denIsValid = /^\d+$/.test(denStr);
+    const num = numIsValid ? parseInt(numStr, 10) : NaN;
+    const den = denIsValid ? parseInt(denStr, 10) : NaN;
 
     setCalcNumError(false);
     setCalcDenError(false);
     setCalcFeedback('');
 
-    if (numOk && denOk) {
+    // Validações estruturais (campos vazios, não numéricos, denominador zero)
+    if (!numIsValid || !denIsValid || den === 0) {
+      playSound('/sounds/incorrect.mp3');
+      if (!numIsValid) setCalcNumError(true);
+      if (!denIsValid || den === 0) setCalcDenError(true);
+      setCalcFeedback('Preencha numerador e denominador com números inteiros (denominador maior que zero).');
+      return;
+    }
+
+    // Equivalência matemática: num·6 === den·favorable
+    const equivalent = num * 6 === den * favorable;
+
+    if (equivalent) {
       playSound('/sounds/correct.mp3');
       // Se "indiferente" errado, não avança ainda — precisa calcular P(Ā)
       const needsCompCalc = exBet === 'indiferente' && favorable !== 3;
@@ -721,17 +775,11 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
       }
     } else {
       playSound('/sounds/incorrect.mp3');
-      if (!numOk && !denOk) {
-        setCalcNumError(true);
-        setCalcDenError(true);
-        setCalcFeedback('P(A) = nº de resultados favoráveis ao evento A / nº de elementos do espaço amostral. Revise ambos.');
-      } else if (!denOk) {
-        setCalcDenError(true);
-        setCalcFeedback('Revise o denominador: quantos elementos tem o espaço amostral?');
-      } else {
-        setCalcNumError(true);
-        setCalcFeedback('Revise o numerador: quantos resultados são favoráveis ao evento A?');
-      }
+      setCalcNumError(true);
+      setCalcDenError(true);
+      setCalcFeedback(
+        `A fração ${num}/${den} não é equivalente a P(A). Lembre: P(A) = nº de favoráveis / nº total de resultados. Frações equivalentes são aceitas (por exemplo, 2/4 = 1/2 = 3/6).`
+      );
     }
   };
 
@@ -1034,6 +1082,30 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
           {/* ETAPA 2 — Apostar no evento */}
           {exSubPhase === 'bet' && (
             <div className="flex flex-col gap-y-micro mt-micro border-t border-neutral-lighter pt-micro">
+
+              {/* ── EXPLORAÇÃO 4 (exclusiva do evento impossível) ──
+                  Reconhecimento da resposta vazia: legitima a ação contraintuitiva
+                  do aluno (clicar em Conferir sem marcar nada) e introduz a notação
+                  do conjunto vazio ∅ no momento exato em que o aluno acabou de "agir"
+                  o conjunto vazio. Duval: passagem do registro fenomenológico ao
+                  simbólico-formal. */}
+              {favorable === 0 && (
+                <div
+                  className="rounded-md p-micro"
+                  style={{
+                    background: 'var(--color-feedback-info-lighter)',
+                    border: '1px solid var(--color-feedback-info-dark)',
+                  }}
+                >
+                  <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                    💡 Você marcou <strong>nenhuma face</strong> — e está correto! Quando{' '}
+                    <strong>nenhum</strong> resultado do lançamento é favorável ao evento A,
+                    dizemos que A não tem elementos: A é o <strong>conjunto vazio</strong>{' '}
+                    (escrevemos <strong>A = ∅</strong>). Continue para apostar.
+                  </p>
+                </div>
+              )}
+
               <p className="ds-body-bold text-neutral-black text-center">
                 Você <strong>aposta</strong> que o resultado do lançamento será favorável ao evento A?
               </p>
@@ -1167,6 +1239,103 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
               }}>
                 {won ? '✅ Você ganhou a aposta!' : '❌ Você não ganhou a aposta!'}
               </p>
+
+              {/* ── EXPLORAÇÃO 1 — Caso degenerado: A = S (favorable === 6) ──
+                  Feedback diferenciado por alternativa marcada. Cada aposta
+                  do aluno abre uma janela conceitual diferente sobre eventos
+                  certo/impossível/equiprovável. */}
+              {favorable === 6 && (
+                <div
+                  className="rounded-md p-micro mt-micro"
+                  style={{
+                    background: 'var(--color-feedback-info-lighter)',
+                    border: '1px solid var(--color-feedback-info-dark)',
+                  }}
+                >
+                  {exBet === 'favor' && (
+                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                      💡 Você marcou <strong>todas as 6 faces</strong> e apostou{' '}
+                      <strong>a favor de A</strong>. Observe algo especial: nesse exercício,
+                      A coincide com o <strong>próprio espaço amostral S</strong>. Isso quer
+                      dizer que A vai acontecer em <strong>todo lançamento</strong>, sem
+                      exceção. Sua aposta era <strong>infalível</strong> — esse tipo de
+                      evento, que tem o nome técnico de <strong>evento certo</strong>, sempre
+                      tem probabilidade igual a <strong>1</strong> (ou 100%).
+                    </p>
+                  )}
+                  {exBet === 'contra' && (
+                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                      💡 Você marcou <strong>todas as 6 faces</strong> mas apostou{' '}
+                      <strong>contra A</strong>. Observe: como A coincide com o{' '}
+                      <strong>próprio espaço amostral S</strong>, o complementar de A é o{' '}
+                      <strong>conjunto vazio</strong> (Ā = ∅). Apostar contra A foi apostar
+                      no <strong>evento impossível</strong>, que tem probabilidade{' '}
+                      <strong>0</strong>: ele não pode acontecer em nenhum lançamento. Esse
+                      caso especial — A = S, P(A) = 1 — chama-se <strong>evento certo</strong>.
+                    </p>
+                  )}
+                  {exBet === 'indiferente' && (
+                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                      💡 Você marcou <strong>todas as 6 faces</strong> e escolheu{' '}
+                      <strong>indiferente</strong>. A opção indiferente faz sentido quando
+                      P(A) = P(Ā). Mas aqui temos o caso mais distante possível dessa igualdade:
+                      P(A) = 6/6 = <strong>1</strong> (certeza absoluta) e P(Ā) = 0/6 ={' '}
+                      <strong>0</strong> (impossibilidade absoluta). São extremos opostos! Esse
+                      caso especial em que A = S chama-se <strong>evento certo</strong>; o
+                      complementar Ā é o <strong>evento impossível</strong>.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ── EXPLORAÇÃO 1 (espelho) — Caso degenerado: A = ∅ (favorable === 0) ──
+                  Feedback diferenciado por alternativa marcada, simétrico ao do
+                  evento certo. Cada aposta abre uma janela conceitual diferente. */}
+              {favorable === 0 && (
+                <div
+                  className="rounded-md p-micro mt-micro"
+                  style={{
+                    background: 'var(--color-feedback-info-lighter)',
+                    border: '1px solid var(--color-feedback-info-dark)',
+                  }}
+                >
+                  {exBet === 'favor' && (
+                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                      💡 Você marcou <strong>nenhuma face</strong> e ainda assim apostou{' '}
+                      <strong>a favor de A</strong>. Observe: como nenhum dos resultados
+                      possíveis pertence a A, esse é o <strong>evento impossível</strong>{' '}
+                      (A = ∅). Sua aposta era no impossível: P(A) = <strong>0</strong>. O
+                      complementar Ā coincide com todo o espaço amostral S e tem P(Ā) ={' '}
+                      <strong>1</strong> — Ā é o <strong>evento certo</strong>.
+                    </p>
+                  )}
+                  {exBet === 'contra' && (
+                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                      💡 Você marcou <strong>nenhuma face</strong> e apostou{' '}
+                      <strong>contra A</strong>. Observe algo especial: como A = ∅
+                      (nenhum resultado favorável), o complementar Ā coincide com{' '}
+                      <strong>todo o espaço amostral S</strong> = {'{1,2,3,4,5,6}'}.
+                      Sua aposta era <strong>infalível</strong>: Ā acontece em todo
+                      lançamento. Esse caso especial em que A = ∅ chama-se{' '}
+                      <strong>evento impossível</strong> (P(A) = 0); o complementar Ā é
+                      o <strong>evento certo</strong> (P(Ā) = 1).
+                    </p>
+                  )}
+                  {exBet === 'indiferente' && (
+                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                      💡 Você marcou <strong>nenhuma face</strong> e escolheu{' '}
+                      <strong>indiferente</strong>. A opção indiferente faz sentido quando
+                      P(A) = P(Ā). Mas aqui temos o caso mais distante possível dessa
+                      igualdade — agora invertido: P(A) = 0/6 = <strong>0</strong>{' '}
+                      (impossibilidade absoluta) e P(Ā) = 6/6 = <strong>1</strong>{' '}
+                      (certeza absoluta). São extremos opostos! Esse caso especial em
+                      que A = ∅ chama-se <strong>evento impossível</strong>; o
+                      complementar Ā é o <strong>evento certo</strong>.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-center">
                 <Button style="primary" size="extra-small" onClick={() => setExSubPhase('calc')}>
                   Próximo: calcular P(A)
@@ -1323,7 +1492,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
             );
           })()}
 
-          {/* ETAPA 5 — Reflexão + transição para próximo exercício */}
+          {/* ETAPA 5 — Recap + Reflexão + transição para próximo exercício */}
           {exSubPhase === 'next' && (() => {
             // Determinar se a aposta era coerente com a probabilidade
             const betFavor = exBet === 'favor';
@@ -1333,8 +1502,41 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
             // Ganhou com P baixo ou perdeu com P alto?
             const wonWithLowP = won && ((betFavor && pALow) || (betContra && pAHigh));
             const lostWithHighP = !won && ((betFavor && pAHigh) || (betContra && pALow));
+            const betLabel = exBet === 'favor' ? 'a favor de A'
+              : exBet === 'contra' ? 'contra A (complementar)'
+              : 'indiferente';
             return (
             <div className="flex flex-col gap-y-micro mt-micro border-t border-neutral-lighter pt-micro">
+              {/* Recap visual: resultado + aposta + P(A) */}
+              <div className="flex flex-col items-center gap-y-micro">
+                <div className="flex gap-x-xs items-center justify-center flex-wrap">
+                  <div className="flex flex-col items-center">
+                    <span className="ds-caption-bold text-neutral-dark">Resultado</span>
+                    <DiceFaceIcon face={exDiceResult} size={48} color={currentColor()} />
+                    <span className="ds-body-bold text-neutral-black">{exDiceResult}</span>
+                  </div>
+                </div>
+                <p className="ds-small-bold text-center text-neutral-dark">
+                  Sua aposta: <strong>{betLabel}</strong>
+                </p>
+                <p className="ds-body-bold text-center" style={{
+                  color: belongsToEvent ? 'var(--color-feedback-success-dark)' : 'var(--color-feedback-error-dark)',
+                }}>
+                  O resultado obtido {belongsToEvent ? 'pertence' : 'não pertence'} ao evento A.
+                </p>
+                <div className="flex items-center justify-center gap-x-nano">
+                  <span className="ds-body-bold text-neutral-black">P(A) =</span>
+                  <Fraction num={String(favorable)} den="6" />
+                </div>
+                <p className="ds-body-bold text-center" style={{
+                  color: won ? 'var(--color-feedback-success-dark)' : 'var(--color-feedback-error-dark)',
+                  fontSize: '1.1rem',
+                }}>
+                  {won ? '✅ Você ganhou a aposta!' : '❌ Você não ganhou a aposta!'}
+                </p>
+              </div>
+
+              {/* Reflexão pedagógica condicional */}
               {wonWithLowP && (
                 <p className="ds-small-bold text-center" style={{ fontStyle: 'italic', color: 'var(--color-brand-otimath-dark)' }}>
                   Você ganhou a aposta, mas a probabilidade era de apenas <Fraction num={String(betFavor ? favorable : 6 - favorable)} den="6" /> a seu favor. No lançamento de um dado, eventos menos prováveis também podem acontecer, mas acontecem com menos frequência.
@@ -1345,8 +1547,251 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   Você perdeu a aposta, mas a probabilidade era de <Fraction num={String(betFavor ? favorable : 6 - favorable)} den="6" /> a seu favor. Uma probabilidade alta não garante o resultado. Ela indica o que tende a acontecer em muitos lançamentos.
                 </p>
               )}
+
+              {/* ── EXPLORAÇÃO 3 — Fechamento do complementar lado a lado ──
+                  Quando A = S (favorable === 6), exibimos automaticamente
+                  P(A) e P(Ā) lado a lado, ilustrando a regra do complementar
+                  P(A) + P(Ā) = 1 no caso extremo. Sem pedir input adicional. */}
+              {favorable === 6 && (
+                <div
+                  className="rounded-md p-micro mt-micro"
+                  style={{
+                    background: 'var(--color-feedback-info-lighter)',
+                    border: '1px solid var(--color-feedback-info-dark)',
+                  }}
+                >
+                  <p className="ds-small-bold text-center text-neutral-darkest" style={{ marginBottom: 8 }}>
+                    Veja o caso especial deste exercício:
+                  </p>
+                  <div className="flex items-center justify-center gap-x-xs flex-wrap" style={{ marginBottom: 8 }}>
+                    <span className="ds-body-bold text-neutral-black inline-flex items-center gap-x-nano">
+                      P(A) = <Fraction num="6" den="6" /> = 1
+                    </span>
+                    <span className="ds-body-bold text-neutral-medium">e</span>
+                    <span className="ds-body-bold text-neutral-black inline-flex items-center gap-x-nano">
+                      P(Ā) = <Fraction num="0" den="6" /> = 0
+                    </span>
+                  </div>
+                  <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                    Note que <strong>P(A) + P(Ā) = 1 + 0 = 1</strong> — esta é a{' '}
+                    <strong>regra do complementar</strong>, válida para qualquer evento.
+                    O caso de A = S é o <em>caso extremo</em> dessa regra: <strong>toda</strong>
+                    {' '}a probabilidade está em A, <strong>nada</strong> sobra para Ā.
+                  </p>
+                </div>
+              )}
+
+              {/* ── EXPLORAÇÃO 2 — Pergunta de nomeação canônica ──
+                  Aluno precisa nomear o caso vivido (Duval: passagem do
+                  registro fenomenológico ao linguístico-formal) antes de
+                  poder avançar para o próximo exercício. */}
+              {favorable === 6 && (
+                <div className="mt-micro">
+                  <p className="ds-small-bold text-center text-neutral-darkest" style={{ marginBottom: 8 }}>
+                    Como chamamos um evento que coincide com todo o espaço amostral?
+                  </p>
+                  <div className="flex flex-col items-center gap-y-quarck">
+                    {[
+                      { v: 'provavel', label: 'Evento provável' },
+                      { v: 'equiprovavel', label: 'Evento equiprovável' },
+                      { v: 'certo', label: 'Evento certo' },
+                      { v: 'impossivel', label: 'Evento impossível' },
+                    ].map(opt => (
+                      <label
+                        key={opt.v}
+                        className="ds-small text-neutral-darkest"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          cursor: certainNameValidated ? 'default' : 'pointer',
+                          opacity: certainNameValidated && certainNameAnswer !== opt.v ? 0.55 : 1,
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="certainName"
+                          value={opt.v}
+                          disabled={certainNameValidated}
+                          checked={certainNameAnswer === opt.v}
+                          onChange={() => { setCertainNameAnswer(opt.v); setCertainNameError(false); }}
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                  {!certainNameValidated && (
+                    <div className="flex justify-center mt-micro">
+                      <Button
+                        style="primary"
+                        size="extra-small"
+                        onClick={() => {
+                          if (certainNameAnswer === 'certo') {
+                            playSound('/sounds/correct.mp3');
+                            setCertainNameValidated(true);
+                            setCertainNameError(false);
+                          } else if (certainNameAnswer === '') {
+                            setCertainNameError(true);
+                          } else {
+                            playSound('/sounds/incorrect.mp3');
+                            setCertainNameError(true);
+                          }
+                        }}
+                      >
+                        Conferir
+                      </Button>
+                    </div>
+                  )}
+                  {certainNameError && !certainNameValidated && (
+                    <p
+                      className="ds-small-bold text-center mt-micro"
+                      style={{ color: 'var(--color-feedback-error-dark)' }}
+                    >
+                      {certainNameAnswer === ''
+                        ? 'Marque uma das opções antes de conferir.'
+                        : 'Não é essa. Pense: o evento acontece em todos os lançamentos possíveis, sem exceção. Como chamamos isso?'}
+                    </p>
+                  )}
+                  {certainNameValidated && (
+                    <p
+                      className="ds-small-bold text-center mt-micro"
+                      style={{ color: 'var(--color-feedback-success-dark)' }}
+                    >
+                      ✅ Correto! Quando A coincide com todo o espaço amostral S,
+                      A é chamado <strong>evento certo</strong> e tem probabilidade 1.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ── EXPLORAÇÃO 3 (espelho) — Fechamento do complementar lado a lado ──
+                  Quando A = ∅ (favorable === 0), exibimos automaticamente
+                  P(A) = 0/6 = 0 e P(Ā) = 6/6 = 1, ilustrando a regra do
+                  complementar P(A) + P(Ā) = 1 no caso extremo invertido. */}
+              {favorable === 0 && (
+                <div
+                  className="rounded-md p-micro mt-micro"
+                  style={{
+                    background: 'var(--color-feedback-info-lighter)',
+                    border: '1px solid var(--color-feedback-info-dark)',
+                  }}
+                >
+                  <p className="ds-small-bold text-center text-neutral-darkest" style={{ marginBottom: 8 }}>
+                    Veja o caso especial deste exercício:
+                  </p>
+                  <div className="flex items-center justify-center gap-x-xs flex-wrap" style={{ marginBottom: 8 }}>
+                    <span className="ds-body-bold text-neutral-black inline-flex items-center gap-x-nano">
+                      P(A) = <Fraction num="0" den="6" /> = 0
+                    </span>
+                    <span className="ds-body-bold text-neutral-medium">e</span>
+                    <span className="ds-body-bold text-neutral-black inline-flex items-center gap-x-nano">
+                      P(Ā) = <Fraction num="6" den="6" /> = 1
+                    </span>
+                  </div>
+                  <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                    Note que <strong>P(A) + P(Ā) = 0 + 1 = 1</strong> — esta é a{' '}
+                    <strong>regra do complementar</strong>, válida para qualquer evento.
+                    O caso de A = ∅ é o <em>outro extremo</em> dessa regra:{' '}
+                    <strong>nada</strong> está em A, <strong>toda</strong> a probabilidade
+                    está em Ā.
+                  </p>
+                </div>
+              )}
+
+              {/* ── EXPLORAÇÃO 2 (espelho) — Pergunta de nomeação canônica ──
+                  Aluno precisa nomear o caso vivido (Duval: passagem do
+                  registro fenomenológico ao linguístico-formal) antes de
+                  poder avançar para o próximo exercício. */}
+              {favorable === 0 && (
+                <div className="mt-micro">
+                  <p className="ds-small-bold text-center text-neutral-darkest" style={{ marginBottom: 8 }}>
+                    Como chamamos um evento que não pode acontecer em nenhum lançamento?
+                  </p>
+                  <div className="flex flex-col items-center gap-y-quarck">
+                    {[
+                      { v: 'provavel', label: 'Evento provável' },
+                      { v: 'equiprovavel', label: 'Evento equiprovável' },
+                      { v: 'certo', label: 'Evento certo' },
+                      { v: 'impossivel', label: 'Evento impossível' },
+                    ].map(opt => (
+                      <label
+                        key={opt.v}
+                        className="ds-small text-neutral-darkest"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          cursor: impossibleNameValidated ? 'default' : 'pointer',
+                          opacity: impossibleNameValidated && impossibleNameAnswer !== opt.v ? 0.55 : 1,
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="impossibleName"
+                          value={opt.v}
+                          disabled={impossibleNameValidated}
+                          checked={impossibleNameAnswer === opt.v}
+                          onChange={() => { setImpossibleNameAnswer(opt.v); setImpossibleNameError(false); }}
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                  {!impossibleNameValidated && (
+                    <div className="flex justify-center mt-micro">
+                      <Button
+                        style="primary"
+                        size="extra-small"
+                        onClick={() => {
+                          if (impossibleNameAnswer === 'impossivel') {
+                            playSound('/sounds/correct.mp3');
+                            setImpossibleNameValidated(true);
+                            setImpossibleNameError(false);
+                          } else if (impossibleNameAnswer === '') {
+                            setImpossibleNameError(true);
+                          } else {
+                            playSound('/sounds/incorrect.mp3');
+                            setImpossibleNameError(true);
+                          }
+                        }}
+                      >
+                        Conferir
+                      </Button>
+                    </div>
+                  )}
+                  {impossibleNameError && !impossibleNameValidated && (
+                    <p
+                      className="ds-small-bold text-center mt-micro"
+                      style={{ color: 'var(--color-feedback-error-dark)' }}
+                    >
+                      {impossibleNameAnswer === ''
+                        ? 'Marque uma das opções antes de conferir.'
+                        : 'Não é essa. Pense: A não acontece em nenhum lançamento possível. Como chamamos esse caso?'}
+                    </p>
+                  )}
+                  {impossibleNameValidated && (
+                    <p
+                      className="ds-small-bold text-center mt-micro"
+                      style={{ color: 'var(--color-feedback-success-dark)' }}
+                    >
+                      ✅ Correto! Quando A é o conjunto vazio (A = ∅) e nenhum
+                      resultado lhe é favorável, A é chamado <strong>evento impossível</strong>{' '}
+                      e tem probabilidade 0.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-center">
-                <Button style="primary" size="small" onClick={goToNextExercise}>
+                <Button
+                  style="primary"
+                  size="small"
+                  onClick={goToNextExercise}
+                  disabled={
+                    (favorable === 6 && !certainNameValidated) ||
+                    (favorable === 0 && !impossibleNameValidated)
+                  }
+                >
                   {exerciseIdx + 1 >= 4
                     ? 'Próximo: finalizar'
                     : `Próximo: exercício ${exerciseIdx + 2} de 4`
