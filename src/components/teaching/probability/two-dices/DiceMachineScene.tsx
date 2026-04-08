@@ -479,10 +479,17 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     scene.background = new THREE.Color(0x07090f);
     scene.fog = new THREE.Fog(0x07090f, 20, 35);
 
-    /* ───── Câmera ───── */
-    const camera = new THREE.PerspectiveCamera(48, W3 / H3, 0.1, 80);
-    const CAM_POS = new THREE.Vector3(-4.0, 8.5, 13.0);
-    const CAM_TGT = new THREE.Vector3(1.2, 0.4, 0);
+    /* ───── Câmera (Fase 1.1c — ajuste final de framing) ─────
+       FOV 38° (faixa premium 30–45 evita distorção wide).
+       Position calculada para fill factor ~75% horizontal.
+       Target rebaixado para y=0.95 (era 1.2): inclina o olhar
+       ligeiramente para baixo, reclama o céu preto desperdiçado
+       no topo do quadro e expõe melhor a mesa e os pistões.
+       Pan horizontal acumulado de +0.35 em pos.x e tgt.x para
+       revelar a borda direita da mesa sem rotação de câmera. */
+    const camera = new THREE.PerspectiveCamera(38, W3 / H3, 0.1, 80);
+    const CAM_POS = new THREE.Vector3(-2.25, 5.4, 9.2);
+    const CAM_TGT = new THREE.Vector3(1.15, 0.95, 0);
     camera.position.copy(CAM_POS);
     camera.lookAt(CAM_TGT.x, CAM_TGT.y, CAM_TGT.z);
 
@@ -1090,23 +1097,25 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       applyDie(state.die2Mesh, state.sh2, g.d2);
 
       if (state.zoomProg > 0.02) {
+        // Fase 1.1 — ZOOM final ajustado para casar com câmera base premium.
+        // Aproxima ainda mais (distância ~8) e fecha FOV de 38° para 30°.
         const az = eout(state.zoomProg);
-        const zx = lerp(state.camPos.x, -1.0, az);
-        const zy = lerp(state.camPos.y, 6.2, az);
-        const zz = lerp(state.camPos.z, 10.5, az);
+        const zx = lerp(state.camPos.x, -0.6, az);
+        const zy = lerp(state.camPos.y, 3.6, az);
+        const zz = lerp(state.camPos.z, 7.4, az);
         camera.position.set(zx, zy, zz);
         camera.lookAt(
-          lerp(state.camTgt.x, -0.2, az),
-          lerp(state.camTgt.y, 1.0, az),
+          lerp(state.camTgt.x, 0.4, az),
+          lerp(state.camTgt.y, 1.6, az),
           lerp(state.camTgt.z, 0.0, az)
         );
-        camera.fov = lerp(48, 34, az);
+        camera.fov = lerp(38, 30, az);
         camera.updateProjectionMatrix();
       } else {
         camera.position.copy(state.camPos);
         camera.lookAt(state.camTgt.x, state.camTgt.y, state.camTgt.z);
-        if (camera.fov !== 48) {
-          camera.fov = 48;
+        if (camera.fov !== 38) {
+          camera.fov = 38;
           camera.updateProjectionMatrix();
         }
       }
