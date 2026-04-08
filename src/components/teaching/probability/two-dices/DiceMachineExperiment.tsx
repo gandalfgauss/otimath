@@ -1,20 +1,70 @@
 'use client'
 
-import { useState, useCallback, useEffect, type RefObject } from 'react';
+import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
 import type { DiceMachineSceneHandle } from './DiceMachineScene';
 import { STEP_NAMES } from './DiceMachineScene';
 
+// ═══════ Constantes de design (alinhadas ao Design System OtiMath) ═══════
+// Tamanhos pensados para mobile-first (>= 320 px). Alvos de toque
+// respeitam WCAG 2.5.5 Target Size (Level AAA: 44 px; aqui usamos 56 px
+// como mínimo confortável para dedo de adulto na escola brasileira).
+const PICKER_PLACEHOLDER_SIZE = 64;   // ícone do par ordenado (visualmente prominente)
+const PICKER_CELL_SIZE = 56;           // alvo de toque dentro do popover (≥ WCAG AAA)
+const RESULT_FACE_SIZE = 56;           // ícones no card de resultado
+
+// Tempo de ciclo do placeholder animado (cicla 1→6 → 1...). 280 ms
+// é rápido o suficiente para sugerir movimento sem causar incômodo.
+// Respeita prefers-reduced-motion (interrompe o ciclo).
+const PLACEHOLDER_CYCLE_MS = 280;
+
+// Cores vivas (paleta OtiMath em estado saturado)
+// O verde da face do dado é mantido em #1a5c2e por consistência visual
+// com TwoDicesExperiment e TwoDicesPractice. Para acentos da UI usamos
+// um verde mais vivo (#22a155) que destaca melhor em fundos claros.
+const COLOR_GREEN_DICE = '#1a5c2e';    // face do dado verde (consistência)
+const COLOR_GREEN_VIVID = '#22a155';   // acento verde vivo (UI / textos)
+
 /* ═══════════════════════════════════════════════════════════════
-   DiceMachineExperiment — Cena 7
-   UI envoltória da máquina automática de lançamento de dois dados.
-   Mostra barra de progresso (11 etapas), mensagem de estado, botões
-   LANÇAR e RESETAR, e exibe o resultado azul/verde/soma ao final.
-   Mantém o padrão visual e de acessibilidade do OVA Dois Dados.
+   DiceMachineExperiment — Cena 6 (REORDENAMENTO DIDÁTICO v2)
+   ─────────────────────────────────────────────────────────────────
+   PERCEPÇÃO do acaso bidimensional ANTES da sistematização tabular.
+   Justificativa científica (Brousseau 1997, Freudenthal 1991,
+   Cazorla & Santana 2010, Borovcnik 2011, Garfield & Ben-Zvi 2008,
+   Trouche 2004): a fase de Ação com o fenômeno físico precede
+   obrigatoriamente a fase de Formulação simbólica.
+
+   ESCALADA COGNITIVA EM 3 LANÇAMENTOS (Bruner 1966, enactive →
+   iconic → symbolic):
+
+     L1 OBSERVAR + REGISTRAR
+        └── picker visual de faces (verde 2×3, azul 3×2)
+            registro do par ordenado (DUVAL 1995)
+
+     L2 OPERAR (somar)
+        └── picker visual + cálculo da soma
+            ancoragem prospectiva (AUSUBEL 1968) — "guarde a soma"
+
+     L3 PREVER + JUSTIFICAR (previsão metacognitiva)
+        └── previsão da soma + radio de motivo
+            externalização do viés (FLAVELL 1979, LECOUTRE 1992)
+            feedback adidático (BROUSSEAU 1997, p. 47):
+            o milieu devolve a dúvida sem julgar.
+            ⚠ Vocabulário: "previsão", "ocorreu / não ocorreu",
+            JAMAIS "aposta", "errou", "perdeu" (DWECK 2006,
+            CAZORLA & SANTANA 2010).
+
+   Ponte para a Cena 7 (tabela 6×6) preserva a pergunta viva:
+   "será que é só acaso ou existe um padrão escondido?".
+
+   Responsividade: mobile-first, alvos de toque ≥ 56 px,
+   breakpoints até 320 px. Acessibilidade: WCAG 2.1 AA,
+   aria-labels, navegação por teclado, focus-visible,
+   prefers-reduced-motion respeitado.
    ═══════════════════════════════════════════════════════════════ */
 
-// ── Faces do dado com pintas (idêntico ao TwoDicesExperiment para consistência) ──
+// ═══════ Faces do dado com pintas (idêntico ao TwoDicesExperiment) ═══════
 const PIP_PATTERNS: Record<number, number[]> = {
   1: [0, 0, 0, 0, 1, 0, 0, 0, 0],
   2: [0, 0, 1, 0, 0, 0, 1, 0, 0],
@@ -24,15 +74,28 @@ const PIP_PATTERNS: Record<number, number[]> = {
   6: [1, 0, 1, 1, 0, 1, 1, 0, 1],
 };
 
-function DiceFaceIcon({ face, size, color = 'blue' }: { face: number; size: number; color?: 'blue' | 'green' }) {
-  const pips = PIP_PATTERNS[face];
+type DieColor = 'blue' | 'green';
+
+function DiceFaceIcon({
+  face,
+  size,
+  color = 'blue',
+  ariaHidden = false,
+}: {
+  face: number;
+  size: number;
+  color?: DieColor;
+  ariaHidden?: boolean;
+}) {
+  const pips = PIP_PATTERNS[face] ?? PIP_PATTERNS[1];
   const pipSize = Math.floor(size * 0.22);
   const gap = Math.floor(size * 0.04);
-  const bgColor = color === 'green' ? '#1a5c2e' : 'var(--color-brand-otimath-dark)';
+  const bgColor = color === 'green' ? COLOR_GREEN_DICE : 'var(--color-brand-otimath-dark)';
   return (
     <div
       style={{
-        width: size, height: size,
+        width: size,
+        height: size,
         borderRadius: Math.floor(size * 0.16),
         background: bgColor,
         display: 'grid',
@@ -40,41 +103,335 @@ function DiceFaceIcon({ face, size, color = 'blue' }: { face: number; size: numb
         gridTemplateRows: 'repeat(3, 1fr)',
         padding: Math.floor(size * 0.14),
         gap,
+        boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
       }}
-      aria-label={`Dado ${color === 'blue' ? 'azul' : 'verde'} mostrando face ${face}`}
+      aria-hidden={ariaHidden}
+      aria-label={ariaHidden ? undefined : `Face ${face} do dado ${color === 'green' ? 'verde' : 'azul'}`}
+      role={ariaHidden ? undefined : 'img'}
     >
       {pips.map((pip, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {pip ? <div style={{ width: pipSize, height: pipSize, borderRadius: '50%', background: '#fff' }} /> : null}
+          {pip ? (
+            <div
+              style={{
+                width: pipSize,
+                height: pipSize,
+                borderRadius: '50%',
+                background: '#fff',
+              }}
+            />
+          ) : null}
         </div>
       ))}
     </div>
   );
 }
 
+// ═══════ Placeholder animado: cicla as 6 faces até o aluno escolher ═══════
+function AnimatedFacePlaceholder({ size, color }: { size: number; color: DieColor }) {
+  const [face, setFace] = useState(1);
+  const reduceMotionRef = useRef(false);
+
+  useEffect(() => {
+    // Respeita prefers-reduced-motion (WCAG 2.3.3)
+    const mq = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    reduceMotionRef.current = !!mq?.matches;
+    if (reduceMotionRef.current) return;
+    const id = setInterval(() => setFace(f => (f % 6) + 1), PLACEHOLDER_CYCLE_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  return <DiceFaceIcon face={face} size={size} color={color} ariaHidden />;
+}
+
+// ═══════ FacePicker — popover com grid 2×3 (verde) ou 3×2 (azul) ═══════
+interface FacePickerProps {
+  color: DieColor;
+  selected: number | null;
+  onPick: (face: number) => void;
+  errorState: boolean;
+  size?: number;
+}
+
+function FacePicker({ color, selected, onPick, errorState, size = PICKER_PLACEHOLDER_SIZE }: FacePickerProps) {
+  const [open, setOpen] = useState(false);
+  const [popPlacement, setPopPlacement] = useState<'bottom' | 'top'>('bottom');
+  const [focusIdx, setFocusIdx] = useState(0);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const placeholderBtnRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const faceBtnRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // Verde: 2 colunas × 3 linhas (visualmente "vertical" — paridade com
+  // o eixo das linhas da tabela 6×6 da Cena 7).
+  // Azul: 3 colunas × 2 linhas (visualmente "horizontal" — paridade com
+  // o eixo das colunas da tabela 6×6 da Cena 7).
+  const gridCols = color === 'green' ? 2 : 3;
+  const cellSize = PICKER_CELL_SIZE;
+
+  // Click fora fecha
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
+  }, [open]);
+
+  // Posicionamento inteligente: se overflow inferior, abre acima
+  useEffect(() => {
+    if (!open || !wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const popoverHeight = Math.ceil(6 / gridCols) * (cellSize + 8) + 24 + 16;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    if (spaceBelow < popoverHeight && spaceAbove > popoverHeight) {
+      setPopPlacement('top');
+    } else {
+      setPopPlacement('bottom');
+    }
+  }, [open, gridCols, cellSize]);
+
+  // Foco automático na face já selecionada (ou primeira) ao abrir
+  useEffect(() => {
+    if (!open) return;
+    const initialIdx = selected ? selected - 1 : 0;
+    setFocusIdx(initialIdx);
+    // Aguarda o DOM montar
+    requestAnimationFrame(() => {
+      faceBtnRefs.current[initialIdx]?.focus();
+      // Garante que popover está visível
+      popoverRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }, [open, selected]);
+
+  // Esc fecha + foco volta para o botão-placeholder (a11y)
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setOpen(false);
+        placeholderBtnRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open]);
+
+  // Navegação por setas dentro do popover
+  const handleGridKeyDown = (e: React.KeyboardEvent) => {
+    const total = 6;
+    let next = focusIdx;
+    if (e.key === 'ArrowRight') next = (focusIdx + 1) % total;
+    else if (e.key === 'ArrowLeft') next = (focusIdx - 1 + total) % total;
+    else if (e.key === 'ArrowDown') next = (focusIdx + gridCols) % total;
+    else if (e.key === 'ArrowUp') next = (focusIdx - gridCols + total) % total;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = total - 1;
+    else return;
+    e.preventDefault();
+    setFocusIdx(next);
+    faceBtnRefs.current[next]?.focus();
+  };
+
+  const colorName = color === 'green' ? 'verde' : 'azul';
+  const accentColor = color === 'green' ? '#1a5c2e' : 'var(--color-brand-otimath-pure)';
+  const borderColor = errorState
+    ? 'var(--color-feedback-error-dark)'
+    : selected
+      ? accentColor
+      : 'var(--color-neutral-light)';
+
+  return (
+    <div ref={wrapperRef} style={{ position: 'relative', display: 'inline-block' }}>
+      {/* Botão-placeholder (clicável) */}
+      <button
+        ref={placeholderBtnRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={
+          selected
+            ? `Dado ${colorName} selecionado: face ${selected}. Toque para alterar.`
+            : `Escolher face do dado ${colorName}`
+        }
+        style={{
+          background: 'transparent',
+          border: `3px solid ${borderColor}`,
+          borderRadius: 14,
+          padding: 6,
+          cursor: 'pointer',
+          touchAction: 'manipulation',
+          display: 'inline-block',
+          minWidth: 56,
+          minHeight: 56,
+          transition: 'border-color 0.2s, transform 0.1s, box-shadow 0.2s',
+        }}
+        onTouchStart={e => {
+          e.currentTarget.style.transform = 'scale(0.96)';
+        }}
+        onTouchEnd={e => {
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+        onFocus={e => {
+          e.currentTarget.style.boxShadow = `0 0 0 4px ${accentColor}55`;
+        }}
+        onBlur={e => {
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+      >
+        {selected ? (
+          <DiceFaceIcon face={selected} size={size} color={color} ariaHidden />
+        ) : (
+          <AnimatedFacePlaceholder size={size} color={color} />
+        )}
+      </button>
+
+      {/* Popover */}
+      {open && (
+        <div
+          ref={popoverRef}
+          role="listbox"
+          aria-label={`Faces do dado ${colorName}`}
+          aria-activedescendant={`face-${color}-${focusIdx + 1}`}
+          onKeyDown={handleGridKeyDown}
+          style={{
+            position: 'absolute',
+            ...(popPlacement === 'bottom'
+              ? { top: 'calc(100% + 8px)' }
+              : { bottom: 'calc(100% + 8px)' }),
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--color-neutral-white)',
+            border: `2px solid ${accentColor}`,
+            borderRadius: 14,
+            padding: 12,
+            boxShadow: '0 8px 28px rgba(0,0,0,0.22)',
+            zIndex: 100,
+            display: 'grid',
+            gridTemplateColumns: `repeat(${gridCols}, ${cellSize}px)`,
+            gap: 8,
+          }}
+        >
+          {[1, 2, 3, 4, 5, 6].map((face, idx) => (
+            <button
+              key={face}
+              id={`face-${color}-${face}`}
+              ref={el => { faceBtnRefs.current[idx] = el; }}
+              type="button"
+              role="option"
+              tabIndex={focusIdx === idx ? 0 : -1}
+              aria-selected={selected === face}
+              aria-label={`Face ${face} do dado ${colorName}`}
+              onClick={() => {
+                onPick(face);
+                setOpen(false);
+                placeholderBtnRef.current?.focus();
+              }}
+              style={{
+                width: cellSize,
+                height: cellSize,
+                padding: 0,
+                background: 'transparent',
+                border:
+                  selected === face
+                    ? `3px solid ${accentColor}`
+                    : '2px solid var(--color-neutral-lighter)',
+                borderRadius: 10,
+                cursor: 'pointer',
+                touchAction: 'manipulation',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onFocus={e => {
+                e.currentTarget.style.outline = `3px solid ${accentColor}`;
+                e.currentTarget.style.outlineOffset = '2px';
+              }}
+              onBlur={e => {
+                e.currentTarget.style.outline = 'none';
+              }}
+            >
+              <DiceFaceIcon face={face} size={cellSize - 14} color={color} ariaHidden />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════ Tipos de fase do experimento ═══════
+type Phase =
+  | 'intro'           // Card de transição (após Cena 5)
+  | 's1-ready'        // L1: pronto para lançar
+  | 's1-rolling'      // L1: máquina lançando
+  | 's1-pick'         // L1: pickers para registrar par
+  | 's1-correct'      // L1: par correto, transição
+  | 's2-ready'        // L2: pronto para lançar
+  | 's2-rolling'
+  | 's2-pick'         // L2: pickers para registrar par
+  | 's2-sum'          // L2: input da soma
+  | 's2-correct'      // L2: tudo certo
+  | 's3-predict'      // L3: previsão + justificativa (ANTES de lançar)
+  | 's3-rolling'
+  | 's3-reflect'      // L3: feedback adidático
+  | 'bridge';         // Fechamento + ponte para Cena 7
+
+// ═══════ Props ═══════
 interface DiceMachineExperimentProps {
   diceMachineRef: RefObject<DiceMachineSceneHandle | null>;
   diceContainerRef: RefObject<HTMLDivElement | null>;
   onFinished: () => void;
 }
 
+// ═══════ Componente principal ═══════
 export function DiceMachineExperiment({
   diceMachineRef,
   diceContainerRef,
   onFinished,
 }: Readonly<DiceMachineExperimentProps>) {
-  const [intro, setIntro] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [stepIdx, setStepIdx] = useState(-1);
-  const [statusMsg, setStatusMsg] = useState('Pressione LANÇAR para iniciar');
+  const [phase, setPhase] = useState<Phase>('intro');
+
+  // Resultado do lançamento atual
   const [blueResult, setBlueResult] = useState<number | null>(null);
   const [greenResult, setGreenResult] = useState<number | null>(null);
-  const [launchCount, setLaunchCount] = useState(0);
-  const [resetKey, setResetKey] = useState(0);
 
-  // Polling leve do estado atual da cena (atualiza barra de progresso e mensagem)
+  // Estado da máquina (para barra de progresso)
+  const [stepIdx, setStepIdx] = useState(-1);
+  const [statusMsg, setStatusMsg] = useState('');
+  const runningRef = useRef(false);
+
+  // Picker (par ordenado) — usado em L1 e L2
+  const [pickedGreen, setPickedGreen] = useState<number | null>(null);
+  const [pickedBlue, setPickedBlue] = useState<number | null>(null);
+  const [pickGreenError, setPickGreenError] = useState(false);
+  const [pickBlueError, setPickBlueError] = useState(false);
+  const [pickFeedback, setPickFeedback] = useState('');
+
+  // Soma (L2)
+  const [sumInput, setSumInput] = useState('');
+  const [sumError, setSumError] = useState(false);
+  const [sumFeedback, setSumFeedback] = useState('');
+
+  // Previsão (L3)
+  const [predictionInput, setPredictionInput] = useState('');
+  const [predictionError, setPredictionError] = useState('');
+  const [predictionReason, setPredictionReason] = useState<'equip' | 'maisChance' | 'intuicao' | ''>('');
+  const [predictionReasonError, setPredictionReasonError] = useState(false);
+
+  // Polling do estado da máquina (atualiza StepBar e mensagem)
   useEffect(() => {
-    if (!running) return;
+    if (phase !== 's1-rolling' && phase !== 's2-rolling' && phase !== 's3-rolling') return;
     const id = setInterval(() => {
       const idx = diceMachineRef.current?.getCurrentStep();
       const lbl = diceMachineRef.current?.getCurrentLabel();
@@ -82,94 +439,232 @@ export function DiceMachineExperiment({
       if (typeof lbl === 'string' && lbl.length > 0) setStatusMsg(lbl);
     }, 100);
     return () => clearInterval(id);
-  }, [running, diceMachineRef, resetKey]);
+  }, [phase, diceMachineRef]);
 
-  // Scroll automático para a cena ao iniciar lançamento
+  // Scroll suave para o container da máquina
   const scrollToScene = useCallback(() => {
     if (diceContainerRef.current) {
       diceContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [diceContainerRef]);
 
-  const handleStart = useCallback(() => {
-    setIntro(false);
+  // Reseta picker e feedbacks
+  const resetPicker = useCallback(() => {
+    setPickedGreen(null);
+    setPickedBlue(null);
+    setPickGreenError(false);
+    setPickBlueError(false);
+    setPickFeedback('');
+  }, []);
+
+  // ═══════ Lançamento da máquina (compartilhado pelas 3 etapas) ═══════
+  const launchMachine = useCallback(
+    async (rollingPhase: Phase, nextPhase: Phase) => {
+      if (runningRef.current || !diceMachineRef.current) return;
+      runningRef.current = true;
+      setBlueResult(null);
+      setGreenResult(null);
+      setStepIdx(-1);
+      setStatusMsg(STEP_NAMES[0] ?? '');
+      setPhase(rollingPhase);
+      scrollToScene();
+      try {
+        const result = await diceMachineRef.current.roll();
+        setBlueResult(result.blue);
+        setGreenResult(result.green);
+        setStepIdx(STEP_NAMES.length - 1);
+        setStatusMsg('Os dois dados pararam.');
+        playSound('/sounds/correct.mp3');
+        setPhase(nextPhase);
+      } finally {
+        runningRef.current = false;
+      }
+    },
+    [diceMachineRef, scrollToScene],
+  );
+
+  // ═══════ Validação do picker (L1 e L2) ═══════
+  const validatePair = useCallback(
+    (onSuccess: () => void) => {
+      if (pickedGreen == null) {
+        setPickGreenError(true);
+        setPickFeedback('Toque no dado verde e escolha a face que apareceu.');
+        playSound('/sounds/incorrect.mp3');
+        return;
+      }
+      if (pickedBlue == null) {
+        setPickBlueError(true);
+        setPickFeedback('Toque no dado azul e escolha a face que apareceu.');
+        playSound('/sounds/incorrect.mp3');
+        return;
+      }
+      const greenOk = pickedGreen === greenResult;
+      const blueOk = pickedBlue === blueResult;
+      if (greenOk && blueOk) {
+        setPickGreenError(false);
+        setPickBlueError(false);
+        setPickFeedback('');
+        playSound('/sounds/correct.mp3');
+        onSuccess();
+      } else {
+        setPickGreenError(!greenOk);
+        setPickBlueError(!blueOk);
+        if (!greenOk && !blueOk) {
+          setPickFeedback(
+            'Releia os dois dados na máquina. Toque em cada um e escolha de novo a face que apareceu.',
+          );
+        } else if (!greenOk) {
+          setPickFeedback('Releia o dado verde. Toque nele e escolha a face que realmente apareceu.');
+        } else {
+          setPickFeedback('Releia o dado azul. Toque nele e escolha a face que realmente apareceu.');
+        }
+        playSound('/sounds/incorrect.mp3');
+      }
+    },
+    [pickedGreen, pickedBlue, greenResult, blueResult],
+  );
+
+  // ═══════ Validação da soma (L2) ═══════
+  const validateSum = useCallback(() => {
+    const v = parseInt(sumInput.trim(), 10);
+    if (isNaN(v)) {
+      setSumError(true);
+      setSumFeedback('Digite um número inteiro.');
+      playSound('/sounds/incorrect.mp3');
+      return;
+    }
+    const expected = (greenResult ?? 0) + (blueResult ?? 0);
+    if (v === expected) {
+      setSumError(false);
+      setSumFeedback('');
+      playSound('/sounds/correct.mp3');
+      setPhase('s2-correct');
+    } else {
+      setSumError(true);
+      setSumFeedback(`Some ${greenResult} (verde) com ${blueResult} (azul) e tente de novo.`);
+      playSound('/sounds/incorrect.mp3');
+    }
+  }, [sumInput, greenResult, blueResult]);
+
+  // ═══════ Validação da previsão (L3) ═══════
+  const validatePrediction = useCallback(() => {
+    const v = parseInt(predictionInput.trim(), 10);
+    let hasError = false;
+    if (isNaN(v) || v < 2 || v > 12) {
+      setPredictionError('Escolha um número inteiro entre 2 e 12.');
+      hasError = true;
+    } else {
+      setPredictionError('');
+    }
+    if (!predictionReason) {
+      setPredictionReasonError(true);
+      hasError = true;
+    } else {
+      setPredictionReasonError(false);
+    }
+    if (hasError) {
+      playSound('/sounds/incorrect.mp3');
+      return;
+    }
+    // Lança a máquina
+    void launchMachine('s3-rolling', 's3-reflect');
+  }, [predictionInput, predictionReason, launchMachine]);
+
+  // ═══════ Avanço entre etapas ═══════
+  const goToS2 = useCallback(() => {
+    resetPicker();
+    setSumInput('');
+    setSumError(false);
+    setSumFeedback('');
+    setBlueResult(null);
+    setGreenResult(null);
+    setStepIdx(-1);
+    setStatusMsg('');
+    setPhase('s2-ready');
+    playSound('/sounds/nextChallenge.mp3');
+  }, [resetPicker]);
+
+  const goToS3 = useCallback(() => {
+    resetPicker();
+    setSumInput('');
+    setSumError(false);
+    setSumFeedback('');
+    setPredictionInput('');
+    setPredictionError('');
+    setPredictionReason('');
+    setPredictionReasonError(false);
+    setBlueResult(null);
+    setGreenResult(null);
+    setStepIdx(-1);
+    setStatusMsg('');
+    setPhase('s3-predict');
+    playSound('/sounds/nextChallenge.mp3');
+  }, [resetPicker]);
+
+  const goToBridge = useCallback(() => {
+    setPhase('bridge');
     playSound('/sounds/nextChallenge.mp3');
   }, []);
 
-  const handleLaunch = useCallback(async () => {
-    if (running) return;
-    if (!diceMachineRef.current) return;
-    setRunning(true);
-    setBlueResult(null);
-    setGreenResult(null);
-    setStepIdx(-1);
-    setStatusMsg(STEP_NAMES[0]);
-    scrollToScene();
-    try {
-      const result = await diceMachineRef.current.roll();
-      setBlueResult(result.blue);
-      setGreenResult(result.green);
-      setStepIdx(STEP_NAMES.length - 1);
-      setStatusMsg(`✅ Azul = ${result.blue}  ·  Verde = ${result.green}  ·  Soma = ${result.blue + result.green}`);
-      setLaunchCount(c => c + 1);
-    } finally {
-      setRunning(false);
-    }
-  }, [running, diceMachineRef, scrollToScene]);
+  // ═══════ Indicador de etapas (L1, L2, L3) ═══════
+  const StageIndicator = (
+    <div
+      className="flex items-center justify-center gap-x-micro mb-micro"
+      role="progressbar"
+      aria-label="Progresso das três etapas"
+      aria-valuemin={1}
+      aria-valuemax={3}
+      aria-valuenow={
+        phase === 'intro'
+          ? 0
+          : phase.startsWith('s1')
+            ? 1
+            : phase.startsWith('s2')
+              ? 2
+              : 3
+      }
+    >
+      {[1, 2, 3].map(s => {
+        const current =
+          (s === 1 && phase.startsWith('s1')) ||
+          (s === 2 && phase.startsWith('s2')) ||
+          (s === 3 && (phase.startsWith('s3') || phase === 'bridge'));
+        const done =
+          (s === 1 && (phase.startsWith('s2') || phase.startsWith('s3') || phase === 'bridge')) ||
+          (s === 2 && (phase.startsWith('s3') || phase === 'bridge')) ||
+          (s === 3 && phase === 'bridge');
+        const bg = done
+          ? '#1a5c2e'
+          : current
+            ? 'var(--color-brand-otimath-pure)'
+            : 'var(--color-neutral-lighter)';
+        return (
+          <div key={s} className="flex flex-col items-center gap-y-nano">
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                background: bg,
+                transition: 'background 0.3s',
+              }}
+              aria-hidden
+            />
+            <span className="ds-caption text-neutral-dark">{s}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 
-  const handleReset = useCallback(() => {
-    if (running) return;
-    setBlueResult(null);
-    setGreenResult(null);
-    setStepIdx(-1);
-    setStatusMsg('Pressione LANÇAR para iniciar');
-    setResetKey(k => k + 1);
-    playSound('/sounds/clear.mp3');
-  }, [running]);
-
-  const handleFinish = useCallback(() => {
-    onFinished();
-  }, [onFinished]);
-
-  // ═══════ Tela de introdução (antes da máquina aparecer) ═══════
-  if (intro) {
-    return (
-      <div className="bg-neutral-white rounded-md p-md" style={{ marginTop: 24 }}>
-        <h2 className="ds-heading-mega text-brand-otimath-darkest" style={{ marginBottom: 16 }}>
-          🎲 Máquina automática de lançamento
-        </h2>
-        <p className="ds-body text-neutral-darkest" style={{ marginBottom: 12 }}>
-          Você já viu, na cena anterior, como obtemos um par ordenado <strong>(azul, verde)</strong> ao
-          lançar dois dados. Agora vamos observar uma <strong>máquina automática</strong> que reproduz
-          mecanicamente todo o ciclo de um lançamento honesto: ela <em>alinha</em> os dados, <em>empurra</em>
-          {' '}para dentro de um copo, <em>sobe</em> pelo trilho, <em>agita</em> com vigor, <em>inclina</em>
-          {' '}e <em>libera</em> os dois dados, que <em>caem</em> sobre a mesa e <em>param</em> em uma face.
-        </p>
-        <p className="ds-body text-neutral-darkest" style={{ marginBottom: 12 }}>
-          Cada lançamento percorre <strong>11 etapas</strong> distintas, mostradas na barra de progresso. Essa
-          mecanização nos ajuda a perceber que cada resultado é fruto de tantos fatores físicos
-          imprevisíveis (velocidade, ângulo, agitação, choques, atrito) que tratá-los um a um seria
-          impossível: por isso modelamos o lançamento como um <strong>experimento aleatório</strong>.
-        </p>
-        <p className="ds-body text-neutral-darkest" style={{ marginBottom: 16 }}>
-          Observe atentamente, lance a máquina algumas vezes e perceba como o par ordenado {'(azul, verde)'}
-          {' '}se forma a partir de um processo estritamente mecânico — porém imprevisível para nós.
-        </p>
-        <Button style="primary" size="medium" onClick={handleStart}>
-          🚀 Iniciar máquina
-        </Button>
-      </div>
-    );
-  }
-
-  // ═══════ Barra de progresso de 11 etapas ═══════
-  const StepBar = (
+  // ═══════ Barra de progresso de 11 etapas mecânicas ═══════
+  const renderStepBar = () => (
     <div
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={STEP_NAMES.length}
       aria-valuenow={Math.max(0, stepIdx + 1)}
-      aria-label="Progresso do lançamento"
+      aria-label="Progresso mecânico do lançamento"
       style={{
         display: 'flex',
         gap: 3,
@@ -186,8 +681,15 @@ export function DiceMachineExperiment({
         let bg = 'var(--color-neutral-lighter)';
         let color = 'var(--color-neutral-medium)';
         let outline = 'none';
-        if (done) { bg = '#1a5c2e'; color = '#fff'; }
-        if (active) { bg = 'var(--color-brand-otimath-dark)'; color = '#fff'; outline = '2px solid var(--color-brand-otimath-pure)'; }
+        if (done) {
+          bg = '#1a5c2e';
+          color = '#fff';
+        }
+        if (active) {
+          bg = 'var(--color-brand-otimath-dark)';
+          color = '#fff';
+          outline = '2px solid var(--color-brand-otimath-pure)';
+        }
         return (
           <div
             key={name}
@@ -215,114 +717,638 @@ export function DiceMachineExperiment({
     </div>
   );
 
-  return (
-    <div style={{ marginTop: 16 }}>
-      {StepBar}
-
-      <p
-        aria-live="polite"
-        className="ds-body-medium text-brand-otimath-dark"
-        style={{
-          marginTop: 12,
-          marginBottom: 8,
-          textAlign: 'center',
-          minHeight: 22,
-        }}
-      >
-        {statusMsg}
+  // ═══════ Bloco do par ordenado (picker visual) ═══════
+  const renderPairPicker = () => (
+    <div className="flex flex-col items-center gap-y-micro" style={{ marginBottom: 16 }}>
+      <p className="ds-body-bold text-neutral-black text-center">
+        Registre o par ordenado{' '}
+        <strong style={{ color: COLOR_GREEN_VIVID }}>(verde,</strong>{' '}
+        <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul)</strong>:
       </p>
-
       <div
+        className="flex items-center justify-center"
+        style={{ gap: 12, flexWrap: 'wrap' }}
+      >
+        <span className="ds-heading-extra text-neutral-darkest" aria-hidden>
+          (
+        </span>
+        <FacePicker
+          color="green"
+          selected={pickedGreen}
+          onPick={f => {
+            setPickedGreen(f);
+            setPickGreenError(false);
+            setPickFeedback('');
+          }}
+          errorState={pickGreenError}
+        />
+        <span className="ds-heading-extra text-neutral-darkest" aria-hidden>
+          ,
+        </span>
+        <FacePicker
+          color="blue"
+          selected={pickedBlue}
+          onPick={f => {
+            setPickedBlue(f);
+            setPickBlueError(false);
+            setPickFeedback('');
+          }}
+          errorState={pickBlueError}
+        />
+        <span className="ds-heading-extra text-neutral-darkest" aria-hidden>
+          )
+        </span>
+      </div>
+      {pickFeedback && (
+        <p
+          role="alert"
+          className="ds-small-bold text-center"
+          style={{ color: 'var(--color-feedback-error-dark)', maxWidth: 360 }}
+        >
+          {pickFeedback}
+        </p>
+      )}
+    </div>
+  );
+
+  // ═══════ Card resultado (par exibido após pickagem correta) ═══════
+  const renderResultCard = (showSum: boolean) => {
+    if (blueResult == null || greenResult == null) return null;
+    return (
+      <div
+        className="bg-neutral-white rounded-lg p-xxs"
         style={{
-          display: 'flex',
-          gap: 12,
-          justifyContent: 'center',
+          marginTop: 8,
           marginBottom: 16,
-          flexWrap: 'wrap',
+          border: '1px solid var(--color-neutral-lighter)',
         }}
       >
-        <Button
-          style="primary"
-          size="medium"
-          onClick={handleLaunch}
-          disabled={running}
-        >
-          🚀 Lançar
-        </Button>
-        <Button
-          style="secondary"
-          size="medium"
-          onClick={handleReset}
-          disabled={running}
-        >
-          🔄 Resetar
-        </Button>
-      </div>
-
-      {/* Resultado visual após cada lançamento */}
-      {blueResult !== null && greenResult !== null && (
+        <p className="ds-small-bold text-brand-otimath-darkest mb-micro text-center">
+          A máquina deu:
+        </p>
         <div
-          className="bg-neutral-white rounded-md p-sm"
           style={{
-            marginTop: 8,
-            marginBottom: 16,
-            border: '1px solid var(--color-neutral-lighter)',
+            display: 'flex',
+            gap: 16,
+            justifyContent: 'center',
+            alignItems: 'center',
+            flexWrap: 'wrap',
           }}
         >
-          <p
-            className="ds-body-bold text-brand-otimath-darkest"
-            style={{ marginBottom: 12, textAlign: 'center' }}
-          >
-            Resultado do lançamento {launchCount}:
+          <span className="ds-heading-extra text-neutral-darkest" aria-hidden>
+            (
+          </span>
+          <DiceFaceIcon face={greenResult} size={RESULT_FACE_SIZE} color="green" />
+          <span className="ds-heading-extra text-neutral-darkest" aria-hidden>
+            ,
+          </span>
+          <DiceFaceIcon face={blueResult} size={RESULT_FACE_SIZE} color="blue" />
+          <span className="ds-heading-extra text-neutral-darkest" aria-hidden>
+            )
+          </span>
+        </div>
+        {showSum && (
+          <p className="ds-body-bold text-center mt-micro text-neutral-darkest">
+            Soma = {greenResult + blueResult}
           </p>
-          <div
-            style={{
-              display: 'flex',
-              gap: 24,
-              justifyContent: 'center',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              <DiceFaceIcon face={blueResult} size={64} color="blue" />
-              <span className="ds-small-bold text-brand-otimath-dark">Azul = {blueResult}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              <DiceFaceIcon face={greenResult} size={64} color="green" />
-              <span className="ds-small-bold" style={{ color: '#1a5c2e' }}>Verde = {greenResult}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <span className="ds-heading-extra text-neutral-darkest">{blueResult + greenResult}</span>
-              <span className="ds-small text-neutral-medium">Soma</span>
-            </div>
+        )}
+      </div>
+    );
+  };
+
+  // ═══════ RENDER ═══════
+  return (
+    <div className="w-full" style={{ maxWidth: 720, margin: '0 auto', marginTop: 16 }}>
+      {/* Título */}
+      <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
+        Máquina de lançar dois dados
+      </h2>
+
+      {/* ═══════ INTRO — card de transição (após a Cena 5) ═══════ */}
+      {phase === 'intro' && (
+        <div
+          className="rounded-lg p-xxs"
+          style={{
+            background:
+              'linear-gradient(180deg, var(--color-brand-otimath-lightest) 0%, var(--color-neutral-white) 100%)',
+            border: '2px solid var(--color-brand-otimath-light)',
+            boxShadow: '0 4px 16px rgba(36, 80, 190, 0.10)',
+            maxWidth: 560,
+            margin: '0 auto',
+          }}
+        >
+          <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
+            De um para dois dados
+          </p>
+          <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+            Você domina o experimento com <strong>um dado</strong>. Agora vamos lançar{' '}
+            <strong>dois</strong> — um{' '}
+            <strong style={{ color: COLOR_GREEN_VIVID }}>verde</strong> e um{' '}
+            <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong>.
+          </p>
+          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+            Antes de organizar tudo numa tabela, <strong>observe o fenômeno</strong>: o
+            processo é mecânico, mas o par <strong>(verde, azul)</strong> continua imprevisível.
+          </p>
+          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+            Você fará <strong>3 lançamentos</strong>: nos dois primeiros, vai observar e
+            registrar o resultado; no terceiro, fará uma <strong>previsão</strong> antes da
+            máquina lançar.
+          </p>
+          <div className="flex justify-center mt-macro">
+            <Button
+              style="primary"
+              size="medium"
+              onClick={() => {
+                setPhase('s1-ready');
+                playSound('/sounds/nextChallenge.mp3');
+              }}
+              aria-label="Iniciar a primeira observação da máquina"
+            >
+              Começar lançamento 1
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Pergunta reflexiva e botão de finalização (após pelo menos 1 lançamento) */}
-      {launchCount >= 1 && !running && (
-        <div
-          className="bg-brand-otimath-lightest rounded-md p-md"
-          style={{ marginTop: 8 }}
-        >
-          <p className="ds-body text-neutral-darkest" style={{ marginBottom: 12 }}>
-            Mesmo conhecendo cada peça do mecanismo — paletas, pistões, copo, motor — você
-            consegue <strong>prever com certeza</strong> qual será o próximo par ordenado{' '}
-            <strong>(azul, verde)</strong>? Por que não?
-          </p>
-          <p className="ds-body text-neutral-darkest" style={{ marginBottom: 16 }}>
-            É exatamente essa <strong>imprevisibilidade prática</strong> — ainda que o processo
-            seja determinístico em cada componente — que justifica o uso da{' '}
-            <strong>Probabilidade</strong> como ferramenta para descrever o lançamento de dois
-            dados honestos.
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button style="primary" size="medium" onClick={handleFinish}>
-              ✅ Concluir esta cena
-            </Button>
-          </div>
-        </div>
+      {/* ═══════ ETAPAS 1, 2, 3 ═══════ */}
+      {phase !== 'intro' && (
+        <>
+          {StageIndicator}
+
+          {/* ───────── L1: PRONTO PARA LANÇAR ───────── */}
+          {phase === 's1-ready' && (
+            <div className="bg-neutral-white rounded-lg p-xxs"
+              style={{
+                border: '2px solid var(--color-brand-otimath-lighter)',
+                boxShadow: '0 4px 14px rgba(36, 80, 190, 0.08)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                Lançamento 1 de 3 — Observar
+              </p>
+              <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+                Toque em <strong>Lançar</strong> e <strong>observe</strong> com atenção
+                qual face aparece em cada dado.
+              </p>
+              <div className="flex justify-center">
+                <Button
+                  style="primary"
+                  size="medium"
+                  onClick={() => void launchMachine('s1-rolling', 's1-pick')}
+                  aria-label="Lançar a máquina pela primeira vez"
+                >
+                  🎲 Lançar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ───────── L1, L2, L3: ROLLING (animação da máquina) ───────── */}
+          {(phase === 's1-rolling' || phase === 's2-rolling' || phase === 's3-rolling') && (
+            <div style={{ marginTop: 8 }}>
+              {renderStepBar()}
+              <p
+                aria-live="polite"
+                className="ds-body-medium text-brand-otimath-dark text-center"
+                style={{ marginTop: 12, marginBottom: 8, minHeight: 22 }}
+              >
+                {statusMsg}
+              </p>
+            </div>
+          )}
+
+          {/* ───────── L1: PICKER (registrar o par observado) ───────── */}
+          {phase === 's1-pick' && (
+            <div className="bg-neutral-white rounded-lg p-xxs"
+              style={{
+                border: '2px solid var(--color-brand-otimath-lighter)',
+                boxShadow: '0 4px 14px rgba(36, 80, 190, 0.08)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                Lançamento 1 — Registrar
+              </p>
+              <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+                Toque em cada dado abaixo e escolha a <strong>face</strong> que apareceu
+                na máquina.
+              </p>
+              {renderPairPicker()}
+              <div className="flex justify-center mt-micro">
+                <Button
+                  style="primary"
+                  size="small"
+                  onClick={() => validatePair(() => setPhase('s1-correct'))}
+                  aria-label="Conferir o par ordenado registrado"
+                >
+                  Conferir
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ───────── L1: PAR CORRETO ───────── */}
+          {phase === 's1-correct' && (
+            <div className="bg-neutral-white rounded-lg p-xxs"
+              style={{
+                border: '2px solid var(--color-brand-otimath-lighter)',
+                boxShadow: '0 4px 14px rgba(36, 80, 190, 0.08)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-body-bold text-center mb-micro" style={{ color: COLOR_GREEN_VIVID }}>
+                ✓ Par registrado corretamente
+              </p>
+              {renderResultCard(false)}
+              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                Você leu o par <strong>(verde, azul)</strong> que a máquina produziu. Cada
+                lançamento da máquina forma um novo par desse tipo.
+              </p>
+              <div className="flex justify-center mt-macro">
+                <Button
+                  style="primary"
+                  size="medium"
+                  onClick={goToS2}
+                  aria-label="Avançar para o lançamento 2"
+                >
+                  Próximo lançamento
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ───────── L2: PRONTO PARA LANÇAR ───────── */}
+          {phase === 's2-ready' && (
+            <div className="bg-neutral-white rounded-lg p-xxs"
+              style={{
+                border: '2px solid var(--color-brand-otimath-lighter)',
+                boxShadow: '0 4px 14px rgba(36, 80, 190, 0.08)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                Lançamento 2 de 3 — Observar e somar
+              </p>
+              <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+                Agora você vai registrar o par <strong>e</strong> calcular a{' '}
+                <strong>soma</strong> dos dois dados.
+              </p>
+              <div className="flex justify-center">
+                <Button
+                  style="primary"
+                  size="medium"
+                  onClick={() => void launchMachine('s2-rolling', 's2-pick')}
+                  aria-label="Lançar a máquina pela segunda vez"
+                >
+                  🎲 Lançar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ───────── L2: PICKER ───────── */}
+          {phase === 's2-pick' && (
+            <div className="bg-neutral-white rounded-lg p-xxs"
+              style={{
+                border: '2px solid var(--color-brand-otimath-lighter)',
+                boxShadow: '0 4px 14px rgba(36, 80, 190, 0.08)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                Lançamento 2 — Registrar o par
+              </p>
+              {renderPairPicker()}
+              <div className="flex justify-center mt-micro">
+                <Button
+                  style="primary"
+                  size="small"
+                  onClick={() => validatePair(() => setPhase('s2-sum'))}
+                  aria-label="Conferir o par ordenado registrado"
+                >
+                  Conferir
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ───────── L2: SOMA ───────── */}
+          {phase === 's2-sum' && (
+            <div className="bg-neutral-white rounded-lg p-xxs"
+              style={{
+                border: '2px solid var(--color-brand-otimath-lighter)',
+                boxShadow: '0 4px 14px rgba(36, 80, 190, 0.08)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                Lançamento 2 — Calcular a soma
+              </p>
+              {renderResultCard(false)}
+              <p className="ds-body text-neutral-black mb-micro text-center">
+                Some os valores das duas faces:
+              </p>
+              <div className="flex items-center justify-center" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <span className="ds-body-bold text-neutral-black">Soma =</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={sumInput}
+                  onChange={e => {
+                    setSumInput(e.target.value);
+                    setSumError(false);
+                    setSumFeedback('');
+                  }}
+                  aria-label="Digite a soma dos dois dados"
+                  aria-invalid={sumError}
+                  className="ds-body-bold"
+                  style={{
+                    border: `2px solid ${sumError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    width: 84,
+                    minHeight: 44,
+                    textAlign: 'center',
+                    outline: 'none',
+                  }}
+                  onFocus={e => {
+                    e.currentTarget.style.borderColor = 'var(--color-brand-otimath-pure)';
+                  }}
+                  onBlur={e => {
+                    e.currentTarget.style.borderColor = sumError
+                      ? 'var(--color-feedback-error-dark)'
+                      : 'var(--color-neutral-lighter)';
+                  }}
+                />
+                <Button
+                  style="primary"
+                  size="extra-small"
+                  onClick={validateSum}
+                  aria-label="Conferir a soma calculada"
+                >
+                  Conferir
+                </Button>
+              </div>
+              {sumFeedback && (
+                <p
+                  role="alert"
+                  className="ds-small-bold text-center mt-micro"
+                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                >
+                  {sumFeedback}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ───────── L2: TUDO CERTO ───────── */}
+          {phase === 's2-correct' && (
+            <div className="bg-neutral-white rounded-lg p-xxs"
+              style={{
+                border: '2px solid var(--color-brand-otimath-lighter)',
+                boxShadow: '0 4px 14px rgba(36, 80, 190, 0.08)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-body-bold text-center mb-micro" style={{ color: COLOR_GREEN_VIVID }}>
+                ✓ Par registrado e soma calculada
+              </p>
+              {renderResultCard(true)}
+              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                A soma dos dois dados é um número novo, que vem do par. Guarde essa ideia —
+                a <strong>soma</strong> vai voltar.
+              </p>
+              <div className="flex justify-center mt-macro">
+                <Button
+                  style="primary"
+                  size="medium"
+                  onClick={goToS3}
+                  aria-label="Avançar para o lançamento 3"
+                >
+                  Próximo lançamento
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ───────── L3: PREVISÃO + JUSTIFICATIVA (antes do lançamento) ───────── */}
+          {phase === 's3-predict' && (
+            <div className="bg-neutral-white rounded-lg p-xxs"
+              style={{
+                border: '2px solid var(--color-brand-otimath-lighter)',
+                boxShadow: '0 4px 14px rgba(36, 80, 190, 0.08)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                Lançamento 3 de 3 — Fazer uma previsão
+              </p>
+              <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+                Antes de a máquina lançar, faça uma <strong>previsão</strong>: qual será a{' '}
+                <strong>soma</strong> dos dois dados?
+              </p>
+
+              {/* Input previsão */}
+              <div className="flex items-center justify-center mb-micro" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <span className="ds-body-bold text-neutral-black">Sua previsão:</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={predictionInput}
+                  onChange={e => {
+                    setPredictionInput(e.target.value);
+                    setPredictionError('');
+                  }}
+                  aria-label="Digite sua previsão de soma, entre 2 e 12"
+                  aria-invalid={!!predictionError}
+                  className="ds-body-bold"
+                  style={{
+                    border: `2px solid ${predictionError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    width: 84,
+                    minHeight: 44,
+                    textAlign: 'center',
+                    outline: 'none',
+                  }}
+                />
+                <span className="ds-small text-neutral-medium">(entre 2 e 12)</span>
+              </div>
+              {predictionError && (
+                <p
+                  role="alert"
+                  className="ds-small-bold text-center mb-micro"
+                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                >
+                  {predictionError}
+                </p>
+              )}
+
+              {/* Justificativa metacognitiva */}
+              <fieldset
+                style={{
+                  border: predictionReasonError
+                    ? '2px solid var(--color-feedback-error-dark)'
+                    : '1px solid var(--color-neutral-lighter)',
+                  borderRadius: 10,
+                  padding: 12,
+                  marginTop: 8,
+                  marginBottom: 8,
+                }}
+              >
+                <legend className="ds-body-bold text-neutral-black" style={{ padding: '0 6px' }}>
+                  Por que você escolheu esse número?
+                </legend>
+                {[
+                  { value: 'equip', label: 'Acho que toda soma tem a mesma chance.' },
+                  { value: 'maisChance', label: 'Acho que esse número aparece mais.' },
+                  { value: 'intuicao', label: 'Foi só uma intuição.' },
+                ].map(opt => (
+                  <label
+                    key={opt.value}
+                    className="ds-body text-neutral-black"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                      padding: '10px 4px',
+                      cursor: 'pointer',
+                      minHeight: 44,
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="prediction-reason"
+                      value={opt.value}
+                      checked={predictionReason === opt.value}
+                      onChange={() => {
+                        setPredictionReason(opt.value as 'equip' | 'maisChance' | 'intuicao');
+                        setPredictionReasonError(false);
+                      }}
+                      aria-label={opt.label}
+                      style={{ marginTop: 4, width: 20, height: 20, accentColor: 'var(--color-brand-otimath-pure)' }}
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
+                {predictionReasonError && (
+                  <p
+                    role="alert"
+                    className="ds-small-bold"
+                    style={{ color: 'var(--color-feedback-error-dark)', marginTop: 4 }}
+                  >
+                    Escolha um motivo antes de lançar.
+                  </p>
+                )}
+              </fieldset>
+
+              <div className="flex justify-center mt-macro">
+                <Button
+                  style="primary"
+                  size="medium"
+                  onClick={validatePrediction}
+                  aria-label="Lançar a máquina e observar o resultado"
+                >
+                  🎲 Lançar e observar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ───────── L3: REFLEXÃO (feedback adidático) ───────── */}
+          {phase === 's3-reflect' && blueResult != null && greenResult != null && (
+            (() => {
+              const realSum = greenResult + blueResult;
+              const userPrediction = parseInt(predictionInput.trim(), 10);
+              const occurred = userPrediction === realSum;
+              return (
+                <div className="bg-neutral-white rounded-lg p-xxs"
+                  style={{ border: '1px solid var(--color-neutral-lighter)', maxWidth: 560, margin: '0 auto' }}>
+                  <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                    Lançamento 3 — Resultado
+                  </p>
+                  {renderResultCard(true)}
+                  <p className="ds-body text-neutral-black text-center mb-micro">
+                    Sua previsão foi <strong>{userPrediction}</strong>.{' '}
+                    {occurred ? (
+                      <span style={{ color: 'var(--color-feedback-success-dark)' }}>
+                        Sua previsão <strong>ocorreu</strong>.
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--color-feedback-warning-dark)' }}>
+                        Sua previsão <strong>não ocorreu</strong>.
+                      </span>
+                    )}
+                  </p>
+                  {occurred ? (
+                    <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+                      Será que ocorreu porque sua intuição estava certa, ou porque o acaso
+                      colaborou? Se a máquina lançar de novo, você confiaria na mesma previsão?
+                    </p>
+                  ) : (
+                    <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+                      E se a máquina lançar mil vezes, sua previsão seria a melhor escolha?
+                      Sua intuição funciona... ou foi acaso?
+                    </p>
+                  )}
+                  <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+                    E aquele motivo que você marcou — ele ainda <strong>faz sentido</strong>{' '}
+                    para você?
+                  </p>
+                  <div className="flex justify-center mt-macro">
+                    <Button
+                      style="primary"
+                      size="medium"
+                      onClick={goToBridge}
+                      aria-label="Refletir sobre o experimento e avançar"
+                    >
+                      Continuar
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()
+          )}
+
+          {/* ───────── BRIDGE: ponte para a Cena 7 (tabela 6×6) ───────── */}
+          {phase === 'bridge' && (
+            <div className="rounded-lg p-xxs"
+              style={{
+                background:
+                  'linear-gradient(180deg, var(--color-brand-otimath-lighter) 0%, var(--color-brand-otimath-lightest) 100%)',
+                border: '2px solid var(--color-brand-otimath-pure)',
+                boxShadow: '0 6px 20px rgba(36, 80, 190, 0.18)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
+                Há um padrão escondido?
+              </p>
+              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                Você viu que a soma nem sempre sai como imaginamos. Mas será que isso é{' '}
+                <strong>só acaso</strong>... ou existe um <strong>padrão escondido</strong>?
+              </p>
+              <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+                Para descobrir, precisamos enxergar <strong>todos</strong> os resultados
+                possíveis ao mesmo tempo. Vamos organizar todos os pares numa tabela 6×6.
+              </p>
+              <div className="flex justify-center mt-macro">
+                <Button
+                  style="primary"
+                  size="medium"
+                  onClick={onFinished}
+                  aria-label="Concluir esta etapa e ir para a tabela de pares"
+                >
+                  Concluir esta etapa
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

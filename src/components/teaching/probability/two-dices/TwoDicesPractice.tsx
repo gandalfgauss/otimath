@@ -160,7 +160,7 @@ const A3: E[] = [
   e('Sair número composto ou menor que 4.', f => isComposite(f) || f < 4),
   e('Sair número primo ou divisor de 15.', f => isPrime(f) || isDivisorOf(f, 15)),
   e('Sair número que deixa resto 1 na divisão por 2 ou resto 0 na divisão por 3.', f => f % 2 === 1 || f % 3 === 0),
-  e('Sair número maior que 2 ou múltiplo de 2.', f => f > 2 || isMultOf(f, 2)),
+  e('Sair um número maior que 3 ou que não seja primo.', f => f > 3 || !isPrime(f)),
   e('Sair número divisor de 12 ou número primo.', f => isDivisorOf(f, 12) || isPrime(f)),
   e('Sair número múltiplo de 3 ou número menor que 5.', f => isMultOf(f, 3) || f < 5),
   e('Sair número divisor de 12 ou divisor de 18.', f => isDivisorOf(f, 12) || isDivisorOf(f, 18)),
@@ -1805,20 +1805,30 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
         );
       })()}
 
-      {/* ═══════ FINALIZAÇÃO ═══════ */}
+      {/* ═══════ FINALIZAÇÃO — ponte para a Cena 6 (máquina automática) ═══════ */}
       {mainPhase === 'finished' && (
         <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
           style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <p className="ds-body-bold text-neutral-black" style={{ fontSize: '1.05rem', textAlign: 'justify' }}>
-            Parabéns! Você praticou identificar eventos e calcular probabilidades com um dado.
-            Agora que domina o dado <strong style={{ color: 'var(--color-feedback-success-dark)' }}>verde</strong> (linhas)
-            e o dado <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong> (colunas), vamos
-            combinar <strong>dois dados</strong> numa tabela onde cada célula
-            representa um par ordenado de resultados.
+          <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
+            De um para dois dados
+          </p>
+          <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+            Você domina o experimento com <strong>um dado</strong>. Agora vamos lançar
+            {' '}<strong>dois</strong> — um <strong style={{ color: 'var(--color-feedback-success-dark)' }}>verde</strong>
+            {' '}e um <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong>.
+          </p>
+          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+            Antes de organizar tudo numa tabela, <strong>observe o fenômeno</strong>:
+            o processo é mecânico, mas o par <strong>(verde, azul)</strong> continua imprevisível.
           </p>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={onFinished}>
-              Iniciar Simulação com Dois Dados
+            <Button
+              style="primary"
+              size="small"
+              onClick={onFinished}
+              aria-label="Avançar para a máquina automática de lançamento"
+            >
+              Observar a máquina
             </Button>
           </div>
         </div>

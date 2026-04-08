@@ -333,18 +333,41 @@ export function TwoDicesExperiment({ diceSceneRef, diceContainerRef, onFinished 
         Lançamento de dois dados
       </h2>
 
-      {/* ═══════ INTRO ═══════ */}
+      {/* ═══════ INTRO — costura narrativa após a Cena 6 (máquina automática) ═══════
+          Reordenamento didático: o aluno chega aqui já tendo observado o
+          fenômeno na máquina, registrado pares, somado e feito uma previsão.
+          A tabela é a RESPOSTA à pergunta plantada na ponte da Cena 6
+          ("será que é só acaso ou existe um padrão escondido?"). */}
       {phase === 'intro' && (
-        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <p className="ds-body-bold text-neutral-black mb-macro" style={{ textAlign: 'justify', fontSize: '1.05rem' }}>
-            Agora vamos lançar <strong>dois dados simultaneamente</strong>: o dado
-            <strong style={{ color: 'var(--color-feedback-success-dark)' }}> verde</strong> e o dado
-            <strong style={{ color: 'var(--color-brand-otimath-pure)' }}> azul</strong>.
-            Cada lançamento produz um <strong>par ordenado</strong> (verde, azul) que você vai identificar e registrar na tabela.
+        <div ref={cardRef} className="rounded-lg p-xxs"
+          style={{
+            background:
+              'linear-gradient(180deg, var(--color-brand-otimath-lightest) 0%, var(--color-neutral-white) 100%)',
+            border: '2px solid var(--color-brand-otimath-light)',
+            boxShadow: '0 4px 16px rgba(36, 80, 190, 0.10)',
+          }}>
+          <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
+            Organizando todos os pares
+          </p>
+          <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+            Você observou a máquina, registrou pares, somou e fez uma previsão. Agora vamos
+            enxergar <strong>todos os pares possíveis ao mesmo tempo</strong>, organizados
+            numa tabela 6×6.
+          </p>
+          <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+            A cada lançamento, você vai ler o resultado dos dados{' '}
+            <strong style={{ color: '#1a5c2e' }}>verde</strong> (linhas) e{' '}
+            <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong> (colunas)
+            e marcar o par ordenado <strong>(verde, azul)</strong> na célula correspondente
+            da tabela.
           </p>
           <div className="flex justify-center">
-            <Button style="primary" size="small" onClick={() => setPhase('ready')}>
+            <Button
+              style="primary"
+              size="small"
+              onClick={() => setPhase('ready')}
+              aria-label="Iniciar o experimento com tabela de pares ordenados"
+            >
               Começar
             </Button>
           </div>

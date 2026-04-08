@@ -138,12 +138,12 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   // Ref do dado 3D e seu container (para scroll programático)
   const diceRef = useRef<DiceSceneHandle>(null);
   const diceContainerRef = useRef<HTMLDivElement>(null);
-  // Ref da cena de dois dados (Cena 6)
-  const twoDiceRef = useRef<TwoDiceSceneHandle>(null);
-  const twoDiceContainerRef = useRef<HTMLDivElement>(null);
-  // Ref da máquina de lançamento (Cena 7)
+  // Ref da máquina de lançamento (Cena 6 — percepção do acaso)
   const diceMachineRef = useRef<DiceMachineSceneHandle>(null);
   const diceMachineContainerRef = useRef<HTMLDivElement>(null);
+  // Ref da cena de dois dados (Cena 7 — sistematização tabular)
+  const twoDiceRef = useRef<TwoDiceSceneHandle>(null);
+  const twoDiceContainerRef = useRef<HTMLDivElement>(null);
 
   // Cena 2: face atual na sequência
   const [currentFaceIdx, setCurrentFaceIdx] = useState(-1);
@@ -187,10 +187,10 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   const [scene5Finished, setScene5Finished] = useState(false);
   const [scene5DiceColor, setScene5DiceColor] = useState<'green' | 'blue'>('green');
 
-  // ═══════ Cena 6: experimento com dois dados ═══════
+  // ═══════ Cena 6: máquina automática de lançamento (percepção do acaso) ═══════
   const [scene6Finished, setScene6Finished] = useState(false);
 
-  // ═══════ Cena 7: máquina automática de lançamento ═══════
+  // ═══════ Cena 7: experimento com dois dados — tabela 6×6 (sistematização) ═══════
   const [scene7Finished, setScene7Finished] = useState(false);
 
   // Banner desaparece após 4s
@@ -951,24 +951,12 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
               />
             )}
 
-            {/* ═══════ CENA 6 — Dois dados 3D + tabela 6×6 ═══════ */}
+            {/* ═══════ CENA 6 — Máquina automática (PERCEPÇÃO do acaso bidimensional) ═══════
+                Reordenamento didático (Brousseau, Freudenthal, Cazorla, Borovcnik):
+                a observação do fenômeno físico precede a sistematização tabular.
+                Aqui o aluno observa, registra com picker visual, soma e finalmente
+                faz uma previsão metacognitiva — preparando a Cena 7. */}
             {scene === 6 && (
-              <>
-                <div ref={twoDiceContainerRef} style={{ width: '100%' }}>
-                  <TwoDiceScene ref={twoDiceRef} />
-                </div>
-                <TwoDicesExperiment
-                  diceSceneRef={twoDiceRef}
-                  diceContainerRef={twoDiceContainerRef}
-                  onFinished={() => {
-                    setScene6Finished(true);
-                  }}
-                />
-              </>
-            )}
-
-            {/* ═══════ CENA 7 — Máquina automática de lançamento ═══════ */}
-            {scene === 7 && (
               <>
                 <div ref={diceMachineContainerRef} style={{ width: '100%' }}>
                   <DiceMachineScene ref={diceMachineRef} />
@@ -976,6 +964,26 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                 <DiceMachineExperiment
                   diceMachineRef={diceMachineRef}
                   diceContainerRef={diceMachineContainerRef}
+                  onFinished={() => {
+                    setScene6Finished(true);
+                  }}
+                />
+              </>
+            )}
+
+            {/* ═══════ CENA 7 — Dois dados 3D + tabela 6×6 (SISTEMATIZAÇÃO a posteriori) ═══════
+                Após perceber a aleatoriedade do par (verde, azul) na máquina e
+                comprometer-se metacognitivamente com uma previsão de soma, o aluno
+                chega à tabela 6×6 com uma pergunta viva: existe um padrão escondido?
+                A tabela é a resposta — Freudenthal, 1991, p. 76. */}
+            {scene === 7 && (
+              <>
+                <div ref={twoDiceContainerRef} style={{ width: '100%' }}>
+                  <TwoDiceScene ref={twoDiceRef} />
+                </div>
+                <TwoDicesExperiment
+                  diceSceneRef={twoDiceRef}
+                  diceContainerRef={twoDiceContainerRef}
                   onFinished={() => {
                     setScene7Finished(true);
                   }}
@@ -1003,7 +1011,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
             onClick={handleNext}
             disabled={transitioning}
           >
-            {scene === 5 ? 'Próximo: dois dados' : scene === 6 ? 'Próximo: máquina automática' : scene === 7 ? 'Concluir apresentação' : 'Próximo'}
+            {scene === 5 ? 'Próximo: máquina de lançar dados' : scene === 6 ? 'Próximo: organizar na tabela' : scene === 7 ? 'Concluir apresentação' : 'Próximo'}
           </Button>
         )}
       </div>
