@@ -606,25 +606,103 @@ export function DiceMachineExperiment({
     playSound('/sounds/nextChallenge.mp3');
   }, []);
 
-  // ═══════ Indicador de etapas (L1, L2, L3) ═══════
-  const StageIndicator = (
-    <div
-      className="flex items-center justify-center gap-x-micro mb-micro"
-      role="progressbar"
-      aria-label="Progresso das três etapas"
-      aria-valuemin={1}
-      aria-valuemax={3}
-      aria-valuenow={
-        phase === 'intro'
-          ? 0
-          : phase.startsWith('s1')
-            ? 1
-            : phase.startsWith('s2')
-              ? 2
-              : 3
+  // ═══════ Volta fase a fase (botão triangular acima do indicador) ═══════
+  // Mapeamento das macro-etapas (L1/L2/L3) para a fase ESTÁVEL anterior:
+  //   s1-*  → intro          (1ª macro-etapa volta ao card de transição)
+  //   s2-*  → s1-correct     (estado "L1 concluída", mostra o resultado)
+  //   s3-*  → s2-correct     (estado "L2 concluída")
+  //   bridge → s3-reflect    (volta pro feedback de L3)
+  // Quando volta, limpa o estado introduzido na fase atual (pickers, soma,
+  // previsão) para o usuário não ficar com inputs antigos no caminho.
+  const goPreviousStage = useCallback(() => {
+    if (runningRef.current) return; // não interrompe lançamento em curso
+    if (phase === 'intro' || phase === 's1-ready' || phase === 's1-rolling' || phase === 's1-pick' || phase === 's1-correct') {
+      // Já na primeira macro-etapa (ou intro): volta ao intro
+      if (phase === 'intro') return;
+      resetPicker();
+      setBlueResult(null);
+      setGreenResult(null);
+      setStepIdx(-1);
+      setPhase('intro');
+    } else if (phase.startsWith('s2')) {
+      resetPicker();
+      setSumInput('');
+      setSumError(false);
+      setSumFeedback('');
+      setBlueResult(null);
+      setGreenResult(null);
+      setStepIdx(-1);
+      setPhase('s1-correct');
+    } else if (phase.startsWith('s3') || phase === 'bridge') {
+      // Volta para o final estável da macro anterior
+      if (phase === 'bridge') {
+        setPhase('s3-reflect');
+      } else {
+        setPredictionInput('');
+        setPredictionError('');
+        setPredictionReason('');
+        setPredictionReasonError(false);
+        setBlueResult(null);
+        setGreenResult(null);
+        setStepIdx(-1);
+        setPhase('s2-correct');
       }
-    >
-      {[1, 2, 3].map(s => {
+    }
+    playSound('/sounds/clear.mp3');
+  }, [phase, resetPicker]);
+
+  // Existe alguma fase anterior pra voltar?
+  const hasPreviousStage = phase !== 'intro';
+
+  // ═══════ Indicador de etapas (L1, L2, L3) com botão de voltar fase a fase ═══════
+  const StageIndicator = (
+    <div className="flex flex-col items-center mb-micro">
+      {/* Triângulo "voltar fase" — só aparece se há fase anterior e
+         a máquina não está em meio a um lançamento. Acima das bolinhas. */}
+      {hasPreviousStage && !runningRef.current && (
+        <button
+          type="button"
+          onClick={goPreviousStage}
+          aria-label="Voltar uma fase"
+          title="Voltar uma fase"
+          className="mb-nano"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            padding: 4,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--color-brand-otimath-pure)',
+            transition: 'transform 0.15s, color 0.15s',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px) scale(1.08)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'none'; }}
+        >
+          {/* Triângulo apontando para cima — SVG inline para edges crisp */}
+          <svg width="22" height="18" viewBox="0 0 22 18" fill="currentColor" aria-hidden>
+            <path d="M11 2 L20 16 L2 16 Z" />
+          </svg>
+        </button>
+      )}
+      <div
+        className="flex items-center justify-center gap-x-micro"
+        role="progressbar"
+        aria-label="Progresso das três etapas"
+        aria-valuemin={1}
+        aria-valuemax={3}
+        aria-valuenow={
+          phase === 'intro'
+            ? 0
+            : phase.startsWith('s1')
+              ? 1
+              : phase.startsWith('s2')
+                ? 2
+                : 3
+        }
+      >
+        {[1, 2, 3].map(s => {
         const current =
           (s === 1 && phase.startsWith('s1')) ||
           (s === 2 && phase.startsWith('s2')) ||
@@ -654,6 +732,7 @@ export function DiceMachineExperiment({
           </div>
         );
       })}
+      </div>
     </div>
   );
 

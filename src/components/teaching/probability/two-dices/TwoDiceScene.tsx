@@ -304,7 +304,7 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
     const woodTex = makeWood(maxAniso);
     const table = new THREE.Mesh(
       new THREE.PlaneGeometry(22, 15),
-      new THREE.MeshStandardMaterial({ map: woodTex, color: 0xd4945a, roughness: 0.58, metalness: 0.04 })
+      new THREE.MeshStandardMaterial({ map: woodTex, color: 0x8b5a2b, roughness: 0.58, metalness: 0.04 })
     );
     table.rotation.x = -Math.PI / 2; table.position.y = TABLE_Y; table.receiveShadow = true;
     scene.add(table);

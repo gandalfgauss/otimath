@@ -1003,17 +1003,51 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
         <span className="ds-caption text-neutral-medium">
           OVA Probabilidade — Dois Dados · Rangel Freitas dos Santos · PROFMAT / UFVJM
         </span>
-        {scene !== 2 && !(scene === 3 && scene3Step < 6) && !(scene === 4 && scene4Step < 3) && !(scene === 5 && !scene5Finished) && !(scene === 6 && !scene6Finished) && !(scene === 7 && !scene7Finished) && (
-          <Button
-            style="primary"
-            size="small"
-            icon={scene === 4 ? <Dices /> : <ArrowRight />}
-            onClick={handleNext}
-            disabled={transitioning}
+        <div className="flex items-center gap-xxs">
+          {scene !== 2 && !(scene === 3 && scene3Step < 6) && !(scene === 4 && scene4Step < 3) && !(scene === 5 && !scene5Finished) && !(scene === 6 && !scene6Finished) && !(scene === 7 && !scene7Finished) && (
+            <Button
+              style="primary"
+              size="small"
+              icon={scene === 4 ? <Dices /> : <ArrowRight />}
+              onClick={handleNext}
+              disabled={transitioning}
+            >
+              {scene === 5 ? 'Próximo: máquina de lançar dados' : scene === 6 ? 'Próximo: organizar na tabela' : scene === 7 ? 'Concluir apresentação' : 'Próximo'}
+            </Button>
+          )}
+          {/* Bolinha dev: pula de fase em fase (apenas para verificação) */}
+          <button
+            type="button"
+            aria-label={`Pular para a próxima fase (atual: ${scene})`}
+            title={`Pular fase (atual: ${scene}/7)`}
+            onClick={() => {
+              if (transitioning) return;
+              const next = scene >= 7 ? 1 : scene + 1;
+              goToScene(next);
+            }}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: '50%',
+              backgroundColor: '#ff3b30',
+              border: '2px solid #ffffff',
+              boxShadow: '0 0 0 2px #ff3b30, 0 2px 6px rgba(0,0,0,0.35)',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontSize: 11,
+              fontWeight: 700,
+              lineHeight: 1,
+              opacity: transitioning ? 0.4 : 1,
+              flexShrink: 0,
+            }}
           >
-            {scene === 5 ? 'Próximo: máquina de lançar dados' : scene === 6 ? 'Próximo: organizar na tabela' : scene === 7 ? 'Concluir apresentação' : 'Próximo'}
-          </Button>
-        )}
+            {scene}
+          </button>
+        </div>
       </div>
     </main>
   );
