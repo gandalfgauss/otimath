@@ -18,6 +18,102 @@ const PIP_PATTERNS: Record<number, number[]> = {
   6: [1,0,1, 1,0,1, 1,0,1],
 };
 
+// ═══════ Paleta de cores dos 13 carrinhos da corrida ═══════
+// Carrinhos 1 e 13 em cinza opaco (visualmente "sem vida") — instanciação
+// semiótica da impossibilidade. Carrinho 7 em dourado — destaque do pico.
+const CAR_COLORS: Record<number, { body: string; detail: string; number: string }> = {
+  1:  { body: '#9ca3af', detail: '#6b7280', number: '#374151' }, // cinza opaco — impossível
+  2:  { body: '#dc2626', detail: '#ffffff', number: '#ffffff' }, // vermelho
+  3:  { body: '#ea580c', detail: '#fde047', number: '#ffffff' }, // laranja
+  4:  { body: '#facc15', detail: '#000000', number: '#000000' }, // amarelo
+  5:  { body: '#84cc16', detail: '#ffffff', number: '#ffffff' }, // verde-lima
+  6:  { body: '#10b981', detail: '#000000', number: '#ffffff' }, // esmeralda
+  7:  { body: '#fbbf24', detail: '#000000', number: '#7c2d12' }, // dourado — pico
+  8:  { body: '#06b6d4', detail: '#ffffff', number: '#ffffff' }, // ciano
+  9:  { body: '#2563eb', detail: '#ffffff', number: '#ffffff' }, // azul royal
+  10: { body: '#7c3aed', detail: '#e5e7eb', number: '#ffffff' }, // roxo
+  11: { body: '#ec4899', detail: '#ffffff', number: '#ffffff' }, // rosa pink
+  12: { body: '#881337', detail: '#fbbf24', number: '#fbbf24' }, // vinho
+  13: { body: '#9ca3af', detail: '#6b7280', number: '#374151' }, // cinza opaco — impossível
+};
+
+// ═══════ Componente SVG do carrinho de corrida estilo-brinquedo ═══════
+// Corpo arredondado estilo Hot Wheels, para-brisa fumê, rodas pretas com
+// centro cromado, número grande estampado na lateral. Cores vibrantes.
+function CarrinhoIcon({ numero, width = 72, highlighted = false }: {
+  numero: number;
+  width?: number;
+  highlighted?: boolean;
+}) {
+  const colors = CAR_COLORS[numero] ?? CAR_COLORS[2];
+  const height = Math.floor(width * 0.5);
+  const isImpossible = numero === 1 || numero === 13;
+  return (
+    <svg
+      viewBox="0 0 120 60"
+      width={width}
+      height={height}
+      role="img"
+      aria-label={`Carrinho número ${numero}${isImpossible ? ' (soma impossível)' : ''}`}
+      style={{
+        filter: highlighted ? 'drop-shadow(0 0 6px #fbbf24) drop-shadow(0 0 10px #fbbf24)' : 'none',
+        opacity: isImpossible ? 0.7 : 1,
+        transition: 'filter 0.2s ease',
+      }}
+    >
+      <defs>
+        <linearGradient id={`body-${numero}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={colors.body} stopOpacity="1" />
+          <stop offset="50%" stopColor={colors.body} stopOpacity="1" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0.35" />
+        </linearGradient>
+      </defs>
+      {/* Sombra no chão */}
+      <ellipse cx="60" cy="55" rx="46" ry="3" fill="rgba(0,0,0,0.32)" />
+      {/* Corpo do carrinho — silhueta arredondada estilo brinquedo */}
+      <path
+        d="M 10 42 Q 10 32 22 28 L 38 26 Q 46 16 60 16 Q 74 16 82 26 L 98 28 Q 110 32 110 42 L 110 46 Q 110 50 104 50 L 16 50 Q 10 50 10 46 Z"
+        fill={`url(#body-${numero})`}
+        stroke="#000"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      {/* Para-brisa escuro/fumê */}
+      <path
+        d="M 42 28 Q 48 20 60 20 Q 72 20 78 28 L 75 36 L 45 36 Z"
+        fill="rgba(15,20,35,0.78)"
+        stroke="#000"
+        strokeWidth="0.8"
+      />
+      {/* Faixa decorativa lateral */}
+      <rect x="14" y="41" width="92" height="3" fill={colors.detail} opacity="0.85" />
+      {/* Número estampado */}
+      <text
+        x="60"
+        y="46"
+        fontSize="18"
+        fontWeight="900"
+        textAnchor="middle"
+        fill={colors.number}
+        stroke="#000"
+        strokeWidth="0.6"
+        paintOrder="stroke"
+        style={{ fontFamily: 'system-ui, sans-serif' }}
+      >
+        {numero}
+      </text>
+      {/* Roda traseira */}
+      <circle cx="28" cy="50" r="7" fill="#1a1a1a" stroke="#000" strokeWidth="0.8" />
+      <circle cx="28" cy="50" r="3.2" fill="#9ca3af" />
+      <circle cx="28" cy="50" r="1.2" fill="#4b5563" />
+      {/* Roda dianteira */}
+      <circle cx="92" cy="50" r="7" fill="#1a1a1a" stroke="#000" strokeWidth="0.8" />
+      <circle cx="92" cy="50" r="3.2" fill="#9ca3af" />
+      <circle cx="92" cy="50" r="1.2" fill="#4b5563" />
+    </svg>
+  );
+}
+
 function DiceFaceIcon({ face, size, color = 'blue' }: { face: number; size: number; color?: 'blue' | 'green' }) {
   const pips = PIP_PATTERNS[face];
   const pipSize = Math.floor(size * 0.22);
@@ -200,6 +296,7 @@ type Phase =
   | 'sumInput' | 'sumMarkTable' | 'sumComplete'
   | 'sumAlienIntro' | 'sumPredictMax' | 'sumPredictMin' | 'sumImpossible' | 'sumReveal'
   | 'probPair' | 'probPairReveal' | 'probSumTable' | 'probSumReveal'
+  | 'raceBet' | 'raceRunning' | 'raceFinished'
   | 'pairQuestion' | 'pairExplain' | 'colorQuestion' | 'colorExplain'
   | 'finished';
 
@@ -340,6 +437,30 @@ export function TwoDicesExperiment({
   });
   const [probSumWrongRows, setProbSumWrongRows] = useState<Set<number>>(new Set());
   const [probSumFeedback, setProbSumFeedback] = useState<'none' | 'missing' | 'wrong'>('none');
+
+  // ═══════ CORRIDA DE CARRINHOS (fase final do OVA) ═══════
+  // 13 carrinhos numerados de 1 a 13. Pista com 6 células de percurso.
+  // Carrinhos 1 e 13 nunca avançam (P=0, eventos impossíveis) — pedagogia
+  // pela inércia visual. Aluno deve reconhecer e evitar apostar neles.
+  const RACE_LENGTH = 6;
+  // Aposta do aluno no carrinho vencedor (null = ainda não apostou)
+  const [raceBet, setRaceBet] = useState<number | null>(null);
+  // Posição de cada carrinho na pista (índice = número do carrinho, valor = célula atual 0..6)
+  const [racePositions, setRacePositions] = useState<Record<number, number>>(() => {
+    const init: Record<number, number> = {};
+    for (let n = 1; n <= 13; n++) init[n] = 0;
+    return init;
+  });
+  // Soma do último sorteio — o aluno precisa clicar no carrinho dessa soma para avançar
+  const [racePendingSum, setRacePendingSum] = useState<number | null>(null);
+  // Erro ao clicar no carrinho errado durante o sorteio pendente
+  const [raceClickError, setRaceClickError] = useState(false);
+  // Modal de confirmação quando aluno aposta em carrinho impossível (1 ou 13)
+  const [raceImpossibleConfirm, setRaceImpossibleConfirm] = useState<number | null>(null);
+  // Vencedor da corrida (null enquanto corrida em andamento)
+  const [raceWinner, setRaceWinner] = useState<number | null>(null);
+  // Bloqueio temporário do botão Sortear entre sorteio e clique no carrinho correto
+  const [raceBusy, setRaceBusy] = useState(false);
 
   // Guards
   const rolling = useRef(false);
@@ -560,6 +681,15 @@ export function TwoDicesExperiment({
     setProbSumInputs(initProbSum);
     setProbSumWrongRows(new Set());
     setProbSumFeedback('none');
+    setRaceBet(null);
+    const initRace: Record<number, number> = {};
+    for (let n = 1; n <= 13; n++) initRace[n] = 0;
+    setRacePositions(initRace);
+    setRacePendingSum(null);
+    setRaceClickError(false);
+    setRaceImpossibleConfirm(null);
+    setRaceWinner(null);
+    setRaceBusy(false);
     setPhase('ready');
   };
 
@@ -836,6 +966,91 @@ export function TwoDicesExperiment({
     playSound('/sounds/incorrect.mp3');
   };
 
+  // ═══════ CORRIDA DE CARRINHOS — lógica ═══════
+
+  /** Aluno clica num carrinho para fazer sua aposta. Em 1 ou 13 (impossíveis),
+   * aparece confirmação metacognitiva lembrando do que ele descobriu antes. */
+  const handleRaceBetClick = (carNumber: number) => {
+    if (carNumber === 1 || carNumber === 13) {
+      setRaceImpossibleConfirm(carNumber);
+      return;
+    }
+    setRaceBet(carNumber);
+    setRaceImpossibleConfirm(null);
+    playSound('/sounds/correct.mp3');
+  };
+
+  /** Confirma aposta num carrinho impossível (aluno insistiu). */
+  const confirmImpossibleBet = () => {
+    if (raceImpossibleConfirm !== null) {
+      setRaceBet(raceImpossibleConfirm);
+      setRaceImpossibleConfirm(null);
+      playSound('/sounds/nextChallenge.mp3');
+    }
+  };
+
+  /** Cancela aposta num carrinho impossível (aluno refletiu). */
+  const cancelImpossibleBet = () => {
+    setRaceImpossibleConfirm(null);
+  };
+
+  /** Inicia a corrida: primeiro sorteio disparando launchDice sem branch logic
+   * e entrando na fase raceRunning. */
+  const startRace = () => {
+    if (raceBet === null) return;
+    setPhase('raceRunning');
+    playSound('/sounds/nextChallenge.mp3');
+  };
+
+  /** Dispara um sorteio dos dados na fase raceRunning.
+   * Faz scroll para o topo para o aluno ver o lançamento dos dados em 3D. */
+  const rollRaceDice = async () => {
+    if (raceBusy || racePendingSum !== null || raceWinner !== null) return;
+    const scene = diceSceneRef.current;
+    if (!scene) return;
+    setRaceBusy(true);
+    // Scroll para a cena 3D dos dados no topo da tela
+    diceContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    try {
+      const result = await scene.roll();
+      const sum = result.green + result.blue;
+      setRacePendingSum(sum);
+      setRaceClickError(false);
+      // Após os dados pararem, faz scroll para a pista para que o aluno clique
+      setTimeout(() => {
+        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 450);
+    } finally {
+      setRaceBusy(false);
+    }
+  };
+
+  /** Clique num carrinho durante a corrida — deve corresponder à soma pendente. */
+  const handleRaceCarClick = (carNumber: number) => {
+    if (racePendingSum === null || raceWinner !== null) return;
+    if (carNumber !== racePendingSum) {
+      setRaceClickError(true);
+      playSound('/sounds/incorrect.mp3');
+      return;
+    }
+    // Acertou — avança o carrinho 1 célula
+    setRaceClickError(false);
+    const newPositions = { ...racePositions };
+    const newPos = (newPositions[carNumber] ?? 0) + 1;
+    newPositions[carNumber] = newPos;
+    setRacePositions(newPositions);
+    setRacePendingSum(null);
+    playSound('/sounds/click.mp3');
+    // Verifica vitória
+    if (newPos >= RACE_LENGTH) {
+      setRaceWinner(carNumber);
+      setTimeout(() => {
+        playSound('/sounds/gameFinished.mp3');
+        setPhase('raceFinished');
+      }, 600);
+    }
+  };
+
   /** Atualiza numerador ou denominador de uma linha específica da tabela de somas. */
   const setProbSumField = (sum: number, field: 'num' | 'den', value: string) => {
     setProbSumInputs(prev => ({
@@ -911,14 +1126,17 @@ export function TwoDicesExperiment({
   // Nas 4 fases finais (probPair, probPairReveal, probSumTable, probSumReveal),
   // a cena 3D dos dados verde/azul fica dissonante com a pergunta (que não é
   // mais sobre o lançamento físico, mas sobre a estrutura probabilística).
-  // Esconde ambas as cenas via callback ao parent.
+  // Nas fases da corrida (raceBet, raceRunning, raceFinished), os dados VOLTAM
+  // a ser visíveis — o aluno precisa ver o lançamento físico que determina a
+  // soma. Apenas raceFinished esconde novamente (celebração + alien).
   useEffect(() => {
     if (!onHideAllDice) return;
     const shouldHide =
       phase === 'probPair' ||
       phase === 'probPairReveal' ||
       phase === 'probSumTable' ||
-      phase === 'probSumReveal';
+      phase === 'probSumReveal' ||
+      phase === 'raceFinished';
     onHideAllDice(shouldHide);
   }, [phase, onHideAllDice]);
 
@@ -2116,20 +2334,40 @@ export function TwoDicesExperiment({
 
                 {/* Histograma construído progressivamente EM PARALELO com a animação
                     da tabela. Cada barra cresce no momento em que sua soma é revelada
-                    no tabuleiro. */}
+                    no tabuleiro. Inline styles (sem className) para garantir alinhamento
+                    dentro do container e evitar conflitos com media queries.
+                    Labels de frequência colados ao topo de cada barra via flex-end
+                    + altura em pixels (não percentual). */}
                 <div
-                  className="sumRevealHistogram"
                   role="img"
                   aria-label="Histograma da distribuição das somas de dois dados (construção progressiva)"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    justifyContent: 'center',
+                    gap: 6,
+                    padding: '12px 8px',
+                    background: 'var(--color-neutral-lightest)',
+                    border: '1px solid var(--color-neutral-lighter)',
+                    borderRadius: 12,
+                    height: 200,
+                    width: '100%',
+                    maxWidth: 280,
+                    boxSizing: 'border-box',
+                    flexShrink: 0,
+                  }}
                 >
                   {counts.map(({ sum, count }) => {
                     const isMax = count === maxCount;
                     const isMin = count === 1;
                     // A barra só tem altura se sua soma já foi revelada pela animação
                     const revealed = sumRevealStep >= sum;
-                    const heightPct = revealed ? (count / maxCount) * 100 : 0;
-                    // Durante a animação, usa a mesma cor alternada da tabela na
-                    // barra que ACABOU de crescer; após animação, usa cor final.
+                    // Altura em pixels (não %) para que count label possa ficar colado
+                    // ao topo via flex-end. 150px é o máximo disponível entre os labels.
+                    const AVAIL_BAR_HEIGHT = 150;
+                    const barHeightPx = revealed ? (count / maxCount) * AVAIL_BAR_HEIGHT : 0;
+                    // Durante a animação, usa cor alternada da tabela na barra que acabou
+                    // de crescer; após animação, usa cor final (pico verde, extremos vermelhos).
                     const isGrowingNow = !animDone && sum === sumRevealStep;
                     let barBg: string;
                     if (isGrowingNow) {
@@ -2150,11 +2388,15 @@ export function TwoDicesExperiment({
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
+                          // flex-end: count + bar + sum se empilham a partir do fundo,
+                          // com count IMEDIATAMENTE acima da barra.
+                          justifyContent: 'flex-end',
                           height: '100%',
                           flex: 1,
-                          maxWidth: 42,
+                          maxWidth: 22,
                         }}
                       >
+                        {/* Count label — colado ao topo da barra (flex-end) */}
                         <span className="ds-small-bold" style={{
                           color: isMax
                             ? 'var(--color-feedback-success-dark)'
@@ -2162,40 +2404,30 @@ export function TwoDicesExperiment({
                             ? 'var(--color-feedback-error-dark)'
                             : 'var(--color-neutral-dark)',
                           fontSize: '0.72rem',
+                          fontWeight: 800,
                           opacity: revealed ? 1 : 0,
                           transition: 'opacity 0.2s ease',
-                          minHeight: 14,
                           lineHeight: '14px',
+                          marginBottom: 2,
                         }}>
                           {count}
                         </span>
-                        {/* Container intermediário flex:1 garante que o bar
-                            percentual seja relativo à área DISPONÍVEL entre os
-                            labels, não ao container completo. Sem isso, bars
-                            grandes (100%) são clipados pelos labels. */}
-                        <div style={{
-                          flex: 1,
-                          width: '100%',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'flex-end',
-                        }}>
-                          <div
-                            style={{
-                              width: '100%',
-                              height: `${heightPct}%`,
-                              background: barBg,
-                              borderRadius: '4px 4px 0 0',
-                              transition: 'height 0.28s ease-out, background 0.2s ease',
-                            }}
-                            aria-hidden
-                          />
-                        </div>
+                        {/* Bar com altura em pixels e transição animada */}
+                        <div
+                          style={{
+                            width: '100%',
+                            height: `${barHeightPx}px`,
+                            background: barBg,
+                            borderRadius: '4px 4px 0 0',
+                            transition: 'height 0.28s ease-out, background 0.2s ease',
+                          }}
+                          aria-hidden
+                        />
+                        {/* Sum label — eixo x no rodapé */}
                         <span className="ds-small" style={{
                           fontSize: '0.7rem',
                           color: 'var(--color-neutral-darkest)',
                           marginTop: 2,
-                          minHeight: 14,
                           lineHeight: '14px',
                         }}>
                           {sum}
@@ -2550,7 +2782,337 @@ export function TwoDicesExperiment({
                 Esse é um dos princípios fundamentais da probabilidade: a soma das probabilidades
                 de todos os resultados possíveis de um experimento aleatório é sempre igual a <strong>1</strong>.
               </p>
-              {/* Card final do alien entregando o livro */}
+              <p className="ds-body text-neutral-black" style={{ textAlign: 'center', fontSize: '0.95rem', marginTop: 8 }}>
+                Pronto para testar tudo que você aprendeu numa corrida de carrinhos?
+              </p>
+              <div className="flex justify-center mt-micro">
+                <Button style="primary" size="small" onClick={() => {
+                  playSound('/sounds/nextChallenge.mp3');
+                  setPhase('raceBet');
+                }}>
+                  Próximo: corrida dos carrinhos
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════ CORRIDA DE CARRINHOS — sub-fase raceBet (aposta obrigatória) ═══════ */}
+          {phase === 'raceBet' && (
+            <div className="flex flex-col gap-y-micro" style={{ maxWidth: 720, margin: '0 auto' }}>
+              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                Corrida dos carrinhos
+              </p>
+              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify', fontSize: '0.95rem' }}>
+                Antes de iniciar o jogo, <strong>aposte qual dos 13 carrinhos</strong> (numerados de 1 a 13) será o vencedor.
+                Para jogar, você deve clicar em <strong>&ldquo;Sortear&rdquo;</strong> e dois dados serão sorteados.
+                A soma dos resultados definirá qual carrinho irá se deslocar. Vence o carrinho que chegar primeiro.
+              </p>
+              <p className="ds-small text-center" style={{ color: 'var(--color-neutral-dark)', fontStyle: 'italic' }}>
+                Clique no carrinho em que você quer apostar. Lembre-se do que você descobriu sobre somas possíveis.
+              </p>
+              {/* Pista da corrida — 13 linhas, cada uma com carrinho à esquerda
+                  (clicável para aposta) + 6 células vazias + linha de chegada */}
+              <div
+                role="grid"
+                aria-label="Pista da corrida com 13 carrinhos"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 3,
+                  padding: 10,
+                  background: 'var(--color-neutral-lightest)',
+                  border: '1px solid var(--color-neutral-lighter)',
+                  borderRadius: 12,
+                }}
+              >
+                {/* Linhas de 13 até 1 (invertidas para 13 aparecer no topo) */}
+                {[13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(carNumber => {
+                  const isBet = raceBet === carNumber;
+                  return (
+                    <div
+                      key={`row-bet-${carNumber}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                    >
+                      {/* Número do carrinho */}
+                      <div style={{
+                        width: 26,
+                        textAlign: 'center',
+                        fontWeight: 800,
+                        fontSize: '0.82rem',
+                        color: isBet ? '#b45309' : 'var(--color-neutral-darkest)',
+                        flexShrink: 0,
+                      }}>
+                        {carNumber}
+                      </div>
+                      {/* Carrinho clicável (primeira célula, largada) */}
+                      <button
+                        type="button"
+                        onClick={() => handleRaceBetClick(carNumber)}
+                        aria-label={`Apostar no carrinho ${carNumber}`}
+                        style={{
+                          flex: 1,
+                          minHeight: 38,
+                          background: isBet ? 'rgba(251, 191, 36, 0.12)' : 'transparent',
+                          border: isBet ? '2px solid #fbbf24' : '1px solid var(--color-neutral-lighter)',
+                          borderRadius: 4,
+                          padding: 0,
+                          cursor: 'pointer',
+                          touchAction: 'manipulation',
+                          transition: 'border-color 0.18s ease, transform 0.12s ease, background 0.18s ease',
+                          transform: isBet ? 'scale(1.02)' : 'scale(1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <CarrinhoIcon numero={carNumber} width={44} highlighted={isBet} />
+                      </button>
+                      {/* Células vazias 2..6 */}
+                      {Array.from({ length: RACE_LENGTH - 1 }, (_, i) => (
+                        <div
+                          key={`cell-bet-${carNumber}-${i}`}
+                          style={{
+                            flex: 1,
+                            minHeight: 38,
+                            border: '1px solid var(--color-neutral-lighter)',
+                          }}
+                        />
+                      ))}
+                      {/* Linha de chegada */}
+                      <div
+                        style={{
+                          width: 16,
+                          minHeight: 38,
+                          background: 'repeating-linear-gradient(45deg, #000 0 4px, #fff 4px 8px)',
+                          flexShrink: 0,
+                        }}
+                        aria-hidden
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Modal de confirmação para aposta em carrinho impossível */}
+              {raceImpossibleConfirm !== null && (
+                <div
+                  role="alertdialog"
+                  aria-labelledby="impossible-bet-title"
+                  style={{
+                    padding: 14,
+                    background: 'rgba(252, 165, 165, 0.18)',
+                    border: '2px solid var(--color-feedback-warning-dark)',
+                    borderRadius: 12,
+                  }}
+                >
+                  <p id="impossible-bet-title" className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-warning-dark)' }}>
+                    Tem certeza que quer apostar no carrinho {raceImpossibleConfirm}?
+                  </p>
+                  <p className="ds-small text-center mt-micro" style={{ color: 'var(--color-neutral-darkest)' }}>
+                    Essa é uma das somas que você identificou como <strong>impossível</strong>{' '}
+                    na etapa anterior. Quer apostar mesmo assim?
+                  </p>
+                  <div className="flex justify-center gap-x-micro mt-micro">
+                    <Button style="secondary" size="small" onClick={cancelImpossibleBet}>
+                      Não, escolher outro
+                    </Button>
+                    <Button style="primary" size="small" onClick={confirmImpossibleBet}>
+                      Sim, apostar mesmo assim
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {raceBet !== null && raceImpossibleConfirm === null && (
+                <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                  Você apostou no carrinho <strong>{raceBet}</strong>. Clique em Sortear para começar a corrida!
+                </p>
+              )}
+              <div className="flex justify-center mt-micro">
+                <Button
+                  style="primary"
+                  size="small"
+                  disabled={raceBet === null || raceImpossibleConfirm !== null}
+                  onClick={startRace}
+                  aria-label={raceBet === null ? 'Escolha um carrinho antes de começar' : 'Sortear os dados'}
+                >
+                  🎲 Sortear
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════ CORRIDA DE CARRINHOS — sub-fase raceRunning (corrida em andamento) ═══════ */}
+          {phase === 'raceRunning' && (
+            <div className="flex flex-col gap-y-micro" style={{ maxWidth: 720, margin: '0 auto' }}>
+              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                Corrida em andamento
+              </p>
+              {racePendingSum === null && raceWinner === null && (
+                <p className="ds-body text-neutral-black text-center" style={{ fontSize: '0.95rem' }}>
+                  Clique em <strong>Sortear</strong> para lançar os dados. Depois, <strong>some os resultados</strong> e clique no carrinho correspondente à soma para avançá-lo.
+                </p>
+              )}
+              {racePendingSum !== null && raceWinner === null && (
+                <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-warning-dark)', fontSize: '1.05rem' }}>
+                  A soma foi <strong>{racePendingSum}</strong>. Clique no carrinho <strong>{racePendingSum}</strong> para avançá-lo!
+                </p>
+              )}
+              {raceClickError && (
+                <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                  Observe os dados: a soma foi <strong>{racePendingSum}</strong>. Clique no carrinho correto.
+                </p>
+              )}
+              {/* Pista da corrida — layout flex simples, 13 linhas verticais */}
+              <div
+                role="grid"
+                aria-label="Pista da corrida com 13 carrinhos"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 3,
+                  padding: 10,
+                  background: 'var(--color-neutral-lightest)',
+                  border: '1px solid var(--color-neutral-lighter)',
+                  borderRadius: 12,
+                }}
+              >
+                {[13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(carNumber => {
+                  const isBet = raceBet === carNumber;
+                  const pos = racePositions[carNumber] ?? 0;
+                  const canClick = racePendingSum !== null && raceWinner === null;
+                  const isHighlightedAsTarget = racePendingSum === carNumber && raceWinner === null;
+                  return (
+                    <div
+                      key={`row-running-${carNumber}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                    >
+                      {/* Número do carrinho */}
+                      <div style={{
+                        width: 26,
+                        textAlign: 'center',
+                        fontWeight: 800,
+                        fontSize: '0.82rem',
+                        color: isBet ? '#b45309' : 'var(--color-neutral-darkest)',
+                        flexShrink: 0,
+                      }}>
+                        {carNumber}
+                      </div>
+                      {/* 6 células da pista */}
+                      {Array.from({ length: RACE_LENGTH }, (_, i) => {
+                        const isCarHere = pos === i;
+                        return (
+                          <div
+                            key={`cell-run-${carNumber}-${i}`}
+                            style={{
+                              flex: 1,
+                              minHeight: 38,
+                              border: '1px solid var(--color-neutral-lighter)',
+                              background: pos > i ? 'rgba(251, 191, 36, 0.12)' : 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background 0.25s ease',
+                              position: 'relative',
+                            }}
+                          >
+                            {isCarHere && (
+                              <button
+                                type="button"
+                                disabled={!canClick}
+                                onClick={() => handleRaceCarClick(carNumber)}
+                                aria-label={`Carrinho ${carNumber}${isHighlightedAsTarget ? ' alvo atual, clique para avançar' : ''}`}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  padding: 0,
+                                  cursor: canClick ? 'pointer' : 'default',
+                                  transition: 'transform 350ms ease',
+                                  transform: isHighlightedAsTarget ? 'scale(1.08)' : 'scale(1)',
+                                  animation: isHighlightedAsTarget ? 'markVPop 0.5s ease-out' : undefined,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  width: '100%',
+                                  height: '100%',
+                                  touchAction: 'manipulation',
+                                }}
+                              >
+                                <CarrinhoIcon
+                                  numero={carNumber}
+                                  width={44}
+                                  highlighted={isBet || isHighlightedAsTarget}
+                                />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {/* Linha de chegada (coluna final quadriculada) */}
+                      <div
+                        style={{
+                          width: 16,
+                          minHeight: 38,
+                          background: 'repeating-linear-gradient(45deg, #000 0 4px, #fff 4px 8px)',
+                          flexShrink: 0,
+                        }}
+                        aria-hidden
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-center mt-micro">
+                <Button
+                  style="primary"
+                  size="small"
+                  disabled={raceBusy || racePendingSum !== null || raceWinner !== null}
+                  onClick={rollRaceDice}
+                  aria-label="Sortear os dados"
+                >
+                  🎲 Sortear
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════ CORRIDA DE CARRINHOS — sub-fase raceFinished (celebração) ═══════ */}
+          {phase === 'raceFinished' && (
+            <div className="flex flex-col gap-y-micro" style={{ maxWidth: 640, margin: '0 auto' }}>
+              <p className="ds-heading-extra text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                🏁 Chegada!
+              </p>
+              <p className="ds-body-bold text-center" style={{ fontSize: '1.1rem' }}>
+                O carrinho <strong style={{ color: 'var(--color-feedback-warning-dark)' }}>{raceWinner}</strong> venceu a corrida!
+              </p>
+              {raceBet !== null && raceWinner === raceBet && (
+                <p className="ds-body text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                  🎉 Parabéns! Você apostou no vencedor.
+                </p>
+              )}
+              {raceBet !== null && raceWinner !== raceBet && raceBet !== 1 && raceBet !== 13 && (
+                <p className="ds-body text-center">
+                  Você apostou no carrinho <strong>{raceBet}</strong>, mas o <strong>{raceWinner}</strong> venceu.
+                  Isso não é falha — é a probabilidade em ação. O carrinho 7 é o mais provável porque tem mais formas de ser alcançado (6 pares).
+                </p>
+              )}
+              {raceBet !== null && (raceBet === 1 || raceBet === 13) && (
+                <p className="ds-body text-center" style={{ color: 'var(--color-feedback-warning-dark)' }}>
+                  Você apostou no carrinho <strong>{raceBet}</strong>, que é uma soma <strong>impossível</strong>. Ele nunca saiu da largada porque <strong>P({raceBet}) = 0</strong>.
+                </p>
+              )}
+              <p className="ds-small text-center" style={{ color: 'var(--color-neutral-dark)', fontStyle: 'italic' }}>
+                Repare que os carrinhos <strong>1</strong> e <strong>13</strong> ficaram parados o tempo todo.
+                Isso é porque P(1) = 0 e P(13) = 0 — <strong>eventos impossíveis</strong> nunca ocorrem.
+                A menor soma possível é 2 (1+1) e a maior é 12 (6+6).
+              </p>
+              {/* Card final do alien entregando o livro (agora no fim absoluto do OVA) */}
               <div className="flex flex-col items-center gap-y-micro mt-micro" style={{
                 padding: '14px',
                 background: 'var(--color-brand-otimath-lightest)',
@@ -2582,14 +3144,14 @@ export function TwoDicesExperiment({
                   }}
                 />
                 <p className="ds-body text-neutral-black" style={{ textAlign: 'center', fontStyle: 'italic' }}>
-                  — Parabéns, humano! Você dominou as probabilidades de dois dados.
+                  — Parabéns, humano! Você dominou as probabilidades de dois dados e viu a distribuição em ação.
                   O livro é seu — leia-o bem, ele guarda os segredos matemáticos de um milhão de mundos!
                 </p>
               </div>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={() => {
                   playSound('/sounds/gameFinished.mp3');
-                  setPhase('finished');
+                  onFinished();
                 }}>
                   Finalizar
                 </Button>
