@@ -471,6 +471,78 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
         <GridItem cols="col-[1_/_13]">
           <div className="flex flex-col items-center gap-y-xs max-w-[800px] mx-auto">
 
+            {/* ═══════ BOLINHAS DE NAVEGAÇÃO (verde=voltar, laranja=avançar) ═══════ */}
+            <div style={{
+              position: 'fixed',
+              bottom: 24,
+              right: 24,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              zIndex: 100,
+            }}>
+              {/* Voltar (verde) */}
+              {scene > 1 && (
+                <button
+                  type="button"
+                  onClick={() => goToScene(scene - 1)}
+                  disabled={transitioning}
+                  aria-label={`Voltar para a cena ${scene - 1}`}
+                  title={`Voltar para a cena ${scene - 1}`}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #4ade80, #16a34a)',
+                    border: '3px solid #15803d',
+                    cursor: transitioning ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 16px rgba(22, 101, 52, 0.50), inset 0 1px 2px rgba(255,255,255,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'transform 0.15s, opacity 0.15s',
+                    opacity: transitioning ? 0.5 : 1,
+                  }}
+                  onMouseEnter={e => { if (!transitioning) e.currentTarget.style.transform = 'scale(1.15)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              )}
+              {/* Avançar (laranja) */}
+              {scene < 7 && (
+                <button
+                  type="button"
+                  onClick={() => goToScene(scene + 1)}
+                  disabled={transitioning}
+                  aria-label={`Avançar para a cena ${scene + 1}`}
+                  title={`Avançar para a cena ${scene + 1}`}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #fb923c, #ea580c)',
+                    border: '3px solid #c2410c',
+                    cursor: transitioning ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 16px rgba(194, 65, 12, 0.50), inset 0 1px 2px rgba(255,255,255,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'transform 0.15s, opacity 0.15s',
+                    opacity: transitioning ? 0.5 : 1,
+                  }}
+                  onMouseEnter={e => { if (!transitioning) e.currentTarget.style.transform = 'scale(1.15)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
             {/* Título da cena atual */}
             {scene === 1 && (
               <h2 className="ds-heading-ultra text-brand-otimath-dark text-center">O Dado</h2>

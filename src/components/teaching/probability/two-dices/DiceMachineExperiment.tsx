@@ -886,6 +886,22 @@ export function DiceMachineExperiment({
             )
           </span>
         </div>
+        {/* Confirmação numérica: (x, y) */}
+        <p
+          className="ds-body-bold text-center"
+          style={{
+            marginTop: 8,
+            color: 'var(--color-neutral-darkest)',
+            animation: 'fadeInNumericPair 0.6s ease-in',
+          }}
+        >
+          <span aria-hidden style={{ color: 'var(--color-neutral-dark)' }}>=  </span>
+          <span style={{ color: 'var(--color-neutral-darkest)' }}>(</span>
+          <span style={{ color: COLOR_GREEN_VIVID, fontWeight: 700 }}>{greenResult}</span>
+          <span style={{ color: 'var(--color-neutral-darkest)' }}>, </span>
+          <span style={{ color: 'var(--color-brand-otimath-pure)', fontWeight: 700 }}>{blueResult}</span>
+          <span style={{ color: 'var(--color-neutral-darkest)' }}>)</span>
+        </p>
         {showSum && (
           <p className="ds-body-bold text-center mt-micro text-neutral-darkest">
             Soma = {greenResult + blueResult}
@@ -898,6 +914,8 @@ export function DiceMachineExperiment({
   // ═══════ RENDER ═══════
   return (
     <div className="w-full" style={{ maxWidth: 720, margin: '0 auto', marginTop: 16 }}>
+      {/* Keyframe para fade-in do par numérico */}
+      <style>{`@keyframes fadeInNumericPair{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
       {/* Título */}
       <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
         Máquina de lançar dois dados

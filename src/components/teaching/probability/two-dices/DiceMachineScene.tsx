@@ -38,16 +38,20 @@ const TILT = PI * 0.82;
 const MX = PIVOT_X + CH * (-Math.sin(TILT));
 const MY = CY_HIGH + CH * (Math.cos(TILT));
 const MZ = CZ;
-const PFZ_R = 2.7, PFZ_E = 0.52;
-const PRZ_R = -2.7, PRZ_E = -0.52;
+const PFZ_R = 2.7, PFZ_E = DHS + 0.012;
+const PRZ_R = -2.7, PRZ_E = -(DHS + 0.012);
 const PWD = 0.18;
 const MOUTH_X = PIVOT_X - CH;
-// posições internas já dentro do copo
-const D1_PT = MOUTH_X + DHS * 0.38;
-const D2_PT = MOUTH_X + DHS * 1.62;
+// Folga mínima de contato mecânico entre sólidos
+const CONTACT_EPS = 0.006;
+// centro do dado 1 quando empurrado até a boca do copo
+const D1_PT = MOUTH_X + DHS * 0.60;
+// dado 2 encostado no dado 1 (face a face, sem penetração)
+const D2_PT = D1_PT + DHS * 2 + CONTACT_EPS;
 const PX_R = -3.90;
-// empurrador avança mais, para enfiar os dois dados
-const PX_E = MOUTH_X + DHS * 1.85;
+// anteparo encosta na face traseira do dado 1:
+// face direita do anteparo (pushX + PWD/2) = face esquerda do dado 1 (d1.x - DHS)
+const PX_E = D1_PT - DHS - PWD / 2 - CONTACT_EPS;
 const D1X0 = -2.2, D2X0 = -1.1, DZ0 = 1.5;
 
 // ── Física ──
@@ -456,10 +460,10 @@ function makeDieFaceTexture(
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, sz, sz);
 
-  // Brilho radial grande no quadrante superior esquerdo
+  // Brilho radial suave no quadrante superior esquerdo
   const rg1 = ctx.createRadialGradient(sz * 0.28, sz * 0.20, 0, sz * 0.28, sz * 0.20, sz * 0.52);
-  rg1.addColorStop(0.00, 'rgba(255,255,255,0.40)');
-  rg1.addColorStop(0.20, 'rgba(255,255,255,0.18)');
+  rg1.addColorStop(0.00, 'rgba(255,255,255,0.18)');
+  rg1.addColorStop(0.20, 'rgba(255,255,255,0.08)');
   rg1.addColorStop(1.00, 'rgba(255,255,255,0.00)');
   ctx.fillStyle = rg1;
   ctx.fillRect(0, 0, sz, sz);
@@ -470,7 +474,7 @@ function makeDieFaceTexture(
   ctx.rotate(-0.18);
   const lg = ctx.createLinearGradient(-260, 0, 260, 0);
   lg.addColorStop(0.00, 'rgba(255,255,255,0.00)');
-  lg.addColorStop(0.50, 'rgba(255,255,255,0.16)');
+  lg.addColorStop(0.50, 'rgba(255,255,255,0.07)');
   lg.addColorStop(1.00, 'rgba(255,255,255,0.00)');
   ctx.fillStyle = lg;
   ctx.fillRect(-280, -18, 560, 36);
@@ -980,13 +984,21 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       fCtxo.beginPath(); fCtxo.moveTo(0, gi); fCtxo.lineTo(1024, gi); fCtxo.stroke();
     }
 
-    // Ruído branco esparso
-    for (let nz = 0; nz < 14000; nz++) {
-      const nx = Math.random() * 1024;
-      const ny = Math.random() * 1024;
-      const na = Math.random() * 0.035;
-      fCtxo.fillStyle = `rgba(255,255,255,${na})`;
-      fCtxo.fillRect(nx, ny, 1, 1);
+    // Ruído branco esparso (via ImageData — ~50× mais rápido que 14k fillRect)
+    {
+      const imgD = fCtxo.getImageData(0, 0, 1024, 1024);
+      const px = imgD.data;
+      for (let nz = 0; nz < 14000; nz++) {
+        const nx = (Math.random() * 1024) | 0;
+        const ny = (Math.random() * 1024) | 0;
+        const off = (ny * 1024 + nx) * 4;
+        const a = Math.random() * 0.035 * 255;
+        // Composição aditiva branca sobre o pixel existente
+        px[off]     = Math.min(255, px[off]     + a);
+        px[off + 1] = Math.min(255, px[off + 1] + a);
+        px[off + 2] = Math.min(255, px[off + 2] + a);
+      }
+      fCtxo.putImageData(imgD, 0, 0);
     }
 
     // Manchas radiais quase invisíveis
@@ -1281,6 +1293,17 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       rollResolve: null as ((r: { blue: number; green: number }) => void) | null,
       animId: 0,
       audio: (() => { const a = new IbereAudio(); a.preload(); return a; })(),
+      // Áudio mecânico da máquina (/public/sounds/maquina.mp3)
+      maquinaAudio: (() => {
+        if (typeof Audio === 'undefined') return null;
+        try {
+          const el = new Audio('/sounds/maquina.mp3');
+          el.preload = 'auto';
+          el.loop = false;
+          el.volume = 0.45;
+          return el;
+        } catch { return null; }
+      })(),
       pushContactPlayed: false,
       frontPad, rearPad, pushMesh, cupGrp,
       carriageBody, carriageArm, carriageMotorBlock,
@@ -1331,10 +1354,14 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     const ro = new ResizeObserver(onResize);
     ro.observe(container);
 
-    // Pré-compila todos os shaders agora (incluindo matPR clearcoat)
-    // pra evitar stall de compilação no primeiro frame de PUSH/ZOOM,
-    // que estava sendo percebido como "delay no botão Lançar".
-    try { renderer.compile(scene, camera); } catch { /* noop */ }
+    // Pré-compila shaders (incluindo matPR clearcoat) de forma assíncrona
+    // pra não bloquear o main thread durante o mount — evita travada
+    // entre "Começar lançamento" e o botão "Lançar" aparecer.
+    // O compile roda no próximo idle frame; se o usuário clicar antes,
+    // a compilação acontece sob demanda no primeiro render da animação.
+    const compileId = requestAnimationFrame(() => {
+      try { renderer.compile(scene, camera); } catch { /* noop */ }
+    });
 
     /* ═══════ MÁQUINA DE ESTADOS ═══════ */
     function setDieMats(mesh: THREE.Mesh, result: number, isBlue: boolean) {
@@ -1414,17 +1441,19 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (dist < 0.0001) dist = 0.0001;
 
-      const minDist = DHS * 2.10;
+      // Raio de colisão ligeiramente maior que 2×DHS para cubos arredondados
+      const minDist = DHS * 2.16;
 
       if (dist < minDist) {
         const nx = dx / dist;
         const ny = dy / dist;
         const nz = dz / dist;
 
-        const penetration = minDist - dist;
+        // Overshoot de 6% para eliminar re-penetração entre iterações
+        const penetration = (minDist - dist) * 1.06;
 
-        let wa = a.on ? 0.20 : 0.50;
-        let wb = b.on ? 0.20 : 0.50;
+        let wa = a.on ? 0.15 : 0.50;
+        let wb = b.on ? 0.15 : 0.50;
         if (a.on && !b.on) { wa = 0.00; wb = 1.00; }
         if (!a.on && b.on) { wa = 1.00; wb = 0.00; }
         if (a.on && b.on)  { wa = 0.50; wb = 0.50; }
@@ -1443,7 +1472,8 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         const relN = rvx * nx + rvy * ny + rvz * nz;
 
         if (relN < 0) {
-          const restitution = 0.42;
+          // Restituição mais baixa → contato mais sólido, menos "borracha"
+          const restitution = 0.34;
           const j = -(1 + restitution) * relN * 0.5;
 
           a.vx += nx * j; a.vy += ny * j; a.vz += nz * j;
@@ -1465,13 +1495,13 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
             b.vz += tz * frictionImpulse;
           }
 
-          a.vrX += (Math.random() - 0.5) * 1.8;
-          a.vrY += (Math.random() - 0.5) * 2.2;
-          a.vrZ += (Math.random() - 0.5) * 1.8;
+          a.vrX += (Math.random() - 0.5) * 1.4;
+          a.vrY += (Math.random() - 0.5) * 1.8;
+          a.vrZ += (Math.random() - 0.5) * 1.4;
 
-          b.vrX += (Math.random() - 0.5) * 1.8;
-          b.vrY += (Math.random() - 0.5) * 2.2;
-          b.vrZ += (Math.random() - 0.5) * 1.8;
+          b.vrX += (Math.random() - 0.5) * 1.4;
+          b.vrY += (Math.random() - 0.5) * 1.8;
+          b.vrZ += (Math.random() - 0.5) * 1.4;
         }
       }
     }
@@ -1580,7 +1610,8 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         d.rY += d.vrY * dt;
       });
 
-      for (let i = 0; i < 3; i++) {
+      // Mais iterações intercalando cup + colisão para resolver contato sólido
+      for (let i = 0; i < 5; i++) {
         solveCupConstraint(state.p1, cY, cRZ);
         solveCupConstraint(state.p2, cY, cRZ);
         solveDicePairCollision(state.p1, state.p2);
@@ -1640,7 +1671,8 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         }
       });
 
-      for (let k = 0; k < 4; k++) {
+      // Passes finais de colisão dado-dado após bounces e boundary constraints
+      for (let k = 0; k < 6; k++) {
         solveDicePairCollision(state.p1, state.p2);
       }
     }
@@ -1648,6 +1680,25 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     function cupL2W(lx: number, ly: number, lz: number, cY: number, cRZ: number) {
       const c = Math.cos(cRZ), s = Math.sin(cRZ);
       return { x: PIVOT_X + lx * c - ly * s, y: cY + lx * s + ly * c, z: CZ + lz };
+    }
+
+    // Separação esférica pós-procedural: impede penetração visual
+    // entre dois dados cujas posições foram calculadas por curvas sin/cos.
+    // Modifica os objetos de posição in-place.
+    const SOLID_MIN_DIST = DHS * 2.14;
+    function separateDicePositions(
+      a: { x: number; y: number; z: number },
+      b: { x: number; y: number; z: number },
+    ) {
+      let dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+      let distSq = dx * dx + dy * dy + dz * dz;
+      if (distSq >= SOLID_MIN_DIST * SOLID_MIN_DIST) return;
+      if (distSq < 1e-8) { dx = 0.001; dy = 0; dz = 0; distSq = 1e-6; }
+      const dist = Math.sqrt(distSq);
+      const nx = dx / dist, ny = dy / dist, nz = dz / dist;
+      const sep = (SOLID_MIN_DIST - dist) * 0.52; // cada um move metade
+      a.x += nx * sep; a.y += ny * sep; a.z += nz * sep;
+      b.x -= nx * sep; b.y -= ny * sep; b.z -= nz * sep;
     }
 
     interface DieRender {
@@ -1669,9 +1720,15 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       else { fPZ = PFZ_R; rPZ = PRZ_R; }
 
       let pushX: number | null = null;
-      if (state.cur === 'PUSH') pushX = lerp(D1X0 - DHS - PWD / 2, PX_E, pe);
-      else if (state.cur === 'LOAD') pushX = PX_E;
-      else if (state.cur === 'ROTATE_UP') pushX = lerp(PX_E, PX_R, pe);
+      if (state.cur === 'PUSH') {
+        // anteparo acompanha dado 1 mantendo contato: face dir. do anteparo = face esq. do dado 1
+        const d1x = lerp(D1X0, D1_PT, pe);
+        pushX = d1x - DHS - PWD / 2 - CONTACT_EPS;
+      } else if (state.cur === 'LOAD') {
+        // continua colado no dado 1 enquanto entram no copo
+        const leadX = lerp(D1_PT, MOUTH_X + DHS * 0.82, eout(clamp(state.sTime / CFG.LOAD.dur, 0, 1)));
+        pushX = leadX - DHS - PWD / 2 - CONTACT_EPS;
+      } else if (state.cur === 'ROTATE_UP') pushX = lerp(PX_E, PX_R, pe);
 
       let cY = CY_LOW, cRZ = PI / 2;
       if (state.cur === 'IDLE' || state.cur === 'ALIGN' || state.cur === 'PUSH' || state.cur === 'LOAD') {
@@ -1715,27 +1772,31 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         d1.z = 0;
         d2.z = 0;
 
+        // dado 1 controlado pelo empurrador
         d1.x = lerp(D1X0, D1_PT, pe);
+        // dado 2 encostado no dado 1 (contato face a face)
+        const pairGap = DHS * 2 + CONTACT_EPS;
+        d2.x = d1.x + pairGap;
 
-        const gap = DHS * 2.02;
-        d2.x = d1.x + gap;
-
-        if (!state.pushContactPlayed && pe > 0.18) {
+        if (!state.pushContactPlayed && pe > 0.12) {
           state.pushContactPlayed = true;
           try { state.audio.pushContact(); } catch { /* noop */ }
         }
 
-        d1.rZ = lerp(0, 0.03, pe);
-        d2.rZ = lerp(0, -0.02, pe);
+        d1.rZ = lerp(0, 0.02, pe);
+        d2.rZ = lerp(0, -0.015, pe);
+        d1.rY = lerp(0, 0.01, pe);
+        d2.rY = lerp(0, -0.01, pe);
       } else if (state.cur === 'LOAD') {
         d1.z = 0;
         d2.z = 0;
 
-        const leadX = lerp(D1_PT, MOUTH_X + DHS * 0.55, po);
-        const gap2 = DHS * 2.02;
+        // os dois continuam entrando juntos, em contato
+        const leadX = lerp(D1_PT, MOUTH_X + DHS * 0.82, po);
+        const pairGap2 = DHS * 2 + CONTACT_EPS;
 
         d1.x = leadX;
-        d2.x = leadX + gap2;
+        d2.x = leadX + pairGap2;
 
         d1.a = 1;
         d2.a = 1;
@@ -1759,15 +1820,23 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         const sy2 = DHS * 2.2 + Math.abs(Math.cos(st * PI * 6.2)) * DHS * 1.85;
         const sz2 = Math.sin(st * PI * 9.8) * DHS * 0.58 + Math.cos(st * PI * 4.9) * DHS * 0.14;
 
-        const w1s = cupL2W(sx1, sy1, sz1, cY, cRZ);
-        const w2s = cupL2W(sx2, sy2, sz2, cY, cRZ);
+        let w1s = cupL2W(sx1, sy1, sz1, cY, cRZ);
+        let w2s = cupL2W(sx2, sy2, sz2, cY, cRZ);
+
+        // Separação pós-procedural: impede penetração visual dentro do copo
+        separateDicePositions(w1s, w2s);
+
         d1 = { x: w1s.x, y: w1s.y, z: w1s.z, rZ:  st * 4.7, rX: st * 3.4, rY:  st * 2.7, a: 1, show: true };
         d2 = { x: w2s.x, y: w2s.y, z: w2s.z, rZ: -st * 4.1, rX: st * 2.8, rY: -st * 3.4, a: 1, show: true };
       } else if (state.cur === 'TILT_S') {
         const ly1 = lerp(DHS * 1.1, CH * 0.62, pe);
         const ly2 = lerp(DHS * 2.8, CH * 0.75, pe);
-        const w1t = cupL2W(DHS * 0.20, ly1, 0, cY, cRZ);
-        const w2t = cupL2W(-DHS * 0.25, ly2, 0, cY, cRZ);
+        let w1t = cupL2W(DHS * 0.20, ly1, 0, cY, cRZ);
+        let w2t = cupL2W(-DHS * 0.25, ly2, 0, cY, cRZ);
+
+        // Separação pós-procedural para TILT_S
+        separateDicePositions(w1t, w2t);
+
         d1 = { x: w1t.x, y: w1t.y, z: w1t.z, rZ: cRZ + 0.30, rX: 0.20, rY: 0, a: 1, show: true };
         d2 = { x: w2t.x, y: w2t.y, z: w2t.z, rZ: cRZ - 0.20, rX: -0.10, rY: 0, a: 1, show: true };
       } else if ((state.cur === 'RELEASE' || state.cur === 'FALL' || state.cur === 'SETTLE') && state.p1.active) {
@@ -1922,6 +1991,14 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         // Som curto de início (UX) + áudio do Iberê (single-shot, ALIGN→RELEASE)
         playSound('/sounds/nextChallenge.mp3');
         state.audio.start();
+        // Inicia som mecânico da máquina
+        if (state.maquinaAudio) {
+          try { state.maquinaAudio.currentTime = 0; } catch { /* noop */ }
+          const p = state.maquinaAudio.play();
+          if (p && typeof (p as Promise<void>).catch === 'function') {
+            (p as Promise<void>).catch(() => { /* autoplay bloqueado */ });
+          }
+        }
       }
       if (s === 'RELEASE') {
         // Para o áudio do Iberê quando os dados saem do copo
@@ -1932,6 +2009,10 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         state.p2.vx -= 0.50;
       }
       if (s === 'ZOOM') {
+        // Para o som mecânico da máquina
+        if (state.maquinaAudio) {
+          try { state.maquinaAudio.pause(); state.maquinaAudio.currentTime = 0; } catch { /* noop */ }
+        }
         [state.p1, state.p2].forEach(d => {
           d.vy = 0; d.vx = 0; d.vz = 0;
           d.vrZ = 0; d.vrX = 0; d.vrY = 0;
@@ -1996,9 +2077,12 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     /* ───── Cleanup ───── */
     return () => {
       cancelAnimationFrame(state.animId);
+      cancelAnimationFrame(compileId);
       ro.disconnect();
       // Libera o player do áudio do Iberê
       try { state.audio.dispose(); } catch (e) { /* noop */ }
+      // Libera áudio da máquina
+      try { if (state.maquinaAudio) { state.maquinaAudio.pause(); state.maquinaAudio.src = ''; } } catch { /* noop */ }
       // dispose das texturas dos dados
       Object.values(bTex).forEach(t => t.dispose());
       Object.values(gTex).forEach(t => t.dispose());

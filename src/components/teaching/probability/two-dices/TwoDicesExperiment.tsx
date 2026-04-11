@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
+import { SampleSpaceTree } from './SampleSpaceTree';
 
 // ═══════ Faces do dado com pintas ═══════
 const PIP_PATTERNS: Record<number, number[]> = {
@@ -50,7 +51,7 @@ const blinkStyle = `
 
 // ═══════ Tipos ═══════
 type Phase =
-  | 'intro' | 'ready' | 'rolling' | 'landed'
+  | 'intro' | 'tree' | 'ready' | 'rolling' | 'landed'
   | 'readGreen' | 'readBlue' | 'markTable' | 'feedback'
   | 'pairQuestion' | 'pairExplain' | 'colorQuestion' | 'colorExplain'
   | 'finished';
@@ -347,26 +348,21 @@ export function TwoDicesExperiment({ diceSceneRef, diceContainerRef, onFinished 
             boxShadow: '0 4px 16px rgba(36, 80, 190, 0.10)',
           }}>
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
-            Organizando todos os pares
+            Quantos pares podem sair?
           </p>
           <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
-            Você observou a máquina, registrou pares, somou e fez uma previsão. Agora vamos
-            enxergar <strong>todos os pares possíveis ao mesmo tempo</strong>, organizados
-            numa tabela 6×6.
+            Você observou a máquina, registrou pares, somou e fez uma previsão. Mas{' '}
+            <strong>quantos pares diferentes podem sair</strong> no lançamento de dois dados?
           </p>
           <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
-            A cada lançamento, você vai ler o resultado dos dados{' '}
-            <strong style={{ color: '#1a5c2e' }}>verde</strong> (linhas) e{' '}
-            <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong> (colunas)
-            e marcar o par ordenado <strong>(verde, azul)</strong> na célula correspondente
-            da tabela.
+            Vamos descobrir juntos, construindo as possibilidades <strong>um resultado de cada vez</strong>.
           </p>
           <div className="flex justify-center">
             <Button
               style="primary"
               size="small"
-              onClick={() => setPhase('ready')}
-              aria-label="Iniciar o experimento com tabela de pares ordenados"
+              onClick={() => { setPhase('tree'); playSound('/sounds/nextChallenge.mp3'); }}
+              aria-label="Começar a construção do espaço amostral"
             >
               Começar
             </Button>
@@ -374,8 +370,13 @@ export function TwoDicesExperiment({ diceSceneRef, diceContainerRef, onFinished 
         </div>
       )}
 
+      {/* ═══════ ÁRVORE PROGRESSIVA — construção do espaço amostral ═══════ */}
+      {phase === 'tree' && (
+        <SampleSpaceTree onFinished={() => setPhase('ready')} diceSceneRef={diceSceneRef} />
+      )}
+
       {/* ═══════ RODADA ATIVA ═══════ */}
-      {phase !== 'intro' && phase !== 'finished' && phase !== 'pairQuestion' && phase !== 'pairExplain' && phase !== 'colorQuestion' && phase !== 'colorExplain' && (
+      {phase !== 'intro' && phase !== 'tree' && phase !== 'finished' && phase !== 'pairQuestion' && phase !== 'pairExplain' && phase !== 'colorQuestion' && phase !== 'colorExplain' && (
         <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
           style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
 
@@ -401,11 +402,22 @@ export function TwoDicesExperiment({ diceSceneRef, diceContainerRef, onFinished 
 
           {/* Botão lançar */}
           {phase === 'ready' && (
-            <div className="flex justify-center mb-micro">
-              <Button style="primary" size="small" onClick={launchDice}>
-                🎲 Lançar dois dados
-              </Button>
-            </div>
+            <>
+              {round === 0 && (
+                <p className="ds-body text-neutral-black text-center mb-micro" style={{ textAlign: 'justify' }}>
+                  Agora vamos organizar os 36 pares numa <strong>tabela 6×6</strong>.
+                  A cada lançamento, leia o resultado dos dados{' '}
+                  <strong style={{ color: '#1a5c2e' }}>verde</strong> (linhas) e{' '}
+                  <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong> (colunas)
+                  e marque o par na célula correspondente.
+                </p>
+              )}
+              <div className="flex justify-center mb-micro">
+                <Button style="primary" size="small" onClick={launchDice}>
+                  🎲 Lançar dois dados
+                </Button>
+              </div>
+            </>
           )}
 
           {/* Lançando / Observe */}
