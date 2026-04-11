@@ -144,6 +144,13 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   // Ref da cena de dois dados (Cena 7 — sistematização tabular)
   const twoDiceRef = useRef<TwoDiceSceneHandle>(null);
   const twoDiceContainerRef = useRef<HTMLDivElement>(null);
+  // Cena 7: troca a cena de dois dados pela máquina (com dados brancos)
+  // durante a fase colorQuestion. Controlado via callback do TwoDicesExperiment.
+  const [scene7UsesMachine, setScene7UsesMachine] = useState(false);
+  // Cena 7: esconde AMBAS as cenas 3D (dados + máquina) durante as fases
+  // finais de cálculo de probabilidade (probPair, probPairReveal, probSumTable,
+  // probSumReveal) — ali os dados físicos são semanticamente irrelevantes.
+  const [scene7HideAllDice, setScene7HideAllDice] = useState(false);
 
   // Cena 2: face atual na sequência
   const [currentFaceIdx, setCurrentFaceIdx] = useState(-1);
@@ -1050,12 +1057,38 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                 A tabela é a resposta — Freudenthal, 1991, p. 76. */}
             {scene === 7 && (
               <>
-                <div ref={twoDiceContainerRef} style={{ width: '100%' }}>
+                {/* TwoDiceScene (padrão verde/azul) — visível em todas as fases exceto:
+                    - colorQuestion (aí mostra a máquina)
+                    - fases finais de probabilidade (aí esconde tudo) */}
+                <div
+                  ref={twoDiceContainerRef}
+                  style={{
+                    width: '100%',
+                    display: (scene7UsesMachine || scene7HideAllDice) ? 'none' : 'block',
+                  }}
+                >
                   <TwoDiceScene ref={twoDiceRef} />
+                </div>
+                {/* DiceMachineScene (mesma máquina da Cena 6) — montada desde o início da Cena 7
+                    para pré-inicializar a WebGL (texturas, geometrias, materiais). Escondida via
+                    CSS até a fase colorQuestion. Evita delay de ~1-2s quando o aluno clica pela
+                    primeira vez em "Lançar os dados brancos". */}
+                <div
+                  ref={diceMachineContainerRef}
+                  style={{
+                    width: '100%',
+                    display: (scene7UsesMachine && !scene7HideAllDice) ? 'block' : 'none',
+                  }}
+                >
+                  <DiceMachineScene ref={diceMachineRef} />
                 </div>
                 <TwoDicesExperiment
                   diceSceneRef={twoDiceRef}
                   diceContainerRef={twoDiceContainerRef}
+                  diceMachineRef={diceMachineRef}
+                  diceMachineContainerRef={diceMachineContainerRef}
+                  onMachineVisibilityChange={setScene7UsesMachine}
+                  onHideAllDice={setScene7HideAllDice}
                   onFinished={() => {
                     setScene7Finished(true);
                   }}

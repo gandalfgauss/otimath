@@ -246,6 +246,8 @@ interface DieState {
 // ── Interface pública ──
 export interface TwoDiceSceneHandle {
   roll: () => Promise<{ green: number; blue: number }>;
+  setWhiteMode: (enabled: boolean) => void;
+  setRandomSides: (enabled: boolean) => void;
 }
 
 const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(function TwoDiceScene(
@@ -260,6 +262,10 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
     animId: number;
     globalRolling: boolean;
     rollResolve: ((result: { green: number; blue: number }) => void) | null;
+    maxAniso: number;
+    whiteMode: boolean;
+    randomSides: boolean;
+    rebuildMaterials: (mesh: THREE.Mesh, baseHex: number, pipColor: string, roughness: number) => void;
   } | null>(null);
 
   useEffect(() => {
@@ -350,10 +356,28 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
       makeDieState(dieBlue, 0.58, shadowBlue),
     ];
 
+    // Helper para trocar materiais dos dados em runtime (usado pelo whiteMode)
+    // Libera corretamente texturas e materiais antigos para evitar leak de GPU.
+    const rebuildMaterials = (mesh: THREE.Mesh, baseHex: number, pipColor: string, roughness: number) => {
+      const oldMats = mesh.material as THREE.MeshStandardMaterial[];
+      const newMats = [2, 5, 3, 4, 1, 6].map(v =>
+        new THREE.MeshStandardMaterial({ map: faceTex(v, baseHex, pipColor, maxAniso), roughness, metalness: 0.06 })
+      );
+      mesh.material = newMats;
+      oldMats.forEach(m => {
+        if (m.map) m.map.dispose();
+        m.dispose();
+      });
+    };
+
     const state = {
       renderer, scene, camera, dice, animId: 0,
       globalRolling: false,
       rollResolve: null as ((result: { green: number; blue: number }) => void) | null,
+      maxAniso,
+      whiteMode: false,
+      randomSides: false,
+      rebuildMaterials,
     };
     internals.current = state;
 
@@ -526,15 +550,23 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
 
       playSound('/sounds/nextChallenge.mp3');
 
+      // randomSides: a cada lançamento, 50% de chance de trocar os lados iniciais.
+      // Isso elimina a âncora espacial "esquerda/direita" sem afetar o mapeamento
+      // interno dice[0]=green, dice[1]=blue (os VALORES continuam corretos).
+      const swapSides = s.randomSides && rng.f() < 0.5;
+
       s.dice.forEach((d, i) => {
         d.value = 1; d.rolling = true; d.align = 0; d.bounces = 0;
         d.scaleT = 0;
+        // Índice efetivo para posicionamento inicial (swap quando randomSides)
+        const ei = swapSides ? 1 - i : i;
+        const effXBase = ei === 0 ? -0.58 : 0.58;
         // Posição inicial próxima ao centro
-        d.x = d.xBase * 0.72 + rng.n(-0.05, 0.05);
+        d.x = effXBase * 0.72 + rng.n(-0.05, 0.05);
         d.y = REST_Y + 2.0;
         d.z = rng.n(-0.10, 0.10);
         // Velocidade horizontal: dados se afastam
-        const collideDir = i === 0 ? 1 : -1;
+        const collideDir = ei === 0 ? 1 : -1;
         d.vx = collideDir * rng.n(0.022, 0.038) + rng.n(-0.006, 0.006);
         d.vz = rng.n(-0.016, 0.016);
         d.vy = -0.055;
@@ -551,7 +583,27 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
     });
   }, []);
 
-  useImperativeHandle(ref, () => ({ roll }), [roll]);
+  // Troca materiais em runtime: branco+vermelho quando true, verde/azul quando false.
+  // Chamável a qualquer momento; se já estiver no modo pedido, no-op.
+  const setWhiteMode = useCallback((enabled: boolean) => {
+    const s = internals.current;
+    if (!s || s.whiteMode === enabled) return;
+    s.whiteMode = enabled;
+    if (enabled) {
+      s.rebuildMaterials(s.dice[0].mesh, 0xf5f5f0, '#c0392b', 0.85);
+      s.rebuildMaterials(s.dice[1].mesh, 0xf5f5f0, '#c0392b', 0.85);
+    } else {
+      s.rebuildMaterials(s.dice[0].mesh, DICE_GREEN, '#ffffff', 0.92);
+      s.rebuildMaterials(s.dice[1].mesh, DICE_BLUE, '#ffffff', 0.88);
+    }
+  }, []);
+
+  const setRandomSides = useCallback((enabled: boolean) => {
+    const s = internals.current;
+    if (s) s.randomSides = enabled;
+  }, []);
+
+  useImperativeHandle(ref, () => ({ roll, setWhiteMode, setRandomSides }), [roll, setWhiteMode, setRandomSides]);
 
   return (
     <div

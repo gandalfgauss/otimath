@@ -439,12 +439,32 @@ const DOTS: Record<number, number[][]> = {
    • Vinheta + brilho de borda + sombra interna
    • Pontos com sombra projetada + gradient radial + highlight
    ════════════════════════════════════════════════════════ */
+interface PipColors {
+  inner: string;
+  mid: string;
+  outer: string;
+  highlight: string;
+}
+const PIP_RED: PipColors = {
+  inner: '#ff5a5a',
+  mid: '#d91a1a',
+  outer: '#8a0b0b',
+  highlight: 'rgba(255,220,220,0.35)',
+};
+const PIP_DARK_BLUE: PipColors = {
+  inner: '#1e3a8a',
+  mid: '#0f1f5c',
+  outer: '#060d2e',
+  highlight: 'rgba(120,150,220,0.28)',
+};
+
 function makeDieFaceTexture(
   face: number,
   baseLight: string,
   baseDark: string,
   borderLight: string,
   anisotropy: number,
+  pipColors: PipColors = PIP_RED,
 ): THREE.CanvasTexture {
   const sz = 1024;
   const cv = document.createElement('canvas');
@@ -510,12 +530,11 @@ function makeDieFaceTexture(
     ctx.arc(x + 6, y + 7, r * 1.02, 0, PI * 2);
     ctx.fill();
 
-    // Corpo do ponto: gradient radial vermelho (alto contraste contra
-    // o azul/verde do dado e contra o preto do ambiente).
+    // Corpo do ponto: gradient radial configurável (default vermelho).
     const pg = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, 0, x, y, r);
-    pg.addColorStop(0.00, '#ff5a5a');
-    pg.addColorStop(0.72, '#d91a1a');
-    pg.addColorStop(1.00, '#8a0b0b');
+    pg.addColorStop(0.00, pipColors.inner);
+    pg.addColorStop(0.72, pipColors.mid);
+    pg.addColorStop(1.00, pipColors.outer);
     ctx.beginPath();
     ctx.fillStyle = pg;
     ctx.arc(x, y, r, 0, PI * 2);
@@ -523,7 +542,7 @@ function makeDieFaceTexture(
 
     // Highlight interno sutil (não lavar a cor)
     ctx.beginPath();
-    ctx.fillStyle = 'rgba(255,220,220,0.35)';
+    ctx.fillStyle = pipColors.highlight;
     ctx.arc(x - r * 0.22, y - r * 0.25, r * 0.30, 0, PI * 2);
     ctx.fill();
   }
@@ -543,17 +562,28 @@ function faceLayout(top: number): number[] {
   return [rest[0], rest[1], top, bot, rest[2], rest[3]];
 }
 
-function makeMats(result: number, tx: Record<number, THREE.CanvasTexture>): THREE.MeshPhysicalMaterial[] {
+function makeMats(
+  result: number,
+  tx: Record<number, THREE.CanvasTexture>,
+  whiteMode = false,
+): THREE.MeshPhysicalMaterial[] {
   const layout = faceLayout(result);
   const mats: THREE.MeshPhysicalMaterial[] = [];
+  // Dados brancos usam material MAIS FOSCO para evitar que o especular
+  // do clearcoat apague as pintas após o zoom da câmera. Dados coloridos
+  // (azul/verde) mantêm o acabamento polido original.
+  const roughness = whiteMode ? 0.72 : 0.23;
+  const clearcoat = whiteMode ? 0.15 : 1.0;
+  const clearcoatRoughness = whiteMode ? 0.65 : 0.10;
+  const reflectivity = whiteMode ? 0.18 : 0.72;
   for (let i = 0; i < 6; i++) {
     mats.push(new THREE.MeshPhysicalMaterial({
       map: tx[layout[i]],
-      roughness: 0.23,
+      roughness,
       metalness: 0.02,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.10,
-      reflectivity: 0.72,
+      clearcoat,
+      clearcoatRoughness,
+      reflectivity,
       transparent: true,
       opacity: 1,
     }));
@@ -761,6 +791,13 @@ export interface DiceMachineSceneHandle {
   getCurrentStep: () => number;
   /** Mensagem associada ao estado atual. */
   getCurrentLabel: () => string;
+  /**
+   * Troca os dois dados para brancos com pintas pretas (true) ou volta ao
+   * padrão azul/verde (false). Regenera as texturas em runtime e dispõe
+   * as antigas corretamente para evitar leak de GPU. Usado na Cena 7
+   * durante a fase colorQuestion.
+   */
+  setWhiteMode: (enabled: boolean) => void;
 }
 
 interface Props {
@@ -793,6 +830,8 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     animId: number;
     audio: IbereAudio;
     pushContactPlayed: boolean;
+    whiteMode: boolean;
+    rebuildDieTextures: (whiteMode: boolean) => void;
     // Cena
     frontPad: THREE.Mesh;
     rearPad: THREE.Mesh;
@@ -1278,6 +1317,40 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     sh1.rotation.x = -PI / 2; sh1.position.y = 0.032; scene.add(sh1);
     sh2.rotation.x = -PI / 2; sh2.position.y = 0.032; scene.add(sh2);
 
+    /* ───── Helper: regenera as 12 texturas dos dados conforme modo ─────
+       Usado pelo setWhiteMode em runtime. Dispõe as texturas antigas e os
+       materiais atuais antes de aplicar os novos — evita leak de GPU. */
+    const rebuildDieTextures = (whiteMode: boolean) => {
+      // Dispõe texturas antigas
+      for (let fi = 1; fi <= 6; fi++) {
+        bTex[fi]?.dispose();
+        gTex[fi]?.dispose();
+      }
+      if (whiteMode) {
+        // Ambos os dados: base off-white (menos reflexo especular do que branco puro),
+        // pintas em azul escuro para máximo contraste sem perder no brilho
+        const WHITE_LIGHT = '#f0f0f0';
+        const WHITE_DARK = '#c8c8c8';
+        const WHITE_BORDER = 'rgba(200,200,210,0.22)';
+        for (let fi = 1; fi <= 6; fi++) {
+          bTex[fi] = makeDieFaceTexture(fi, WHITE_LIGHT, WHITE_DARK, WHITE_BORDER, maxAnis, PIP_DARK_BLUE);
+          gTex[fi] = makeDieFaceTexture(fi, WHITE_LIGHT, WHITE_DARK, WHITE_BORDER, maxAnis, PIP_DARK_BLUE);
+        }
+      } else {
+        // Restaura azul/verde originais
+        for (let fi = 1; fi <= 6; fi++) {
+          bTex[fi] = makeDieFaceTexture(fi, '#5ea7ff', '#1f5fe0', 'rgba(220,235,255,0.16)', maxAnis);
+          gTex[fi] = makeDieFaceTexture(fi, '#2dd63a', '#10951a', 'rgba(225,255,230,0.14)', maxAnis);
+        }
+      }
+      // Aplica novos materiais aos meshes existentes, com flag whiteMode
+      // propagada para usar propriedades mais foscas no modo branco.
+      if (Array.isArray(die1Mesh.material)) die1Mesh.material.forEach(m => m.dispose());
+      die1Mesh.material = makeMats(state.die1, bTex, whiteMode);
+      if (Array.isArray(die2Mesh.material)) die2Mesh.material.forEach(m => m.dispose());
+      die2Mesh.material = makeMats(state.die2, gTex, whiteMode);
+    };
+
     /* ───── Estado inicial ───── */
     const state = {
       renderer, scene, camera,
@@ -1292,6 +1365,8 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       d2Final: new THREE.Vector3(1, DIE_Y, 0),
       rollResolve: null as ((r: { blue: number; green: number }) => void) | null,
       animId: 0,
+      whiteMode: false,
+      rebuildDieTextures,
       audio: (() => { const a = new IbereAudio(); a.preload(); return a; })(),
       // Áudio mecânico da máquina (/public/sounds/maquina.mp3)
       maquinaAudio: (() => {
@@ -1366,7 +1441,7 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     /* ═══════ MÁQUINA DE ESTADOS ═══════ */
     function setDieMats(mesh: THREE.Mesh, result: number, isBlue: boolean) {
       if (Array.isArray(mesh.material)) mesh.material.forEach(m => m.dispose());
-      mesh.material = makeMats(result, isBlue ? bTex : gTex);
+      mesh.material = makeMats(result, isBlue ? bTex : gTex, state.whiteMode);
     }
 
     function initPhysics() {
@@ -2119,11 +2194,12 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       s.pushContactPlayed = false;
       s.p1 = mkDie();
       s.p2 = mkDie();
-      // Atualiza materiais com sorteio (dado azul = die1, verde = die2)
+      // Atualiza materiais com sorteio (dado azul = die1, verde = die2).
+      // Propaga whiteMode para manter acabamento fosco quando em modo branco.
       if (Array.isArray(s.die1Mesh.material)) s.die1Mesh.material.forEach(m => m.dispose());
-      s.die1Mesh.material = makeMats(s.die1, s.bTex);
+      s.die1Mesh.material = makeMats(s.die1, s.bTex, s.whiteMode);
       if (Array.isArray(s.die2Mesh.material)) s.die2Mesh.material.forEach(m => m.dispose());
-      s.die2Mesh.material = makeMats(s.die2, s.gTex);
+      s.die2Mesh.material = makeMats(s.die2, s.gTex, s.whiteMode);
       s.rollResolve = resolve;
       // dispara primeiro estado
       const enter = (s as unknown as { _enterState: (st: State) => void })._enterState;
@@ -2143,7 +2219,14 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     return CFG[s.cur]?.lbl || '';
   }, []);
 
-  useImperativeHandle(ref, () => ({ roll, getCurrentStep, getCurrentLabel }), [roll, getCurrentStep, getCurrentLabel]);
+  const setWhiteMode = useCallback((enabled: boolean) => {
+    const s = internals.current;
+    if (!s || s.whiteMode === enabled) return;
+    s.whiteMode = enabled;
+    s.rebuildDieTextures(enabled);
+  }, []);
+
+  useImperativeHandle(ref, () => ({ roll, getCurrentStep, getCurrentLabel, setWhiteMode }), [roll, getCurrentStep, getCurrentLabel, setWhiteMode]);
 
   return (
     <div

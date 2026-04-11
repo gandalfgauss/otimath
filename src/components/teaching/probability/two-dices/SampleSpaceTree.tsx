@@ -236,8 +236,11 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
         setAnimBlues([]);
         blueDiceRefs.current = [];
 
-        // Velocidades dobradas (50% mais lento): 520/340/200ms entre dados azuis
-        const delay = branch <= 2 ? 520 : branch <= 4 ? 340 : 200;
+        // Ritmo em 2 níveis: branches 1-2 em ritmo de ensino (o aluno absorve
+        // o padrão); a partir do branch 3, aceleração direta — o aluno já
+        // internalizou que cada face verde gera 6 faces azuis e não precisa
+        // mais de gradação lenta para reconhecer.
+        const delay = branch <= 2 ? 520 : 180;
 
         // Aparecer dados azuis um a um com gradação sonora
         for (let blue = 1; blue <= 6; blue++) {
@@ -248,8 +251,8 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
           await new Promise(r => setTimeout(r, delay));
         }
 
-        // Pausa dobrada entre ramos para o aluno absorver
-        const pause = branch <= 2 ? 1200 : branch <= 4 ? 800 : 500;
+        // Pausa entre ramos — longa em 1-2 (ensino), curta em 3-6 (fluência)
+        const pause = branch <= 2 ? 1200 : 320;
         await new Promise(r => setTimeout(r, pause));
       }
 
@@ -285,8 +288,23 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
   const validateMultiply = useCallback(() => {
     const op = multOp.trim();
     const opOk = op === 'x' || op === '×' || op === '*' || op === 'X';
-    if (!(multA.trim() === '6' && multB.trim() === '6' && multC.trim() === '36' && opOk)) {
-      setMultError('Complete: 6 × 6 = 36');
+    if (multA.trim() !== '6') {
+      setMultError('Quantos resultados são possíveis no primeiro dado?');
+      playSound('/sounds/incorrect.mp3');
+      return;
+    }
+    if (multB.trim() !== '6') {
+      setMultError('Quantos resultados são possíveis no segundo dado?');
+      playSound('/sounds/incorrect.mp3');
+      return;
+    }
+    if (!opOk) {
+      setMultError('Qual operação combina cada resultado do primeiro dado com cada resultado do segundo?');
+      playSound('/sounds/incorrect.mp3');
+      return;
+    }
+    if (multC.trim() !== '36') {
+      setMultError('Qual o resultado da multiplicação dos dois fatores?');
       playSound('/sounds/incorrect.mp3');
       return;
     }
@@ -562,7 +580,7 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
           </p>
           <p className="ds-body text-neutral-black text-center mb-macro" style={{ textAlign: 'justify' }}>
             Você viu que, para <strong>cada resultado do primeiro dado</strong>, o segundo
-            dado pode mostrar 6 faces diferentes. Isso gera <strong>6 pares ordenados</strong> por ramo.
+            dado pode mostrar faces diferentes. Cada ramo gera um conjunto de pares ordenados.
           </p>
 
           <div className="rounded-lg p-micro mb-macro"
@@ -571,7 +589,7 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
               border: '1px solid var(--color-brand-otimath-lighter)',
             }}>
             <p className="ds-body-bold text-neutral-black text-center">
-              Para cada resultado do primeiro lançamento, existem quantos pares ordenados possíveis?
+              Para cada resultado do primeiro lançamento, quantos pares ordenados são possíveis?
             </p>
           </div>
 
