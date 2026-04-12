@@ -1120,6 +1120,36 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
               {scene === 5 ? 'Próximo: máquina de lançar dados' : scene === 6 ? 'Próximo: organizar na tabela' : scene === 7 ? 'Concluir apresentação' : 'Próximo'}
             </Button>
           )}
+          {/* Botão dev: pula direto para simulação (cena 7) */}
+          <button
+            type="button"
+            aria-label="Pular para simulação (cena 7)"
+            title="Pular para simulação (cena 7)"
+            onClick={() => {
+              if (transitioning) return;
+              goToScene(7);
+            }}
+            style={{
+              height: 22,
+              borderRadius: 11,
+              backgroundColor: '#8b5cf6',
+              border: '2px solid #ffffff',
+              boxShadow: '0 0 0 2px #8b5cf6, 0 2px 6px rgba(0,0,0,0.35)',
+              cursor: 'pointer',
+              padding: '0 6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontSize: 10,
+              fontWeight: 700,
+              lineHeight: 1,
+              opacity: transitioning ? 0.4 : 1,
+              flexShrink: 0,
+            }}
+          >
+            SIM
+          </button>
           {/* Bolinha dev: pula de fase em fase (apenas para verificação) */}
           <button
             type="button"
@@ -1151,6 +1181,32 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
             }}
           >
             {scene}
+          </button>
+          {/* Botão dev: pula direto para o TwoDicesGame (etapa final) */}
+          <button
+            type="button"
+            aria-label="Pular para o jogo (etapa final)"
+            title="Pular para o jogo (etapa final)"
+            onClick={() => setDone(true)}
+            style={{
+              height: 22,
+              borderRadius: 11,
+              backgroundColor: '#10b981',
+              border: '2px solid #ffffff',
+              boxShadow: '0 0 0 2px #10b981, 0 2px 6px rgba(0,0,0,0.35)',
+              cursor: 'pointer',
+              padding: '0 6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontSize: 10,
+              fontWeight: 700,
+              lineHeight: 1,
+              flexShrink: 0,
+            }}
+          >
+            JOGO
           </button>
         </div>
       </div>
