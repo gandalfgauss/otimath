@@ -347,6 +347,7 @@ export interface DiceSceneHandle {
   setColor: (color: DiceColor) => void;
   setBetting: (betting: boolean, onSelect?: (face: number) => void) => void;
   highlightFace: (face: number | null) => void;
+  setMuteImpact: (mute: boolean) => void;
 }
 
 const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialColor?: DiceColor }>(function DiceScene(
@@ -379,6 +380,8 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     // Highlight
     highlightedFace: number | null;
     highlightedMatIdx: number | null;
+    // Mute impact sounds
+    muteImpact: boolean;
     // Pointer tracking
     pointerDown: boolean;
     pointerStartX: number;
@@ -503,6 +506,8 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       // Highlight
       highlightedFace: null as number | null,
       highlightedMatIdx: null as number | null,
+      // Mute impact sounds (para sequências automáticas como Cena 2)
+      muteImpact: false,
       // Pointer
       pointerDown: false,
       pointerStartX: 0,
@@ -580,7 +585,7 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
 
           // Som de impacto — volume proporcional à velocidade
           const impactVol = Math.min(0.6, Math.abs(s.rollVel) * 0.04);
-          if (impactVol > 0.05) playSound('/sounds/click.mp3');
+          if (impactVol > 0.05 && !s.muteImpact) playSound('/sounds/click.mp3');
 
           if (s.rollBounces >= MAX_BOUNCES) {
             // Último bounce → assentar na face correta
@@ -831,7 +836,12 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     }
   }, []);
 
-  useImperativeHandle(ref, () => ({ roll, setIdle, setColor, setBetting, highlightFace }), [roll, setIdle, setColor, setBetting, highlightFace]);
+  const setMuteImpact = useCallback((mute: boolean) => {
+    const s = internals.current;
+    if (s) s.muteImpact = mute;
+  }, []);
+
+  useImperativeHandle(ref, () => ({ roll, setIdle, setColor, setBetting, highlightFace, setMuteImpact }), [roll, setIdle, setColor, setBetting, highlightFace, setMuteImpact]);
 
   return (
     <div

@@ -384,6 +384,8 @@ type Phase =
   | 's2-correct'      // L2: tudo certo
   | 's3-predict'      // L3: previsão + justificativa (ANTES de lançar)
   | 's3-rolling'
+  | 's3-pick'         // L3: pickers para registrar par (mesmo gesto de L1/L2)
+  | 's3-sum'          // L3: input da soma (antes de comparar com previsão)
   | 's3-reflect'      // L3: feedback adidático
   | 'bridge';         // Fechamento + ponte para Cena 7
 
@@ -441,10 +443,10 @@ export function DiceMachineExperiment({
     return () => clearInterval(id);
   }, [phase, diceMachineRef]);
 
-  // Scroll suave para o container da máquina
+  // Scroll suave para o container da máquina (topo visível)
   const scrollToScene = useCallback(() => {
     if (diceContainerRef.current) {
-      diceContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      diceContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [diceContainerRef]);
 
@@ -467,6 +469,9 @@ export function DiceMachineExperiment({
       setStepIdx(-1);
       setStatusMsg(STEP_NAMES[0] ?? '');
       setPhase(rollingPhase);
+      // Aguarda o React re-renderizar a fase rolling antes de fazer scroll,
+      // evitando disputa entre reflow (card desmontado) e scrollIntoView.
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       scrollToScene();
       try {
         const result = await diceMachineRef.current.roll();
@@ -524,8 +529,8 @@ export function DiceMachineExperiment({
     [pickedGreen, pickedBlue, greenResult, blueResult],
   );
 
-  // ═══════ Validação da soma (L2) ═══════
-  const validateSum = useCallback(() => {
+  // ═══════ Validação da soma (L2 e L3) ═══════
+  const validateSum = useCallback((nextPhase: Phase = 's2-correct') => {
     const v = parseInt(sumInput.trim(), 10);
     if (isNaN(v)) {
       setSumError(true);
@@ -538,7 +543,7 @@ export function DiceMachineExperiment({
       setSumError(false);
       setSumFeedback('');
       playSound('/sounds/correct.mp3');
-      setPhase('s2-correct');
+      setPhase(nextPhase);
     } else {
       setSumError(true);
       setSumFeedback(`Some ${greenResult} (verde) com ${blueResult} (azul) e tente de novo.`);
@@ -566,9 +571,13 @@ export function DiceMachineExperiment({
       playSound('/sounds/incorrect.mp3');
       return;
     }
-    // Lança a máquina
-    void launchMachine('s3-rolling', 's3-reflect');
-  }, [predictionInput, predictionReason, launchMachine]);
+    // Lança a máquina — após pousar, aluno registra par + soma antes do reflect
+    resetPicker();
+    setSumInput('');
+    setSumError(false);
+    setSumFeedback('');
+    void launchMachine('s3-rolling', 's3-pick');
+  }, [predictionInput, predictionReason, launchMachine, resetPicker]);
 
   // ═══════ Avanço entre etapas ═══════
   const goToS2 = useCallback(() => {
@@ -1183,7 +1192,7 @@ export function DiceMachineExperiment({
                 <Button
                   style="primary"
                   size="extra-small"
-                  onClick={validateSum}
+                  onClick={() => validateSum('s2-correct')}
                   aria-label="Conferir a soma calculada"
                 >
                   Conferir
@@ -1353,6 +1362,102 @@ export function DiceMachineExperiment({
                   🎲 Lançar e observar
                 </Button>
               </div>
+            </div>
+          )}
+
+          {/* ───────── L3: PICKER (registrar o par antes de comparar com previsão) ───────── */}
+          {phase === 's3-pick' && (
+            <div className="bg-neutral-white rounded-lg p-xxs"
+              style={{
+                border: '2px solid var(--color-brand-otimath-lighter)',
+                boxShadow: '0 4px 14px rgba(36, 80, 190, 0.08)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                Lançamento 3 — Registrar o par
+              </p>
+              <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+                Antes de conferir sua previsão, registre o par que a máquina produziu.
+              </p>
+              {renderPairPicker()}
+              <div className="flex justify-center mt-micro">
+                <Button
+                  style="primary"
+                  size="small"
+                  onClick={() => validatePair(() => {
+                    setSumInput('');
+                    setSumError(false);
+                    setSumFeedback('');
+                    setPhase('s3-sum');
+                  })}
+                  aria-label="Conferir o par ordenado registrado"
+                >
+                  Conferir
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ───────── L3: SOMA (calcular antes de comparar com previsão) ───────── */}
+          {phase === 's3-sum' && (
+            <div className="bg-neutral-white rounded-lg p-xxs"
+              style={{
+                border: '2px solid var(--color-brand-otimath-lighter)',
+                boxShadow: '0 4px 14px rgba(36, 80, 190, 0.08)',
+                maxWidth: 560,
+                margin: '0 auto',
+              }}>
+              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                Lançamento 3 — Calcular a soma
+              </p>
+              {renderResultCard(false)}
+              <p className="ds-body text-neutral-black mb-micro text-center">
+                Some os valores das duas faces:
+              </p>
+              <div className="flex items-center justify-center" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <span className="ds-body-bold text-neutral-black">Soma =</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={sumInput}
+                  onChange={e => {
+                    setSumInput(e.target.value);
+                    setSumError(false);
+                    setSumFeedback('');
+                  }}
+                  aria-label="Digite a soma dos dois dados"
+                  aria-invalid={sumError}
+                  className="ds-body-bold"
+                  style={{
+                    border: `2px solid ${sumError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    width: 84,
+                    minHeight: 44,
+                    textAlign: 'center',
+                    outline: 'none',
+                  }}
+                />
+                <Button
+                  style="primary"
+                  size="extra-small"
+                  onClick={() => validateSum('s3-reflect')}
+                  aria-label="Conferir a soma calculada"
+                >
+                  Conferir
+                </Button>
+              </div>
+              {sumFeedback && (
+                <p
+                  role="alert"
+                  className="ds-small-bold text-center mt-micro"
+                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                >
+                  {sumFeedback}
+                </p>
+              )}
             </div>
           )}
 

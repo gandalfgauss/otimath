@@ -569,13 +569,14 @@ function makeMats(
 ): THREE.MeshPhysicalMaterial[] {
   const layout = faceLayout(result);
   const mats: THREE.MeshPhysicalMaterial[] = [];
-  // Dados brancos usam material MAIS FOSCO para evitar que o especular
-  // do clearcoat apague as pintas após o zoom da câmera. Dados coloridos
-  // (azul/verde) mantêm o acabamento polido original.
-  const roughness = whiteMode ? 0.72 : 0.23;
-  const clearcoat = whiteMode ? 0.15 : 1.0;
-  const clearcoatRoughness = whiteMode ? 0.65 : 0.10;
-  const reflectivity = whiteMode ? 0.18 : 0.72;
+  // Roughness e clearcoat calibrados para que as pintas fiquem SEMPRE
+  // visíveis, inclusive em ângulos onde a key light incide de frente.
+  // Dados brancos são mais foscos; dados coloridos mantêm brilho moderado
+  // sem lavar as pintas com especular excessivo.
+  const roughness = whiteMode ? 0.72 : 0.48;
+  const clearcoat = whiteMode ? 0.15 : 0.35;
+  const clearcoatRoughness = whiteMode ? 0.65 : 0.45;
+  const reflectivity = whiteMode ? 0.18 : 0.35;
   for (let i = 0; i < 6; i++) {
     mats.push(new THREE.MeshPhysicalMaterial({
       map: tx[layout[i]],
@@ -803,12 +804,14 @@ export interface DiceMachineSceneHandle {
 interface Props {
   /** Callback chamado a cada mudança de estado (para barra de progresso/mensagem) */
   onStateChange?: (step: number, label: string) => void;
+  /** Callback chamado quando o renderer WebGL está pronto e o primeiro frame foi pintado */
+  onReady?: () => void;
   aspectRatio?: string;
   maxWidth?: number;
 }
 
 const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function DiceMachineScene(
-  { onStateChange, aspectRatio = '758 / 520', maxWidth = 758 }, ref
+  { onStateChange, onReady, aspectRatio = '758 / 520', maxWidth = 758 }, ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1842,7 +1845,27 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       let d2: DieRender = { x: D2X0, y: DIE_Y, z: DZ0 + 0.22, rZ: 0, rX: 0, rY: 0, a: 1, show: true };
 
       if (state.cur === 'ALIGN') {
-        d1.z = lerp(DZ0, 0, pe); d2.z = lerp(DZ0 + 0.22, 0, pe);
+        // Os dados ficam PARADOS até a paleta frontal encostar neles.
+        // Paleta frontal (box espessura 0.09): face interna = fPZ - 0.045.
+        // Contato quando fPadFace <= dadoZ + DHS. Após contato, dado é
+        // empurrado pela paleta. Destino final: z = 0 (centro da mesa).
+        const PAD_HALF = 0.045;
+        const fPadZ = lerp(PFZ_R, PFZ_E, pe);
+        const fPadFace = fPadZ - PAD_HALF;
+
+        // Dado 1: parado em DZ0 até a paleta alcançá-lo
+        if (fPadFace <= DZ0 + DHS) {
+          d1.z = Math.max(0, fPadFace - DHS);
+        }
+        // else d1.z já é DZ0 (valor default da linha 1842)
+
+        // Dado 2: parado em DZ0+0.22 até a paleta alcançá-lo
+        const d2Start = DZ0 + 0.22;
+        if (fPadFace <= d2Start + DHS) {
+          d2.z = Math.max(0, fPadFace - DHS);
+        } else {
+          d2.z = d2Start;
+        }
       } else if (state.cur === 'PUSH') {
         d1.z = 0;
         d2.z = 0;
@@ -2125,9 +2148,12 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
 
     /* ───── Loop principal ───── */
     let lastTs: number | null = null;
+    let readyFired = false;
     const animate = (ts: number) => {
       state.animId = requestAnimationFrame(animate);
       if (lastTs === null) lastTs = ts;
+      // Sinaliza pronto após o primeiro frame ser pintado
+      if (!readyFired) { readyFired = true; requestAnimationFrame(() => onReady?.()); }
       const dt = Math.min((ts - lastTs) * 0.001, 0.05);
       lastTs = ts;
       if (state.running && state.cur !== 'IDLE' && state.cur !== 'RESULT') {

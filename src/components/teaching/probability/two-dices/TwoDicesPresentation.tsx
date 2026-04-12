@@ -14,10 +14,57 @@ import { TwoDicesPractice } from './TwoDicesPractice';
 import { TwoDicesExperiment } from './TwoDicesExperiment';
 import { DiceMachineExperiment } from './DiceMachineExperiment';
 
+// Skeleton exibido enquanto o chunk JS do componente 3D é baixado
+function Scene3DSkeleton({ label = 'Carregando cena 3D...' }: { label?: string }) {
+  return (
+    <div
+      className="w-full rounded-lg overflow-hidden"
+      style={{
+        aspectRatio: '16 / 10',
+        maxWidth: 520,
+        margin: '0 auto',
+        background: 'linear-gradient(110deg, #0a1628 30%, #142744 50%, #0a1628 70%)',
+        backgroundSize: '200% 100%',
+        animation: 'shimmer 1.4s ease-in-out infinite',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+      }}
+    >
+      <span className="ds-body-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>{label}</span>
+      <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+    </div>
+  );
+}
+
+function MachineSkeleton() {
+  return (
+    <div
+      className="w-full rounded-lg overflow-hidden"
+      style={{
+        aspectRatio: '758 / 520',
+        maxWidth: 758,
+        margin: '0 auto',
+        background: 'linear-gradient(110deg, #0a1628 30%, #142744 50%, #0a1628 70%)',
+        backgroundSize: '200% 100%',
+        animation: 'shimmer 1.4s ease-in-out infinite',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 14px 60px rgba(0,0,0,.9)',
+        border: '1.5px solid #0d1824',
+      }}
+    >
+      <span className="ds-body-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>Carregando a máquina...</span>
+    </div>
+  );
+}
+
 // Importação dinâmica dos componentes 3D (Three.js precisa do browser)
-const DiceScene = dynamic(() => import('./DiceScene'), { ssr: false });
-const TwoDiceScene = dynamic(() => import('./TwoDiceScene'), { ssr: false });
-const DiceMachineScene = dynamic(() => import('./DiceMachineScene'), { ssr: false });
+const DiceScene = dynamic(() => import('./DiceScene'), { ssr: false, loading: () => <Scene3DSkeleton label="Carregando dado 3D..." /> });
+const TwoDiceScene = dynamic(() => import('./TwoDiceScene'), { ssr: false, loading: () => <Scene3DSkeleton label="Carregando dados 3D..." /> });
+const DiceMachineScene = dynamic(() => import('./DiceMachineScene'), { ssr: false, loading: () => <MachineSkeleton /> });
 
 // ═══════ Constantes ═══════
 
@@ -196,6 +243,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
 
   // ═══════ Cena 6: máquina automática de lançamento (percepção do acaso) ═══════
   const [scene6Finished, setScene6Finished] = useState(false);
+  // A máquina 3D começa a montar na Cena 5 (escondida) para pré-inicializar
+  // WebGL enquanto o aluno pratica. O skeleton fica visível até onReady.
+  const [machineReady, setMachineReady] = useState(false);
 
   // ═══════ Cena 7: experimento com dois dados — tabela 6×6 (sistematização) ═══════
   const [scene7Finished, setScene7Finished] = useState(false);
@@ -214,15 +264,25 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
     }
   }, [scene]);
 
+  // Pré-carregar chunk do TwoDiceScene durante a Cena 5 (usado na Cena 7).
+  // DiceMachineScene já é montado (escondido) na Cena 5, dispensando preload.
+  useEffect(() => {
+    if (scene === 5) {
+      import('./TwoDiceScene');
+    }
+  }, [scene]);
+
   // ── Iniciar sequência da Cena 2 ──
   const startScene2 = useCallback(async () => {
     if (scene2Running.current) return;
     scene2Running.current = true;
     diceRef.current?.setIdle(false);
 
-    // Som único no início — evita conflito com sons de impacto (click.mp3)
-    // que tocam durante a animação de cada roll(). O singleton playSound
-    // não suporta bem chamadas rápidas em sequência, causando travamento.
+    // Silenciar sons de impacto durante a sequência automática — o singleton
+    // playSound não suporta chamadas rápidas em sequência (bounce × 6 rolls
+    // = ~20 chamadas), causando travamento em mobile.
+    diceRef.current?.setMuteImpact(true);
+
     playSound('/sounds/nextChallenge.mp3');
 
     for (let i = 0; i < 6; i++) {
@@ -233,6 +293,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
       // Espera breve para o aluno ver a face
       await new Promise(r => setTimeout(r, 800));
     }
+
+    // Restaurar sons de impacto para as cenas seguintes
+    diceRef.current?.setMuteImpact(false);
 
     // Avançar automaticamente para Cena 3
     await new Promise(r => setTimeout(r, 500));
@@ -1023,31 +1086,58 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                 onColorChange={setScene5DiceColor}
                 onFinished={() => {
                   setScene5Finished(true);
-                  // Avança imediatamente para a Cena 6 (botão "Iniciar Simulação com Dois Dados"
-                  // no corpo da Cena 5 deve transicionar sem depender do botão do rodapé)
                   goToScene(6);
                 }}
               />
             )}
 
-            {/* ═══════ CENA 6 — Máquina automática (PERCEPÇÃO do acaso bidimensional) ═══════
-                Reordenamento didático (Brousseau, Freudenthal, Cazorla, Borovcnik):
-                a observação do fenômeno físico precede a sistematização tabular.
-                Aqui o aluno observa, registra com picker visual, soma e finalmente
-                faz uma previsão metacognitiva — preparando a Cena 7. */}
+            {/* ═══════ MÁQUINA 3D — Montada desde a Cena 5 (escondida) para pré-inicializar
+                WebGL (renderer, texturas, geometrias). Na Cena 6 fica visível. ═══════ */}
+            {(scene === 5 || scene === 6) && (
+              <div
+                ref={diceMachineContainerRef}
+                style={{
+                  width: '100%',
+                  display: scene === 6 ? 'block' : 'none',
+                  position: 'relative',
+                }}
+              >
+                {/* Skeleton sobre a máquina enquanto WebGL inicializa */}
+                {!machineReady && scene === 6 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      zIndex: 10,
+                      borderRadius: 8,
+                      background: 'linear-gradient(110deg, #0a1628 30%, #142744 50%, #0a1628 70%)',
+                      backgroundSize: '200% 100%',
+                      animation: 'shimmer 1.4s ease-in-out infinite',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <span className="ds-body-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      Carregando a máquina...
+                    </span>
+                    <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+                  </div>
+                )}
+                <DiceMachineScene ref={diceMachineRef} onReady={() => setMachineReady(true)} />
+              </div>
+            )}
+
+            {/* ═══════ CENA 6 — Experimento com a máquina ═══════ */}
             {scene === 6 && (
-              <>
-                <div ref={diceMachineContainerRef} style={{ width: '100%' }}>
-                  <DiceMachineScene ref={diceMachineRef} />
-                </div>
-                <DiceMachineExperiment
-                  diceMachineRef={diceMachineRef}
-                  diceContainerRef={diceMachineContainerRef}
-                  onFinished={() => {
-                    setScene6Finished(true);
-                  }}
-                />
-              </>
+              <DiceMachineExperiment
+                diceMachineRef={diceMachineRef}
+                diceContainerRef={diceMachineContainerRef}
+                onFinished={() => {
+                  setScene6Finished(true);
+                  goToScene(7);
+                }}
+              />
             )}
 
             {/* ═══════ CENA 7 — Dois dados 3D + tabela 6×6 (SISTEMATIZAÇÃO a posteriori) ═══════
@@ -1100,6 +1190,29 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
         </GridItem>
       </Grid>
 
+      {/* Rodapé fixo com botão Próximo */}
+      <div
+        className="fixed bottom-0 left-0 right-0 bg-neutral-white border-t border-neutral-lighter px-xxs py-micro flex items-center justify-between"
+        style={{ zIndex: 50 }}
+      >
+        <span className="ds-caption text-neutral-medium">
+          OVA Probabilidade — Dois Dados · Rangel Freitas dos Santos · PROFMAT / UFVJM
+        </span>
+        <div className="flex items-center gap-xxs">
+          {scene !== 2 && !(scene === 3 && scene3Step < 6) && !(scene === 4 && scene4Step < 3) && !(scene === 5 && !scene5Finished) && !(scene === 6 && !scene6Finished) && !(scene === 7 && !scene7Finished) && (
+            <Button
+              style="primary"
+              size="small"
+              icon={<ArrowRight />}
+              onClick={handleNext}
+              disabled={transitioning}
+            >
+              {scene === 5 ? 'Próximo: máquina de lançar dados' : scene === 6 ? 'Próximo: organizar na tabela' : scene === 7 ? 'Concluir apresentação' : 'Próximo'}
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Botão JOGO — canto inferior esquerdo */}
       <button
         type="button"
@@ -1108,7 +1221,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
         onClick={() => setDone(true)}
         style={{
           position: 'fixed',
-          bottom: 16,
+          bottom: 52,
           left: 16,
           height: 24,
           borderRadius: 12,
