@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { Button } from '@/components/global/Button';
 import { Grid } from '@/components/global/Grid';
 import { GridItem } from '@/components/global/GridItem';
-import { ArrowRight, Dices } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { playSound } from '@/hooks/global/useSound';
 import type { DiceSceneHandle } from './DiceScene';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
@@ -481,7 +481,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
             {/* ═══════ BOLINHAS DE NAVEGAÇÃO (verde=voltar, laranja=avançar) ═══════ */}
             <div style={{
               position: 'fixed',
-              bottom: 24,
+              bottom: 64,
               right: 24,
               display: 'flex',
               flexDirection: 'column',
@@ -497,13 +497,13 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   aria-label={`Voltar para a cena ${scene - 1}`}
                   title={`Voltar para a cena ${scene - 1}`}
                   style={{
-                    width: 48,
-                    height: 48,
+                    width: 24,
+                    height: 24,
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, #4ade80, #16a34a)',
-                    border: '3px solid #15803d',
+                    border: '2px solid #15803d',
                     cursor: transitioning ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 16px rgba(22, 101, 52, 0.50), inset 0 1px 2px rgba(255,255,255,0.3)',
+                    boxShadow: '0 2px 8px rgba(22, 101, 52, 0.50), inset 0 1px 1px rgba(255,255,255,0.3)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -513,7 +513,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   onMouseEnter={e => { if (!transitioning) e.currentTarget.style.transform = 'scale(1.15)'; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="15 18 9 12 15 6" />
                   </svg>
                 </button>
@@ -527,13 +527,13 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   aria-label={`Avançar para a cena ${scene + 1}`}
                   title={`Avançar para a cena ${scene + 1}`}
                   style={{
-                    width: 48,
-                    height: 48,
+                    width: 24,
+                    height: 24,
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, #fb923c, #ea580c)',
-                    border: '3px solid #c2410c',
+                    border: '2px solid #c2410c',
                     cursor: transitioning ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 16px rgba(194, 65, 12, 0.50), inset 0 1px 2px rgba(255,255,255,0.3)',
+                    boxShadow: '0 2px 8px rgba(194, 65, 12, 0.50), inset 0 1px 1px rgba(255,255,255,0.3)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -543,7 +543,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   onMouseEnter={e => { if (!transitioning) e.currentTarget.style.transform = 'scale(1.15)'; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
                 </button>
@@ -1100,116 +1100,35 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
         </GridItem>
       </Grid>
 
-      {/* Rodapé fixo com navegação */}
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-neutral-white border-t border-neutral-lighter px-xxs py-micro flex items-center justify-between"
-        style={{ zIndex: 50 }}
+      {/* Botão JOGO — canto inferior esquerdo */}
+      <button
+        type="button"
+        aria-label="Pular para o jogo (etapa final)"
+        title="Pular para o jogo (etapa final)"
+        onClick={() => setDone(true)}
+        style={{
+          position: 'fixed',
+          bottom: 16,
+          left: 16,
+          height: 24,
+          borderRadius: 12,
+          backgroundColor: '#10b981',
+          border: '2px solid #ffffff',
+          boxShadow: '0 0 0 2px #10b981, 0 2px 6px rgba(0,0,0,0.35)',
+          cursor: 'pointer',
+          padding: '0 8px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#ffffff',
+          fontSize: 10,
+          fontWeight: 700,
+          lineHeight: 1,
+          zIndex: 100,
+        }}
       >
-        <span className="ds-caption text-neutral-medium">
-          OVA Probabilidade — Dois Dados · Rangel Freitas dos Santos · PROFMAT / UFVJM
-        </span>
-        <div className="flex items-center gap-xxs">
-          {scene !== 2 && !(scene === 3 && scene3Step < 6) && !(scene === 4 && scene4Step < 3) && !(scene === 5 && !scene5Finished) && !(scene === 6 && !scene6Finished) && !(scene === 7 && !scene7Finished) && (
-            <Button
-              style="primary"
-              size="small"
-              icon={scene === 4 ? <Dices /> : <ArrowRight />}
-              onClick={handleNext}
-              disabled={transitioning}
-            >
-              {scene === 5 ? 'Próximo: máquina de lançar dados' : scene === 6 ? 'Próximo: organizar na tabela' : scene === 7 ? 'Concluir apresentação' : 'Próximo'}
-            </Button>
-          )}
-          {/* Botão dev: pula direto para simulação (cena 7) */}
-          <button
-            type="button"
-            aria-label="Pular para simulação (cena 7)"
-            title="Pular para simulação (cena 7)"
-            onClick={() => {
-              if (transitioning) return;
-              goToScene(7);
-            }}
-            style={{
-              height: 22,
-              borderRadius: 11,
-              backgroundColor: '#8b5cf6',
-              border: '2px solid #ffffff',
-              boxShadow: '0 0 0 2px #8b5cf6, 0 2px 6px rgba(0,0,0,0.35)',
-              cursor: 'pointer',
-              padding: '0 6px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontSize: 10,
-              fontWeight: 700,
-              lineHeight: 1,
-              opacity: transitioning ? 0.4 : 1,
-              flexShrink: 0,
-            }}
-          >
-            SIM
-          </button>
-          {/* Bolinha dev: pula de fase em fase (apenas para verificação) */}
-          <button
-            type="button"
-            aria-label={`Pular para a próxima fase (atual: ${scene})`}
-            title={`Pular fase (atual: ${scene}/7)`}
-            onClick={() => {
-              if (transitioning) return;
-              const next = scene >= 7 ? 1 : scene + 1;
-              goToScene(next);
-            }}
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: '50%',
-              backgroundColor: '#ff3b30',
-              border: '2px solid #ffffff',
-              boxShadow: '0 0 0 2px #ff3b30, 0 2px 6px rgba(0,0,0,0.35)',
-              cursor: 'pointer',
-              padding: 0,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontSize: 11,
-              fontWeight: 700,
-              lineHeight: 1,
-              opacity: transitioning ? 0.4 : 1,
-              flexShrink: 0,
-            }}
-          >
-            {scene}
-          </button>
-          {/* Botão dev: pula direto para o TwoDicesGame (etapa final) */}
-          <button
-            type="button"
-            aria-label="Pular para o jogo (etapa final)"
-            title="Pular para o jogo (etapa final)"
-            onClick={() => setDone(true)}
-            style={{
-              height: 22,
-              borderRadius: 11,
-              backgroundColor: '#10b981',
-              border: '2px solid #ffffff',
-              boxShadow: '0 0 0 2px #10b981, 0 2px 6px rgba(0,0,0,0.35)',
-              cursor: 'pointer',
-              padding: '0 6px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontSize: 10,
-              fontWeight: 700,
-              lineHeight: 1,
-              flexShrink: 0,
-            }}
-          >
-            JOGO
-          </button>
-        </div>
-      </div>
+        JOGO
+      </button>
     </main>
   );
 }
