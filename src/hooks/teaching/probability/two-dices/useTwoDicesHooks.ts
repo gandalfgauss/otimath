@@ -97,7 +97,7 @@ const events: Event[] = [
   },
   {
     description: "Nenhuma face par",
-    complementaryDescription: "Todas as faces são pares",
+    complementaryDescription: "Pelo menos uma face par",
     validation: (greenDice, blueDice) => greenDice % 2 === 1 && blueDice % 2 === 1,
   },
 ];
