@@ -7,6 +7,7 @@ import type { TwoDiceSceneHandle } from './TwoDiceScene';
 import type { DiceMachineSceneHandle } from './DiceMachineScene';
 import { SampleSpaceTree } from './SampleSpaceTree';
 import { FacePicker } from './FacePicker';
+import { UnionProbabilityTheory } from './UnionProbabilityTheory';
 
 // ═══════ Faces do dado com pintas ═══════
 const PIP_PATTERNS: Record<number, number[]> = {
@@ -296,6 +297,7 @@ type Phase =
   | 'sumInput' | 'sumMarkTable' | 'sumComplete'
   | 'sumAlienIntro' | 'sumPredictMax' | 'sumPredictMin' | 'sumImpossible' | 'sumReveal'
   | 'probPair' | 'probPairReveal' | 'probSumTable' | 'probSumReveal'
+  | 'unionTheory'
   | 'raceBet' | 'raceRunning' | 'raceFinished'
   | 'pairQuestion' | 'pairExplain' | 'colorQuestion' | 'colorExplain'
   | 'finished';
@@ -1003,23 +1005,24 @@ export function TwoDicesExperiment({
   };
 
   /** Dispara um sorteio dos dados na fase raceRunning.
-   * Faz scroll para o topo para o aluno ver o lançamento dos dados em 3D. */
+   * Ancora para o topo (ver dados 3D) e 300ms depois do sorteio ancora
+   * para baixo (ver a pista de carrinhos). */
   const rollRaceDice = async () => {
     if (raceBusy || racePendingSum !== null || raceWinner !== null) return;
     const scene = diceSceneRef.current;
     if (!scene) return;
     setRaceBusy(true);
-    // Scroll para a cena 3D dos dados no topo da tela
-    diceContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Ancora para o topo (dados 3D) antes do sorteio
+    diceContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     try {
       const result = await scene.roll();
       const sum = result.green + result.blue;
       setRacePendingSum(sum);
       setRaceClickError(false);
-      // Após os dados pararem, faz scroll para a pista para que o aluno clique
+      // 300ms depois dos dados pararem, ancora para baixo (pista de carrinhos)
       setTimeout(() => {
         cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 450);
+      }, 300);
     } finally {
       setRaceBusy(false);
     }
@@ -1136,6 +1139,7 @@ export function TwoDicesExperiment({
       phase === 'probPairReveal' ||
       phase === 'probSumTable' ||
       phase === 'probSumReveal' ||
+      phase === 'unionTheory' ||
       phase === 'raceFinished';
     onHideAllDice(shouldHide);
   }, [phase, onHideAllDice]);
@@ -2957,12 +2961,12 @@ export function TwoDicesExperiment({
               )}
               {racePendingSum !== null && raceWinner === null && (
                 <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-warning-dark)', fontSize: '1.05rem' }}>
-                  A soma foi <strong>{racePendingSum}</strong>. Clique no carrinho <strong>{racePendingSum}</strong> para avançá-lo!
+                  Clique no carrinho de numeração igual à <strong>soma dos resultados dos dados</strong> para avançá-lo!
                 </p>
               )}
               {raceClickError && (
                 <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
-                  Observe os dados: a soma foi <strong>{racePendingSum}</strong>. Clique no carrinho correto.
+                  Some os resultados dos dados e clique no carrinho correspondente.
                 </p>
               )}
               {/* Pista da corrida — layout flex simples, 13 linhas verticais */}
@@ -2983,7 +2987,6 @@ export function TwoDicesExperiment({
                   const isBet = raceBet === carNumber;
                   const pos = racePositions[carNumber] ?? 0;
                   const canClick = racePendingSum !== null && raceWinner === null;
-                  const isHighlightedAsTarget = racePendingSum === carNumber && raceWinner === null;
                   return (
                     <div
                       key={`row-running-${carNumber}`}
@@ -3027,15 +3030,14 @@ export function TwoDicesExperiment({
                                 type="button"
                                 disabled={!canClick}
                                 onClick={() => handleRaceCarClick(carNumber)}
-                                aria-label={`Carrinho ${carNumber}${isHighlightedAsTarget ? ' alvo atual, clique para avançar' : ''}`}
+                                aria-label={`Carrinho ${carNumber}`}
                                 style={{
                                   background: 'transparent',
                                   border: 'none',
                                   padding: 0,
                                   cursor: canClick ? 'pointer' : 'default',
                                   transition: 'transform 350ms ease',
-                                  transform: isHighlightedAsTarget ? 'scale(1.08)' : 'scale(1)',
-                                  animation: isHighlightedAsTarget ? 'markVPop 0.5s ease-out' : undefined,
+                                  transform: 'scale(1)',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
@@ -3047,7 +3049,7 @@ export function TwoDicesExperiment({
                                 <CarrinhoIcon
                                   numero={carNumber}
                                   width={44}
-                                  highlighted={isBet || isHighlightedAsTarget}
+                                  highlighted={isBet}
                                 />
                               </button>
                             )}
@@ -3150,13 +3152,23 @@ export function TwoDicesExperiment({
               </div>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={() => {
-                  playSound('/sounds/gameFinished.mp3');
-                  onFinished();
+                  playSound('/sounds/nextChallenge.mp3');
+                  setPhase('unionTheory');
                 }}>
-                  Finalizar
+                  Próximo: união de eventos
                 </Button>
               </div>
             </div>
+          )}
+
+          {/* ═══════ FUNDAMENTAÇÃO DE P(A ∪ B) — após a corrida ═══════ */}
+          {phase === 'unionTheory' && (
+            <UnionProbabilityTheory
+              onFinished={() => {
+                playSound('/sounds/gameFinished.mp3');
+                onFinished();
+              }}
+            />
           )}
 
           {/* Feedback */}
