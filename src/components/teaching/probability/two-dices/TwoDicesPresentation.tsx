@@ -9,6 +9,7 @@ import { ArrowRight } from 'lucide-react';
 import { playSound } from '@/hooks/global/useSound';
 import type { DiceSceneHandle } from './DiceScene';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
+import type { UnionTheoryHandle } from './UnionProbabilityTheory';
 import type { DiceMachineSceneHandle } from './DiceMachineScene';
 import { TwoDicesPractice } from './TwoDicesPractice';
 import { TwoDicesExperiment } from './TwoDicesExperiment';
@@ -190,6 +191,8 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   const diceMachineContainerRef = useRef<HTMLDivElement>(null);
   // Ref da cena de dois dados (Cena 7 — sistematização tabular)
   const twoDiceRef = useRef<TwoDiceSceneHandle>(null);
+  // Ref para navegar pelas fases internas do UnionProbabilityTheory (setinhas dev)
+  const unionTheoryRef = useRef<UnionTheoryHandle>(null);
   const twoDiceContainerRef = useRef<HTMLDivElement>(null);
   // Cena 7: troca a cena de dois dados pela máquina (com dados brancos)
   // durante a fase colorQuestion. Controlado via callback do TwoDicesExperiment.
@@ -198,6 +201,8 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   // finais de cálculo de probabilidade (probPair, probPairReveal, probSumTable,
   // probSumReveal) — ali os dados físicos são semanticamente irrelevantes.
   const [scene7HideAllDice, setScene7HideAllDice] = useState(false);
+  // Dev: pular direto para a fase unionTheory na Cena 7
+  const [devSkipToUnion, setDevSkipToUnion] = useState(false);
 
   // Cena 2: face atual na sequência
   const [currentFaceIdx, setCurrentFaceIdx] = useState(-1);
@@ -551,11 +556,18 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
               gap: 10,
               zIndex: 100,
             }}>
-              {/* Voltar (verde) */}
+              {/* Voltar (verde) — se UnionTheory ativa, volta fase interna; senão, cena anterior */}
               {scene > 1 && (
                 <button
                   type="button"
-                  onClick={() => goToScene(scene - 1)}
+                  onClick={() => {
+                    if (transitioning) return;
+                    if (scene === 7 && unionTheoryRef.current?.canBack()) {
+                      unionTheoryRef.current.back();
+                    } else {
+                      goToScene(scene - 1);
+                    }
+                  }}
                   disabled={transitioning}
                   aria-label={`Voltar para a cena ${scene - 1}`}
                   title={`Voltar para a cena ${scene - 1}`}
@@ -581,14 +593,25 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   </svg>
                 </button>
               )}
-              {/* Avançar (laranja) */}
-              {scene < 7 && (
+              {/* Avançar (laranja) — avança fase interna da UnionTheory na Cena 7;
+                  se já no fim, vai para o jogo final; demais cenas, próxima cena. */}
+              {scene <= 7 && (
                 <button
                   type="button"
-                  onClick={() => goToScene(scene + 1)}
+                  onClick={() => {
+                    if (transitioning) return;
+                    if (scene === 7 && unionTheoryRef.current?.canAdvance()) {
+                      unionTheoryRef.current.advance();
+                    } else if (scene === 7) {
+                      playSound("/sounds/gameFinished.mp3");
+                      setDone(true);
+                    } else {
+                      goToScene(scene + 1);
+                    }
+                  }}
                   disabled={transitioning}
-                  aria-label={`Avançar para a cena ${scene + 1}`}
-                  title={`Avançar para a cena ${scene + 1}`}
+                  aria-label={scene === 7 ? 'Avançar para o jogo final' : `Avançar para a cena ${scene + 1}`}
+                  title={scene === 7 ? 'Avançar para o jogo final' : `Avançar para a cena ${scene + 1}`}
                   style={{
                     width: 24,
                     height: 24,
@@ -1177,6 +1200,8 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   diceContainerRef={twoDiceContainerRef}
                   diceMachineRef={diceMachineRef}
                   diceMachineContainerRef={diceMachineContainerRef}
+                  initialPhase={devSkipToUnion ? 'unionTheory' : undefined}
+                  unionTheoryRef={unionTheoryRef}
                   onMachineVisibilityChange={setScene7UsesMachine}
                   onHideAllDice={setScene7HideAllDice}
                   onFinished={() => {
@@ -1213,35 +1238,40 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
         </div>
       </div>
 
-      {/* Botão JOGO — canto inferior esquerdo */}
-      <button
-        type="button"
-        aria-label="Pular para o jogo (etapa final)"
-        title="Pular para o jogo (etapa final)"
-        onClick={() => setDone(true)}
-        style={{
-          position: 'fixed',
-          bottom: 52,
-          left: 16,
-          height: 24,
-          borderRadius: 12,
-          backgroundColor: '#10b981',
-          border: '2px solid #ffffff',
-          boxShadow: '0 0 0 2px #10b981, 0 2px 6px rgba(0,0,0,0.35)',
-          cursor: 'pointer',
-          padding: '0 8px',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#ffffff',
-          fontSize: 10,
-          fontWeight: 700,
-          lineHeight: 1,
-          zIndex: 100,
-        }}
-      >
-        JOGO
-      </button>
+      {/* Botões dev — canto inferior esquerdo */}
+      <div style={{ position: 'fixed', bottom: 52, left: 16, zIndex: 100, display: 'flex', gap: 6 }}>
+        <button
+          type="button"
+          title="Pular para União de Eventos (Cena 7)"
+          onClick={() => {
+            setDevSkipToUnion(true);
+            goToScene(7);
+          }}
+          style={{
+            height: 24, borderRadius: 12, backgroundColor: '#8b5cf6',
+            border: '2px solid #fff', boxShadow: '0 0 0 2px #8b5cf6, 0 2px 6px rgba(0,0,0,0.35)',
+            cursor: 'pointer', padding: '0 8px', display: 'inline-flex',
+            alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 10, fontWeight: 700, lineHeight: 1,
+          }}
+        >
+          UNIÃO
+        </button>
+        <button
+          type="button"
+          title="Pular para o jogo (etapa final)"
+          onClick={() => setDone(true)}
+          style={{
+            height: 24, borderRadius: 12, backgroundColor: '#10b981',
+            border: '2px solid #fff', boxShadow: '0 0 0 2px #10b981, 0 2px 6px rgba(0,0,0,0.35)',
+            cursor: 'pointer', padding: '0 8px', display: 'inline-flex',
+            alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 10, fontWeight: 700, lineHeight: 1,
+          }}
+        >
+          JOGO
+        </button>
+      </div>
     </main>
   );
 }

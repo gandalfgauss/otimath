@@ -7,7 +7,7 @@ import type { TwoDiceSceneHandle } from './TwoDiceScene';
 import type { DiceMachineSceneHandle } from './DiceMachineScene';
 import { SampleSpaceTree } from './SampleSpaceTree';
 import { FacePicker } from './FacePicker';
-import { UnionProbabilityTheory } from './UnionProbabilityTheory';
+import { UnionProbabilityTheory, type UnionTheoryHandle } from './UnionProbabilityTheory';
 
 // ═══════ Faces do dado com pintas ═══════
 const PIP_PATTERNS: Record<number, number[]> = {
@@ -313,6 +313,10 @@ interface TwoDicesExperimentProps {
   onMachineVisibilityChange: (visible: boolean) => void;
   onHideAllDice?: (hide: boolean) => void;
   onFinished: () => void;
+  /** Fase inicial (atalho dev — pula direto para uma fase específica) */
+  initialPhase?: Phase;
+  /** Ref dev para navegar pelas fases internas do UnionProbabilityTheory */
+  unionTheoryRef?: React.RefObject<UnionTheoryHandle | null>;
 }
 
 export function TwoDicesExperiment({
@@ -320,11 +324,13 @@ export function TwoDicesExperiment({
   diceContainerRef,
   diceMachineRef,
   diceMachineContainerRef,
+  initialPhase,
+  unionTheoryRef,
   onMachineVisibilityChange,
   onHideAllDice,
   onFinished,
 }: Readonly<TwoDicesExperimentProps>) {
-  const [phase, setPhase] = useState<Phase>('intro');
+  const [phase, setPhase] = useState<Phase>(initialPhase ?? 'intro');
   const [round, setRound] = useState(0);
   const [greenResult, setGreenResult] = useState(0);
   const [blueResult, setBlueResult] = useState(0);
@@ -3164,6 +3170,7 @@ export function TwoDicesExperiment({
           {/* ═══════ FUNDAMENTAÇÃO DE P(A ∪ B) — após a corrida ═══════ */}
           {phase === 'unionTheory' && (
             <UnionProbabilityTheory
+              ref={unionTheoryRef}
               onFinished={() => {
                 playSound('/sounds/gameFinished.mp3');
                 onFinished();
