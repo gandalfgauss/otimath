@@ -254,6 +254,10 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
 
   // ═══════ Cena 7: experimento com dois dados — tabela 6×6 (sistematização) ═══════
   const [scene7Finished, setScene7Finished] = useState(false);
+  // Fase interna do experimento da Cena 7 — usada para alargar o wrapper
+  // (max-w-[800px] → max-w-[1216px]) quando entra na unionTheory, cuja
+  // tabela 6×6 precisa de mais que 800px para não gerar scroll horizontal.
+  const [scene7ExperimentPhase, setScene7ExperimentPhase] = useState<string>('intro');
 
   // Banner desaparece após 4s
   useEffect(() => {
@@ -544,7 +548,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
 
       <Grid id="apresentacao-dado" paddings="pt-xl pb-huge">
         <GridItem cols="col-[1_/_13]">
-          <div className="flex flex-col items-center gap-y-xs max-w-[800px] mx-auto">
+          <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && scene7ExperimentPhase === 'unionTheory' ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
 
             {/* ═══════ BOLINHAS DE NAVEGAÇÃO (verde=voltar, laranja=avançar) ═══════ */}
             <div style={{
@@ -1204,6 +1208,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   unionTheoryRef={unionTheoryRef}
                   onMachineVisibilityChange={setScene7UsesMachine}
                   onHideAllDice={setScene7HideAllDice}
+                  onPhaseChange={setScene7ExperimentPhase}
                   onFinished={() => {
                     setScene7Finished(true);
                   }}
@@ -1238,8 +1243,23 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
         </div>
       </div>
 
-      {/* Botões dev — canto inferior esquerdo */}
-      <div style={{ position: 'fixed', bottom: 52, left: 16, zIndex: 100, display: 'flex', gap: 6 }}>
+      {/* Botões dev — canto inferior esquerdo, empilhados (JOGO acima, UNIÃO abaixo) */}
+      <div style={{ position: 'fixed', bottom: 52, left: 16, zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+        <button
+          type="button"
+          title="Pular para o jogo (etapa final)"
+          onClick={() => setDone(true)}
+          style={{
+            height: 24, borderRadius: 12, backgroundColor: '#10b981',
+            border: '2px solid #fff', boxShadow: '0 0 0 2px #10b981, 0 2px 6px rgba(0,0,0,0.35)',
+            cursor: 'pointer', padding: '0 8px', display: 'inline-flex',
+            alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 10, fontWeight: 700, lineHeight: 1,
+            minWidth: 72,
+          }}
+        >
+          JOGO
+        </button>
         <button
           type="button"
           title="Pular para União de Eventos (Cena 7)"
@@ -1253,23 +1273,10 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
             cursor: 'pointer', padding: '0 8px', display: 'inline-flex',
             alignItems: 'center', justifyContent: 'center',
             color: '#fff', fontSize: 10, fontWeight: 700, lineHeight: 1,
+            minWidth: 72,
           }}
         >
           UNIÃO
-        </button>
-        <button
-          type="button"
-          title="Pular para o jogo (etapa final)"
-          onClick={() => setDone(true)}
-          style={{
-            height: 24, borderRadius: 12, backgroundColor: '#10b981',
-            border: '2px solid #fff', boxShadow: '0 0 0 2px #10b981, 0 2px 6px rgba(0,0,0,0.35)',
-            cursor: 'pointer', padding: '0 8px', display: 'inline-flex',
-            alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: 10, fontWeight: 700, lineHeight: 1,
-          }}
-        >
-          JOGO
         </button>
       </div>
     </main>

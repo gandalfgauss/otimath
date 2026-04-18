@@ -54,76 +54,253 @@ interface EventPair {
   eventB: EventDef;
 }
 
-const EVENT_PAIRS: EventPair[] = [
-  // PAR 1 — Introdução intuitiva (obrigatório na rodada 1)
-  {
-    id: 'P1A', category: 'intro',
-    eventA: { description: 'A soma é maior que 7', sumsDescription: '{8, 9, 10, 11, 12}', predicate: (r, c) => r + c > 7 },
-    eventB: { description: 'A soma é par', sumsDescription: '{2, 4, 6, 8, 10, 12}', predicate: (r, c) => (r + c) % 2 === 0 },
-  },
-  {
-    id: 'P1B', category: 'intro',
-    eventA: { description: 'A soma é menor que 10', sumsDescription: '{2, 3, 4, 5, 6, 7, 8, 9}', predicate: (r, c) => r + c < 10 },
-    eventB: { description: 'A soma é ímpar', sumsDescription: '{3, 5, 7, 9, 11}', predicate: (r, c) => (r + c) % 2 === 1 },
-  },
-  // PAR 2 — Forte sobreposição
-  {
-    id: 'P2A', category: 'strong_overlap',
-    eventA: { description: 'A soma é maior ou igual a 6', sumsDescription: '{6, 7, 8, 9, 10, 11, 12}', predicate: (r, c) => r + c >= 6 },
-    eventB: { description: 'A soma é menor ou igual a 9', sumsDescription: '{2, 3, 4, 5, 6, 7, 8, 9}', predicate: (r, c) => r + c <= 9 },
-  },
-  {
-    id: 'P2B', category: 'strong_overlap',
-    eventA: { description: 'A soma está entre 4 e 9', sumsDescription: '{4, 5, 6, 7, 8, 9}', predicate: (r, c) => r + c >= 4 && r + c <= 9 },
-    eventB: { description: 'A soma está entre 7 e 12', sumsDescription: '{7, 8, 9, 10, 11, 12}', predicate: (r, c) => r + c >= 7 && r + c <= 12 },
-  },
-  // PAR 3 — Interseção pequena
-  {
-    id: 'P3A', category: 'small_intersection',
-    eventA: { description: 'A soma é maior que 9', sumsDescription: '{10, 11, 12}', predicate: (r, c) => r + c > 9 },
-    eventB: { description: 'A soma é múltipla de 3', sumsDescription: '{3, 6, 9, 12}', predicate: (r, c) => (r + c) % 3 === 0 },
-  },
-  {
-    id: 'P3B', category: 'small_intersection',
-    eventA: { description: 'A soma é maior que 6', sumsDescription: '{7, 8, 9, 10, 11, 12}', predicate: (r, c) => r + c > 6 },
-    eventB: { description: 'A soma é um número primo', sumsDescription: '{2, 3, 5, 7, 11}', predicate: (r, c) => [2, 3, 5, 7, 11].includes(r + c) },
-  },
-  // PAR 4 — Sobreposição central
-  {
-    id: 'P4A', category: 'central_overlap',
-    eventA: { description: 'A soma é menor que 8', sumsDescription: '{2, 3, 4, 5, 6, 7}', predicate: (r, c) => r + c < 8 },
-    eventB: { description: 'A soma é maior que 5', sumsDescription: '{6, 7, 8, 9, 10, 11, 12}', predicate: (r, c) => r + c > 5 },
-  },
-  {
-    id: 'P4B', category: 'central_overlap',
-    eventA: { description: 'A soma está entre 5 e 10', sumsDescription: '{5, 6, 7, 8, 9, 10}', predicate: (r, c) => r + c >= 5 && r + c <= 10 },
-    eventB: { description: 'A soma está entre 8 e 12', sumsDescription: '{8, 9, 10, 11, 12}', predicate: (r, c) => r + c >= 8 && r + c <= 12 },
-  },
-  // PAR 5 — Subconjunto (caso-limite, rodada 3)
-  {
-    id: 'P5A', category: 'inclusion',
-    eventA: { description: 'A soma é maior que 4', sumsDescription: '{5, 6, 7, 8, 9, 10, 11, 12}', predicate: (r, c) => r + c > 4 },
-    eventB: { description: 'A soma é maior que 8', sumsDescription: '{9, 10, 11, 12}', predicate: (r, c) => r + c > 8 },
-  },
-  {
-    id: 'P5B', category: 'inclusion',
-    eventA: { description: 'A soma é múltipla de 2', sumsDescription: '{2, 4, 6, 8, 10, 12}', predicate: (r, c) => (r + c) % 2 === 0 },
-    eventB: { description: 'A soma é múltipla de 4', sumsDescription: '{4, 8, 12}', predicate: (r, c) => (r + c) % 4 === 0 },
-  },
+// ═══════════════════════════════════════════════════════════════
+// GERADOR ALGORÍTMICO DE PARES DE EVENTOS (substitui banco estático)
+// ═══════════════════════════════════════════════════════════════
+//
+// Cada par gerado obedece RESTRIÇÕES obrigatórias:
+//   (i)   X_A ∩ X_B ≠ ∅       — garante necessidade da fórmula da união
+//                                 (BROUSSEAU, 1997, p. 22 — obstáculo)
+//   (ii)  X_A ≠ X_B             — eventos genuinamente distintos
+//   (iii) |A|, |B| ≥ 6          — evita probabilidades triviais
+//   (iv)  |A ∩ B| ≤ 16          — evita sobreposição quase total
+//   (v)   categoria controlada  — variável didática por rodada (ARTIGUE)
+//   (vi)  inclusão X_A ⊂ X_B ou X_B ⊂ X_A permitida SÓ na rodada 3
+//
+// Espaço de parâmetros:
+//   Evento A — condição sobre a soma: {>, ≥, <, ≤, entre a e b}
+//              com a, b ∈ {2,...,12}, a < b
+//   Evento B — propriedade aritmética: {par, ímpar, primo, composto,
+//              múltiplo de k ∈ {2,3,4,6}, divisor de m ∈ {6,8,12}}
+
+type SumCondition =
+  | { kind: 'gt'; a: number }
+  | { kind: 'gte'; a: number }
+  | { kind: 'lt'; b: number }
+  | { kind: 'lte'; b: number }
+  | { kind: 'between'; a: number; b: number };
+
+type NumberProperty =
+  | { kind: 'even' }
+  | { kind: 'odd' }
+  | { kind: 'prime' }
+  | { kind: 'composite' }
+  | { kind: 'multipleOf'; k: number }
+  | { kind: 'divisorOf'; m: number };
+
+type EventCategory = 'strong_overlap' | 'central_overlap' | 'small_intersection' | 'inclusion';
+
+// Multiplicidade da soma s em {2,...,12}: r(s) = 6 − |7 − s|
+// (Número de pares ordenados (i,j) ∈ {1,...,6}² com i + j = s.)
+function sumMultiplicity(s: number): number {
+  return 6 - Math.abs(7 - s);
+}
+
+function evalSumCondition(c: SumCondition, s: number): boolean {
+  switch (c.kind) {
+    case 'gt': return s > c.a;
+    case 'gte': return s >= c.a;
+    case 'lt': return s < c.b;
+    case 'lte': return s <= c.b;
+    // "entre a e b" em português significa estritamente entre (a, b) — não
+    // inclui os extremos. Formalização: a < S < b.
+    // Para o intervalo fechado [a, b], use 'gte a' + 'lte b' em outro evento
+    // ou compose via gt/lt nos parâmetros (a−1, b+1).
+    case 'between': return s > c.a && s < c.b;
+  }
+}
+
+function evalNumberProperty(p: NumberProperty, s: number): boolean {
+  switch (p.kind) {
+    case 'even': return s % 2 === 0;
+    case 'odd': return s % 2 === 1;
+    case 'prime': return [2, 3, 5, 7, 11].includes(s);
+    case 'composite': return [4, 6, 8, 9, 10, 12].includes(s);
+    case 'multipleOf': return s % p.k === 0;
+    case 'divisorOf': return p.m % s === 0;
+  }
+}
+
+function buildSumSet(c: SumCondition): Set<number> {
+  const out = new Set<number>();
+  for (let s = 2; s <= 12; s++) if (evalSumCondition(c, s)) out.add(s);
+  return out;
+}
+
+function buildPropertySet(p: NumberProperty): Set<number> {
+  const out = new Set<number>();
+  for (let s = 2; s <= 12; s++) if (evalNumberProperty(p, s)) out.add(s);
+  return out;
+}
+
+function eventCardinality(X: Set<number>): number {
+  let n = 0;
+  X.forEach(s => { n += sumMultiplicity(s); });
+  return n;
+}
+
+function intersectSumSets(A: Set<number>, B: Set<number>): Set<number> {
+  const out = new Set<number>();
+  A.forEach(s => { if (B.has(s)) out.add(s); });
+  return out;
+}
+
+function sumSetsEqual(A: Set<number>, B: Set<number>): boolean {
+  if (A.size !== B.size) return false;
+  for (const x of A) if (!B.has(x)) return false;
+  return true;
+}
+
+function sumSubsetOf(A: Set<number>, B: Set<number>): boolean {
+  for (const x of A) if (!B.has(x)) return false;
+  return true;
+}
+
+function sumConditionDescription(c: SumCondition): string {
+  switch (c.kind) {
+    case 'gt': return `A soma é maior que ${c.a}`;
+    case 'gte': return `A soma é maior ou igual a ${c.a}`;
+    case 'lt': return `A soma é menor que ${c.b}`;
+    case 'lte': return `A soma é menor ou igual a ${c.b}`;
+    case 'between': return `A soma está entre ${c.a} e ${c.b}`;
+  }
+}
+
+function numberPropertyDescription(p: NumberProperty): string {
+  switch (p.kind) {
+    case 'even': return 'A soma é par';
+    case 'odd': return 'A soma é ímpar';
+    case 'prime': return 'A soma é um número primo';
+    case 'composite': return 'A soma é um número composto';
+    case 'multipleOf': return `A soma é múltipla de ${p.k}`;
+    case 'divisorOf': return `A soma é divisor de ${p.m}`;
+  }
+}
+
+function formatSumsDescription(X: Set<number>): string {
+  return `{${Array.from(X).sort((a, b) => a - b).join(', ')}}`;
+}
+
+function enumerateSumConditions(): SumCondition[] {
+  const out: SumCondition[] = [];
+  for (let a = 2; a <= 12; a++) out.push({ kind: 'gt', a });
+  for (let a = 2; a <= 12; a++) out.push({ kind: 'gte', a });
+  for (let b = 2; b <= 12; b++) out.push({ kind: 'lt', b });
+  for (let b = 2; b <= 12; b++) out.push({ kind: 'lte', b });
+  for (let a = 2; a < 12; a++)
+    for (let b = a + 1; b <= 12; b++)
+      out.push({ kind: 'between', a, b });
+  return out;
+}
+
+function enumerateNumberProperties(): NumberProperty[] {
+  const out: NumberProperty[] = [
+    { kind: 'even' },
+    { kind: 'odd' },
+    { kind: 'prime' },
+    { kind: 'composite' },
+  ];
+  // Restringido a valores que produzem |B| ≥ 6 (ver ressalvas do parecer)
+  for (const k of [2, 3, 4, 6]) out.push({ kind: 'multipleOf', k });
+  for (const m of [6, 8, 12]) out.push({ kind: 'divisorOf', m });
+  return out;
+}
+
+const MIN_EVENT_CARDINALITY = 6;
+const MAX_INTERSECTION_CARDINALITY = 16;
+
+function categorizeIntersection(nI: number): EventCategory | null {
+  if (nI <= 0) return null;
+  if (nI <= 3) return 'small_intersection';
+  if (nI <= 8) return 'central_overlap';
+  if (nI <= MAX_INTERSECTION_CARDINALITY) return 'strong_overlap';
+  return null;
+}
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Tenta gerar um EventPair que cumpra todas as restrições e pertença
+// à categoria pedida. Retorna null se o espaço paramétrico não oferece
+// nenhum candidato válido (raro — espaço tem milhares de combinações).
+function tryGeneratePair(category: EventCategory): EventPair | null {
+  const conditions = shuffleArray(enumerateSumConditions());
+  const properties = shuffleArray(enumerateNumberProperties());
+
+  for (const condA of conditions) {
+    const xA = buildSumSet(condA);
+    const nA = eventCardinality(xA);
+    if (nA < MIN_EVENT_CARDINALITY) continue;
+
+    for (const propB of properties) {
+      const xB = buildPropertySet(propB);
+      const nB = eventCardinality(xB);
+      if (nB < MIN_EVENT_CARDINALITY) continue;
+
+      if (sumSetsEqual(xA, xB)) continue;                         // Restrição (ii)
+
+      const xI = intersectSumSets(xA, xB);
+      if (xI.size === 0) continue;                                // Restrição (i)
+      const nI = eventCardinality(xI);
+      if (nI > MAX_INTERSECTION_CARDINALITY) continue;            // Restrição (iv)
+
+      const hasInclusion = sumSubsetOf(xA, xB) || sumSubsetOf(xB, xA);
+
+      if (category === 'inclusion') {
+        if (!hasInclusion) continue;                              // Restrição (vi) — só inclusão
+      } else {
+        if (hasInclusion) continue;                               // Restrição (vi) — exclui inclusão
+        if (categorizeIntersection(nI) !== category) continue;    // Restrição (v)
+      }
+
+      return {
+        id: `gen-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`,
+        category,
+        eventA: {
+          description: sumConditionDescription(condA),
+          sumsDescription: formatSumsDescription(xA),
+          predicate: (r, c) => xA.has(r + c),
+        },
+        eventB: {
+          description: numberPropertyDescription(propB),
+          sumsDescription: formatSumsDescription(xB),
+          predicate: (r, c) => xB.has(r + c),
+        },
+      };
+    }
+  }
+  return null;
+}
+
+// Estratégia por rodada — preserva a engenharia de variáveis didáticas
+// (ARTIGUE): a rodada 1 introduz com alta sobreposição; a rodada 2 varia
+// o tamanho da interseção; a rodada 3 apresenta o caso-limite inclusão.
+const CATEGORIES_BY_ROUND: EventCategory[][] = [
+  ['strong_overlap', 'central_overlap'],                          // rodada 0 (1ª)
+  ['central_overlap', 'small_intersection', 'strong_overlap'],    // rodada 1 (2ª)
+  ['inclusion'],                                                   // rodada 2 (3ª)
+];
+const CATEGORY_FALLBACK: EventCategory[] = [
+  'central_overlap', 'strong_overlap', 'small_intersection', 'inclusion',
 ];
 
-function selectPairForRound(round: number, usedIds: Set<string>): EventPair {
-  if (round === 0) return EVENT_PAIRS[0];
-  if (round === 2) {
-    const p5 = EVENT_PAIRS.filter(p => p.category === 'inclusion' && !usedIds.has(p.id));
-    if (p5.length > 0) return p5[Math.floor(Math.random() * p5.length)];
-    return EVENT_PAIRS.find(p => !usedIds.has(p.id)) ?? EVENT_PAIRS[0];
+function selectPairForRound(round: number, _usedIds: Set<string>): EventPair {
+  const idx = Math.max(0, Math.min(round, CATEGORIES_BY_ROUND.length - 1));
+  for (const cat of CATEGORIES_BY_ROUND[idx]) {
+    const pair = tryGeneratePair(cat);
+    if (pair) return pair;
   }
-  const pool = EVENT_PAIRS.filter(
-    p => ['strong_overlap', 'small_intersection', 'central_overlap'].includes(p.category) && !usedIds.has(p.id)
-  );
-  if (pool.length > 0) return pool[Math.floor(Math.random() * pool.length)];
-  return EVENT_PAIRS.find(p => !usedIds.has(p.id)) ?? EVENT_PAIRS[0];
+  for (const cat of CATEGORY_FALLBACK) {
+    const pair = tryGeneratePair(cat);
+    if (pair) return pair;
+  }
+  throw new Error('UnionProbabilityTheory: falha ao gerar par — espaço paramétrico inesperadamente vazio');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -166,6 +343,83 @@ function matrixToKeySet(m: MarkMatrix): Set<string> {
   const s = new Set<string>();
   for (let r = 0; r < 6; r++) for (let c = 0; c < 6; c++) if (m[r][c]) s.add(`${r + 1},${c + 1}`);
   return s;
+}
+
+/**
+ * Seleciona um par ordenado (i,j) ∈ A ∩ B para servir de exemplo na intro,
+ * VERIFICANDO matematicamente que o par satisfaz ambos os predicados.
+ *
+ * Regenerado a cada rodada via `correctSets.I` (que depende de `currentPair`).
+ * A verificação é crítica quando a geração dos eventos se tornar algorítmica
+ * (gerador dinâmico): garante que o par exibido efetivamente pertence à
+ * interseção real, mesmo que a construção de `correctSets.I` mude.
+ *
+ * Estratégia:
+ *   - Percorre a interseção na ordem de inserção.
+ *   - Rejeita entradas malformadas (indices fora de [1,6], parsing inválido).
+ *   - Confirma predA(i,j) E predB(i,j) (dupla verificação contra o predicado
+ *     original, independente do conteúdo de `correctSets.I`).
+ *   - Em DEV: emite `console.error` se a primeira entrada falhar na verificação
+ *     (indicaria divergência entre `correctSets.I` e os predicados).
+ *   - Retorna null se nenhum par válido existir (fase deve ocultar o exemplo).
+ */
+/**
+ * Verifica sistematicamente a consistência matemática dos 4 conjuntos
+ * dinâmicos — A, B, A ∩ B, A ∪ B — contra os predicados do par atual.
+ *
+ * Roda a cada rodada (novo currentPair) e percorre TODAS as 36 células
+ * (r,c) ∈ Ω = {1,...,6}², confirmando 4 invariantes por célula:
+ *
+ *   1. (r,c) ∈ correctSets.A ⟺ predicate_A(r,c) = true
+ *   2. (r,c) ∈ correctSets.B ⟺ predicate_B(r,c) = true
+ *   3. (r,c) ∈ correctSets.I ⟺ predicate_A(r,c) ∧ predicate_B(r,c)
+ *   4. (r,c) ∈ correctSets.U ⟺ predicate_A(r,c) ∨ predicate_B(r,c)
+ *
+ * Em DEV, inconsistências são reportadas via console.error com detalhe
+ * da célula e do tipo de invariante violado — captura bugs silenciosos
+ * no gerador algorítmico de eventos antes de chegarem ao aluno.
+ */
+function verifyEventTableConsistency(
+  eventA: EventDef,
+  eventB: EventDef,
+  sets: { A: Set<string>; B: Set<string>; I: Set<string>; U: Set<string> },
+): { ok: boolean; violations: string[] } {
+  const violations: string[] = [];
+  for (let r = 1; r <= 6; r++) {
+    for (let c = 1; c <= 6; c++) {
+      const key = `${r},${c}`;
+      const pA = eventA.predicate(r, c);
+      const pB = eventB.predicate(r, c);
+      if (pA !== sets.A.has(key)) violations.push(`A:(${r},${c}) predA=${pA} mas ∈A=${sets.A.has(key)}`);
+      if (pB !== sets.B.has(key)) violations.push(`B:(${r},${c}) predB=${pB} mas ∈B=${sets.B.has(key)}`);
+      if ((pA && pB) !== sets.I.has(key)) violations.push(`A∩B:(${r},${c}) (predA∧predB)=${pA && pB} mas ∈I=${sets.I.has(key)}`);
+      if ((pA || pB) !== sets.U.has(key)) violations.push(`A∪B:(${r},${c}) (predA∨predB)=${pA || pB} mas ∈U=${sets.U.has(key)}`);
+    }
+  }
+  return { ok: violations.length === 0, violations };
+}
+
+function pickIntersectionExample(
+  intersection: Set<string>,
+  predA: (r: number, c: number) => boolean,
+  predB: (r: number, c: number) => boolean,
+): { r: number; c: number; sum: number } | null {
+  let firstChecked = false;
+  for (const key of intersection) {
+    const [r, c] = key.split(',').map(Number);
+    const indicesValid =
+      Number.isInteger(r) && Number.isInteger(c) &&
+      r >= 1 && r <= 6 && c >= 1 && c <= 6;
+    const satisfiesBoth = indicesValid && predA(r, c) && predB(r, c);
+    if (!firstChecked && !satisfiesBoth && process.env.NODE_ENV !== 'production') {
+      console.error(
+        `[UnionProbabilityTheory] Par "${key}" está em A ∩ B mas não satisfaz ambos os predicados — inconsistência na geração de eventos.`,
+      );
+    }
+    firstChecked = true;
+    if (satisfiesBoth) return { r, c, sum: r + c };
+  }
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -257,15 +511,16 @@ function FrozenCheckbox({ checked, color, label }: { checked: boolean; color: st
 
 function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: MarkingTableProps) {
   const activeColor = eventLabel ? (EVENT_COLORS[eventLabel] ?? 'var(--color-brand-otimath-pure)') : undefined;
-  // Dimensões idênticas ao TwoDicesTable (fase final do OVA) para consistência
-  // visual: células 116×100px, header vertical 50px, faces 32px.
+  // Células com largura responsiva por breakpoint (sm:768, md:992, lg:1144, xlg:1280)
+  // para que a tabela sempre caiba no container sem scroll horizontal em desktop/notebook.
+  // Scroll horizontal só é ativado em mobile (<sm) via max-sm:w-full no wrapper.
   return (
-    <div className="w-full overflow-auto max-h-[calc(100vh-68px)] snap-both snap-mandatory scroll-p-[50px] max-lg:flex max-lg:justify-center max-sm:justify-start rounded-md shadow-level-1 max-lg:w-fit max-sm:w-full">
-      <table className="bg-background-otimath relative w-fit h-full text-center rounded-md outline-solid outline-neutral-lighter outline-(length:--border-width-hairline) border-collapse">
+    <div className="w-full overflow-x-auto snap-both snap-mandatory scroll-p-[50px] max-lg:flex max-lg:justify-center max-sm:justify-start rounded-md shadow-level-1 max-lg:w-fit max-sm:w-full">
+      <table className="bg-background-otimath relative w-fit h-full text-center rounded-md outline-solid outline-neutral-lighter outline-(length:--border-width-hairline) border-collapse mx-auto">
         <thead className="flex justify-end bg-background-otimath sticky top-[-1px] z-1">
           <tr className="flex justify-end">
             {[1, 2, 3, 4, 5, 6].map(c => (
-              <th key={c} className="w-[116px] h-[50px] flex justify-center items-center">
+              <th key={c} className="w-[100px] md:w-[130px] lg:w-[160px] xlg:w-[180px] h-[50px] flex justify-center items-center">
                 <DieFace face={c} size={32} color="blue" />
               </th>
             ))}
@@ -289,7 +544,7 @@ function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: MarkingTab
                 return (
                   <td
                     key={`cell-${r}-${c}`}
-                    className={`snap-start w-[116px] border-solid border-neutral-lighter border-hairline h-[100px] flex justify-center items-center bg-background-otimath ${isAlternateRow ? 'bg-feedback-info-lightest' : ''}`}
+                    className={`snap-start w-[100px] md:w-[130px] lg:w-[160px] xlg:w-[180px] border-solid border-neutral-lighter border-hairline h-[100px] flex justify-center items-center bg-background-otimath ${isAlternateRow ? 'bg-feedback-info-lightest' : ''}`}
                   >
                     <div className="w-full flex flex-col items-center justify-center gap-y-nano">
                       {/* Eventos anteriores — checkbox customizado colorido (não usa <input disabled>) */}
@@ -300,7 +555,8 @@ function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: MarkingTab
                           <div
                             key={ro.label}
                             className="flex items-center gap-x-nano"
-                            style={{ userSelect: 'none' }}
+                            style={{ userSelect: 'none', cursor: 'not-allowed' }}
+                            title={`${ro.label} já validado — marcação congelada`}
                           >
                             <FrozenCheckbox checked={roChecked} color={roColor} label={`${ro.label} em (${r},${c})`} />
                             <span
@@ -407,7 +663,9 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   const [phase, setPhase] = useState<UnionPhase>('intro');
   const [round, setRound] = useState(0);
   const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());
-  const [currentPair, setCurrentPair] = useState<EventPair>(EVENT_PAIRS[0]);
+  // Gera o par inicial da rodada 0 via gerador algorítmico (lazy init para
+  // não reexecutar o gerador em cada re-render).
+  const [currentPair, setCurrentPair] = useState<EventPair>(() => selectPairForRound(0, new Set()));
 
   const [marksA, setMarksA] = useState<MarkMatrix>(createEmptyMatrix);
   const [marksB, setMarksB] = useState<MarkMatrix>(createEmptyMatrix);
@@ -462,6 +720,25 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     return { A, B, I, U, nA: A.size, nB: B.size, nI: I.size, nU: U.size };
   }, [currentPair]);
 
+  // Verificação sistemática dos 4 conjuntos (A, B, A∩B, A∪B) na tabela 6×6
+  // a cada rodada. Em DEV, reporta qualquer inconsistência entre predicados
+  // e conjuntos computados — blindagem contra bugs no gerador algorítmico.
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    const result = verifyEventTableConsistency(
+      currentPair.eventA,
+      currentPair.eventB,
+      correctSets,
+    );
+    if (!result.ok) {
+      console.error(
+        `[UnionProbabilityTheory] Inconsistência detectada no par "${currentPair.id}" ` +
+        `(categoria ${currentPair.category}):`,
+        result.violations,
+      );
+    }
+  }, [currentPair, correctSets]);
+
   const evaluateMarks = useCallback((marks: MarkMatrix, correct: Set<string>): FeedbackState => {
     const marked = matrixToKeySet(marks);
     let hasWrong = false;
@@ -500,9 +777,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     setPredictReviewedEnum(false);
   }, [usedPairIds]);
 
+  // Registra o ID do par inicial (gerado no lazy init do currentPair).
+  // Com o gerador algorítmico cada ID é único (timestamp+random), mas mantemos
+  // o rastreamento por compatibilidade com a assinatura de selectPairForRound.
   useEffect(() => {
     if (usedPairIds.size === 0) {
-      setUsedPairIds(new Set([EVENT_PAIRS[0].id]));
+      setUsedPairIds(new Set([currentPair.id]));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -830,7 +1110,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   // ═══════════════════════════════════════════════════════════════
 
   return (
-    <div className="w-full max-w-[860px] mx-auto px-xxs py-xs">
+    <div className="w-full max-w-[1216px] mx-auto px-xxs py-xs">
       <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
         Probabilidade da união de dois eventos
       </h2>
@@ -845,14 +1125,16 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
 
       {/* ═══════ INTRO ═══════ */}
       {phase === 'intro' && (() => {
-        // Exemplo dinâmico de par que pertence a A ∩ B (para ilustrar sobreposição)
-        const predA = shortPredicate(currentPair.eventA.description);
-        const predB = shortPredicate(currentPair.eventB.description);
-        const intersectionExample = Array.from(correctSets.I)[0];
-        const [exR, exC] = intersectionExample
-          ? intersectionExample.split(',').map(Number)
-          : [null, null];
-        const exSum = exR !== null && exC !== null ? exR + exC : null;
+        // Exemplo dinâmico de par que pertence a A ∩ B (para ilustrar sobreposição).
+        // A cada rodada (novo currentPair), o par é re-selecionado e verificado
+        // matematicamente contra os predicados originais — ver pickIntersectionExample.
+        const predA = extractSumPredicate(currentPair.eventA.description);
+        const predB = extractSumPredicate(currentPair.eventB.description);
+        const example = pickIntersectionExample(
+          correctSets.I,
+          currentPair.eventA.predicate,
+          currentPair.eventB.predicate,
+        );
 
         return (
           <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[640px] mx-auto">
@@ -873,7 +1155,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               </p>
               <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
                 No lançamento simultâneo de dois dados equilibrados, qual a probabilidade de que
-                a <strong>soma dos resultados</strong> seja{' '}
+                a <strong>soma dos resultados</strong> seja um número{' '}
                 <strong style={{ color: EVENT_COLORS['A'] }}>{formatForProblem(predA)}</strong>{' '}
                 <strong>ou</strong>{' '}
                 <strong style={{ color: EVENT_COLORS['B'] }}>{formatForProblem(predB)}</strong>?
@@ -884,14 +1166,17 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                 <strong style={{ color: EVENT_COLORS['B'] }}>B</strong> o evento{' '}
                 &quot;ocorre soma {predB}&quot;.
               </p>
-              {exSum !== null && (
+              {example && (
                 <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
                   <strong>Observe:</strong> alguns resultados satisfazem <strong>os dois
-                  eventos ao mesmo tempo</strong> — por exemplo, se sair o par{' '}
-                  <strong>({exR}, {exC})</strong>, a soma é <strong>{exSum}</strong>, que é{' '}
-                  {formatForProblem(predA)} <strong>e</strong> também é{' '}
-                  {formatForProblem(predB)}. Ou seja,{' '}
-                  <strong>A ∩ B não é vazio</strong>.
+                  eventos ao mesmo tempo</strong>. Por exemplo, se sair o par{' '}
+                  <strong>({example.r}, {example.c})</strong>, a soma é{' '}
+                  <strong>{example.r} + {example.c} = {example.sum}</strong>, e esse
+                  valor satisfaz simultaneamente as condições de{' '}
+                  <strong style={{ color: EVENT_COLORS['A'] }}>A</strong> e{' '}
+                  <strong style={{ color: EVENT_COLORS['B'] }}>B</strong>. Logo,{' '}
+                  <strong>({example.r}, {example.c}) ∈ A ∩ B</strong>, e portanto a
+                  interseção não é vazia.
                 </p>
               )}
             </div>
@@ -2036,12 +2321,15 @@ function extractSumPredicate(description: string): string {
   return cleaned;
 }
 
-// Formata o predicado para uso natural no enunciado do problema da intro.
-// Insere "número" antes de adjetivos soltos ("par" → "número par", etc.).
+// Formata o predicado para uso no template "seja um número X ou Y" do intro.
+// Recebe a saída de extractSumPredicate (sem "A soma é/está") e aplica dois
+// ajustes para evitar dissonância gramatical com o "um número" do enunciado:
+//   - Remove "um número " redundante ("um número primo" → "primo")
+//   - Concorda no masculino ("múltipla" → "múltiplo")
 function formatForProblem(predicate: string): string {
-  const p = predicate.trim();
-  if (p === 'par') return 'número par';
-  if (p === 'ímpar') return 'número ímpar';
+  let p = predicate.trim();
+  p = p.replace(/^um\s+número\s+/i, '');
+  p = p.replace(/^múltipla\b/i, 'múltiplo');
   return p;
 }
 
@@ -2457,11 +2745,11 @@ function ValuesRecallPanel({
         Valores calculados nas etapas anteriores
       </p>
       <div className="flex items-center justify-center" style={{ gap: 8, flexWrap: 'wrap' }}>
-        {nA !== undefined && item('n(A)', nA, EVENT_COLORS['A'])}
-        {nB !== undefined && item('n(B)', nB, EVENT_COLORS['B'])}
-        {nI !== undefined && item('n(A ∩ B)', nI, EVENT_COLORS['A∩B'])}
-        {nU !== undefined && item('n(A ∪ B)', nU, EVENT_COLORS['A∪B'])}
-        {item('n(S)', 36, 'var(--color-neutral-dark)')}
+        {nA !== undefined && item('n(A) =', nA, EVENT_COLORS['A'])}
+        {nB !== undefined && item('n(B) =', nB, EVENT_COLORS['B'])}
+        {nI !== undefined && item('n(A ∩ B) =', nI, EVENT_COLORS['A∩B'])}
+        {nU !== undefined && item('n(A ∪ B) =', nU, EVENT_COLORS['A∪B'])}
+        {item('n(S) =', 36, 'var(--color-neutral-dark)')}
       </div>
     </div>
   );

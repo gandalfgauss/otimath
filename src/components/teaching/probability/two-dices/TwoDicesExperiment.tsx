@@ -313,6 +313,9 @@ interface TwoDicesExperimentProps {
   onMachineVisibilityChange: (visible: boolean) => void;
   onHideAllDice?: (hide: boolean) => void;
   onFinished: () => void;
+  /** Notifica o pai quando a fase interna muda — usado para alargar o
+   *  container na fase unionTheory (tabela 6×6 precisa >800px). */
+  onPhaseChange?: (phase: Phase) => void;
   /** Fase inicial (atalho dev — pula direto para uma fase específica) */
   initialPhase?: Phase;
   /** Ref dev para navegar pelas fases internas do UnionProbabilityTheory */
@@ -329,6 +332,7 @@ export function TwoDicesExperiment({
   onMachineVisibilityChange,
   onHideAllDice,
   onFinished,
+  onPhaseChange,
 }: Readonly<TwoDicesExperimentProps>) {
   const [phase, setPhase] = useState<Phase>(initialPhase ?? 'intro');
   const [round, setRound] = useState(0);
@@ -1150,6 +1154,10 @@ export function TwoDicesExperiment({
     onHideAllDice(shouldHide);
   }, [phase, onHideAllDice]);
 
+  useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [phase, onPhaseChange]);
+
   // ── Sorteio do par (x,y) quando entra na fase probPair ──
   // Par numérico dinâmico: x,y ∈ {1..6}, sorteado a cada entrada na fase.
   // Garante que a pergunta não seja fixa — a resposta é sempre 1/36 pela
@@ -1690,7 +1698,7 @@ export function TwoDicesExperiment({
 
   // ═══════ RENDER ═══════
   return (
-    <div className="w-full max-w-[700px]">
+    <div className={`w-full ${phase === 'unionTheory' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
       <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
         Lançamento de dois dados
       </h2>
