@@ -844,35 +844,80 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       )}
 
       {/* ═══════ INTRO ═══════ */}
-      {phase === 'intro' && (
-        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[620px] mx-auto">
-          <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
-            Descobrindo a fórmula geral
-          </p>
-          <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
-            No OVA do <strong>Disco Probabilístico</strong>, você aprendeu a calcular a
-            probabilidade da união <strong>quando os eventos eram mutuamente exclusivos</strong> —
-            ou seja, quando A e B <strong>não podiam ocorrer ao mesmo tempo</strong> (A ∩ B = ∅).
-            Nesse caso:
-          </p>
-          <p className="ds-body-bold text-center text-brand-otimath-pure" style={{ fontSize: '1.1rem' }}>
-            P(A ∪ B) = P(A) + P(B)
-          </p>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
-            Mas e quando A e B <strong>podem ocorrer ao mesmo tempo</strong>? Quando A ∩ B{' '}
-            <strong>não é vazio</strong>? A fórmula acima ainda funciona?
-          </p>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
-            Vamos descobrir juntos a <strong>fórmula geral</strong>, construindo-a passo a passo
-            na tabela 6×6 dos dois dados.
-          </p>
-          <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markA'); }}>
-              Começar
-            </Button>
+      {phase === 'intro' && (() => {
+        // Exemplo dinâmico de par que pertence a A ∩ B (para ilustrar sobreposição)
+        const predA = shortPredicate(currentPair.eventA.description);
+        const predB = shortPredicate(currentPair.eventB.description);
+        const intersectionExample = Array.from(correctSets.I)[0];
+        const [exR, exC] = intersectionExample
+          ? intersectionExample.split(',').map(Number)
+          : [null, null];
+        const exSum = exR !== null && exC !== null ? exR + exC : null;
+
+        return (
+          <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[640px] mx-auto">
+            <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
+              Descobrindo a fórmula geral
+            </p>
+
+            {/* Preview do problema concreto */}
+            <div
+              className="rounded-md p-micro mb-micro"
+              style={{
+                background: 'var(--color-brand-otimath-lightest)',
+                border: '1px solid var(--color-brand-otimath-light)',
+              }}
+            >
+              <p className="ds-caption-bold text-brand-otimath-dark mb-nano" style={{ fontSize: '0.82rem' }}>
+                O problema que vamos resolver
+              </p>
+              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                No lançamento simultâneo de dois dados equilibrados, qual a probabilidade de que
+                a <strong>soma dos resultados</strong> seja{' '}
+                <strong style={{ color: EVENT_COLORS['A'] }}>{formatForProblem(predA)}</strong>{' '}
+                <strong>ou</strong>{' '}
+                <strong style={{ color: EVENT_COLORS['B'] }}>{formatForProblem(predB)}</strong>?
+              </p>
+              <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+                Chame de <strong style={{ color: EVENT_COLORS['A'] }}>A</strong> o evento{' '}
+                &quot;ocorre soma {predA}&quot; e de{' '}
+                <strong style={{ color: EVENT_COLORS['B'] }}>B</strong> o evento{' '}
+                &quot;ocorre soma {predB}&quot;.
+              </p>
+              {exSum !== null && (
+                <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+                  <strong>Observe:</strong> alguns resultados satisfazem <strong>os dois
+                  eventos ao mesmo tempo</strong> — por exemplo, se sair o par{' '}
+                  <strong>({exR}, {exC})</strong>, a soma é <strong>{exSum}</strong>, que é{' '}
+                  {formatForProblem(predA)} <strong>e</strong> também é{' '}
+                  {formatForProblem(predB)}. Ou seja,{' '}
+                  <strong>A ∩ B não é vazio</strong>.
+                </p>
+              )}
+            </div>
+
+            {/* Ancoragem no Disco */}
+            <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+              No OVA do <strong>Disco Probabilístico</strong>, você aprendeu que{' '}
+              <strong style={{ whiteSpace: 'nowrap' }}>P(A ∪ B) = P(A) + P(B)</strong> — mas{' '}
+              <strong>apenas</strong> quando A e B são <strong>mutuamente exclusivos</strong>{' '}
+              (<span style={{ whiteSpace: 'nowrap' }}>A ∩ B = ∅</span>). Será que essa fórmula
+              ainda funciona aqui?
+            </p>
+
+            <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+              Vamos descobrir juntos a <strong>fórmula geral</strong>, construindo-a passo a passo
+              na tabela 6×6 dos dois dados.
+            </p>
+
+            <div className="flex justify-center mt-macro">
+              <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markA'); }}>
+                Começar
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ═══════ markA ═══════ */}
       {phase === 'markA' && (
@@ -1991,6 +2036,15 @@ function extractSumPredicate(description: string): string {
   return cleaned;
 }
 
+// Formata o predicado para uso natural no enunciado do problema da intro.
+// Insere "número" antes de adjetivos soltos ("par" → "número par", etc.).
+function formatForProblem(predicate: string): string {
+  const p = predicate.trim();
+  if (p === 'par') return 'número par';
+  if (p === 'ímpar') return 'número ímpar';
+  return p;
+}
+
 // Seta coloridinha apontando para a direita (usada nas legendas da resolução)
 function ArrowLegend({ color }: { color: string }) {
   return (
@@ -2465,11 +2519,18 @@ function ProbFormulaRevealAnimation({
   const [step, setStep] = useState(0);
   const FINAL = 9;
 
-  // Controle do piscar sincronizado ao avançar para steps de substituição
-  // 'nU' = n(A∪B) sendo substituído (step 5→6)
-  // 'distrib' = distribuição da divisão (step 6→7) — piscar numerador inteiro
-  // 'probs' = 3 frações sendo substituídas por P(A), P(B), P(A∩B) (step 7→8)
-  const [flashTarget, setFlashTarget] = useState<'nU' | 'distrib' | 'probs' | null>(null);
+  // Controle do piscar sincronizado ao avançar para steps de substituição.
+  // Cada valor destaca os elementos correspondentes no bloco "Sabemos que"
+  // e nas linhas da dedução, em sincronia:
+  //   'nU'      — n(A∪B) sendo substituído (step 5→6): pisca na relação do
+  //               Sabemos que + numerador Linha 1 + numerador Linha 2
+  //   'distrib' — distribuição da divisão (step 6→7): pisca numerador/denominador
+  //               da Linha 2 + as 3 frações da Linha 3
+  //   'probsA'  — gradativo step 8 (momento 1): pisca P(A) do Sabemos +
+  //               n(A)/n(S) da Linha 3 + P(A) da Linha 4
+  //   'probsB'  — gradativo step 8 (momento 2): análogo para B
+  //   'probsI'  — gradativo step 8 (momento 3): análogo para A∩B
+  const [flashTarget, setFlashTarget] = useState<'nU' | 'distrib' | 'probsA' | 'probsB' | 'probsI' | null>(null);
 
   const canAdvance = step < FINAL;
 
@@ -2479,19 +2540,32 @@ function ProbFormulaRevealAnimation({
       // Dispara piscar sincronizado ao entrar em cada step de substituição
       if (next === 6) setFlashTarget('nU');           // substituiu n(A∪B)
       else if (next === 7) setFlashTarget('distrib'); // distribuiu a divisão
-      else if (next === 8) setFlashTarget('probs');   // substituiu por P(A), P(B), P(A∩B)
+      // step 8 (probs): sequência gradativa é disparada pelo useEffect abaixo
       setStep(next);
     }
   };
 
-  // Piscar tem duração de 1500ms e depois para
+  // Piscar de duração única (nU e distrib): ~1800ms e depois limpa
   useEffect(() => {
-    if (flashTarget === null) return;
+    if (flashTarget !== 'nU' && flashTarget !== 'distrib') return;
     const mq = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
     if (mq?.matches) { setFlashTarget(null); return; }
     const t = setTimeout(() => setFlashTarget(null), 1800);
     return () => clearTimeout(t);
   }, [flashTarget]);
+
+  // Sequência gradativa ao entrar no step 8 (substituição das 3 frações por P)
+  useEffect(() => {
+    if (step !== 8) return;
+    const mq = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    if (mq?.matches) return;
+    // Disparo sequencial: A → B → A∩B → null
+    const t1 = setTimeout(() => setFlashTarget('probsA'), 50);
+    const t2 = setTimeout(() => setFlashTarget('probsB'), 1600);
+    const t3 = setTimeout(() => setFlashTarget('probsI'), 3150);
+    const t4 = setTimeout(() => setFlashTarget(null), 4700);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+  }, [step]);
 
   // Respeita prefers-reduced-motion: mostra tudo direto
   useEffect(() => {
@@ -2550,7 +2624,7 @@ function ProbFormulaRevealAnimation({
           {step >= 1 && (
             <div
               style={slideFadeIn}
-              className={`flex items-center ${flashTarget === 'probs' ? 'flash-sub' : ''}`}
+              className={`flex items-center ${flashTarget === 'probsA' ? 'flash-sub' : ''}`}
               aria-live="polite"
             >
               <span className="ds-body-bold" style={{ color: EVENT_COLORS['A'] }}>P(A)&nbsp;=&nbsp;</span>
@@ -2560,7 +2634,7 @@ function ProbFormulaRevealAnimation({
           {step >= 2 && (
             <div
               style={slideFadeIn}
-              className={`flex items-center ${flashTarget === 'probs' ? 'flash-sub' : ''}`}
+              className={`flex items-center ${flashTarget === 'probsB' ? 'flash-sub' : ''}`}
               aria-live="polite"
             >
               <span className="ds-body-bold" style={{ color: EVENT_COLORS['B'] }}>P(B)&nbsp;=&nbsp;</span>
@@ -2570,7 +2644,7 @@ function ProbFormulaRevealAnimation({
           {step >= 3 && (
             <div
               style={slideFadeIn}
-              className={`flex items-center ${flashTarget === 'probs' ? 'flash-sub' : ''}`}
+              className={`flex items-center ${flashTarget === 'probsI' ? 'flash-sub' : ''}`}
               aria-live="polite"
             >
               <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P(A ∩ B)&nbsp;=&nbsp;</span>
@@ -2614,11 +2688,13 @@ function ProbFormulaRevealAnimation({
                 </span>
               </div>
             )}
-            {/* Linha 2: = (n(A)+n(B)−n(A∩B))/n(S) — numerador pisca ao distribuir (step→7) */}
+            {/* Linha 2: = (n(A)+n(B)−n(A∩B))/n(S)
+                Numerador pisca tanto ao ENTRAR (nU — destaca o novo valor substituído)
+                quanto ao DISTRIBUIR a divisão (distrib — destaca o que será dividido). */}
             {step >= 6 && (
               <div style={slideFadeIn} className="flex items-center flex-wrap" aria-live="polite">
                 <span className="ds-body-bold text-neutral-darkest">=&nbsp;</span>
-                <span className={flashTarget === 'distrib' ? 'flash-sub' : undefined} style={{ display: 'inline-block' }}>
+                <span className={flashTarget === 'nU' || flashTarget === 'distrib' ? 'flash-sub' : undefined} style={{ display: 'inline-block' }}>
                   <FracH
                     top={<span>n(A) + n(B) − n(A ∩ B)</span>}
                     bottom={<span>n(S)</span>}
@@ -2627,32 +2703,59 @@ function ProbFormulaRevealAnimation({
                 </span>
               </div>
             )}
-            {/* Linha 3: = n(A)/n(S) + n(B)/n(S) − n(A∩B)/n(S) — piscam ao virar P (step→8) */}
+            {/* Linha 3: = n(A)/n(S) + n(B)/n(S) − n(A∩B)/n(S)
+                Cada fração pisca individualmente quando sua sub-etapa ativa (probsA/B/I)
+                e todas juntas quando a distribuição ocorre (distrib). */}
             {step >= 7 && (
               <div style={slideFadeIn} className="flex items-center flex-wrap" aria-live="polite">
                 <span className="ds-body-bold text-neutral-darkest">=&nbsp;</span>
-                <span className={flashTarget === 'probs' || flashTarget === 'distrib' ? 'flash-sub' : undefined} style={{ display: 'inline-block' }}>
+                <span
+                  className={flashTarget === 'probsA' || flashTarget === 'distrib' ? 'flash-sub' : undefined}
+                  style={{ display: 'inline-block' }}
+                >
                   <FracH top={<span>n(A)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A']} />
                 </span>
                 <span className="ds-body-bold text-neutral-darkest">&nbsp;+&nbsp;</span>
-                <span className={flashTarget === 'probs' || flashTarget === 'distrib' ? 'flash-sub' : undefined} style={{ display: 'inline-block' }}>
+                <span
+                  className={flashTarget === 'probsB' || flashTarget === 'distrib' ? 'flash-sub' : undefined}
+                  style={{ display: 'inline-block' }}
+                >
                   <FracH top={<span>n(B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['B']} />
                 </span>
                 <span className="ds-body-bold text-neutral-darkest">&nbsp;−&nbsp;</span>
-                <span className={flashTarget === 'probs' || flashTarget === 'distrib' ? 'flash-sub' : undefined} style={{ display: 'inline-block' }}>
+                <span
+                  className={flashTarget === 'probsI' || flashTarget === 'distrib' ? 'flash-sub' : undefined}
+                  style={{ display: 'inline-block' }}
+                >
                   <FracH top={<span>n(A ∩ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∩B']} />
                 </span>
               </div>
             )}
-            {/* Linha 4: = P(A) + P(B) − P(A∩B)  — substitui cada fração */}
+            {/* Linha 4: = P(A) + P(B) − P(A∩B)
+                Cada P pisca quando sua sub-etapa gradativa está ativa. */}
             {step >= 8 && (
               <div style={slideFadeIn} className="flex items-center flex-wrap" aria-live="polite">
                 <span className="ds-body-bold text-neutral-darkest">=&nbsp;</span>
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A'] }}>P(A)</span>
+                <span
+                  className={`ds-body-bold ${flashTarget === 'probsA' ? 'flash-sub' : ''}`}
+                  style={{ color: EVENT_COLORS['A'] }}
+                >
+                  P(A)
+                </span>
                 <span className="ds-body-bold text-neutral-darkest">&nbsp;+&nbsp;</span>
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['B'] }}>P(B)</span>
+                <span
+                  className={`ds-body-bold ${flashTarget === 'probsB' ? 'flash-sub' : ''}`}
+                  style={{ color: EVENT_COLORS['B'] }}
+                >
+                  P(B)
+                </span>
                 <span className="ds-body-bold text-neutral-darkest">&nbsp;−&nbsp;</span>
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P(A ∩ B)</span>
+                <span
+                  className={`ds-body-bold ${flashTarget === 'probsI' ? 'flash-sub' : ''}`}
+                  style={{ color: EVENT_COLORS['A∩B'] }}
+                >
+                  P(A ∩ B)
+                </span>
               </div>
             )}
           </div>
