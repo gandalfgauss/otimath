@@ -1999,11 +1999,28 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       )}
 
       {/* ═══════ probCalc — calcular P(A), P(B), P(A∩B) ═══════ */}
-      {phase === 'probCalc' && (
+      {phase === 'probCalc' && (() => {
+        const predA = extractSumPredicate(currentPair.eventA.description);
+        const predB = extractSumPredicate(currentPair.eventB.description);
+        return (
         <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[680px] mx-auto">
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Agora calcule as demais probabilidades
           </p>
+          <p className="ds-body text-neutral-black mb-nano" style={{ textAlign: 'justify' }}>
+            No lançamento simultâneo de dois dados honestos, calcule a probabilidade de ocorrer os eventos:
+          </p>
+          <ul className="mb-micro" style={{ paddingLeft: '1.5rem', listStyle: 'disc' }}>
+            <li className="ds-body text-neutral-black" style={{ marginBottom: 4 }}>
+              <strong style={{ color: EVENT_COLORS['A'] }}>Evento A</strong>: {formatForProblem(predA)}
+            </li>
+            <li className="ds-body text-neutral-black" style={{ marginBottom: 4 }}>
+              <strong style={{ color: EVENT_COLORS['B'] }}>Evento B</strong>: {formatForProblem(predB)}
+            </li>
+            <li className="ds-body text-neutral-black">
+              <strong style={{ color: EVENT_COLORS['A∩B'] }}>Evento A ∩ B</strong>: ocorrência simultânea de A e B (soma {formatForProblem(predA)} e {formatForProblem(predB)})
+            </li>
+          </ul>
           <ValuesRecallPanel nA={correctSets.nA} nB={correctSets.nB} nI={correctSets.nI} nU={correctSets.nU} />
           <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
             Aplique P(X) = n(X) / n(S) para cada evento:
@@ -2053,7 +2070,8 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* ═══════ probFormulaReveal — derivação simbólica da fórmula ═══════ */}
       {phase === 'probFormulaReveal' && (

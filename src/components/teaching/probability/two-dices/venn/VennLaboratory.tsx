@@ -1762,7 +1762,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
           {conclusionPhase >= 2 && (
             <p className="ds-body text-neutral-black mt-nano venn-fade-in" style={{ textAlign: 'justify' }}>
               <strong>(iii)</strong>&nbsp;{' '}
-              <span style={{ color: '#166534' }}>n(B − A) = n(B) − n(B ∩ A)</span>
+              <span style={{ color: '#166534' }}>n(B − A) = n(B) − n(A ∩ B)</span>
             </p>
           )}
 
@@ -1777,7 +1777,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
               n(A ∪ B) ={' '}
               <span style={{ color: '#1e40af' }}>n(A) − n(A ∩ B)</span>
               {' '}+ n(A ∩ B) +{' '}
-              <span style={{ color: '#166534' }}>n(B) − n(B ∩ A)</span>
+              <span style={{ color: '#166534' }}>n(B) − n(A ∩ B)</span>
             </p>
           )}
 
