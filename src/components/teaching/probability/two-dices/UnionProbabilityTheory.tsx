@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
+import { VennLaboratory } from './venn/VennLaboratory';
 
 /* ═══════════════════════════════════════════════════════════════
    UnionProbabilityTheory — Fundamentação teórica de P(A ∪ B)
@@ -31,7 +32,9 @@ type UnionPhase =
   | 'enumDisplay'
   | 'synthM1'
   | 'defineUnion' | 'markUnion' | 'countUnion'
-  | 'predict' | 'sumCompareVisual' | 'formulaReveal'
+  | 'predict'
+  | 'vennLab'           // laboratório Venn — construção topológica com 9 sub-etapas internas
+  | 'sumCompareVisual' | 'formulaReveal'
   | 'synthM2'
   | 'probTransfer' | 'probCalc' | 'probFormulaReveal'
   | 'probFormulaApply'  // apresenta os valores a substituir
@@ -651,7 +654,9 @@ const PHASE_SEQUENCE: UnionPhase[] = [
   'defineUnion', 'markUnion', 'countUnion',
   'probTransfer',
   'synthM2',
-  'predict', 'sumCompareVisual', 'formulaReveal',
+  'predict',
+  'vennLab',            // laboratório Venn — construção topológica antes da confrontação numérica
+  'sumCompareVisual', 'formulaReveal',
   'probCalc', 'probFormulaReveal',
   'probFormulaApply',   // valores a substituir
   'probFormulaVerify',  // substituição numérica + generalização
@@ -968,7 +973,9 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     // A previsão é metacognitiva — qualquer resposta é aceita, apenas registra
     setPredictionError(false);
     playSound('/sounds/correct.mp3');
-    setPhase('sumCompareVisual');
+    // Após confirmar a previsão, aluno entra no laboratório Venn (construção
+    // topológica) antes da confrontação numérica em sumCompareVisual.
+    setPhase('vennLab');
   }, [predictionOp, predictionReason]);
 
   const validateSumInput = useCallback(() => {
@@ -1807,6 +1814,19 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <Button style="primary" size="small" onClick={validatePrediction}>Confirmar previsão</Button>
           </div>
         </div>
+      )}
+
+      {/* ═══════ vennLab — laboratório construcionista de Venn (Commit 1: esqueleto) ═══════ */}
+      {phase === 'vennLab' && (
+        <VennLaboratory
+          eventADescription={currentPair.eventA.description}
+          eventBDescription={currentPair.eventB.description}
+          nA={correctSets.nA}
+          nB={correctSets.nB}
+          nI={correctSets.nI}
+          nU={correctSets.nU}
+          onComplete={() => setPhase('sumCompareVisual')}
+        />
       )}
 
       {/* ═══════ sumCompareVisual — barra empilhada ═══════ */}
@@ -3272,7 +3292,7 @@ function MacroProgressIndicator({ phase }: { phase: UnionPhase }) {
   // MACRO 3 — Descoberta da fórmula geral P(A∪B) = P(A)+P(B)−P(A∩B)
   const macro1: UnionPhase[] = ['intro', 'markA', 'countA', 'markB', 'countB', 'defineIntersection', 'markIntersection', 'countIntersection', 'enumDisplay'];
   const macro2: UnionPhase[] = ['synthM1', 'defineUnion', 'markUnion', 'countUnion', 'probTransfer'];
-  const macro3: UnionPhase[] = ['synthM2', 'predict', 'sumCompareVisual', 'formulaReveal', 'probCalc', 'probFormulaReveal', 'probFormulaApply', 'probFormulaVerify', 'institucionalize', 'done'];
+  const macro3: UnionPhase[] = ['synthM2', 'predict', 'vennLab', 'sumCompareVisual', 'formulaReveal', 'probCalc', 'probFormulaReveal', 'probFormulaApply', 'probFormulaVerify', 'institucionalize', 'done'];
 
   const current = macro1.includes(phase) ? 1 : macro2.includes(phase) ? 2 : macro3.includes(phase) ? 3 : 0;
   const labels = ['Contagem', 'União por Laplace', 'Fórmula geral'];
