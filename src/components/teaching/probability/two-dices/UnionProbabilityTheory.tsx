@@ -630,6 +630,9 @@ function EventCard({ label, description }: { label: string; description: string 
 
 interface UnionProbabilityTheoryProps {
   onFinished: () => void;
+  /** Fase inicial ao montar. Default: 'intro'. Use 'done' para re-entrar
+   *  no fim da teoria (via seta "voltar" do primeiro exercício). */
+  initialPhase?: UnionPhase;
 }
 
 export interface UnionTheoryHandle {
@@ -664,8 +667,8 @@ const PHASE_SEQUENCE: UnionPhase[] = [
   'done',
 ];
 
-export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabilityTheoryProps>(function UnionProbabilityTheory({ onFinished }, ref) {
-  const [phase, setPhase] = useState<UnionPhase>('intro');
+export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabilityTheoryProps>(function UnionProbabilityTheory({ onFinished, initialPhase }, ref) {
+  const [phase, setPhase] = useState<UnionPhase>(initialPhase ?? 'intro');
   const [round, setRound] = useState(0);
   const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());
   // Gera o par inicial da rodada 0 via gerador algorítmico (lazy init para
@@ -923,6 +926,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   const clearMarksA = useCallback(() => { setMarksA(createEmptyMatrix()); setFeedbackA('none'); playSound('/sounds/clear.mp3'); }, []);
   const clearMarksB = useCallback(() => { setMarksB(createEmptyMatrix()); setFeedbackB('none'); playSound('/sounds/clear.mp3'); }, []);
   const clearMarksIntersection = useCallback(() => { setMarksIntersection(createEmptyMatrix()); setFeedbackIntersection('none'); playSound('/sounds/clear.mp3'); }, []);
+
+  // Marcar todas as 36 células de uma vez — facilita estratégias por complemento
+  // (útil em eventos densos: marca tudo e desmarca apenas o que não satisfaz).
+  const fullMatrix = (): MarkMatrix => Array.from({ length: 6 }, () => Array(6).fill(true));
+  const markAllA = useCallback(() => { setMarksA(fullMatrix()); setFeedbackA('none'); playSound('/sounds/clear.mp3'); }, []);
+  const markAllB = useCallback(() => { setMarksB(fullMatrix()); setFeedbackB('none'); playSound('/sounds/clear.mp3'); }, []);
+  const markAllIntersection = useCallback(() => { setMarksIntersection(fullMatrix()); setFeedbackIntersection('none'); playSound('/sounds/clear.mp3'); }, []);
+  const markAllUnion = useCallback(() => { setMarksUnion(fullMatrix()); setFeedbackUnion('none'); playSound('/sounds/clear.mp3'); }, []);
 
   const toggleUnion = useCallback((r: number, c: number) => {
     setMarksUnion(prev => {
@@ -1219,7 +1230,11 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Marque na tabela <strong>todos os pares</strong> que satisfazem o evento A.
           </p>
           <MarkingTable marks={marksA} onToggle={toggleA} eventLabel="A" />
-          <div className="flex justify-center gap-x-micro mt-micro">
+          <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+            Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
+          </p>
+          <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
+            <Button style="secondary" size="small" onClick={markAllA}>Marque todos</Button>
             <Button style="secondary" size="small" onClick={clearMarksA}>Limpar</Button>
             <Button style="primary" size="small" onClick={validateMarkA}>Conferir</Button>
           </div>
@@ -1302,7 +1317,11 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             eventLabel="B"
             readOnlyMarks={[{ label: 'A', matrix: marksA }]}
           />
-          <div className="flex justify-center gap-x-micro mt-micro">
+          <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+            Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
+          </p>
+          <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
+            <Button style="secondary" size="small" onClick={markAllB}>Marque todos</Button>
             <Button style="secondary" size="small" onClick={clearMarksB}>Limpar</Button>
             <Button style="primary" size="small" onClick={validateMarkB}>Conferir</Button>
           </div>
@@ -1415,7 +1434,11 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               { label: 'B', matrix: marksB },
             ]}
           />
-          <div className="flex justify-center gap-x-micro mt-micro">
+          <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+            Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
+          </p>
+          <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
+            <Button style="secondary" size="small" onClick={markAllIntersection}>Marque todos</Button>
             <Button style="secondary" size="small" onClick={clearMarksIntersection}>Limpar</Button>
             <Button style="primary" size="small" onClick={validateMarkIntersection}>Conferir</Button>
           </div>
@@ -1678,7 +1701,11 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               { label: 'A∩B', matrix: marksIntersection },
             ]}
           />
-          <div className="flex justify-center gap-x-micro mt-micro">
+          <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+            Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
+          </p>
+          <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
+            <Button style="secondary" size="small" onClick={markAllUnion}>Marque todos</Button>
             <Button style="secondary" size="small" onClick={clearMarksUnion}>Limpar</Button>
             <Button style="primary" size="small" onClick={validateMarkUnion}>Conferir</Button>
           </div>

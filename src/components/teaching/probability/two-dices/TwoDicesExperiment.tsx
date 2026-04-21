@@ -8,6 +8,10 @@ import type { DiceMachineSceneHandle } from './DiceMachineScene';
 import { SampleSpaceTree } from './SampleSpaceTree';
 import { FacePicker } from './FacePicker';
 import { UnionProbabilityTheory, type UnionTheoryHandle } from './UnionProbabilityTheory';
+import { UnionExercise1, type UnionExercise1Handle } from './UnionExercise1';
+import { UnionExercise2, type UnionExercise2Handle } from './UnionExercise2';
+import { UnionExercise3, type UnionExercise3Handle } from './UnionExercise3';
+import { UnionExercise4, type UnionExercise4Handle } from './UnionExercise4';
 
 // ═══════ Faces do dado com pintas ═══════
 const PIP_PATTERNS: Record<number, number[]> = {
@@ -298,6 +302,10 @@ type Phase =
   | 'sumAlienIntro' | 'sumPredictMax' | 'sumPredictMin' | 'sumImpossible' | 'sumReveal'
   | 'probPair' | 'probPairReveal' | 'probSumTable' | 'probSumReveal'
   | 'unionTheory'
+  | 'unionExercises'
+  | 'unionExercise2'
+  | 'unionExercise3'
+  | 'unionExercise4'
   | 'raceBet' | 'raceRunning' | 'raceFinished'
   | 'pairQuestion' | 'pairExplain' | 'colorQuestion' | 'colorExplain'
   | 'finished';
@@ -320,6 +328,14 @@ interface TwoDicesExperimentProps {
   initialPhase?: Phase;
   /** Ref dev para navegar pelas fases internas do UnionProbabilityTheory */
   unionTheoryRef?: React.RefObject<UnionTheoryHandle | null>;
+  /** Ref dev para navegar pelos passos do UnionExercise1 */
+  unionExercise1Ref?: React.RefObject<UnionExercise1Handle | null>;
+  /** Ref dev para navegar pelos passos do UnionExercise2 */
+  unionExercise2Ref?: React.RefObject<UnionExercise2Handle | null>;
+  /** Ref dev para navegar pelos passos do UnionExercise3 */
+  unionExercise3Ref?: React.RefObject<UnionExercise3Handle | null>;
+  /** Ref dev para navegar pelos passos do UnionExercise4 */
+  unionExercise4Ref?: React.RefObject<UnionExercise4Handle | null>;
 }
 
 export function TwoDicesExperiment({
@@ -329,6 +345,10 @@ export function TwoDicesExperiment({
   diceMachineContainerRef,
   initialPhase,
   unionTheoryRef,
+  unionExercise1Ref,
+  unionExercise2Ref,
+  unionExercise3Ref,
+  unionExercise4Ref,
   onMachineVisibilityChange,
   onHideAllDice,
   onFinished,
@@ -338,6 +358,18 @@ export function TwoDicesExperiment({
   const [round, setRound] = useState(0);
   const [greenResult, setGreenResult] = useState(0);
   const [blueResult, setBlueResult] = useState(0);
+
+  // Quando o aluno navega de volta de um exercício/fase para o anterior, a
+  // fase anterior precisa ser re-montada no estado 'done' (final), não no
+  // 'intro'. Estes estados sinalizam isso para o próximo mount.
+  const [unionTheoryInitialPhase, setUnionTheoryInitialPhase] =
+    useState<'done' | undefined>(undefined);
+  const [unionExercise1InitialStep, setUnionExercise1InitialStep] =
+    useState<'done' | undefined>(undefined);
+  const [unionExercise2InitialStep, setUnionExercise2InitialStep] =
+    useState<'done' | undefined>(undefined);
+  const [unionExercise3InitialStep, setUnionExercise3InitialStep] =
+    useState<'done' | undefined>(undefined);
 
   // Picker do par ordenado (substitui readGreen/readBlue)
   // Reuso do padrão instrumental já construído na Cena 6 (DiceMachineExperiment).
@@ -1150,6 +1182,10 @@ export function TwoDicesExperiment({
       phase === 'probSumTable' ||
       phase === 'probSumReveal' ||
       phase === 'unionTheory' ||
+      phase === 'unionExercises' ||
+      phase === 'unionExercise2' ||
+      phase === 'unionExercise3' ||
+      phase === 'unionExercise4' ||
       phase === 'raceFinished';
     onHideAllDice(shouldHide);
   }, [phase, onHideAllDice]);
@@ -1698,7 +1734,7 @@ export function TwoDicesExperiment({
 
   // ═══════ RENDER ═══════
   return (
-    <div className={`w-full ${phase === 'unionTheory' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
+    <div className={`w-full ${phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
       <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
         Lançamento de dois dados
       </h2>
@@ -3179,9 +3215,77 @@ export function TwoDicesExperiment({
           {phase === 'unionTheory' && (
             <UnionProbabilityTheory
               ref={unionTheoryRef}
+              initialPhase={unionTheoryInitialPhase}
+              onFinished={() => {
+                playSound('/sounds/challengeFinished.mp3');
+                setUnionTheoryInitialPhase(undefined);
+                setPhase('unionExercises');
+              }}
+            />
+          )}
+
+          {/* ═══════ TRILHA OPCIONAL DE EXERCÍCIOS DA UNIÃO ═══════ */}
+          {phase === 'unionExercises' && (
+            <UnionExercise1
+              ref={unionExercise1Ref}
+              initialStep={unionExercise1InitialStep}
+              onFinished={() => {
+                playSound('/sounds/challengeFinished.mp3');
+                setUnionExercise1InitialStep(undefined);
+                setPhase('unionExercise2');
+              }}
+              onRequestPreviousPhase={() => {
+                setUnionTheoryInitialPhase('done');
+                setPhase('unionTheory');
+              }}
+            />
+          )}
+
+          {/* ═══════ EXERCÍCIO 2 — UNIÃO COM EVENTOS EXCLUSIVOS ═══════ */}
+          {phase === 'unionExercise2' && (
+            <UnionExercise2
+              ref={unionExercise2Ref}
+              initialStep={unionExercise2InitialStep}
+              onFinished={() => {
+                playSound('/sounds/challengeFinished.mp3');
+                setUnionExercise2InitialStep(undefined);
+                setPhase('unionExercise3');
+              }}
+              onRequestPreviousPhase={() => {
+                setUnionExercise1InitialStep('done');
+                setPhase('unionExercises');
+              }}
+            />
+          )}
+
+          {/* ═══════ EXERCÍCIO 3 — DIFERENÇAS DE EVENTOS ═══════ */}
+          {phase === 'unionExercise3' && (
+            <UnionExercise3
+              ref={unionExercise3Ref}
+              initialStep={unionExercise3InitialStep}
+              onFinished={() => {
+                playSound('/sounds/challengeFinished.mp3');
+                setUnionExercise3InitialStep(undefined);
+                setPhase('unionExercise4');
+              }}
+              onRequestPreviousPhase={() => {
+                setUnionExercise2InitialStep('done');
+                setPhase('unionExercise2');
+              }}
+            />
+          )}
+
+          {/* ═══════ EXERCÍCIO 4 — TORCEDORES NO BAR (contexto extra-dados) ═══════ */}
+          {phase === 'unionExercise4' && (
+            <UnionExercise4
+              ref={unionExercise4Ref}
               onFinished={() => {
                 playSound('/sounds/gameFinished.mp3');
                 onFinished();
+              }}
+              onRequestPreviousPhase={() => {
+                setUnionExercise3InitialStep('done');
+                setPhase('unionExercise3');
               }}
             />
           )}

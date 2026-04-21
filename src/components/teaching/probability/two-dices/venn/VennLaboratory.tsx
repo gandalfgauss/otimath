@@ -942,7 +942,9 @@ function VennSVG({
                 0%, 100% { opacity: 0.9; }
                 50% { opacity: 0.15; }
               }
-              .venn-union-pulse { animation: unionPulse 1.4s ease-in-out infinite; }
+              .venn-union-pulse {
+                animation: unionPulse 1.4s ease-in-out 3 forwards;
+              }
               @media (prefers-reduced-motion: reduce) {
                 .venn-union-pulse { animation: none; opacity: 0.5; }
               }
