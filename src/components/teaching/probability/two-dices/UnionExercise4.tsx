@@ -92,6 +92,74 @@ function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
 }
 
+/** Avalia uma expressão linear na variável `varLetter` (uma letra), com
+ *  possíveis símbolos `b` → bValue, `d` → dValue, `c` → cValue.
+ *  Retorna a forma canônica { constant, coefficient } se a expressão for
+ *  linear válida nessa variável, ou `null` se inválida.
+ *
+ *  Aceita ordens de parcelas arbitrárias, espaços, parênteses simples,
+ *  sinais Unicode (− U+2212) e letras em qualquer caixa.
+ *
+ *  Exemplos (varLetter='x', b=80, d=58, c=89):
+ *    "80-x+x+58-x" → { constant: 138, coefficient: -1 }
+ *    "-x+58+x+80-x" → { constant: 138, coefficient: -1 }   (ordem diferente, mesmo valor)
+ *    "b+d-x" → { constant: 138, coefficient: -1 }
+ *    "138-x" → { constant: 138, coefficient: -1 }
+ *    "2x-y" → null (y não é a varLetter)
+ */
+function evaluateLinearExpression(
+  expr: string,
+  varLetter: string,
+  bValue: number,
+  dValue: number,
+  cValue: number,
+): { constant: number; coefficient: number } | null {
+  let e = expr
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/[−–—]/g, '-')
+    .replace(/[()]/g, '')  // remove parênteses simples (não aninhados)
+    .toLowerCase();
+
+  if (e === '') return null;
+
+  // Substitui símbolos reservados por valores. A letra da variável NÃO é
+  // substituída (ela é consumida pela regex de termos).
+  e = e.replace(/b/g, String(bValue))
+       .replace(/d/g, String(dValue))
+       .replace(/c/g, String(cValue));
+
+  // Valida caracteres permitidos: dígitos, sinais e a letra da variável.
+  const allowedRe = new RegExp(`^[+\\-0-9${varLetter}]+$`);
+  if (!allowedRe.test(e)) return null;
+
+  // Garante sinal inicial explícito
+  if (e[0] !== '+' && e[0] !== '-') e = '+' + e;
+
+  // Regex: cada termo é "<sinal><digitos opcionais><variavel opcional>"
+  const termRe = new RegExp(`([+-])(\\d*)(${varLetter})?`, 'g');
+  let constant = 0;
+  let coefficient = 0;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = termRe.exec(e)) !== null) {
+    if (match.index !== cursor) return null; // lacuna na entrada
+    const [full, sign, digits, letter] = match;
+    if (full === '') return null;
+    cursor = match.index + full.length;
+    const s = sign === '-' ? -1 : 1;
+    if (letter) {
+      const coef = digits === '' ? 1 : parseInt(digits, 10);
+      coefficient += s * coef;
+    } else {
+      if (digits === '') return null;
+      constant += s * parseInt(digits, 10);
+    }
+  }
+  if (cursor !== e.length) return null;
+  return { constant, coefficient };
+}
+
 type FracVal = { numError: boolean; denError: boolean; ok: boolean };
 
 function validateFracSep(
@@ -140,6 +208,33 @@ function NumberBox({
       style={{
         border: `2px solid ${border}`, borderRadius: 6, padding: '4px',
         width, textAlign: 'center', outline: 'none', fontWeight: 700,
+      }}
+    />
+  );
+}
+
+// Input de texto para expressões algébricas (ex.: "b-x", "64-x", "b+d-c").
+function TextBox({
+  value, setValue, error, onEnter, width = 110, ariaLabel, placeholder = '?',
+}: {
+  value: string; setValue: (v: string) => void;
+  error?: boolean; onEnter?: () => void;
+  width?: number; ariaLabel?: string; placeholder?: string;
+}) {
+  const border = error ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)';
+  return (
+    <input
+      type="text"
+      autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+      value={value}
+      onChange={e => setValue(e.target.value)}
+      onKeyDown={e => { if (e.key === 'Enter' && onEnter) onEnter(); }}
+      placeholder={placeholder}
+      aria-label={ariaLabel ?? 'Expressão'}
+      style={{
+        border: `2px solid ${border}`, borderRadius: 6, padding: '6px 10px',
+        width, textAlign: 'center', outline: 'none', fontWeight: 700,
+        fontSize: '1rem',
       }}
     />
   );
@@ -232,6 +327,40 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     const [vennWError, setVennWError] = useState(false);
     const [vennLocked, setVennLocked] = useState(false);
 
+    // Variável escolhida pelo aluno no lapVenn1 (ex.: "x", "y", "z"...).
+    // Propagada para lapVenn2 para validar consistência com a mesma letra.
+    const [vennVar, setVennVar] = useState<string>('x');
+
+    // Etapa 2 — Construção da equação e resolução
+    //   Sub-passo A: n(A ∪ B) = ? (leitura do enunciado)
+    const [vennAUnionB, setVennAUnionB] = useState('');
+    const [vennAUnionBError, setVennAUnionBError] = useState(false);
+    //   Sub-passo B: n(A∪B) = [n(A-B)] + [n(A∩B)] + [n(B-A)]
+    const [vennEqAmB, setVennEqAmB] = useState('');
+    const [vennEqAnB, setVennEqAnB] = useState('');
+    const [vennEqBmA, setVennEqBmA] = useState('');
+    const [vennEqAmBError, setVennEqAmBError] = useState(false);
+    const [vennEqAnBError, setVennEqAnBError] = useState(false);
+    const [vennEqBmAError, setVennEqBmAError] = useState(false);
+    //   Sub-passo B.2: substituir n(A∪B) pelo valor numérico e simplificar
+    //   Ex.: 95 = 34-x+x+64-x ou 95 = 98-x (equivalente simplificado)
+    //   O aluno digita tanto o lado esquerdo (valor) quanto o direito (expressão)
+    //   como ato deliberado de substituição algébrica.
+    const [vennEqLhsValue, setVennEqLhsValue] = useState('');
+    const [vennEqLhsValueError, setVennEqLhsValueError] = useState(false);
+    const [vennEqSimplified, setVennEqSimplified] = useState('');
+    const [vennEqSimplifiedError, setVennEqSimplifiedError] = useState(false);
+    //   Sub-passo C: resolver a equação → x = ...
+    const [vennXExpr, setVennXExpr] = useState('');
+    const [vennXExprError, setVennXExprError] = useState(false);
+    //   Sub-passo D: n(A ∩ B) = x = [valor numérico]
+    const [vennXValue, setVennXValue] = useState('');
+    const [vennXValueError, setVennXValueError] = useState(false);
+
+    // Etapa 3 (lapVenn3): primeiro aluno identifica n(S) — espaço amostral —
+    // e depois aplica Laplace com a fração P(target) = n(target)/n(S).
+    const [vennNS, setVennNS] = useState('');
+    const [vennNSError, setVennNSError] = useState(false);
     const [venn3Num, setVenn3Num] = useState('');
     const [venn3Den, setVenn3Den] = useState('');
     const [venn3NumError, setVenn3NumError] = useState(false);
@@ -306,6 +435,15 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       setVennX(''); setVennAmB(''); setVennBmA(''); setVennW('');
       setVennXError(false); setVennAmBError(false); setVennBmAError(false); setVennWError(false);
       setVennLocked(false);
+      setVennVar('x');
+      setVennAUnionB(''); setVennAUnionBError(false);
+      setVennEqAmB(''); setVennEqAnB(''); setVennEqBmA('');
+      setVennEqAmBError(false); setVennEqAnBError(false); setVennEqBmAError(false);
+      setVennEqLhsValue(''); setVennEqLhsValueError(false);
+      setVennEqSimplified(''); setVennEqSimplifiedError(false);
+      setVennXExpr(''); setVennXExprError(false);
+      setVennXValue(''); setVennXValueError(false);
+      setVennNS(''); setVennNSError(false);
       setVenn3Num(''); setVenn3Den(''); setVenn3NumError(false); setVenn3DenError(false);
     }, []);
     const resetGeneralState = useCallback(() => {
@@ -418,18 +556,149 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       }
     };
 
-    // Caminho 1.2 — Etapa 1 (Venn preenchimento) — x, A−B, B−A, w
+    // Caminho 1.2 — Etapa 1 (Venn): o aluno preenche com EXPRESSÕES ALGÉBRICAS
+    // para modelar o problema. Convenção: chame a variável desconhecida de x,
+    // y, z, t... (qualquer letra, exceto as reservadas do problema b, d, s, c, w).
+    //
+    // Passo 1: detecta a variável escolhida a partir do campo A ∩ B
+    //   (por convenção, o aluno escreve apenas uma letra nesse campo).
+    // Passo 2: valida os outros campos usando essa letra.
+    //
+    //   Região A ∩ B:  aceita qualquer letra não-reservada ("x", "y", "t", "k"...)
+    //   Região A − B:  aceita "b-<letra>" ou "<b>-<letra>"
+    //   Região B − A:  aceita "d-<letra>" ou "<d>-<letra>"
+    //   Região fora (C): aceita "S-c", números equivalentes, "w" ou o próprio valor
+    //
+    // Normaliza espaços e unifica traços Unicode (− U+2212) com hífen ASCII.
     const validateVenn1 = () => {
-      const xOk = parseInt(vennX, 10) === data.e;
-      const amBOk = parseInt(vennAmB, 10) === (data.b - data.e);
-      const bmAOk = parseInt(vennBmA, 10) === (data.d - data.e);
-      const wOk = !data.hasOthers || parseInt(vennW, 10) === data.w;
+      const normalize = (s: string) =>
+        s.trim()
+         .replace(/\s+/g, '')
+         .replace(/[−–—]/g, '-')  // unifica sinais de menos Unicode → hífen ASCII
+         .toLowerCase();
+
+      const nX = normalize(vennX);
+      const nW = data.hasOthers ? normalize(vennW) : '';
+
+      // A variável de n(A ∩ B) é qualquer letra (ou palavra curta) que
+      // não conflite com os símbolos reservados do problema.
+      const reservedLetters = new Set(['b', 'd', 's', 'c', 'w']);
+      const isLetterOnly = /^[a-z]+$/.test(nX);
+      const xVar = isLetterOnly && !reservedLetters.has(nX) ? nX : null;
+      const xOk = xVar !== null;
+
+      // Validação semântica das regiões — aceita qualquer ordem de parcelas
+      // ou reescrita algébrica equivalente.
+      //   n(A − B) = b − xVar  →  constant = b, coefficient = −1
+      //   n(B − A) = d − xVar  →  constant = d, coefficient = −1
+      let amBOk = false;
+      let bmAOk = false;
+      if (xOk) {
+        const amBEval = evaluateLinearExpression(vennAmB, xVar, data.b, data.d, data.c);
+        amBOk = amBEval !== null &&
+          amBEval.constant === data.b &&
+          amBEval.coefficient === -1;
+        const bmAEval = evaluateLinearExpression(vennBmA, xVar, data.b, data.d, data.c);
+        bmAOk = bmAEval !== null &&
+          bmAEval.constant === data.d &&
+          bmAEval.coefficient === -1;
+      }
+
+      const acceptableW = ['s-c', `${data.S}-${data.c}`, 'w', `${data.w}`];
+      const wOk = !data.hasOthers || acceptableW.includes(nW);
+
       setVennXError(!xOk);
       setVennAmBError(!amBOk);
       setVennBmAError(!bmAOk);
       setVennWError(!wOk);
+
       if (xOk && amBOk && bmAOk && wOk) {
+        setVennVar(xVar!);       // propaga a letra escolhida para lapVenn2
         setVennLocked(true);
+        playSound('/sounds/correct.mp3');
+        setStep('lapVenn2');
+        setShowHint(false);
+      } else {
+        playSound('/sounds/incorrect.mp3');
+      }
+    };
+
+    // Caminho 1.2 — Etapa 2: monta a equação e resolve para a variável.
+    //   Sub-passo A: aluno identifica n(A ∪ B) no enunciado.
+    //   Sub-passo B: repete as expressões do diagrama na equação.
+    //   Sub-passo C (OPCIONAL): expressão de resolução para x. Aluno avançado
+    //     pode pular, indo direto para D. Respeita TOMLINSON (diferenciação).
+    //   Sub-passo D: valor numérico final de x = n(A ∩ B).
+    const validateVenn2 = () => {
+      const v = vennVar; // letra escolhida no lapVenn1 (propagada)
+
+      // A: n(A ∪ B) deve ser o valor c do enunciado
+      const unionParsed = parseInt(vennAUnionB.trim(), 10);
+      const unionOk = unionParsed === data.c;
+
+      // B: equação com as 3 expressões (mesma letra v). Validação semântica —
+      // aceita qualquer ordem de parcelas ou reescrita algébrica equivalente.
+      //   n(A−B) = b − v   →  constant = b, coefficient = −1
+      //   n(A∩B) = v       →  constant = 0, coefficient = +1
+      //   n(B−A) = d − v   →  constant = d, coefficient = −1
+      const eqAmBEval = evaluateLinearExpression(vennEqAmB, v, data.b, data.d, data.c);
+      const eqAmBOk = eqAmBEval !== null &&
+        eqAmBEval.constant === data.b &&
+        eqAmBEval.coefficient === -1;
+
+      const eqAnBEval = evaluateLinearExpression(vennEqAnB, v, data.b, data.d, data.c);
+      const eqAnBOk = eqAnBEval !== null &&
+        eqAnBEval.constant === 0 &&
+        eqAnBEval.coefficient === 1;
+
+      const eqBmAEval = evaluateLinearExpression(vennEqBmA, v, data.b, data.d, data.c);
+      const eqBmAOk = eqBmAEval !== null &&
+        eqBmAEval.constant === data.d &&
+        eqBmAEval.coefficient === -1;
+
+      // B.2: substituição de n(A∪B) pelo valor numérico e simplificação.
+      //   Lado esquerdo (LHS): aluno digita o valor de n(A∪B) = c (ato de substituição)
+      //   Lado direito (RHS): expressão linear equivalente a b + d − v
+      //     (valida por forma canônica: constant = b+d, coefficient de v = -1;
+      //      ordem das parcelas não importa).
+      const lhsParsed = parseInt(vennEqLhsValue.trim(), 10);
+      const eqLhsOk = lhsParsed === data.c;
+
+      const simplEval = evaluateLinearExpression(vennEqSimplified, v, data.b, data.d, data.c);
+      const eqSimplOk =
+        simplEval !== null &&
+        simplEval.constant === data.b + data.d &&
+        simplEval.coefficient === -1;
+
+      // C: resolução (OPCIONAL). Aceita qualquer expressão que avalie ao valor data.e
+      //    (que é b + d − c). Suporta expressões como "b+d-c", "80+58-89",
+      //    "138-89", "49", ou mesmo formas com a variável como "c-(b-x+d-x)"
+      //    que simplifica para b+d-c = const + 0·v.
+      const nXExprRaw = vennXExpr.trim();
+      const exprEmpty = nXExprRaw === '';
+      let exprOk = exprEmpty;
+      if (!exprOk) {
+        const xExprEval = evaluateLinearExpression(nXExprRaw, v, data.b, data.d, data.c);
+        exprOk =
+          xExprEval !== null &&
+          xExprEval.constant === data.e &&
+          xExprEval.coefficient === 0;
+      }
+
+      // D: valor numérico final de x (OBRIGATÓRIO)
+      const xValueParsed = parseInt(vennXValue.trim(), 10);
+      const xValueOk = xValueParsed === data.e;
+
+      setVennAUnionBError(!unionOk);
+      setVennEqAmBError(!eqAmBOk);
+      setVennEqAnBError(!eqAnBOk);
+      setVennEqBmAError(!eqBmAOk);
+      setVennEqLhsValueError(!eqLhsOk);
+      setVennEqSimplifiedError(!eqSimplOk);
+      setVennXExprError(!exprOk);
+      setVennXValueError(!xValueOk);
+
+      if (unionOk && eqAmBOk && eqAnBOk && eqBmAOk && eqLhsOk && eqSimplOk && exprOk && xValueOk) {
         playSound('/sounds/correct.mp3');
         setStep('lapVenn3');
         setShowHint(false);
@@ -438,13 +707,19 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       }
     };
 
-    // Caminho 1.2 — Etapa 3: P(target) = targetCardinality/S
-    // O aluno já preencheu TODAS as regiões do Venn; aqui aplica Laplace
-    // à região correspondente à pergunta (central, A−B, B−A ou fora).
+    // Caminho 1.2 — Etapa 3: identifica n(S) e aplica Laplace.
+    //   Sub-passo 3.a: aluno digita n(S) — o total de pessoas no bar
+    //                  (identificação do espaço amostral).
+    //   Sub-passo 3.b: aplica Laplace P(target) = n(target)/n(S).
     const validateVenn3 = () => {
+      const nsParsed = parseInt(vennNS.trim(), 10);
+      const nsOk = nsParsed === data.S;
+      setVennNSError(!nsOk);
+
       const v = validateFracSep(venn3Num, venn3Den, data.targetCardinality, data.S);
       setVenn3NumError(v.numError); setVenn3DenError(v.denError);
-      if (v.ok) {
+
+      if (nsOk && v.ok) {
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
         setCompletedPaths(prev => new Set(prev).add('lapVenn'));
@@ -545,8 +820,8 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
         ],
         lapCard3b: buildCard3bHints(data),
         lapCard4: [
-          'Aplique Laplace: P(E) = n(E)/n(Ω).',
-          `n(Ω) = S = ${data.S}.`,
+          'Aplique Laplace: P(E) = n(E)/n(S).',
+          `n(S) = ${data.S}.`,
           `Numerador é o n(${data.targetLabel}) que você acabou de calcular.`,
           `P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}.`,
         ],
@@ -555,6 +830,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           'A região A − B tem b − x elementos; B − A tem d − x.',
           'Fora: w = S − c elementos. A soma dos 4 deve dar S.',
           `No seu problema: x = ${data.e}, A − B = ${data.b - data.e}, B − A = ${data.d - data.e}${data.hasOthers ? `, outros = ${data.w}` : ''}.`,
+        ],
+        lapVenn2: [
+          `Primeiro identifique n(A ∪ B) no enunciado — é o valor c.`,
+          `Na equação, repita no lado direito as mesmas expressões que preencheu no diagrama.`,
+          `Ao substituir n(A ∪ B) pelo valor, você pode simplificar: ${data.b} − ${vennVar} + ${vennVar} + ${data.d} − ${vennVar} = ${data.b + data.d} − ${vennVar}.`,
+          `Então ${data.c} = ${data.b + data.d} − ${vennVar}, logo ${vennVar} = ${data.b + data.d} − ${data.c} = ${data.e}.`,
         ],
         lapVenn3: buildLapVenn3Hints(data),
         general1: [
@@ -606,6 +887,20 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
         <p className="ds-body-bold text-neutral-black mt-micro" style={{ textAlign: 'justify', color: 'var(--color-brand-otimath-dark)' }}>
           Qual a probabilidade de uma pessoa sorteada ao acaso{' '}
           <em>{data.descAInfinitive}</em> e também <em>{data.descBInfinitive}</em>?
+        </p>
+        <p
+          className="ds-small text-neutral-dark mt-nano"
+          style={{ textAlign: 'center', fontStyle: 'italic', lineHeight: 1.55 }}
+        >
+          (Sugestão: adote S = espaço amostral.
+          <br />
+          A = {'{'}
+          {data.descASetNotation}
+          {'}'}; B = {'{'}
+          {data.descBSetNotation}
+          {'}'}
+          {data.hasOthers && <>; C = {'{'}não torcem para nenhum dos dois times{'}'}</>}
+          .)
         </p>
       </div>
       <SimpleCalculator />
@@ -882,7 +1177,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 Etapa {(data.invertA || data.invertB) ? '5' : '4'} — Aplique Laplace para obter P({data.targetLabel})
               </p>
               <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
-                P(E) = n(E) / n(Ω), com n(Ω) = S = {data.S}.
+                P(E) = n(E) / n(S), com n(S) = {data.S}.
               </p>
               <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
                 <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P({data.targetLabel}) =</span>
@@ -917,10 +1212,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[860px] mx-auto">
               <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
-                Etapa 1 — Preencha o diagrama de Venn
+                Etapa 1 — Modele o diagrama de Venn com expressões
               </p>
               <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
-                Seja x = n(A ∩ B). Então A − B tem b − x, B − A tem d − x e fora temos S − c pessoas.
+                Chame n(A ∩ B) de uma variável (por exemplo, x). Em cada região,
+                escreva a expressão correspondente: n(A − B) = n(A) − x e
+                n(B − A) = n(B) − x.
               </p>
               <VennNumericPanel
                 totalLabel={String(data.S)}
@@ -932,7 +1229,8 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 locked={vennLocked}
               />
               <p className="ds-small text-center text-neutral-dark mt-nano">
-                Dica: (b − x) + x + (d − x) = c. Resolva para x.
+                Depois de preencher, vamos usar a soma das 4 regiões para encontrar
+                o valor da variável e calcular a probabilidade.
               </p>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={validateVenn1}>Validar diagrama</Button>
@@ -942,13 +1240,237 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           </div>
         )}
 
+        {/* ───── lapVenn2: monta equação e resolve para a variável ───── */}
+        {step === 'lapVenn2' && (() => {
+          const teamName = data.team === 'atletico' ? 'Atlético Mineiro' : 'Cruzeiro';
+          const sexAdj = data.sex === 'feminino' ? 'feminino' : 'masculino';
+          return (
+            <div data-ex-panel>
+              {Enunciado}
+              <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[900px] mx-auto">
+                <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+                  Etapa 2 — Monte a equação e resolva
+                </p>
+
+                {/* Diagrama travado para referência */}
+                <div className="mt-micro">
+                  <VennNumericPanel
+                    totalLabel={String(data.S)}
+                    xValue={vennX} amBValue={vennAmB} bmAValue={vennBmA} wValue={vennW}
+                    showW={data.hasOthers}
+                    locked
+                  />
+                </div>
+
+                {/* ── Sub-passo A: n(A ∪ B) ───────────────────────── */}
+                <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
+                  <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                    Quantas pessoas <em>{data.descA}</em> ou <em>{data.descB}</em>?
+                  </p>
+                  <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                    <span style={{ color: EVENT_COLORS['A∪B'] }}>n(A ∪ B) =</span>
+                    <NumberBox
+                      value={vennAUnionB}
+                      setValue={setVennAUnionB}
+                      error={vennAUnionBError}
+                      width={72}
+                      ariaLabel="n(A ∪ B)"
+                    />
+                  </div>
+                  {vennAUnionBError && (
+                    <p className="ds-small text-center mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                      Esse valor está no enunciado — procure por &quot;pertencem a pelo menos um desses dois grupos&quot;.
+                    </p>
+                  )}
+                </div>
+
+                {/* ── Sub-passo B: equação com 3 placeholders ─────── */}
+                <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
+                  <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                    Observando o diagrama acima, escreva a equação que permite calcular n(A ∪ B):
+                  </p>
+                  <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                    <span style={{ color: EVENT_COLORS['A∪B'] }}>n(A ∪ B) =</span>
+                    <TextBox value={vennEqAmB} setValue={setVennEqAmB} error={vennEqAmBError} ariaLabel="n(A − B)" />
+                    <span>+</span>
+                    <TextBox value={vennEqAnB} setValue={setVennEqAnB} error={vennEqAnBError} ariaLabel="n(A ∩ B)" width={70} />
+                    <span>+</span>
+                    <TextBox value={vennEqBmA} setValue={setVennEqBmA} error={vennEqBmAError} ariaLabel="n(B − A)" />
+                  </div>
+                  {vennEqAmBError && (
+                    <p className="ds-small mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                      Primeira região: pessoas que <strong>torcem para o {teamName}</strong> e <strong>não são do sexo {sexAdj}</strong>.
+                    </p>
+                  )}
+                  {vennEqAnBError && (
+                    <p className="ds-small mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                      Região central: pessoas que <strong>torcem para o {teamName}</strong> e <strong>são do sexo {sexAdj}</strong> ao mesmo tempo — a variável que você escolheu.
+                    </p>
+                  )}
+                  {vennEqBmAError && (
+                    <p className="ds-small mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                      Terceira região: pessoas que <strong>são do sexo {sexAdj}</strong> e <strong>não torcem para o {teamName}</strong>.
+                    </p>
+                  )}
+                </div>
+
+                {/* ── Sub-passo B.2: substituir valor de n(A∪B) e simplificar ── */}
+                <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
+                  <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                    Substitua n(A ∪ B) pelo valor e escreva o lado direito da equação
+                    (pode ser a soma direta ou já simplificada algebricamente):
+                  </p>
+                  <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                    <NumberBox
+                      value={vennEqLhsValue}
+                      setValue={setVennEqLhsValue}
+                      error={vennEqLhsValueError}
+                      width={72}
+                      ariaLabel="Valor de n(A ∪ B) substituído"
+                    />
+                    <span>=</span>
+                    <TextBox
+                      value={vennEqSimplified}
+                      setValue={setVennEqSimplified}
+                      error={vennEqSimplifiedError}
+                      ariaLabel="Lado direito da equação após substituir n(A ∪ B)"
+                      width={220}
+                    />
+                  </div>
+                  {vennEqLhsValueError && (
+                    <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                      Substitua n(A ∪ B) pelo valor encontrado acima (o número que você identificou no enunciado).
+                    </p>
+                  )}
+                  {vennEqSimplifiedError && (
+                    <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                      Expressão não equivalente. Qualquer forma algébrica correta é aceita,
+                      em qualquer ordem: por exemplo, {data.b}−{vennVar}+{vennVar}+{data.d}−{vennVar},
+                      −{vennVar}+{data.d}+{vennVar}+{data.b}−{vennVar}, ou {data.b + data.d}−{vennVar}.
+                    </p>
+                  )}
+                </div>
+
+                {/* ── Sub-passo C: resolução (opcional) ───────────── */}
+                <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
+                  <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                    Resolva a equação acima para encontrar o valor de <strong>{vennVar}</strong>.
+                    <span className="ds-caption text-neutral-dark" style={{ fontStyle: 'italic', marginLeft: 8 }}>
+                      (opcional — pode ser deixado em branco se preferir ir direto ao valor)
+                    </span>
+                  </p>
+                  <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                    <span>{vennVar} =</span>
+                    <TextBox
+                      value={vennXExpr}
+                      setValue={setVennXExpr}
+                      error={vennXExprError}
+                      ariaLabel={`Resolução de ${vennVar}`}
+                      width={200}
+                      placeholder="opcional"
+                    />
+                  </div>
+                  {vennXExprError && (
+                    <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                      Expressão não confere. Tente b + d − c, ou os valores numéricos correspondentes.
+                    </p>
+                  )}
+                </div>
+
+                {/* ── Sub-passo D: valor numérico final ──────────── */}
+                <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-brand-otimath-lightest)', border: '1px solid var(--color-brand-otimath-light)' }}>
+                  <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                    Portanto, o valor da cardinalidade da interseção é:
+                  </p>
+                  <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                    <span style={{ color: EVENT_COLORS['A∩B'] }}>n(A ∩ B) = {vennVar} =</span>
+                    <NumberBox
+                      value={vennXValue}
+                      setValue={setVennXValue}
+                      error={vennXValueError}
+                      onEnter={validateVenn2}
+                      width={72}
+                      ariaLabel="Valor de n(A ∩ B)"
+                    />
+                  </div>
+                  {vennXValueError && (
+                    <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                      Valor incorreto. Use a calculadora se precisar — o resultado é um inteiro não-negativo.
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex justify-center mt-micro">
+                  <Button style="primary" size="small" onClick={validateVenn2}>Validar</Button>
+                </div>
+                {HintArea}
+              </div>
+            </div>
+          );
+        })()}
+
         {step === 'lapVenn3' && (
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[860px] mx-auto">
+              {/* Retomada: valor encontrado na etapa anterior */}
+              <div
+                className="p-micro rounded-md mb-micro"
+                style={{
+                  background: 'var(--color-brand-otimath-lightest)',
+                  border: '1px solid var(--color-brand-otimath-light)',
+                }}
+              >
+                <p
+                  className="ds-caption-bold text-center"
+                  style={{ color: 'var(--color-neutral-dark)', fontSize: '0.78rem' }}
+                >
+                  Valor calculado na etapa anterior:
+                </p>
+                <p
+                  className="ds-body-bold text-center mt-nano"
+                  style={{ color: EVENT_COLORS['A∩B'], fontSize: '1.05rem' }}
+                >
+                  n(A ∩ B) = {vennVar} = {data.e}
+                </p>
+              </div>
               <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
-                Etapa 2 — Aplique Laplace para obter P({data.targetLabel})
+                Etapa 3 — Aplique Laplace para obter P({data.targetLabel})
               </p>
+
+              {/* Identificação do espaço amostral n(S) */}
+              <div
+                className="mt-micro p-micro rounded-md"
+                style={{ background: 'var(--color-neutral-lightest)' }}
+              >
+                <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                  Quantos resultados são possíveis para o experimento aleatório de
+                  sortear uma pessoa no bar e verificar o sexo e para qual time torce?
+                </p>
+                <div
+                  className="flex items-center justify-center flex-wrap gap-x-nano mt-nano"
+                  style={{ fontSize: '1.05rem', fontWeight: 700 }}
+                >
+                  <span>n(S) =</span>
+                  <NumberBox
+                    value={vennNS}
+                    setValue={setVennNS}
+                    error={vennNSError}
+                    width={72}
+                    ariaLabel="Cardinalidade do espaço amostral"
+                  />
+                </div>
+                {vennNSError && (
+                  <p
+                    className="ds-small mt-nano text-center"
+                    style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                  >
+                    n(S) é o total de pessoas reunidas no bar — esse número está no
+                    início do enunciado.
+                  </p>
+                )}
+              </div>
+
               <VennNumericPanel
                 totalLabel={String(data.S)}
                 xValue={vennX} amBValue={vennAmB} bmAValue={vennBmA} wValue={vennW}
@@ -1290,7 +1812,7 @@ function buildCard3bHints(data: Exercise4Data): string[] {
   // Ā ∩ B̄ = complementar da união = S − n(A ∪ B)
   return [
     'A pergunta envolve “não ocorrer A e não ocorrer B” — é o complementar da união.',
-    'n(Ā ∩ B̄) = n(Ω) − n(A ∪ B) = S − c.',
+    'n(Ā ∩ B̄) = n(S) − n(A ∪ B) = S − c.',
     `Substitua: n(Ā ∩ B̄) = ${data.S} − ${data.c}.`,
     `Então n(Ā ∩ B̄) = ${data.targetCardinality}.`,
   ];
@@ -1389,7 +1911,7 @@ function buildReasoningLines(
     if (data.invertA && !data.invertB) {
       return { content: <>Ajuste para a pergunta: <Hi color={COLOR_I}>n(Ā ∩ B)</Hi> = n(B) − n(A ∩ B) = {data.d} − {data.e} = <Hi color={COLOR_I}>{tCard}</Hi>.</> };
     }
-    return { content: <>Ajuste para a pergunta: <Hi color={COLOR_I}>n(Ā ∩ B̄)</Hi> = n(Ω) − n(A ∪ B) = {data.S} − {data.c} = <Hi color={COLOR_I}>{tCard}</Hi>.</> };
+    return { content: <>Ajuste para a pergunta: <Hi color={COLOR_I}>n(Ā ∩ B̄)</Hi> = n(S) − n(A ∪ B) = {data.S} − {data.c} = <Hi color={COLOR_I}>{tCard}</Hi>.</> };
   };
 
   if (path === 'lapCard') {

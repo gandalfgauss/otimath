@@ -51,13 +51,14 @@ interface VennNumericPanelProps {
 }
 
 function VennInput({
-  value, setValue, error, locked, ariaLabel,
+  value, setValue, error, locked, ariaLabel, width = 100,
 }: {
   value: string;
   setValue?: (v: string) => void;
   error?: boolean;
   locked?: boolean;
   ariaLabel: string;
+  width?: number;
 }) {
   const readOnly = locked || !setValue;
   const border = error
@@ -67,8 +68,12 @@ function VennInput({
       : 'var(--color-neutral-lighter)';
   return (
     <input
-      type="number"
-      inputMode="numeric"
+      type="text"
+      inputMode="text"
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck={false}
       value={value}
       onChange={readOnly ? undefined : (e => setValue?.(e.target.value))}
       aria-label={ariaLabel}
@@ -76,11 +81,12 @@ function VennInput({
       style={{
         border: `2px solid ${border}`,
         borderRadius: 6,
-        padding: '4px',
-        width: 54,
+        padding: '10px 12px',
+        width,
         textAlign: 'center',
         outline: 'none',
         fontWeight: 700,
+        fontSize: '1.05rem',
         background: readOnly ? 'var(--color-neutral-lightest)' : 'var(--color-neutral-white)',
         color: readOnly ? 'var(--color-neutral-dark)' : undefined,
         cursor: readOnly ? 'not-allowed' : undefined,
@@ -104,7 +110,10 @@ export function VennNumericPanel({
   const COLOR_A = EVENT_COLORS['A'];
   const COLOR_B = EVENT_COLORS['B'];
 
-  // Posições dos inputs — calculadas a partir da geometria canônica
+  // Posições dos inputs — calculadas a partir da geometria canônica.
+  // A geometria canônica tem centros em (325, 210) e (475, 210), raio 150.
+  // Lunetes laterais e interseção têm largura horizontal ≈ 150 px cada;
+  // isso define o espaço máximo disponível para os retângulos de digitação.
   // A−B: centroide da lunete esquerda (entre borda externa de A e interseção)
   const amBX = ((A.cx - A.r) + (B.cx - B.r)) / 2;
   // B−A: centroide da lunete direita
@@ -112,16 +121,25 @@ export function VennNumericPanel({
   // Interseção: entre os dois centros
   const xCx = (A.cx + B.cx) / 2;
   // Todos os inputs alinhados na mesma linha vertical dos centros
-  const inputY = A.cy - 14;
+  const inputY = A.cy - 30;
 
   // Rótulos A e B fora, no topo
   const labelY = 54;
 
-  // Campo "outros" no canto inferior direito (dentro do retângulo Ω)
-  const wX = VIEWBOX_WIDTH - 110;
-  const wY = VIEWBOX_HEIGHT - 72;
+  // Caixas de digitação ampliadas em ~30% sobre a versão anterior (104×60 → 135×78).
+  // Continuam cabendo nos 150 px horizontais disponíveis por região, com margem
+  // lateral simétrica de (150 − 135) / 2 ≈ 7 px.
+  const inputBoxW = 135, inputBoxH = 78;
 
-  const inputBoxW = 68, inputBoxH = 48;
+  // Círculo C (complementar da união A ∪ B) — menor que A e B, posicionado
+  // no canto inferior direito do retângulo S, matematicamente disjunto de
+  // A e B (dist. entre centros > soma dos raios). Representa w = S − c.
+  // Ampliado 30% sobre versão anterior (r: 58 → 75). cy ajustado para
+  // garantir que o círculo não ultrapasse a borda inferior do retângulo.
+  const C_CX = 700, C_CY = 315, C_R = 75;
+  const C_LABEL_Y = C_CY - C_R - 8;
+  // Placeholder do C ampliado 30% (wBoxW: 76 → 99; wBoxH: 48 → 62).
+  const wBoxW = 99, wBoxH = 62;
 
   return (
     <div className="w-full flex justify-center" style={{ overflowX: 'auto' }}>
@@ -146,7 +164,7 @@ export function VennNumericPanel({
           textAnchor="end" fontSize="16" fontWeight="700"
           fill="var(--color-neutral-darkest)"
         >
-          Ω = {totalLabel}
+          S = {totalLabel}
         </text>
 
         {/* Círculo A */}
@@ -225,22 +243,43 @@ export function VennNumericPanel({
           </div>
         </foreignObject>
 
-        {/* Input na região fora dos círculos — só aparece quando necessário. */}
+        {/* Círculo C (complementar da união A ∪ B) — só aparece quando
+            existem torcedores fora de A ∪ B. Menor que A e B, posicionado
+            no canto inferior direito, matematicamente disjunto. */}
         {showW && (
-          <foreignObject
-            x={wX} y={wY}
-            width={100} height={inputBoxH}
-          >
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <VennInput
-                value={wValue}
-                setValue={setWValue}
-                error={wError}
-                locked={locked}
-                ariaLabel="Cardinalidade da região fora dos círculos"
-              />
-            </div>
-          </foreignObject>
+          <>
+            <circle
+              cx={C_CX} cy={C_CY} r={C_R}
+              fill="var(--color-neutral-medium)" fillOpacity={0.22}
+              stroke="var(--color-neutral-dark)" strokeWidth={2}
+            />
+            <text
+              x={C_CX} y={C_LABEL_Y}
+              textAnchor="middle"
+              fontSize="20" fontWeight="800"
+              fill="var(--color-neutral-dark)"
+            >
+              C
+            </text>
+            <foreignObject
+              x={C_CX - wBoxW / 2} y={C_CY - wBoxH / 2}
+              width={wBoxW} height={wBoxH}
+            >
+              <div style={{
+                display: 'flex', justifyContent: 'center',
+                alignItems: 'center', height: '100%',
+              }}>
+                <VennInput
+                  value={wValue}
+                  setValue={setWValue}
+                  error={wError}
+                  locked={locked}
+                  ariaLabel="Cardinalidade do conjunto C (complementar de A ∪ B)"
+                  width={78}
+                />
+              </div>
+            </foreignObject>
+          </>
         )}
       </svg>
     </div>

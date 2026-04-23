@@ -43,6 +43,12 @@ export interface Exercise4Data {
    *  IMPORTANTE: quando invertB é true, este valor é o COMPLEMENTAR de descB.
    *  Ex.: descB = "são do sexo masculino", descBInfinitive = "ser do sexo feminino". */
   descBInfinitive: string;
+  /** Notação de conjunto de A para sugestão didática ("torcedor do Cruzeiro").
+   *  SEMPRE refere-se ao evento dos DADOS (nunca ao invertido da pergunta) —
+   *  A e B como variáveis de trabalho na fórmula de cardinalidade. */
+  descASetNotation: string;
+  /** Notação de conjunto de B para sugestão didática ("Mulheres" ou "Homens"). */
+  descBSetNotation: string;
   /** S > c — existe grupo de "outros times"? */
   hasOthers: boolean;
 
@@ -93,6 +99,16 @@ function oppositeSex(s: Sex): Sex {
 function teamInfinitiveWithInversion(t: Team, invert: boolean): string {
   const base = t === 'atletico' ? 'o Atlético Mineiro' : 'o Cruzeiro';
   return invert ? `não torcer para ${base}` : `torcer para ${base}`;
+}
+
+/** Notação de conjunto para o time (sugestão didática de variável de trabalho).
+ *  Sempre se refere ao time DOS DADOS, independente de invertA. */
+function teamSetNotation(t: Team): string {
+  return t === 'atletico' ? 'torcedores do Atlético' : 'torcedores do Cruzeiro';
+}
+/** Notação de conjunto para o sexo (sugestão didática). Sempre dos DADOS. */
+function sexSetNotation(s: Sex): string {
+  return s === 'feminino' ? 'Feminino' : 'Masculino';
 }
 
 /**
@@ -177,6 +193,8 @@ export function selectExercise4Data(round: number = 0): Exercise4Data {
       descB: sexDescription(sex),
       descAInfinitive: teamInfinitiveWithInversion(team, invertA),
       descBInfinitive: sexDescriptionInfinitive(effectiveSexForQuestion),
+      descASetNotation: teamSetNotation(team),
+      descBSetNotation: sexSetNotation(sex),
       hasOthers: w > 0,
       invertA,
       invertB,
