@@ -1,3 +1,4 @@
+import React from "react";
 import { SelectInput } from "@/components/global/SelectInput";
 import { TextInput } from "@/components/global/TextInput";
 import { OperationSelectInputs, ProbabilitiesTextInputs } from "@/hooks/teaching/probability/two-dices/useTwoDicesHooks";
@@ -5,24 +6,38 @@ import { OperationSelectInputs, ProbabilitiesTextInputs } from "@/hooks/teaching
 interface TwoDicesCalculationsProps {
  textInputs: ProbabilitiesTextInputs
  selectInputs: OperationSelectInputs
+ /** Opcional — cores por nome de evento. Aplica ao label P({nome}). */
+ eventColors?: Record<string, string>;
+ /** Opcional — rótulos React customizados (ex.: <BarA />) usados dentro de P(•). */
+ eventLabels?: Record<string, React.ReactNode>;
 }
 
 export function TwoDicesCalculations({
   textInputs,
   selectInputs,
+  eventColors,
+  eventLabels,
 }: Readonly<TwoDicesCalculationsProps>) {
 
+  const mainEventName = textInputs?.eventName ?? '';
+  const mainColor = eventColors?.[mainEventName];
+  const mainLabel = eventLabels?.[mainEventName];
+  // Nome composto do complementar (A → Ā via U+0305).
+  const complementName = mainEventName ? `${mainEventName}̅` : '';
+  const complementColor = eventColors?.[complementName];
+  const complementLabel = eventLabels?.[complementName];
+
   return (
-    
+
     <div className="w-full min-h-[230px] rounded-md bg-background-otimath solid border-hairline border-neutral-lightest shadow-level-1">
-      <h3 
+      <h3
         className="ds-heading-large text-center p-quarck border-neutral-lighter solid border-b-thin">Cálculo(s)</h3>
       <div className="flex flex-col pt-micro pb-micro pl-quarck pr-quarck gap-xxxs">
-        {selectInputs?.eventsA && 
+        {selectInputs?.eventsA &&
           <div className="flex gap-micro items-center">
-            <span className="ds-body-bold text-brand-otimath-medium">D = </span> 
+            <span className="ds-body-bold text-brand-otimath-medium">D = </span>
             <SelectInput
-              selectInput={{ 
+              selectInput={{
                 styles: "w-[50px] h-[40px] text-center",
                 placeholder: " ",
                 value: selectInputs.eventsA.value,
@@ -34,7 +49,7 @@ export function TwoDicesCalculations({
               }}
             />
             <SelectInput
-              selectInput={{ 
+              selectInput={{
                 styles: "w-[50px] h-[40px] text-center",
                 placeholder: " ",
                 value: selectInputs.operations.value,
@@ -46,7 +61,7 @@ export function TwoDicesCalculations({
               }}
             />
             <SelectInput
-              selectInput={{ 
+              selectInput={{
                 styles: "w-[50px] h-[40px] text-center",
                 placeholder: " ",
                 value: selectInputs.eventsB.value,
@@ -59,11 +74,16 @@ export function TwoDicesCalculations({
             />
           </div>
         }
-        
+
         {textInputs?.eventName &&
           <div className="flex flex-col gap-xxxs justify-center">
             <div className="flex gap-micro items-center">
-              <span className="ds-body-bold text-brand-otimath-medium">{`P(${textInputs.eventName}) = `}</span>
+              <span
+                className="ds-body-bold"
+                style={{ color: mainColor ?? 'var(--color-brand-otimath-medium)' }}
+              >
+                P({mainLabel ?? mainEventName}) ={' '}
+              </span>
               <div className="flex flex-col gap-nano items-center">
                   <TextInput textInput={{
                       styles: "w-[40px] h-[30px] text-center",
@@ -94,9 +114,14 @@ export function TwoDicesCalculations({
               </div>
             </div>
 
-            {textInputs.hasComplementary && 
+            {textInputs.hasComplementary &&
               <div className="flex gap-micro items-center">
-                <span className="ds-body-bold text-brand-otimath-medium">{`P(${textInputs.eventName}\u0305) = `}</span>
+                <span
+                  className="ds-body-bold"
+                  style={{ color: complementColor ?? 'var(--color-brand-otimath-medium)' }}
+                >
+                  P({complementLabel ?? complementName}) ={' '}
+                </span>
                 <div className="flex flex-col gap-nano items-center">
                     <TextInput textInput={{
                         styles: "w-[40px] h-[30px] text-center",
@@ -134,7 +159,7 @@ export function TwoDicesCalculations({
   );
 }
 
-/* Example 
+/* Example
 
 <TwoDicesCalculations textInputs="" selectInput="" />
 

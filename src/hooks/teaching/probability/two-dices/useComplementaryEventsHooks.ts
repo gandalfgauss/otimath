@@ -4,28 +4,21 @@
    useComplementaryEventsHooks — orquestração da seção
    "Probabilidade de Eventos Complementares" do OVA Dois Dados.
 
-   Responsabilidades:
-     • Geração de problemas via selectComplementaryEvent(round).
-     • Máquina de estados de sub-fases por rodada:
-         strategyChoice → markingComplement → revealing
-                       → fillN → fillProbabilities → roundComplete
-     • Validação de cada sub-fase (incluindo R14 — fração equivalente).
-     • Animação reveal: 1 piscada vermelha (Ā) + 1 piscada verde (A),
-       intencionalmente sequenciais para o aluno PERCEBER que
-       Ω = A ⊔ Ā (invariante I3 do verifyComplementaryConsistency).
-     • Botões: Conferir, Limpar, Próxima rodada (R0→R1),
-       Treinar novamente + Continuar (R≥1).
+   ARQUITETURA ESPELHA useTwoDicesHooks (fase simulação/jogo):
+   mesmos tipos Event, EventCheckboxes, ProbabilitiesTextInputs,
+   OperationSelectInputs; mesma API pública.
 
-   Reusa arquitetura de useTwoDicesHooks.ts:
-     • EventCheckboxes (matrizes 6×6 por nome de evento).
-     • Validação por validation(green, blue) → boolean.
-     • Alertas globais (useAlerts) e modal global (useModal).
-     • Sons oficiais (correct, incorrect, challengeFinished, ...).
+   Ciclo didático (WHITE; GUNSTONE, 1992 — PODE):
+     Predict → Observe → Confront → Formalize → Apply
 
-   Pedagogia:
-     • R0 e R1 obrigatórias com strategyChoice (Polya/Schoenfeld).
-     • R≥2 opcionais — pula strategyChoice (estratégia internalizada).
-     • Cor vermelha em Ā, verde em A — materializa partição visual.
+   Sub-fases internas (7):
+     1. strategyChoice   — aluno escolhe A ou Ā (hipótese, sem validação)
+     2. marking          — marca Ā na tabela (descrição de Ā oculta)
+     3. reveal           — anima dual; descrição de Ā aparece no painel
+     4. strategyReview   — escolha congelada + "mantém ou muda?" + confronto
+     5. formalization    — R0 apenas: derivação P(Ā) = 1 − P(A) em 3 passos
+     6. probabilities    — preenche P(A) e P(Ā)
+     7. complete         — botões de progressão
    ═══════════════════════════════════════════════════════════════ */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -35,99 +28,102 @@ import { useAlerts } from '@/hooks/global/useAlerts';
 import { useModal } from '@/hooks/global/useModal';
 import { playSound } from '@/hooks/global/useSound';
 import {
-  ComplementaryEventData,
-  isPrimeFace as _isPrimeFace,  // eslint-disable-line @typescript-eslint/no-unused-vars
-} from '@/components/teaching/probability/two-dices/shared/eventBank';
+  Event,
+  EventCheckboxes,
+  ProbabilitiesTextInputs,
+  OperationSelectInputs,
+} from '@/hooks/teaching/probability/two-dices/useTwoDicesHooks';
+import { ComplementaryEventData } from '@/components/teaching/probability/two-dices/shared/eventBank';
 import { selectComplementaryEvent } from '@/components/teaching/probability/two-dices/shared/complementaryEventGenerator';
 
-// ─── Tipos exportados ───────────────────────────────────────────
+export type { Event, EventCheckboxes, ProbabilitiesTextInputs, OperationSelectInputs };
 
-export interface EventCheckboxes {
-  [eventName: string]: CheckboxInterface[][];
-}
-
-export interface ComplementaryProbabilityInputs {
-  /** Numerador de P(Ā) — aluno digita */
-  pComplementNumerator: TextInputInterface;
-  /** Denominador de P(Ā) — fixo em 36 (somente leitura) */
-  pComplementDenominator: TextInputInterface;
-  /** Numerador de P(A) — aluno digita (resultado de 1 − P(Ā)) */
-  pANumerator: TextInputInterface;
-  /** Denominador de P(A) — fixo em 36 (somente leitura) */
-  pADenominator: TextInputInterface;
-}
+// ─── Tipos específicos da seção ─────────────────────────────────
 
 export type ComplementarySubPhase =
-  | 'strategyChoice'      // Passo 1: escolha A ou Ā?
-  | 'markingComplement'   // Passo 2: aluno marca Ā na tabela em vermelho
-  | 'revealing'           // Animação: pisca Ā vermelho → pisca A verde
-  | 'fillN'               // Passo 3: digitar n(Ā)
-  | 'fillProbabilities'   // Passos 4 e 5: P(Ā) e P(A)
-  | 'roundComplete';      // Fim da rodada — botões de progressão
+  | 'strategyChoice'
+  | 'marking'
+  | 'reveal'
+  | 'strategyReview'
+  | 'computeComplementProb'   // calcula P(Ā) = n(Ā)/n(S) — antes da formalização
+  | 'formalization'           // deduz P(A) = 1 − P(Ā)
+  | 'probabilities'           // calcula P(A) aplicando a fórmula
+  | 'complete';
 
 export type RevealPhase =
   | 'idle'
-  | 'fillingGreen'   // verde aparece (oculto até pintar)
-  | 'blinkingRed'    // pisca Ā todos juntos
-  | 'blinkingGreen'  // pisca A todos juntos
-  | 'stable';        // dual fixo
+  | 'showingOnlyRed'
+  | 'blinkingRed'
+  | 'fillingGreen'
+  | 'blinkingGreen'
+  | 'stable';
+
+export type FormalizationStep = 0 | 1 | 2 | 3 | 4 | 5;
 
 // ─── Constantes internas ────────────────────────────────────────
 
-/** Cardinalidade do espaço amostral (dois dados honestos = 36). */
 const SAMPLE_SPACE = 36;
-
-/** Rodadas obrigatórias antes de liberar "Treinar novamente" / "Continuar". */
+const MAXIMUM_VALUE_DICE = 6;
 const MANDATORY_ROUNDS = 2;
 
-/** Rodada do gerador (saturada após a 3ª). Round 0 e 1 obrigatórias usam
- *  generator round 0 e 1. Round ≥ 2 (opcional) sempre usa generator round 2
- *  — pool máximo, com combinações 3-a-3. */
-function generatorRoundFor(uiRound: number): number {
-  return Math.min(uiRound, 2);
-}
-
-const COMPLEMENT_LABEL = 'Ā';   // U+00C1 + U+0305 — letra A com macron combinante
+const COMPLEMENT_LABEL = 'Ā';
 const A_LABEL = 'A';
 
-/** Tempos da animação reveal (ms) — 2 piscadas sequenciais.
- *  Total ≈ 1.7s. Respeita prefers-reduced-motion (vai direto a stable). */
 const REVEAL_TIMING = {
   beforeRed: 200,
   redBlink: 600,
   betweenColors: 200,
   greenBlink: 600,
-  beforeFillN: 200,
+  beforeFinish: 200,
 } as const;
 
-// ─── Helpers ────────────────────────────────────────────────────
+function generatorRoundFor(uiRound: number): number {
+  return Math.min(uiRound, 2);
+}
 
-function buildEmptyMatrix(): CheckboxInterface[][] {
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function toInfinitiveForEventA(desc: string): string {
+  return desc
+    .replace(/^ocorre pelo menos/, 'ocorrer pelo menos')
+    .replace(/^não ocorre nenhuma/, 'não ocorrer nenhuma')
+    .replace(/ são /g, ' serem ')
+    .replace(/ é /g, ' ser ')
+    .replace(/dos dois dados/g, 'dos dois números obtidos')
+    .replace(/os dois dados/g, 'os dois números obtidos')
+    .replace(/dos dados/g, 'dos números obtidos');
+}
+
+// ─── Builders ───────────────────────────────────────────────────
+
+function buildEmptyCheckboxLayer(): CheckboxInterface[][] {
   const matrix: CheckboxInterface[][] = [];
-  for (let g = 0; g < 6; g++) {
+  for (let g = 0; g < MAXIMUM_VALUE_DICE; g++) {
     matrix[g] = [];
-    for (let b = 0; b < 6; b++) {
+    for (let b = 0; b < MAXIMUM_VALUE_DICE; b++) {
       matrix[g].push({ checked: false, disabled: false });
     }
   }
   return matrix;
 }
 
-function buildMatrixFromValidation(
+function buildLayerFromValidation(
   validation: (g: number, b: number) => boolean,
   disabled: boolean,
 ): CheckboxInterface[][] {
   const matrix: CheckboxInterface[][] = [];
-  for (let g = 0; g < 6; g++) {
+  for (let g = 0; g < MAXIMUM_VALUE_DICE; g++) {
     matrix[g] = [];
-    for (let b = 0; b < 6; b++) {
+    for (let b = 0; b < MAXIMUM_VALUE_DICE; b++) {
       matrix[g].push({ checked: validation(g + 1, b + 1), disabled });
     }
   }
   return matrix;
 }
 
-/** Valida fração equivalente (R14 do CLAUDE.md). */
 function isEquivalentFraction(
   numStr: string, denStr: string,
   expectedNum: number, expectedDen: number,
@@ -139,135 +135,109 @@ function isEquivalentFraction(
   return num * expectedDen === den * expectedNum;
 }
 
-function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined' || !window.matchMedia) return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function gcdNat(a: number, b: number): number {
+  const aa = Math.abs(a), bb = Math.abs(b);
+  return bb === 0 ? aa : gcdNat(bb, aa % bb);
 }
 
-/** Converte descrição indicativa do gerador para forma infinitiva, adequada
- *  ao template "ocorrer o evento A: [descrição]".
- *
- *  Ex.: "o produto dos dados é maior que 2" → "o produto dos números obtidos ser maior que 2"
- *       "as duas faces são pares"           → "as duas faces serem pares"
- *       "ocorre pelo menos uma..."          → "ocorrer pelo menos uma..." */
-function toInfinitiveForEventA(desc: string): string {
-  return desc
-    // Ocorrências específicas primeiro (antes das genéricas)
-    .replace(/^ocorre pelo menos/, 'ocorrer pelo menos')
-    .replace(/^não ocorre nenhuma/, 'não ocorrer nenhuma')
-    // Verbos de ligação
-    .replace(/ são /g, ' serem ')
-    .replace(/ é /g, ' ser ')
-    // Substantivo: "dados" → "números obtidos" (só nos contextos esperados)
-    .replace(/dos dois dados/g, 'dos dois números obtidos')
-    .replace(/os dois dados/g, 'os dois números obtidos')
-    .replace(/dos dados/g, 'dos números obtidos');
+/** Aceita a fração quando é equivalente à esperada E está na forma irredutível. */
+function isIrreducibleAndEquivalent(
+  numStr: string, denStr: string,
+  expectedNum: number, expectedDen: number,
+): boolean {
+  const num = parseInt(numStr.trim(), 10);
+  const den = parseInt(denStr.trim(), 10);
+  if (!Number.isInteger(num) || !Number.isInteger(den)) return false;
+  if (num < 0 || den <= 0) return false;
+  if (num * expectedDen !== den * expectedNum) return false;
+  return gcdNat(num, den) === 1;
+}
+
+/** Retorna as representações decimal (até 4 casas) e percentual (até 2 casas)
+ *  em pt-BR a partir dos inteiros numerador e denominador. */
+function decimalAndPercent(num: number, den: number): { decimal: string; percent: string } {
+  const value = num / den;
+  const decimal = value.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+  const percent = (value * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%';
+  return { decimal, percent };
 }
 
 // ─── Props do hook ──────────────────────────────────────────────
 
 interface UseComplementaryEventsHooksProps {
-  /** Callback chamado quando o aluno clica "Continuar" — avança para unionTheory. */
   onContinue: () => void;
 }
 
 // ════════════════════════════════════════════════════════════════
-// HOOK PRINCIPAL
-// ════════════════════════════════════════════════════════════════
 
 export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEventsHooksProps) => {
-  // ─── Estado de geração e progressão ────────────────────────────
+  // ─── Estado de geração e progressão ──────────────────────────
   const [data, setData] = useState<ComplementaryEventData | null>(null);
   const [round, setRound] = useState<number>(0);
   const [subPhase, setSubPhase] = useState<ComplementarySubPhase>('strategyChoice');
 
-  // ─── Estado de marcação ───────────────────────────────────────
+  // ─── Estado espelhando useTwoDicesHooks ───────────────────────
   const [eventsCheckboxes, setEventsCheckboxes] = useState<EventCheckboxes>({});
+  const [activeEvents, setActiveEvents] = useState<Event[]>([]);
+  const [instructions, setInstructions] = useState<string>('');
+  const [probabilitiesTextInputs, setProbabilitiesTextInputs] =
+    useState<ProbabilitiesTextInputs>({} as ProbabilitiesTextInputs);
+  const [operationSelectInputs] = useState<OperationSelectInputs>({} as OperationSelectInputs);
 
-  // ─── Inputs específicos ───────────────────────────────────────
-  const [strategyChoice, setStrategyChoiceState] = useState<'A' | COMPLEMENT_TYPE | null>(null);
-  const [strategyError, setStrategyError] = useState<boolean>(false);
+  // ─── Botões ───────────────────────────────────────────────────
+  const [disabledCheckButton, setDisabledCheckButton] = useState(false);
+  const [disabledClearButton, setDisabledClearButton] = useState(true);
+  const [disabledNextStepButton, setDisabledNextStepButton] = useState(true);
+  const [disabledTrainAgainButton, setDisabledTrainAgainButton] = useState(true);
+  const [disabledContinueButton, setDisabledContinueButton] = useState(true);
 
-  const [nEInput, setNEInput] = useState<TextInputInterface>({
-    value: '', disabled: false, error: false,
-  });
+  // ─── Estado do Passo 1 — hipótese (sem validação) ─────────────
+  const [strategyChoice, setStrategyChoiceState] = useState<string | null>(null);
 
-  const [probabilities, setProbabilities] = useState<ComplementaryProbabilityInputs>({
-    pComplementNumerator: { value: '', disabled: false, error: false },
-    pComplementDenominator: { value: String(SAMPLE_SPACE), disabled: true, error: false },
-    pANumerator: { value: '', disabled: false, error: false },
-    pADenominator: { value: String(SAMPLE_SPACE), disabled: true, error: false },
-  });
+  // ─── Estado do Passo strategyReview ───────────────────────────
+  const [reviewChoice, setReviewChoiceState] = useState<'keep' | 'change' | null>(null);
+  const [reviewError, setReviewError] = useState(false);
+  const [confrontMessage, setConfrontMessage] = useState<string>('');
+
+  // ─── Estado do Passo formalization ────────────────────────────
+  const [formStep, setFormStep] = useState<FormalizationStep>(0);
+  const [formStep0Value, setFormStep0ValueState] = useState<string>(''); // select: 'S'|'A'|'Ā'
+  const [formStep0Error, setFormStep0Error] = useState(false);
+  const [formStep1Value, setFormStep1ValueState] = useState<string>(''); // input: '1'
+  const [formStep1Error, setFormStep1Error] = useState(false);
+  const [formStep2Value, setFormStep2ValueState] = useState<string>(''); // numerador: '36'
+  const [formStep2DenValue, setFormStep2DenValueState] = useState<string>(''); // denominador: '36'
+  const [formStep2Error, setFormStep2Error] = useState(false);
+  const [formStep2ErrorCount, setFormStep2ErrorCount] = useState<number>(0);
+  // Step 3: substituição de P(Ā) pelo valor calculado (nE/36 ou equivalente).
+  const [formStep3NumValue, setFormStep3NumValueState] = useState<string>('');
+  const [formStep3DenValue, setFormStep3DenValueState] = useState<string>('');
+  const [formStep3Error, setFormStep3Error] = useState(false);
+  // Step 4: resultado da subtração — P(A) final (nA/36 ou equivalente).
+  const [formStep4NumValue, setFormStep4NumValueState] = useState<string>('');
+  const [formStep4DenValue, setFormStep4DenValueState] = useState<string>('');
+  const [formStep4Error, setFormStep4Error] = useState(false);
+  // Step 5: forma irredutível da mesma fração. Depois de validar, a UI
+  // exibe automaticamente a igualdade em decimal e em percentagem.
+  const [formStep5NumValue, setFormStep5NumValueState] = useState<string>('');
+  const [formStep5DenValue, setFormStep5DenValueState] = useState<string>('');
+  const [formStep5Error, setFormStep5Error] = useState(false);
+  const [formStep5Validated, setFormStep5Validated] = useState(false);
+  const [formStep5Decimal, setFormStep5Decimal] = useState<string>('');
+  const [formStep5Percent, setFormStep5Percent] = useState<string>('');
 
   // ─── Animação reveal ──────────────────────────────────────────
   const [revealPhase, setRevealPhase] = useState<RevealPhase>('idle');
 
-  // ─── Estado de botões ─────────────────────────────────────────
-  const [disabledCheckButton, setDisabledCheckButton] = useState(false);
-  const [disabledClearButton, setDisabledClearButton] = useState(true);
-  const [disabledNextRoundButton, setDisabledNextRoundButton] = useState(true);
-  const [disabledTrainAgainButton, setDisabledTrainAgainButton] = useState(true);
-  const [disabledContinueButton, setDisabledContinueButton] = useState(true);
 
-  // ─── Instructions ─────────────────────────────────────────────
-  const [instructions, setInstructions] = useState<string>('');
-
-  // ─── Hooks globais ────────────────────────────────────────────
+  // ─── Globais ──────────────────────────────────────────────────
   const { alerts, createAlert, updateAlert, deleteAlerts } = useAlerts();
   const { modal, updateModal } = useModal();
 
-  // Refs para evitar stale closures dentro de timers da animação.
-  const dataRef = useRef<ComplementaryEventData | null>(null);
-  useEffect(() => { dataRef.current = data; }, [data]);
   const roundRef = useRef<number>(0);
   useEffect(() => { roundRef.current = round; }, [round]);
-
-  // ─── Inicialização ────────────────────────────────────────────
-  useEffect(() => {
-    startRound(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ════════════════════════════════════════════════════════════
-  // GERAÇÃO DE NOVA RODADA
-  // ════════════════════════════════════════════════════════════
-
-  /** Sorteia novo problema e reseta estado da rodada.
-   *  uiRound = 0, 1: rodadas obrigatórias com strategyChoice.
-   *  uiRound ≥ 2: rodadas opcionais — pula strategyChoice. */
-  const startRound = (uiRound: number) => {
-    const newData = selectComplementaryEvent(generatorRoundFor(uiRound));
-    setData(newData);
-    setRound(uiRound);
-
-    // Reset de inputs
-    setStrategyChoiceState(null);
-    setStrategyError(false);
-    setNEInput({ value: '', disabled: false, error: false });
-    setProbabilities({
-      pComplementNumerator: { value: '', disabled: false, error: false },
-      pComplementDenominator: { value: String(SAMPLE_SPACE), disabled: true, error: false },
-      pANumerator: { value: '', disabled: false, error: false },
-      pADenominator: { value: String(SAMPLE_SPACE), disabled: true, error: false },
-    });
-    setRevealPhase('idle');
-    setEventsCheckboxes({});
-
-    // R0 e R1 começam em strategyChoice; R≥2 vai direto para markingComplement.
-    if (uiRound >= MANDATORY_ROUNDS) {
-      goToMarkingComplement(newData);
-    } else {
-      setSubPhase('strategyChoice');
-      setInstructions(buildInstructions('strategyChoice', newData));
-    }
-
-    // Reset botões
-    setDisabledCheckButton(false);
-    setDisabledClearButton(true);
-    setDisabledNextRoundButton(true);
-    setDisabledTrainAgainButton(true);
-    setDisabledContinueButton(true);
-  };
+  const dataRef = useRef<ComplementaryEventData | null>(null);
+  useEffect(() => { dataRef.current = data; }, [data]);
 
   // ════════════════════════════════════════════════════════════
   // INSTRUÇÕES POR SUB-FASE
@@ -275,126 +245,276 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
 
   function buildInstructions(phase: ComplementarySubPhase, d: ComplementaryEventData | null): string {
     if (!d) return '';
+    const navy = 'var(--color-brand-otimath-darkest)';
     switch (phase) {
       case 'strategyChoice': {
-        // Enunciado em azul marinho (token darkest do Design System otimath).
-        const navy = 'var(--color-brand-otimath-darkest)';
         const eventInInfinitive = toInfinitiveForEventA(d.eventA.description);
         return (
           `<p class="ds-body" style="color:${navy}">Em um experimento aleatório, dois dados equilibrados ` +
           `e de mesmo tamanho, um verde e um azul, são lançados simultaneamente. Após o lançamento, ` +
           `observa-se o número de pintas nas faces voltadas para cima. Calcule a probabilidade de ocorrer ` +
           `o evento <strong>A</strong>: <em>${eventInInfinitive}</em>.</p>` +
-          `<p class="ds-body mt-micro" style="color:${navy}">Antes de calcular P(A), escolha: qual cálculo ` +
-          `você acha que será <strong>mais rápido</strong> — marcar todos os casos de A diretamente ou ` +
-          `marcar apenas os casos do complementar <strong>Ā</strong>?</p>`
+          `<p class="ds-body mt-micro" style="color:${navy}">Antes de calcular P(A), escolha: qual caminho ` +
+          `você acha que será <strong>mais rápido</strong> — marcar todos os casos favoráveis ao evento A ` +
+          `diretamente ou marcar apenas os casos favoráveis ao complementar <strong style="color:#FF6A00"><span class="ova-bar-a">A</span></strong>?</p>`
         );
       }
-      case 'markingComplement':
-        return `<p class="ds-body">Marque na tabela todos os casos do <strong>complementar Ā</strong> ` +
-               `(em <span style="color:var(--color-feedback-error-dark);font-weight:700">vermelho</span>). ` +
-               `O evento Ā ocorre quando: <em>${d.eventComplement.description}</em>.</p>`;
-      case 'revealing':
-        return `<p class="ds-body">Observe: o complementar <strong style="color:var(--color-feedback-error-dark)">Ā</strong> ` +
-               `(vermelho) e o evento <strong style="color:var(--color-feedback-success-dark)">A</strong> (verde) ` +
-               `juntos cobrem <strong>todo o espaço amostral</strong> de 36 resultados.</p>`;
-      case 'fillN':
-        return `<p class="ds-body">Quantos casos pertencem ao complementar Ā? ` +
-               `Conte as células marcadas em vermelho e digite <strong>n(Ā)</strong>.</p>`;
-      case 'fillProbabilities':
-        return `<p class="ds-body">Calcule <strong>P(Ā) = n(Ā)/36</strong> e depois ` +
-               `<strong>P(A) = 1 − P(Ā)</strong>. Digite as duas frações abaixo.</p>`;
-      case 'roundComplete':
-        return `<p class="ds-body-bold text-feedback-success-dark text-center">` +
-               `Rodada concluída! Você usou a estratégia do complementar com sucesso.</p>`;
+      case 'marking':
+        return (
+          `<p class="ds-body" style="color:${navy}">Marque no <strong>Quadro de Dados</strong> os resultados ` +
+          `que correspondem ao <strong>complementar <span class="ova-bar-a" style="color:#FF6A00">A</span></strong> do evento A. Clique em <strong>Conferir</strong> ` +
+          `ao terminar a marcação, ou em <strong>Limpar</strong> para recomeçar. ` +
+          `Caso necessário, clique em <strong>Revisão</strong> antes de começar.</p>`
+        );
+      case 'reveal':
+        return (
+          `<p class="ds-body" style="color:${navy}">Observe: o complementar <strong style="color:#FF6A00"><span class="ova-bar-a">A</span></strong> (laranja) e o ` +
+          `evento <strong style="color:#0050FF">A</strong> (azul) juntos cobrem <strong>todo o espaço amostral</strong> de 36 resultados.</p>`
+        );
+      case 'strategyReview':
+        return (
+          `<p class="ds-body" style="color:${navy}">Agora que você observou a tabela preenchida, revise sua ` +
+          `escolha inicial. Com o que você viu, você <strong>mantém</strong> ou <strong>muda</strong> sua escolha?</p>`
+        );
+      case 'computeComplementProb':
+        return (
+          `<p class="ds-body" style="color:${navy}">Primeiro, calcule <strong>P(<span class="ova-bar-a" style="color:#FF6A00">A</span>)</strong> ` +
+          `pela definição clássica — <strong>casos favoráveis dividido por casos possíveis</strong> — no ` +
+          `<strong>Quadro de Cálculo(s)</strong>.</p>`
+        );
+      case 'formalization':
+        return (
+          `<p class="ds-body" style="color:${navy}">Vamos formalizar a relação entre P(A) e P(<span class="ova-bar-a" style="color:#FF6A00">A</span>) a partir do ` +
+          `que você observou.</p>`
+        );
+      case 'probabilities':
+        return (
+          `<p class="ds-body" style="color:${navy}">Agora, usando a fórmula <strong>P(A) = 1 − P(<span class="ova-bar-a" style="color:#FF6A00">A</span>)</strong>, ` +
+          `calcule <strong>P(A)</strong> no <strong>Quadro de Cálculo(s)</strong>.</p>`
+        );
+      case 'complete':
+        return (
+          `<p class="ds-body-bold text-feedback-success-dark text-center">` +
+          `Parabéns, você finalizou esta rodada com sucesso!</p>`
+        );
     }
   }
+
+  // ════════════════════════════════════════════════════════════
+  // GERAÇÃO DE NOVA RODADA
+  // ════════════════════════════════════════════════════════════
+
+  const startRound = useCallback((uiRound: number) => {
+    const newData = selectComplementaryEvent(generatorRoundFor(uiRound));
+    setData(newData);
+    setRound(uiRound);
+
+    // Reset completo
+    setStrategyChoiceState(null);
+    setReviewChoiceState(null);
+    setReviewError(false);
+    setConfrontMessage('');
+    setFormStep(0);
+    setFormStep0ValueState('');
+    setFormStep1ValueState('');
+    setFormStep2ValueState('');
+    setFormStep2DenValueState('');
+    setFormStep3NumValueState('');
+    setFormStep3DenValueState('');
+    setFormStep4NumValueState('');
+    setFormStep4DenValueState('');
+    setFormStep5NumValueState('');
+    setFormStep5DenValueState('');
+    setFormStep5Validated(false);
+    setFormStep5Decimal('');
+    setFormStep5Percent('');
+    setFormStep0Error(false);
+    setFormStep1Error(false);
+    setFormStep2Error(false);
+    setFormStep2ErrorCount(0);
+    setFormStep3Error(false);
+    setFormStep4Error(false);
+    setFormStep5Error(false);
+    setRevealPhase('idle');
+    setEventsCheckboxes({});
+    setProbabilitiesTextInputs({} as ProbabilitiesTextInputs);
+    setDisabledCheckButton(false);
+    setDisabledClearButton(true);
+    setDisabledNextStepButton(true);
+    setDisabledTrainAgainButton(true);
+    setDisabledContinueButton(true);
+
+    // R0 e R1 obrigatórias: começa em strategyChoice. R≥2: pula para marking.
+    if (uiRound >= MANDATORY_ROUNDS) {
+      goToMarking(newData);
+    } else {
+      setSubPhase('strategyChoice');
+      setActiveEvents([{ name: A_LABEL, ...newData.eventA }]);
+      setInstructions(buildInstructions('strategyChoice', newData));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ════════════════════════════════════════════════════════════
   // TRANSIÇÕES DE SUB-FASE
   // ════════════════════════════════════════════════════════════
 
-  function goToMarkingComplement(d: ComplementaryEventData) {
-    const matrix = buildEmptyMatrix();
-    setEventsCheckboxes({ [COMPLEMENT_LABEL]: matrix });
-    setSubPhase('markingComplement');
-    setInstructions(buildInstructions('markingComplement', d));
+  function goToMarking(d: ComplementaryEventData) {
+    const checkboxes: EventCheckboxes = { [COMPLEMENT_LABEL]: buildEmptyCheckboxLayer() };
+    setEventsCheckboxes(checkboxes);
+    // Painel Evento(s) mostra APENAS A. Descrição de Ā fica oculta até reveal.
+    setActiveEvents([{ name: A_LABEL, ...d.eventA }]);
+    setSubPhase('marking');
+    setInstructions(buildInstructions('marking', d));
     setDisabledCheckButton(false);
     setDisabledClearButton(false);
+    setDisabledNextStepButton(true);
   }
 
-  function goToRevealing(d: ComplementaryEventData) {
-    setSubPhase('revealing');
-    setInstructions(buildInstructions('revealing', d));
+  function goToReveal(d: ComplementaryEventData) {
+    setSubPhase('reveal');
+    setInstructions(buildInstructions('reveal', d));
     setDisabledCheckButton(true);
     setDisabledClearButton(true);
+    // Descrição de Ā REVELADA no painel Evento(s).
+    setActiveEvents([
+      { name: A_LABEL, ...d.eventA },
+      { name: COMPLEMENT_LABEL, ...d.eventComplement },
+    ]);
 
-    // Auto-preenche A em verde e congela Ā vermelho.
-    const aMatrix = buildMatrixFromValidation(d.eventA.validation, true);
-    const compMatrix = buildMatrixFromValidation(d.eventComplement.validation, true);
-    setEventsCheckboxes({
-      [COMPLEMENT_LABEL]: compMatrix,
-      [A_LABEL]: aMatrix,
-    });
+    const compLayer = buildLayerFromValidation(d.eventComplement.validation, true);
+    const aLayer = buildLayerFromValidation(d.eventA.validation, true);
+    setEventsCheckboxes({ [COMPLEMENT_LABEL]: compLayer });
 
-    // Sequência da animação. Materializa Ω = A ⊔ Ā para o aluno SENTIR a partição.
-    const reduced = prefersReducedMotion();
-    if (reduced) {
-      // Sem animação — vai direto a stable e segue o fluxo.
+    if (prefersReducedMotion()) {
+      setEventsCheckboxes({ [COMPLEMENT_LABEL]: compLayer, [A_LABEL]: aLayer });
       setRevealPhase('stable');
-      setTimeout(() => goToFillN(d), 100);
+      setTimeout(() => goToStrategyReview(d), 100);
       return;
     }
 
-    setRevealPhase('fillingGreen');
+    setRevealPhase('showingOnlyRed');
     let t = REVEAL_TIMING.beforeRed;
     setTimeout(() => setRevealPhase('blinkingRed'), t);
     t += REVEAL_TIMING.redBlink + REVEAL_TIMING.betweenColors;
+    setTimeout(() => {
+      setEventsCheckboxes({ [COMPLEMENT_LABEL]: compLayer, [A_LABEL]: aLayer });
+      setRevealPhase('fillingGreen');
+    }, t);
+    t += 50;
     setTimeout(() => setRevealPhase('blinkingGreen'), t);
     t += REVEAL_TIMING.greenBlink;
     setTimeout(() => setRevealPhase('stable'), t);
-    t += REVEAL_TIMING.beforeFillN;
-    setTimeout(() => goToFillN(d), t);
+    t += REVEAL_TIMING.beforeFinish;
+    setTimeout(() => goToStrategyReview(d), t);
   }
 
-  function goToFillN(d: ComplementaryEventData) {
-    setSubPhase('fillN');
-    setInstructions(buildInstructions('fillN', d));
+  function goToStrategyReview(d: ComplementaryEventData) {
+    setSubPhase('strategyReview');
+    setInstructions(buildInstructions('strategyReview', d));
+    setReviewChoiceState(null);
+    setReviewError(false);
+    setConfrontMessage('');
     setDisabledCheckButton(false);
     setDisabledClearButton(true);
-    setNEInput({ value: '', disabled: false, error: false });
   }
 
-  function goToFillProbabilities(d: ComplementaryEventData) {
-    setSubPhase('fillProbabilities');
-    setInstructions(buildInstructions('fillProbabilities', d));
+  /** Sub-fase nova: aluno calcula P(Ā) pela definição clássica
+   *  (casos favoráveis / casos possíveis). Usa TwoDicesCalculations com
+   *  eventName='Ā' e hasComplementary=false — só o painel de P(Ā). */
+  function goToComputeComplementProb(d: ComplementaryEventData) {
+    setSubPhase('computeComplementProb');
+    setInstructions(buildInstructions('computeComplementProb', d));
     setDisabledCheckButton(false);
     setDisabledClearButton(true);
-    setNEInput(prev => ({ ...prev, disabled: true }));
+    setDisabledNextStepButton(true);
+
+    const probInputs: ProbabilitiesTextInputs = {
+      eventName: COMPLEMENT_LABEL,
+      hasComplementary: false,
+      numerator: { value: '', disabled: false, error: false },
+      denominator: { value: '', disabled: false, error: false },
+    };
+    probInputs.numerator.setValue = (v: string) =>
+      setProbabilitiesTextInputs(prev => ({ ...prev, numerator: { ...prev.numerator, value: v } }));
+    probInputs.denominator.setValue = (v: string) =>
+      setProbabilitiesTextInputs(prev => ({ ...prev, denominator: { ...prev.denominator, value: v } }));
+    setProbabilitiesTextInputs(probInputs);
   }
 
-  function goToRoundComplete(d: ComplementaryEventData) {
-    setSubPhase('roundComplete');
-    setInstructions(buildInstructions('roundComplete', d));
+  function goToFormalization(d: ComplementaryEventData) {
+    setSubPhase('formalization');
+    setFormStep(0);
+    setFormStep0ValueState('');
+    setFormStep1ValueState('');
+    setFormStep2ValueState('');
+    setFormStep2DenValueState('');
+    setFormStep3NumValueState('');
+    setFormStep3DenValueState('');
+    setFormStep4NumValueState('');
+    setFormStep4DenValueState('');
+    setFormStep5NumValueState('');
+    setFormStep5DenValueState('');
+    setFormStep5Validated(false);
+    setFormStep5Decimal('');
+    setFormStep5Percent('');
+    setFormStep0Error(false);
+    setFormStep1Error(false);
+    setFormStep2Error(false);
+    setFormStep2ErrorCount(0);
+    setFormStep3Error(false);
+    setFormStep4Error(false);
+    setFormStep5Error(false);
+    setInstructions(buildInstructions('formalization', d));
+    setDisabledCheckButton(false);
+    setDisabledClearButton(true);
+  }
+
+  function goToProbabilities(d: ComplementaryEventData) {
+    setSubPhase('probabilities');
+    setInstructions(buildInstructions('probabilities', d));
+    setDisabledCheckButton(false);
+    setDisabledClearButton(true);
+    setDisabledNextStepButton(true);
+
+    // Agora pede apenas P(A) (a resposta final do problema).
+    const probInputs: ProbabilitiesTextInputs = {
+      eventName: A_LABEL,
+      hasComplementary: false,
+      numerator: { value: '', disabled: false, error: false },
+      denominator: { value: '', disabled: false, error: false },
+    };
+    probInputs.numerator.setValue = (v: string) =>
+      setProbabilitiesTextInputs(prev => ({ ...prev, numerator: { ...prev.numerator, value: v } }));
+    probInputs.denominator.setValue = (v: string) =>
+      setProbabilitiesTextInputs(prev => ({ ...prev, denominator: { ...prev.denominator, value: v } }));
+    setProbabilitiesTextInputs(probInputs);
+  }
+
+  function goToComplete(d: ComplementaryEventData) {
+    setSubPhase('complete');
+    setInstructions(buildInstructions('complete', d));
     setDisabledCheckButton(true);
     setDisabledClearButton(true);
-    setProbabilities(prev => ({
-      pComplementNumerator: { ...prev.pComplementNumerator, disabled: true },
-      pComplementDenominator: { ...prev.pComplementDenominator, disabled: true },
-      pANumerator: { ...prev.pANumerator, disabled: true },
-      pADenominator: { ...prev.pADenominator, disabled: true },
+
+    setProbabilitiesTextInputs(prev => ({
+      ...prev,
+      numerator: { ...prev.numerator, disabled: true, error: false },
+      denominator: { ...prev.denominator, disabled: true, error: false },
+      ...(prev.complementaryNumerator ? {
+        complementaryNumerator: { ...prev.complementaryNumerator, disabled: true, error: false },
+      } : {}),
+      ...(prev.complementaryDenominator ? {
+        complementaryDenominator: { ...prev.complementaryDenominator, disabled: true, error: false },
+      } : {}),
     }));
 
-    // Liberação dos botões de progressão.
     const currentRound = roundRef.current;
     if (currentRound < MANDATORY_ROUNDS - 1) {
-      // Ainda dentro das obrigatórias — só "Próxima rodada".
-      setDisabledNextRoundButton(false);
+      setDisabledNextStepButton(false);
       setDisabledTrainAgainButton(true);
       setDisabledContinueButton(true);
     } else {
-      // Cumpriu obrigatórias — libera "Treinar novamente" e "Continuar".
-      setDisabledNextRoundButton(true);
+      setDisabledNextStepButton(true);
       setDisabledTrainAgainButton(false);
       setDisabledContinueButton(false);
     }
@@ -404,11 +524,6 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   // HANDLERS DE INPUTS
   // ════════════════════════════════════════════════════════════
 
-  const setStrategyChoice = (choice: 'A' | typeof COMPLEMENT_LABEL) => {
-    setStrategyChoiceState(choice);
-    setStrategyError(false);
-  };
-
   const updateEventsCheckboxes = useCallback(
     (eventName: string, diceGreen: number, diceBlue: number, checked: boolean, disabled: boolean) => {
       setEventsCheckboxes(prev => {
@@ -416,9 +531,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
         if (!updated[eventName]) return prev;
         updated[eventName] = updated[eventName].map((row, gIdx) =>
           gIdx === diceGreen - 1
-            ? row.map((cell, bIdx) =>
-                bIdx === diceBlue - 1 ? { checked, disabled } : cell,
-              )
+            ? row.map((cell, bIdx) => (bIdx === diceBlue - 1 ? { checked, disabled } : cell))
             : row,
         );
         return updated;
@@ -427,148 +540,288 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     [],
   );
 
-  const setNEValue = useCallback((value: string) => {
-    setNEInput(prev => ({ ...prev, value, error: false }));
-  }, []);
-
-  const setPComplementNumerator = useCallback((value: string) => {
-    setProbabilities(prev => ({
-      ...prev,
-      pComplementNumerator: { ...prev.pComplementNumerator, value, error: false },
-    }));
-  }, []);
-
-  const setPANumerator = useCallback((value: string) => {
-    setProbabilities(prev => ({
-      ...prev,
-      pANumerator: { ...prev.pANumerator, value, error: false },
-    }));
-  }, []);
-
-  // Liga os setters reais aos TextInputInterface (necessário por causa do
-  // padrão visual usado em useTwoDicesHooks.ts).
-  const probabilitiesWithSetters: ComplementaryProbabilityInputs = {
-    pComplementNumerator: { ...probabilities.pComplementNumerator, setValue: setPComplementNumerator },
-    pComplementDenominator: probabilities.pComplementDenominator,
-    pANumerator: { ...probabilities.pANumerator, setValue: setPANumerator },
-    pADenominator: probabilities.pADenominator,
+  const setStrategyChoice = (choice: string) => setStrategyChoiceState(choice);
+  const setReviewChoice = (choice: 'keep' | 'change') => {
+    setReviewChoiceState(choice);
+    setReviewError(false);
   };
-
-  const nEInputWithSetter: TextInputInterface = { ...nEInput, setValue: setNEValue };
+  const setFormStep0Value = (v: string) => { setFormStep0ValueState(v); setFormStep0Error(false); };
+  const setFormStep1Value = (v: string) => { setFormStep1ValueState(v); setFormStep1Error(false); };
+  const setFormStep2Value = (v: string) => { setFormStep2ValueState(v); setFormStep2Error(false); };
+  const setFormStep2DenValue = (v: string) => { setFormStep2DenValueState(v); setFormStep2Error(false); };
+  const setFormStep3NumValue = (v: string) => { setFormStep3NumValueState(v); setFormStep3Error(false); };
+  const setFormStep3DenValue = (v: string) => { setFormStep3DenValueState(v); setFormStep3Error(false); };
+  const setFormStep4NumValue = (v: string) => { setFormStep4NumValueState(v); setFormStep4Error(false); };
+  const setFormStep4DenValue = (v: string) => { setFormStep4DenValueState(v); setFormStep4Error(false); };
+  const setFormStep5NumValue = (v: string) => { setFormStep5NumValueState(v); setFormStep5Error(false); };
+  const setFormStep5DenValue = (v: string) => { setFormStep5DenValueState(v); setFormStep5Error(false); };
 
   // ════════════════════════════════════════════════════════════
-  // VALIDAÇÕES POR SUB-FASE
+  // VALIDAÇÕES
   // ════════════════════════════════════════════════════════════
 
-  function verifyStrategy(): boolean {
-    return strategyChoice === COMPLEMENT_LABEL;
-  }
-
-  function verifyMarkingComplement(): boolean {
-    if (!data) return false;
+  /** Verificação granular da marcação:
+   *    - ok: todas as marcações corretas E completas (pode avançar).
+   *    - partial: todas as feitas estão corretas, mas falta marcar alguma (incompleto).
+   *    - wrong: há pelo menos uma célula marcada que não pertence a Ā. */
+  function verifyMarkingDetailed(): 'ok' | 'partial' | 'wrong' {
+    if (!data) return 'wrong';
     const matrix = eventsCheckboxes[COMPLEMENT_LABEL];
-    if (!matrix) return false;
-    for (let g = 0; g < 6; g++) {
-      for (let b = 0; b < 6; b++) {
+    if (!matrix) return 'wrong';
+    let hasWrongMark = false;
+    let hasMissingMark = false;
+    for (let g = 0; g < MAXIMUM_VALUE_DICE; g++) {
+      for (let b = 0; b < MAXIMUM_VALUE_DICE; b++) {
         const expected = data.eventComplement.validation(g + 1, b + 1);
         const actual = !!matrix[g]?.[b]?.checked;
-        if (expected !== actual) return false;
+        if (actual && !expected) hasWrongMark = true;
+        if (!actual && expected) hasMissingMark = true;
       }
     }
-    return true;
+    if (hasWrongMark) return 'wrong';
+    if (hasMissingMark) return 'partial';
+    return 'ok';
   }
 
-  function verifyN(): boolean {
+  /** Verifica apenas P(A) (na sub-fase 'probabilities'). */
+  function verifyProbabilityOfA(): boolean {
     if (!data) return false;
-    const v = parseInt(nEInput.value ?? '', 10);
-    return Number.isInteger(v) && v === data.nE;
-  }
-
-  function verifyProbabilities(): boolean {
-    if (!data) return false;
-    const okPComp = isEquivalentFraction(
-      probabilities.pComplementNumerator.value ?? '',
-      probabilities.pComplementDenominator.value ?? '',
-      data.nE, SAMPLE_SPACE,
-    );
-    const okPA = isEquivalentFraction(
-      probabilities.pANumerator.value ?? '',
-      probabilities.pADenominator.value ?? '',
+    return isEquivalentFraction(
+      probabilitiesTextInputs.numerator?.value as string ?? '',
+      probabilitiesTextInputs.denominator?.value as string ?? '',
       data.nA, SAMPLE_SPACE,
     );
-    return okPComp && okPA;
+  }
+
+  /** Verifica apenas P(Ā) (na sub-fase 'computeComplementProb'). */
+  function verifyProbabilityOfComplement(): boolean {
+    if (!data) return false;
+    return isEquivalentFraction(
+      probabilitiesTextInputs.numerator?.value as string ?? '',
+      probabilitiesTextInputs.denominator?.value as string ?? '',
+      data.nE, SAMPLE_SPACE,
+    );
+  }
+
+  /** Monta mensagem de confronto didático.
+   *  Em ambos os cenários a heurística é nomeada APÓS a observação. */
+  function buildConfrontMessage(): string {
+    if (!data) return '';
+    const chose = strategyChoice;
+    if (chose === COMPLEMENT_LABEL) {
+      return (
+        `Sua intuição se confirmou. O complementar <strong style="color:#FF6A00"><span class="ova-bar-a">A</span></strong> tem apenas ` +
+        `<strong>${data.nE} casos favoráveis</strong>, enquanto o evento <strong>A</strong> ` +
+        `teria <strong>${data.nA} casos</strong>. Marcar o menor deles é o caminho mais curto.`
+      );
+    }
+    return (
+      `Repare: ao marcar <strong>A</strong> diretamente, você precisaria marcar <strong>${data.nA} ` +
+      `casos</strong>. Pelo complementar <strong style="color:#FF6A00"><span class="ova-bar-a">A</span></strong>, são apenas <strong>${data.nE}</strong>. ` +
+      `O complementar é o caminho mais rápido sempre que o evento tem mais da metade dos casos do ` +
+      `espaço amostral.`
+    );
   }
 
   // ════════════════════════════════════════════════════════════
-  // BOTÃO CONFERIR
+  // BOTÃO CONFERIR (DISPATCH POR SUB-FASE)
   // ════════════════════════════════════════════════════════════
 
   const checkOnClick = () => {
     if (!data) return;
 
-    let ok = false;
-    let errorMessage = 'Você errou, tente novamente!';
-    let advancer: (() => void) | null = null;
-
     switch (subPhase) {
       case 'strategyChoice': {
-        ok = verifyStrategy();
-        if (!ok) {
-          setStrategyError(true);
-          errorMessage = 'O evento A tem muitos casos. Marcar todos será trabalhoso. ' +
-                         'Tente pela estratégia do complementar.';
+        // Passo 1 — NÃO valida. Apenas registra e avança.
+        if (!strategyChoice) {
+          createAlert('Escolha uma opção', 'Selecione um caminho antes de continuar.', 'info', 3000);
+          return;
         }
-        if (ok) advancer = () => goToMarkingComplement(data);
-        break;
-      }
-      case 'markingComplement': {
-        ok = verifyMarkingComplement();
-        if (!ok) errorMessage = 'A marcação ainda não corresponde ao complementar Ā. Revise as células.';
-        if (ok) advancer = () => goToRevealing(data);
-        break;
-      }
-      case 'fillN': {
-        ok = verifyN();
-        if (!ok) {
-          setNEInput(prev => ({ ...prev, error: true }));
-          errorMessage = 'Recontagem: quantas células estão marcadas em vermelho?';
-        }
-        if (ok) advancer = () => goToFillProbabilities(data);
-        break;
-      }
-      case 'fillProbabilities': {
-        ok = verifyProbabilities();
-        if (!ok) {
-          setProbabilities(prev => ({
-            pComplementNumerator: { ...prev.pComplementNumerator, error: true },
-            pComplementDenominator: prev.pComplementDenominator,
-            pANumerator: { ...prev.pANumerator, error: true },
-            pADenominator: prev.pADenominator,
-          }));
-          errorMessage = 'Verifique as frações. P(Ā) = n(Ā)/36 e P(A) = 1 − P(Ā). Frações equivalentes são aceitas.';
-        }
-        if (ok) advancer = () => goToRoundComplete(data);
-        break;
-      }
-      default:
+        createAlert('Resposta registrada', 'Vamos verificar na prática.', 'info', 2500);
+        playSound('/sounds/nextChallenge.mp3');
+        goToMarking(data);
         return;
-    }
-
-    if (ok) {
-      createAlert('Parabéns!', 'Você acertou!', 'success', 3000);
-      playSound('/sounds/correct.mp3');
-      advancer?.();
-    } else {
-      createAlert('Ops!', errorMessage, 'error', 4000);
-      playSound('/sounds/incorrect.mp3');
+      }
+      case 'marking': {
+        const result = verifyMarkingDetailed();
+        if (result === 'ok') {
+          createAlert('Parabéns!', 'Marcação correta.', 'success', 3000);
+          playSound('/sounds/correct.mp3');
+          goToReveal(data);
+        } else if (result === 'partial') {
+          // Todas as marcações feitas estão certas, mas faltam células de Ā.
+          createAlert('Correto!', 'Mas ainda não completou! Há células do complementar Ā que precisam ser marcadas.', 'info', 4500);
+          playSound('/sounds/incorrect.mp3');
+        } else {
+          createAlert('Ops!', 'Há marcações que não correspondem ao complementar Ā. Revise as células.', 'error', 4000);
+          playSound('/sounds/incorrect.mp3');
+        }
+        return;
+      }
+      case 'strategyReview': {
+        // Segundo clique (confronto já visível): avança para cálculo de P(Ā).
+        if (confrontMessage) {
+          goToComputeComplementProb(data);
+          return;
+        }
+        // Primeiro clique: precisa ter escolhido "mantenho" ou "mudo".
+        if (!reviewChoice) {
+          setReviewError(true);
+          createAlert('Escolha uma opção', 'Indique se mantém ou muda sua escolha.', 'info', 3000);
+          return;
+        }
+        // Mostra o confronto inline e aguarda o aluno clicar em "Entendi".
+        // Sem avanço automático — o aluno controla o tempo de reflexão.
+        setConfrontMessage(buildConfrontMessage());
+        createAlert('Resposta registrada', 'Leia o confronto e continue quando estiver pronto.', 'success', 3500);
+        playSound('/sounds/correct.mp3');
+        return;
+      }
+      case 'formalization': {
+        if (formStep === 0) {
+          if (formStep0Value === 'S') {
+            createAlert('Correto!', 'A ∪ Ā é o espaço amostral S.', 'success', 2500);
+            playSound('/sounds/correct.mp3');
+            setFormStep(1);
+          } else {
+            setFormStep0Error(true);
+            createAlert(
+              'Ops!',
+              'Pense: A ∪ Ā reúne todos os resultados em que A ocorre ou Ā ocorre — é o evento que sempre ocorre. Qual das opções representa esse evento?',
+              'error', 5000,
+            );
+            playSound('/sounds/incorrect.mp3');
+          }
+        } else if (formStep === 1) {
+          const v = parseInt(formStep1Value.trim(), 10);
+          if (v === 1) {
+            createAlert('Correto!', 'P(S) = 1.', 'success', 2500);
+            playSound('/sounds/correct.mp3');
+            setFormStep(2);
+          } else {
+            setFormStep1Error(true);
+            createAlert('Ops!', 'A probabilidade do espaço amostral S é 1, pois S é o evento certo!', 'error', 4500);
+            playSound('/sounds/incorrect.mp3');
+          }
+        } else if (formStep === 2) {
+          const num = parseInt(formStep2Value.trim(), 10);
+          const den = parseInt(formStep2DenValue.trim(), 10);
+          if (num === SAMPLE_SPACE && den === SAMPLE_SPACE) {
+            createAlert('Correto!', 'Agora substitua P(Ā) pelo valor que você calculou.', 'success', 3500);
+            playSound('/sounds/correct.mp3');
+            setFormStep(3);
+          } else {
+            setFormStep2Error(true);
+            // Mensagens escalonadas: primeira falha aponta S abstrato;
+            // falhas seguintes explicitam pares ordenados (x,y) dos dois dados.
+            const nextErrorCount = formStep2ErrorCount + 1;
+            setFormStep2ErrorCount(nextErrorCount);
+            const msg = nextErrorCount === 1
+              ? 'Quantos pares de resultados são possíveis para o espaço amostral S? Escreva 1 como a divisão desse número n(S) por ele mesmo.'
+              : 'Quantos pares ordenados (x, y) são possíveis com os resultados do lançamento de dois dados uma única vez? Escreva 1 como a divisão desse total de casos possíveis por esse mesmo total.';
+            createAlert('Ops!', msg, 'error', 6000);
+            playSound('/sounds/incorrect.mp3');
+          }
+        } else if (formStep === 3) {
+          // Substituição de P(Ā) pelo valor calculado (nE/36 ou equivalente).
+          const okSub = isEquivalentFraction(
+            formStep3NumValue, formStep3DenValue, data.nE, SAMPLE_SPACE,
+          );
+          if (okSub) {
+            createAlert('Correto!', `Agora calcule P(A) = ${SAMPLE_SPACE}/${SAMPLE_SPACE} − ${data.nE}/${SAMPLE_SPACE}.`, 'success', 3500);
+            playSound('/sounds/correct.mp3');
+            setFormStep(4);
+          } else {
+            setFormStep3Error(true);
+            createAlert('Ops!', 'Substitua P(Ā) pelo valor que você calculou anteriormente. Frações equivalentes são aceitas.', 'error', 4500);
+            playSound('/sounds/incorrect.mp3');
+          }
+        } else if (formStep === 4) {
+          // Resultado final: P(A) = (36 − nE)/36 = nA/36 (ou equivalente).
+          const okA = isEquivalentFraction(
+            formStep4NumValue, formStep4DenValue, data.nA, SAMPLE_SPACE,
+          );
+          if (okA) {
+            createAlert('Correto!', 'Agora escreva na forma irredutível.', 'success', 3000);
+            playSound('/sounds/correct.mp3');
+            setFormStep(5);
+          } else {
+            setFormStep4Error(true);
+            createAlert('Ops!', `Efetue a subtração ${SAMPLE_SPACE}/${SAMPLE_SPACE} − ${data.nE}/${SAMPLE_SPACE}. Frações equivalentes são aceitas.`, 'error', 4500);
+            playSound('/sounds/incorrect.mp3');
+          }
+        } else if (formStep === 5) {
+          // Se já validou, próximo clique avança para complete.
+          if (formStep5Validated) {
+            goToComplete(data);
+            return;
+          }
+          // Valida a forma irredutível (GCD=1 E equivalente a nA/36).
+          const okIrreducible = isIrreducibleAndEquivalent(
+            formStep5NumValue, formStep5DenValue, data.nA, SAMPLE_SPACE,
+          );
+          if (okIrreducible) {
+            const n = parseInt(formStep5NumValue.trim(), 10);
+            const d = parseInt(formStep5DenValue.trim(), 10);
+            const { decimal, percent } = decimalAndPercent(n, d);
+            setFormStep5Decimal(decimal);
+            setFormStep5Percent(percent);
+            setFormStep5Validated(true);
+            createAlert('Parabéns!', `P(A) = ${decimal} = ${percent}. Clique em Conferir para concluir.`, 'success', 5000);
+            playSound('/sounds/correct.mp3');
+          } else {
+            setFormStep5Error(true);
+            createAlert('Ops!', 'A fração precisa ser equivalente a P(A) e estar na forma irredutível (numerador e denominador sem divisores comuns).', 'error', 5000);
+            playSound('/sounds/incorrect.mp3');
+          }
+        }
+        return;
+      }
+      case 'computeComplementProb': {
+        if (verifyProbabilityOfComplement()) {
+          createAlert('Parabéns!', 'P(Ā) calculado corretamente.', 'success', 3000);
+          playSound('/sounds/correct.mp3');
+          // R0: passa para a formalização. R1+: pula formalização, vai direto para P(A).
+          if (roundRef.current === 0) {
+            goToFormalization(data);
+          } else {
+            goToProbabilities(data);
+          }
+        } else {
+          setProbabilitiesTextInputs(prev => ({
+            ...prev,
+            numerator: { ...prev.numerator, error: true },
+            denominator: { ...prev.denominator, error: true },
+          }));
+          createAlert('Ops!', 'Verifique a fração. P(Ā) = casos favoráveis ao complementar / casos possíveis do espaço amostral. Frações equivalentes são aceitas.', 'error', 5000);
+          playSound('/sounds/incorrect.mp3');
+        }
+        return;
+      }
+      case 'probabilities': {
+        if (verifyProbabilityOfA()) {
+          createAlert('Parabéns!', 'Você acertou!', 'success', 3000);
+          playSound('/sounds/correct.mp3');
+          goToComplete(data);
+        } else {
+          setProbabilitiesTextInputs(prev => ({
+            ...prev,
+            numerator: { ...prev.numerator, error: true },
+            denominator: { ...prev.denominator, error: true },
+          }));
+          createAlert('Ops!', 'Aplique a fórmula P(A) = 1 − P(Ā) para obter P(A). Frações equivalentes são aceitas.', 'error', 4500);
+          playSound('/sounds/incorrect.mp3');
+        }
+        return;
+      }
     }
   };
 
   // ════════════════════════════════════════════════════════════
-  // BOTÃO LIMPAR (só na fase markingComplement)
+  // BOTÃO LIMPAR
   // ════════════════════════════════════════════════════════════
 
-  const clearOnClick = () => {
+  const dicesChecksClearOnClick = () => {
     updateModal({
       title: 'Limpar marcações',
       description: 'Você gostaria de limpar todas as marcações da tabela?',
@@ -576,7 +829,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
       confirmCallback: () => {
         createAlert('Marcações limpas', 'A tabela foi reiniciada.', 'info', 2000);
         playSound('/sounds/clear.mp3');
-        setEventsCheckboxes({ [COMPLEMENT_LABEL]: buildEmptyMatrix() });
+        setEventsCheckboxes({ [COMPLEMENT_LABEL]: buildEmptyCheckboxLayer() });
       },
     });
   };
@@ -585,7 +838,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   // BOTÕES DE PROGRESSÃO
   // ════════════════════════════════════════════════════════════
 
-  const nextRoundOnClick = () => {
+  const goToNextStepOnClick = () => {
     playSound('/sounds/nextChallenge.mp3');
     startRound(round + 1);
   };
@@ -600,44 +853,75 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     onContinue();
   };
 
+  const resetGameOnClick = () => {
+    updateModal({
+      title: 'Reiniciar seção',
+      description: 'Você gostaria de reiniciar desde a primeira rodada?',
+      status: 'show',
+      confirmCallback: () => {
+        createAlert('Seção reiniciada', 'Voltamos à primeira rodada.', 'info', 2000);
+        playSound('/sounds/clear.mp3');
+        startRound(0);
+      },
+    });
+  };
+
+  // ─── Inicialização ────────────────────────────────────────────
+  useEffect(() => {
+    startRound(0);
+  }, [startRound]);
+
   // ════════════════════════════════════════════════════════════
   // RETORNO
   // ════════════════════════════════════════════════════════════
 
   return {
-    // Dados do problema atual
-    data,
-    round,
-    subPhase,
-    revealPhase,
+    // API espelhada do useTwoDicesHooks
     instructions,
-
-    // Estado de marcação
+    activeEvents,
     eventsCheckboxes,
     updateEventsCheckboxes,
-
-    // Strategy choice
-    strategyChoice,
-    strategyError,
-    setStrategyChoice,
-
-    // n(Ā) e probabilidades
-    nEInput: nEInputWithSetter,
-    probabilities: probabilitiesWithSetters,
-
-    // Botões
-    disabledCheckButton, checkOnClick,
-    disabledClearButton, clearOnClick,
-    disabledNextRoundButton, nextRoundOnClick,
-    disabledTrainAgainButton, trainAgainOnClick,
-    disabledContinueButton, continueOnClick,
-
-    // Globais
+    probabilitiesTextInputs,
+    operationSelectInputs,
     alerts, updateAlert, deleteAlerts,
     modal, updateModal,
+    disabledCheckButton, checkOnClick,
+    disabledClearButton, dicesChecksClearOnClick,
+    disabledNextStepButton, goToNextStepOnClick,
+    resetGameOnClick,
+
+    // Extras específicos da seção
+    subPhase,
+    round,
+    revealPhase,
+    data,
+
+    // Passo 1 — hipótese
+    strategyChoice,
+    setStrategyChoice,
+
+    // Passo strategyReview
+    reviewChoice,
+    reviewError,
+    setReviewChoice,
+    confrontMessage,
+
+    // Passo formalization
+    formStep,
+    formStep0Value, formStep0Error, setFormStep0Value,
+    formStep1Value, formStep1Error, setFormStep1Value,
+    formStep2Value, formStep2Error, setFormStep2Value,
+    formStep2DenValue, setFormStep2DenValue,
+    formStep3NumValue, formStep3DenValue, formStep3Error,
+    setFormStep3NumValue, setFormStep3DenValue,
+    formStep4NumValue, formStep4DenValue, formStep4Error,
+    setFormStep4NumValue, setFormStep4DenValue,
+    formStep5NumValue, formStep5DenValue, formStep5Error,
+    setFormStep5NumValue, setFormStep5DenValue,
+    formStep5Validated, formStep5Decimal, formStep5Percent,
+
+    // Progressão
+    disabledTrainAgainButton, trainAgainOnClick,
+    disabledContinueButton, continueOnClick,
   };
 };
-
-// ─── Tipo auxiliar para o literal 'Ā' ───────────────────────────
-// Necessário para tipar strategyChoice corretamente com union literal.
-type COMPLEMENT_TYPE = typeof COMPLEMENT_LABEL;

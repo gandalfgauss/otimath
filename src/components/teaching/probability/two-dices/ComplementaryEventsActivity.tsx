@@ -4,157 +4,110 @@
    ComplementaryEventsActivity — seção "Probabilidade de Eventos
    Complementares" do OVA Dois Dados.
 
-   Estrutura visual espelhada em TwoDicesGame.tsx (mesmo layout de
-   2 colunas: tabela à esquerda, painel lateral à direita), mas com:
-     • Botão "Revisão" abaixo do título — abre modal com as 3
-       definições resgatadas do OVA Disco.
-     • Marcação em vermelho para Ā e auto-preenchimento em verde
-       para A após validação correta.
-     • Animação reveal em 2 piscadas sequenciais (vermelho → verde)
-       materializando Ω = A ⊔ Ā.
-     • Botões de progressão específicos: Próxima rodada (R0→R1),
-       Treinar novamente + Continuar (R≥1).
+   ARQUITETURA ESPELHA TwoDicesGame.tsx (layout 2 colunas, tabela
+   + formulation, responsividade e UX idênticas).
 
-   Toda a lógica orquestrada por useComplementaryEventsHooks.
+   Adicionais pedagógicos (R0 obrigatório):
+     • Passo 1 — hipótese registrada (SEM validação)
+     • Passo strategyReview — confronto com a hipótese
+     • Passo formalization — derivação de P(Ā) = 1 − P(A)
+
+   Em R≥2 (treino): pula para marking → probabilities.
    ═══════════════════════════════════════════════════════════════ */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/global/Button';
 import { Alerts } from '@/components/global/Alerts';
 import { Modal } from '@/components/global/Modal';
 import { TextBlock } from '@/components/global/TextBlock';
-import { TextInput } from '@/components/global/TextInput';
-import { BookOpen, RefreshCw, X, Check, ArrowRight, Repeat2 } from 'lucide-react';
+import { RefreshCw, Check, X, ArrowRight, Repeat2, BookOpen } from 'lucide-react';
+import { TwoDicesTable } from './TwoDicesTable';
+import { TwoDicesFormulation } from './TwoDicesFormulation';
 import { ComplementaryReviewModal } from './shared/ComplementaryReviewModal';
-import { MarkingTable } from './shared/MarkingTable';
-import { MarkMatrix, createEmptyMatrix } from './shared/eventPair';
-import {
-  useComplementaryEventsHooks,
-  EventCheckboxes,
-} from '@/hooks/teaching/probability/two-dices/useComplementaryEventsHooks';
-
-// ─── Constantes ─────────────────────────────────────────────────
+import { BarA, BAR_A_CSS } from './shared/BarA';
+import { useComplementaryEventsHooks } from '@/hooks/teaching/probability/two-dices/useComplementaryEventsHooks';
 
 const COMPLEMENT_LABEL = 'Ā';
 const A_LABEL = 'A';
-const COLOR_COMPLEMENT = 'var(--color-feedback-error-dark)';
-const COLOR_A = 'var(--color-feedback-success-dark)';
-
-// ─── Helpers ────────────────────────────────────────────────────
-
-function checkboxesToMatrix(
-  ec: EventCheckboxes | undefined,
-  label: string,
-): MarkMatrix | null {
-  const layer = ec?.[label];
-  if (!layer) return null;
-  return layer.map(row => row.map(cell => !!cell.checked));
-}
-
-// ─── Props ──────────────────────────────────────────────────────
+const COLOR_COMPLEMENT = '#FF6A00';   // laranja queimado — Ā
+const COLOR_A_MARK = '#0050FF';       // azul royal — A (marcação automática)
 
 interface ComplementaryEventsActivityProps {
-  /** Chamado quando o aluno clica "Continuar" — avança para unionTheory. */
   onContinue: () => void;
 }
-
-// ════════════════════════════════════════════════════════════════
 
 export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsActivityProps) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const h = useComplementaryEventsHooks({ onContinue });
 
-  // ─── Conversão de EventCheckboxes para MarkMatrix ─────────────
-  const compMatrix: MarkMatrix = useMemo(
-    () => checkboxesToMatrix(h.eventsCheckboxes, COMPLEMENT_LABEL) ?? createEmptyMatrix(),
-    [h.eventsCheckboxes],
-  );
-  const aMatrix: MarkMatrix | null = useMemo(
-    () => checkboxesToMatrix(h.eventsCheckboxes, A_LABEL),
-    [h.eventsCheckboxes],
-  );
+  // ─── Cores e rótulos customizados passados aos componentes ───
+  const eventColors: Record<string, string> = {
+    [A_LABEL]: COLOR_A_MARK,
+    [COMPLEMENT_LABEL]: COLOR_COMPLEMENT,
+  };
+  const eventLabels: Record<string, React.ReactNode> = {
+    [A_LABEL]: <span style={{ color: COLOR_A_MARK, fontWeight: 700 }}>A</span>,
+    [COMPLEMENT_LABEL]: <BarA color={COLOR_COMPLEMENT} bold thickness={3} />,
+  };
 
-  // ─── Determina o que passar à MarkingTable por sub-fase ───────
-  const tableProps = useMemo(() => {
-    // markingComplement: camada ativa = Ā (vermelho, clicável)
-    if (h.subPhase === 'markingComplement') {
-      return {
-        marks: compMatrix,
-        onToggle: (row: number, col: number) => {
-          const current = h.eventsCheckboxes[COMPLEMENT_LABEL]?.[row]?.[col]?.checked ?? false;
-          h.updateEventsCheckboxes(COMPLEMENT_LABEL, row + 1, col + 1, !current, false);
-        },
-        eventLabel: COMPLEMENT_LABEL,
-        readOnlyMarks: undefined,
-        blinkLabel: null,
-      };
-    }
-    // revealing, fillN, fillProbabilities, roundComplete: ambas camadas readOnly
-    if (['revealing', 'fillN', 'fillProbabilities', 'roundComplete'].includes(h.subPhase) && aMatrix) {
-      // Determina qual camada pisca no revealing
-      let blinkLabel: string | null = null;
-      if (h.revealPhase === 'blinkingRed') blinkLabel = COMPLEMENT_LABEL;
-      else if (h.revealPhase === 'blinkingGreen') blinkLabel = A_LABEL;
+  // blinkLabel: durante reveal, segue a sequência Ā → A.
+  const blinkLabel: string | null =
+    h.revealPhase === 'blinkingRed' ? COMPLEMENT_LABEL
+    : h.revealPhase === 'blinkingGreen' ? A_LABEL
+    : null;
 
-      // Durante fillingGreen, A ainda não deve aparecer (mostra apenas Ā)
-      const showA = h.revealPhase !== 'fillingGreen';
+  // hideIfUnchecked: durante marking, NÃO oculta nada (aluno precisa ver Ā
+  // em todas as células para poder marcar). A partir de reveal, oculta as
+  // células unchecked para que cada uma mostre APENAS o evento ao qual
+  // pertence (Ā XOR A — materializa a complementaridade mutuamente exclusiva).
+  const hideIfUnchecked: string[] | undefined =
+    h.subPhase === 'marking' ? undefined : [A_LABEL, COMPLEMENT_LABEL];
 
-      const readOnlyMarks = [
-        { label: COMPLEMENT_LABEL, matrix: compMatrix, color: COLOR_COMPLEMENT },
-        ...(showA ? [{ label: A_LABEL, matrix: aMatrix, color: COLOR_A }] : []),
-      ];
-      return {
-        marks: createEmptyMatrix(),
-        onToggle: () => {},
-        eventLabel: null,
-        readOnlyMarks,
-        blinkLabel,
-      };
-    }
-    // strategyChoice ou fallback: não mostra tabela
-    return null;
-  }, [h.subPhase, h.revealPhase, h.eventsCheckboxes, compMatrix, aMatrix, h.updateEventsCheckboxes]);
+  // NOTA: removido o visibilityMask pós-Conferir em marking. Ocultar as
+  // células não-Ā entregava a resposta (aluno completava pelas células que
+  // restavam). Em marking, o aluno vê SEMPRE todas as 36 células com
+  // placeholder Ā — a complementaridade só é revelada na sub-fase reveal,
+  // após acertar tudo.
 
-  // ─── Render de cada sub-fase ──────────────────────────────────
-
-  function renderStrategyChoicePanel() {
-    if (!h.data || h.subPhase !== 'strategyChoice') return null;
-    const strategyError = h.strategyError;
+  // ─── Card do Passo 1 — strategyChoice ────────────────────────
+  function renderStrategyCard() {
+    if (h.subPhase !== 'strategyChoice') return null;
     const choice = h.strategyChoice;
     return (
       <section
-        className="rounded-md p-xxs"
+        className="rounded-md p-xxs w-full max-w-[747px] mx-auto"
         style={{
           background: 'var(--color-brand-otimath-lightest)',
-          border: strategyError ? '2px solid var(--color-feedback-error-dark)' : '2px solid transparent',
+          border: '2px solid transparent',
         }}
       >
         <p className="ds-body-bold mb-micro" style={{ color: 'var(--color-brand-otimath-darkest)' }}>
-          Qual cálculo será mais rápido?
+          Qual caminho será mais rápido?
         </p>
         <div className="flex flex-col gap-micro">
           <label className="flex items-center gap-micro cursor-pointer" style={{ padding: 8 }}>
             <input
               type="radio"
-              name="strategy"
+              name="comp-strategy"
               checked={choice === A_LABEL}
               onChange={() => h.setStrategyChoice(A_LABEL)}
               style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
             />
             <span className="ds-body">
-              Marcar diretamente o evento <strong>A</strong> (muitos casos favoráveis).
+              Marcar diretamente os casos favoráveis ao evento <strong>A</strong>.
             </span>
           </label>
           <label className="flex items-center gap-micro cursor-pointer" style={{ padding: 8 }}>
             <input
               type="radio"
-              name="strategy"
+              name="comp-strategy"
               checked={choice === COMPLEMENT_LABEL}
               onChange={() => h.setStrategyChoice(COMPLEMENT_LABEL)}
               style={{ width: 18, height: 18, accentColor: COLOR_COMPLEMENT }}
             />
             <span className="ds-body">
-              Marcar o complementar <strong style={{ color: COLOR_COMPLEMENT }}>Ā</strong> (poucos casos) e usar P(A) = 1 − P(Ā).
+              Marcar os casos favoráveis ao evento complementar de A{' '}
+              (<BarA color={COLOR_COMPLEMENT} bold thickness={3} />).
             </span>
           </label>
         </div>
@@ -162,132 +115,415 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
     );
   }
 
-  function renderEventDescriptionCard() {
-    if (!h.data) return null;
+  // ─── Card do Passo strategyReview — confronto ────────────────
+  function renderStrategyReviewCard() {
+    if (h.subPhase !== 'strategyReview') return null;
+    const choice = h.strategyChoice;
+    const reviewed = h.reviewChoice;
+    const chooseLabel = choice === A_LABEL
+      ? 'evento A (marcar os casos favoráveis ao evento A)'
+      : 'complementar Ā (marcar os casos favoráveis ao complementar)';
+    const chooseColor = choice === COMPLEMENT_LABEL ? COLOR_COMPLEMENT : 'var(--color-brand-otimath-pure)';
     return (
       <section
-        className="rounded-md p-xxs"
+        className="rounded-md p-xxs w-full max-w-[747px] mx-auto"
         style={{
-          background: 'var(--color-neutral-white)',
-          border: '1px solid var(--color-neutral-lighter)',
+          background: 'var(--color-brand-otimath-lightest)',
+          border: h.reviewError ? '2px solid var(--color-feedback-error-dark)' : '2px solid transparent',
         }}
       >
-        <p className="ds-caption-bold mb-nano" style={{ color: 'var(--color-brand-otimath-pure)' }}>
-          Evento A
+        {/* Escolha congelada */}
+        <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)', border: '1px solid var(--color-neutral-lighter)' }}>
+          <p className="ds-caption-bold mb-nano" style={{ color: 'var(--color-neutral-dark)' }}>
+            Sua escolha inicial foi:
+          </p>
+          <p className="ds-body" style={{ color: chooseColor, fontWeight: 700 }}>
+            {chooseLabel}
+          </p>
+        </div>
+
+        <p className="ds-body-bold mb-micro" style={{ color: 'var(--color-brand-otimath-darkest)' }}>
+          Com o que você observou, você mantém ou muda sua escolha?
         </p>
-        <p className="ds-body text-neutral-darkest">
-          <strong>A:</strong> {h.data.eventA.description}
-        </p>
-        {h.subPhase !== 'strategyChoice' && (
-          <>
-            <p className="ds-caption-bold mt-micro mb-nano" style={{ color: COLOR_COMPLEMENT }}>
-              Evento Ā (complementar)
-            </p>
-            <p className="ds-body text-neutral-darkest">
-              <strong style={{ color: COLOR_COMPLEMENT }}>Ā:</strong>{' '}
-              {h.data.eventComplement.description}
-            </p>
-          </>
+        <div className="flex flex-col gap-micro">
+          <label className="flex items-center gap-micro cursor-pointer" style={{ padding: 8 }}>
+            <input
+              type="radio"
+              name="comp-review"
+              checked={reviewed === 'keep'}
+              onChange={() => h.setReviewChoice('keep')}
+              style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
+            />
+            <span className="ds-body">Mantenho minha escolha.</span>
+          </label>
+          <label className="flex items-center gap-micro cursor-pointer" style={{ padding: 8 }}>
+            <input
+              type="radio"
+              name="comp-review"
+              checked={reviewed === 'change'}
+              onChange={() => h.setReviewChoice('change')}
+              style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
+            />
+            <span className="ds-body">Mudo minha escolha.</span>
+          </label>
+        </div>
+
+        {/* Mensagem de confronto após Conferir */}
+        {h.confrontMessage && (
+          <div
+            className="mt-micro p-micro rounded-md"
+            style={{
+              background: 'var(--color-feedback-success-lighter)',
+              borderLeft: '4px solid var(--color-feedback-success-dark)',
+            }}
+          >
+            <p
+              className="ds-body"
+              style={{ color: 'var(--color-feedback-success-darkest)' }}
+              dangerouslySetInnerHTML={{ __html: h.confrontMessage }}
+            />
+          </div>
         )}
       </section>
     );
   }
 
-  function renderFillNPanel() {
-    if (h.subPhase !== 'fillN' && h.subPhase !== 'fillProbabilities' && h.subPhase !== 'roundComplete') {
-      return null;
-    }
+  // ─── Card do Passo formalization — 3 microetapas ─────────────
+  function renderFormalizationCard() {
+    if (h.subPhase !== 'formalization') return null;
     return (
       <section
-        className="rounded-md p-xxs"
+        className="rounded-md p-xxs w-full max-w-[747px] mx-auto"
         style={{
-          background: 'var(--color-neutral-lightest)',
-          border: '1px solid var(--color-neutral-lighter)',
+          background: 'var(--color-brand-otimath-lightest)',
+          border: '2px solid transparent',
         }}
       >
-        <p className="ds-caption-bold mb-micro" style={{ color: 'var(--color-brand-otimath-dark)' }}>
-          Contagem do complementar
+        <p className="ds-body-bold mb-micro" style={{ color: 'var(--color-brand-otimath-darkest)' }}>
+          Vamos formalizar a relação entre P(A) e P(Ā)
         </p>
-        <div className="flex items-center gap-micro">
-          <span className="ds-body-bold">n(Ā) =</span>
-          <div style={{ width: 80 }}>
-            <TextInput
-              textInput={{
-                ...h.nEInput,
-                placeholder: '?',
-                type: 'natural-number',
-              }}
-            />
-          </div>
-        </div>
-      </section>
-    );
-  }
 
-  function renderProbabilitiesPanel() {
-    if (h.subPhase !== 'fillProbabilities' && h.subPhase !== 'roundComplete') return null;
-    const p = h.probabilities;
-    return (
-      <section
-        className="rounded-md p-xxs"
-        style={{
-          background: 'var(--color-neutral-lightest)',
-          border: '1px solid var(--color-neutral-lighter)',
-        }}
-      >
-        <p className="ds-caption-bold mb-micro" style={{ color: 'var(--color-brand-otimath-dark)' }}>
-          Cálculo das probabilidades
-        </p>
-        <div className="flex flex-col gap-micro">
-          {/* P(Ā) */}
-          <div className="flex items-center gap-micro">
-            <span className="ds-body-bold" style={{ color: COLOR_COMPLEMENT }}>P(Ā) =</span>
-            <div className="flex flex-col items-center">
-              <div style={{ width: 60 }}>
-                <TextInput
-                  textInput={{
-                    ...p.pComplementNumerator,
-                    placeholder: '?',
-                    type: 'natural-number',
-                  }}
-                />
-              </div>
-              <div style={{ width: 60, height: 2, background: 'var(--color-neutral-dark)' }} />
-              <div style={{ width: 60 }}>
-                <TextInput textInput={{ ...p.pComplementDenominator, readonly: true }} />
-              </div>
-            </div>
-          </div>
-          {/* P(A) = 1 − P(Ā) */}
+        {/* Step 0 — Identificar a união */}
+        <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)' }}>
+          <p className="ds-body mb-nano">
+            Sendo <strong>S</strong> o espaço amostral do experimento e os eventos <strong>A</strong> e{' '}
+            <strong>Ā</strong>, então:
+          </p>
           <div className="flex items-center gap-micro flex-wrap">
-            <span className="ds-body-bold" style={{ color: COLOR_A }}>P(A) =</span>
-            <span className="ds-body-bold">1 − P(Ā) =</span>
-            <div className="flex flex-col items-center">
-              <div style={{ width: 60 }}>
-                <TextInput
-                  textInput={{
-                    ...p.pANumerator,
-                    placeholder: '?',
-                    type: 'natural-number',
+            <span className="ds-body-bold">A ∪ Ā =</span>
+            <select
+              value={h.formStep0Value}
+              onChange={e => h.setFormStep0Value(e.target.value)}
+              disabled={h.formStep > 0}
+              style={{
+                padding: '6px 10px',
+                fontSize: '1rem',
+                fontWeight: 700,
+                border: h.formStep0Error
+                  ? '2px solid var(--color-feedback-error-dark)'
+                  : '2px solid var(--color-neutral-lighter)',
+                borderRadius: 6,
+                background: h.formStep > 0 ? 'var(--color-neutral-lightest)' : 'var(--color-neutral-white)',
+                color: h.formStep > 0 ? 'var(--color-feedback-success-dark)' : 'var(--color-neutral-darkest)',
+                minWidth: 70,
+              }}
+            >
+              <option value="">?</option>
+              <option value="S">S</option>
+              <option value="A">A</option>
+              <option value="Ā">Ā</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Step 1 — P(A) + P(Ā) = P(S) = ? */}
+        {h.formStep >= 1 && (
+          <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)' }}>
+            <p className="ds-body mb-nano">
+              Então <strong>P(A) + P(Ā) = P(S)</strong>. Logo:
+            </p>
+            <div className="flex items-center gap-micro flex-wrap">
+              <span className="ds-body-bold">P(A) + P(Ā) =</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={h.formStep1Value}
+                onChange={e => h.setFormStep1Value(e.target.value)}
+                disabled={h.formStep > 1}
+                placeholder="?"
+                style={{
+                  width: 60,
+                  padding: '6px 10px',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  textAlign: 'center',
+                  border: h.formStep1Error
+                    ? '2px solid var(--color-feedback-error-dark)'
+                    : '2px solid var(--color-neutral-lighter)',
+                  borderRadius: 6,
+                  background: h.formStep > 1 ? 'var(--color-neutral-lightest)' : 'var(--color-neutral-white)',
+                  color: h.formStep > 1 ? 'var(--color-feedback-success-dark)' : 'var(--color-neutral-darkest)',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 — Substitua 1 por 36/36. A fórmula explicita P(A) (a resposta
+             do problema) em função de P(Ā) que já foi calculado no passo anterior. */}
+        {h.formStep >= 2 && (
+          <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)' }}>
+            <p className="ds-body mb-nano">
+              Temos <strong>P(A) = 1 − P(Ā)</strong>. Substitua <strong>1</strong> pela fração equivalente
+              com denominador igual ao tamanho do espaço amostral:
+            </p>
+            <div className="flex items-center gap-micro flex-wrap">
+              <span className="ds-body-bold">P(A) =</span>
+              <div className="flex flex-col items-center">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={h.formStep2Value}
+                  onChange={e => h.setFormStep2Value(e.target.value)}
+                  placeholder="?"
+                  style={{
+                    width: 50,
+                    padding: '4px 8px',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    border: h.formStep2Error
+                      ? '2px solid var(--color-feedback-error-dark)'
+                      : '2px solid var(--color-neutral-lighter)',
+                    borderRadius: 4,
+                  }}
+                />
+                <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={h.formStep2DenValue}
+                  onChange={e => h.setFormStep2DenValue(e.target.value)}
+                  placeholder="?"
+                  style={{
+                    width: 50,
+                    padding: '4px 8px',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    border: h.formStep2Error
+                      ? '2px solid var(--color-feedback-error-dark)'
+                      : '2px solid var(--color-neutral-lighter)',
+                    borderRadius: 4,
                   }}
                 />
               </div>
-              <div style={{ width: 60, height: 2, background: 'var(--color-neutral-dark)' }} />
-              <div style={{ width: 60 }}>
-                <TextInput textInput={{ ...p.pADenominator, readonly: true }} />
+              <span className="ds-body-bold">− P(<BarA color="#FF6A00" bold thickness={3} />)</span>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3 — Substituir P(Ā) pelo valor calculado anteriormente. */}
+        {h.formStep >= 3 && (
+          <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)' }}>
+            <p className="ds-body mb-nano">
+              Substitua <strong>P(<BarA color="#FF6A00" bold thickness={3} />)</strong>{' '}
+              pelo valor que você calculou:
+            </p>
+            <div className="flex items-center gap-micro flex-wrap">
+              <span className="ds-body-bold">P(A) =</span>
+              {/* Fração 36/36 com barra HORIZONTAL (não "/"). */}
+              <div className="flex flex-col items-center">
+                <span style={{ fontSize: '1rem', fontWeight: 700, padding: '4px 8px', minWidth: 40, textAlign: 'center' }}>36</span>
+                <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
+                <span style={{ fontSize: '1rem', fontWeight: 700, padding: '4px 8px', minWidth: 40, textAlign: 'center' }}>36</span>
+              </div>
+              <span className="ds-body-bold">−</span>
+              <div className="flex flex-col items-center">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={h.formStep3NumValue}
+                  onChange={e => h.setFormStep3NumValue(e.target.value)}
+                  disabled={h.formStep > 3}
+                  placeholder="?"
+                  style={{
+                    width: 50,
+                    padding: '4px 8px',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    border: h.formStep3Error
+                      ? '2px solid var(--color-feedback-error-dark)'
+                      : '2px solid var(--color-neutral-lighter)',
+                    borderRadius: 4,
+                    color: h.formStep > 3 ? 'var(--color-feedback-success-dark)' : undefined,
+                    background: h.formStep > 3 ? 'var(--color-neutral-lightest)' : undefined,
+                  }}
+                />
+                <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={h.formStep3DenValue}
+                  onChange={e => h.setFormStep3DenValue(e.target.value)}
+                  disabled={h.formStep > 3}
+                  placeholder="?"
+                  style={{
+                    width: 50,
+                    padding: '4px 8px',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    border: h.formStep3Error
+                      ? '2px solid var(--color-feedback-error-dark)'
+                      : '2px solid var(--color-neutral-lighter)',
+                    borderRadius: 4,
+                    color: h.formStep > 3 ? 'var(--color-feedback-success-dark)' : undefined,
+                    background: h.formStep > 3 ? 'var(--color-neutral-lightest)' : undefined,
+                  }}
+                />
               </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Step 4 — Resultado da subtração: P(A) = nA/36 (ou equivalente).
+             Step 5 (quando formStep >= 5): adiciona "= [fração irredutível]"
+             na MESMA linha. Após validar Step 5, também anexa "= decimal = percent". */}
+        {h.formStep >= 4 && (
+          <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)' }}>
+            <p className="ds-body mb-nano">Calcule o resultado da subtração:</p>
+            <div className="flex items-center gap-micro flex-wrap">
+              <span className="ds-body-bold">P(A) =</span>
+              {/* Primeira fração: resultado direto (nA/36 ou equivalente). */}
+              <div className="flex flex-col items-center">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={h.formStep4NumValue}
+                  onChange={e => h.setFormStep4NumValue(e.target.value)}
+                  disabled={h.formStep > 4}
+                  placeholder="?"
+                  style={{
+                    width: 50,
+                    padding: '4px 8px',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    border: h.formStep4Error
+                      ? '2px solid var(--color-feedback-error-dark)'
+                      : '2px solid var(--color-neutral-lighter)',
+                    borderRadius: 4,
+                    color: h.formStep > 4 ? 'var(--color-feedback-success-dark)' : undefined,
+                    background: h.formStep > 4 ? 'var(--color-neutral-lightest)' : undefined,
+                  }}
+                />
+                <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={h.formStep4DenValue}
+                  onChange={e => h.setFormStep4DenValue(e.target.value)}
+                  disabled={h.formStep > 4}
+                  placeholder="?"
+                  style={{
+                    width: 50,
+                    padding: '4px 8px',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    border: h.formStep4Error
+                      ? '2px solid var(--color-feedback-error-dark)'
+                      : '2px solid var(--color-neutral-lighter)',
+                    borderRadius: 4,
+                    color: h.formStep > 4 ? 'var(--color-feedback-success-dark)' : undefined,
+                    background: h.formStep > 4 ? 'var(--color-neutral-lightest)' : undefined,
+                  }}
+                />
+              </div>
+
+              {/* Step 5: forma irredutível. Aparece com "=" quando desbloqueado. */}
+              {h.formStep >= 5 && (
+                <>
+                  <span className="ds-body-bold">=</span>
+                  <div className="flex flex-col items-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={h.formStep5NumValue}
+                      onChange={e => h.setFormStep5NumValue(e.target.value)}
+                      disabled={h.formStep5Validated}
+                      placeholder="?"
+                      style={{
+                        width: 50,
+                        padding: '4px 8px',
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        border: h.formStep5Error
+                          ? '2px solid var(--color-feedback-error-dark)'
+                          : '2px solid var(--color-neutral-lighter)',
+                        borderRadius: 4,
+                        color: h.formStep5Validated ? 'var(--color-feedback-success-dark)' : undefined,
+                        background: h.formStep5Validated ? 'var(--color-neutral-lightest)' : undefined,
+                      }}
+                    />
+                    <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={h.formStep5DenValue}
+                      onChange={e => h.setFormStep5DenValue(e.target.value)}
+                      disabled={h.formStep5Validated}
+                      placeholder="?"
+                      style={{
+                        width: 50,
+                        padding: '4px 8px',
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        border: h.formStep5Error
+                          ? '2px solid var(--color-feedback-error-dark)'
+                          : '2px solid var(--color-neutral-lighter)',
+                        borderRadius: 4,
+                        color: h.formStep5Validated ? 'var(--color-feedback-success-dark)' : undefined,
+                        background: h.formStep5Validated ? 'var(--color-neutral-lightest)' : undefined,
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Após validar a forma irredutível, exibe decimal e percentagem automaticamente. */}
+              {h.formStep5Validated && (
+                <>
+                  <span className="ds-body-bold" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                    = {h.formStep5Decimal}
+                  </span>
+                  <span className="ds-body-bold" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                    = {h.formStep5Percent}
+                  </span>
+                </>
+              )}
+            </div>
+            {h.formStep === 5 && !h.formStep5Validated && (
+              <p className="ds-caption text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+                Escreva na forma irredutível: numerador e denominador sem divisores comuns.
+              </p>
+            )}
+          </div>
+        )}
       </section>
     );
   }
 
+  // ─── Card de síntese ao final da rodada ──────────────────────
   function renderSynthesisCard() {
-    if (h.subPhase !== 'roundComplete' || !h.data) return null;
+    if (h.subPhase !== 'complete' || !h.data) return null;
     return (
       <section
-        className="rounded-md p-xxs"
+        className="rounded-md p-xxs w-full max-w-[747px] mx-auto"
         style={{
           background: 'var(--color-feedback-success-lighter)',
           borderLeft: '4px solid var(--color-feedback-success-dark)',
@@ -297,73 +533,38 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
           Síntese — heurística do complementar
         </p>
         <p className="ds-body text-neutral-darkest mb-micro">
-          Marcar diretamente o evento A exigiria <strong>{h.data.nA} células</strong>.
-          Calcular pelo complementar precisou apenas de <strong>{h.data.nE}</strong>.
+          Marcar diretamente o evento A exigiria <strong>{h.data.nA} células</strong>. Calcular pelo
+          complementar precisou apenas de <strong>{h.data.nE}</strong>.
         </p>
         <p className="ds-body text-neutral-darkest">
-          Quando um evento tem <strong>muitos casos favoráveis</strong>, a estratégia
-          P(A) = 1 − P(Ā) <strong>economiza trabalho</strong>.
+          Quando um evento tem <strong>muitos casos favoráveis</strong>, a estratégia P(A) = 1 − P(Ā){' '}
+          <strong>economiza trabalho</strong>.
         </p>
       </section>
     );
   }
 
-  function renderMainButtons() {
-    return (
-      <div className="flex items-center gap-micro flex-wrap justify-center">
-        <Button
-          style="secondary"
-          size="small"
-          icon={<X />}
-          onClick={h.clearOnClick}
-          disabled={h.disabledClearButton}
-        >
-          Limpar
-        </Button>
-        <Button
-          style="primary"
-          size="small"
-          icon={<Check />}
-          onClick={h.checkOnClick}
-          disabled={h.disabledCheckButton}
-        >
-          Conferir
-        </Button>
-      </div>
-    );
-  }
-
+  // ─── Botões de progressão (após a rodada) ────────────────────
   function renderProgressionButtons() {
-    if (h.subPhase !== 'roundComplete') return null;
+    if (h.subPhase !== 'complete') return null;
+    const hasNext = !h.disabledNextStepButton;
+    const hasTrain = !h.disabledTrainAgainButton;
+    const hasContinue = !h.disabledContinueButton;
+    if (!hasNext && !hasTrain && !hasContinue) return null;
     return (
-      <div className="flex items-center gap-micro flex-wrap justify-center mt-micro">
-        {!h.disabledNextRoundButton && (
-          <Button
-            style="primary"
-            size="small"
-            icon={<ArrowRight />}
-            onClick={h.nextRoundOnClick}
-          >
-            Próxima rodada
+      <div className="flex gap-xxxs items-center justify-center flex-wrap">
+        {hasNext && (
+          <Button style="primary" size="small" icon={<ArrowRight />} onClick={h.goToNextStepOnClick}>
+            Próximo Desafio
           </Button>
         )}
-        {!h.disabledTrainAgainButton && (
-          <Button
-            style="secondary"
-            size="small"
-            icon={<Repeat2 />}
-            onClick={h.trainAgainOnClick}
-          >
+        {hasTrain && (
+          <Button style="secondary" size="small" icon={<Repeat2 />} onClick={h.trainAgainOnClick}>
             Treinar novamente
           </Button>
         )}
-        {!h.disabledContinueButton && (
-          <Button
-            style="primary"
-            size="small"
-            icon={<ArrowRight />}
-            onClick={h.continueOnClick}
-          >
+        {hasContinue && (
+          <Button style="primary" size="small" icon={<ArrowRight />} onClick={h.continueOnClick}>
             Continuar
           </Button>
         )}
@@ -371,10 +572,21 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
     );
   }
 
-  // ─── RENDER ───────────────────────────────────────────────────
+  // ─── Label do botão Conferir conforme sub-fase ──────────────
+  const checkButtonLabel = h.subPhase === 'strategyChoice' ? 'Continuar' : 'Conferir';
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+
+  // Sub-fases que NÃO mostram a tabela (só painéis próprios)
+  const hideTable = h.subPhase === 'strategyChoice';
 
   return (
     <div className="flex flex-col gap-y-xxs" id="complementary-events">
+      {/* CSS global para a classe .ova-bar-a usada em strings HTML (instruções/confronto). */}
+      <style>{BAR_A_CSS}</style>
+
       {/* Título + botão Revisão */}
       <div className="flex items-center justify-between flex-wrap gap-micro">
         <div>
@@ -398,44 +610,107 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
         </Button>
       </div>
 
-      {/* Instruções dinâmicas */}
+      {/* Instruções */}
       <TextBlock
         paragraph={h.instructions}
         maxWidthParagraph="max-w-[805px]"
         centralize={true}
       />
 
-      {/* Layout 2 colunas */}
-      <div className="flex gap-x-xs gap-y-xs max-lg:flex-col-reverse">
-        {/* Coluna esquerda — Tabela + botões principais */}
-        <div className="w-full flex flex-col gap-y-xxs items-center">
-          {tableProps && (
-            <MarkingTable
-              marks={tableProps.marks}
-              onToggle={tableProps.onToggle}
-              eventLabel={tableProps.eventLabel}
-              readOnlyMarks={tableProps.readOnlyMarks}
-              blinkLabel={tableProps.blinkLabel}
+      {/* Card de estratégia (Passo 1) */}
+      {renderStrategyCard()}
+
+      {/* Layout principal — mostra tabela + formulation nas sub-fases que
+           operam sobre o espaço amostral (marking, reveal, strategyReview,
+           formalization, probabilities, complete). */}
+      {!hideTable && (
+        <div className="flex gap-x-xs gap-y-xs max-lg:flex-col-reverse">
+          <div className="w-full flex flex-col gap-y-xxs max-lg:items-center max-sm:item-start lg:min-w-[760px]">
+            <div className="flex items-center gap-x-xxxs justify-between w-full max-w-[747px]">
+              <Button
+                style="secondary"
+                size="small"
+                icon={<RefreshCw />}
+                onClick={h.resetGameOnClick}
+              >
+                Novo
+              </Button>
+              <Button
+                style="borderless"
+                size="extra-small"
+                icon={<X />}
+                onClick={h.dicesChecksClearOnClick}
+                disabled={h.disabledClearButton}
+              >
+                Limpar
+              </Button>
+            </div>
+
+            <TwoDicesTable
+              eventsCheckboxes={h.eventsCheckboxes ?? {}}
+              updateEventsCheckboxes={h.updateEventsCheckboxes}
+              eventColors={eventColors}
+              eventLabels={eventLabels}
+              blinkLabel={blinkLabel}
+              hideIfUnchecked={hideIfUnchecked}
             />
-          )}
-          {h.subPhase !== 'revealing' && renderMainButtons()}
-          {renderProgressionButtons()}
-        </div>
 
-        {/* Coluna direita — Painel lateral */}
-        <div className="w-full flex flex-col gap-xxs max-lg:max-w-[438px] max-lg:items-stretch max-lg:self-center">
-          {renderEventDescriptionCard()}
-          {renderStrategyChoicePanel()}
-          {renderFillNPanel()}
-          {renderProbabilitiesPanel()}
-          {renderSynthesisCard()}
-        </div>
-      </div>
+            {/* Cards específicos de sub-fases (ficam entre tabela e Conferir) */}
+            {renderStrategyReviewCard()}
+            {renderFormalizationCard()}
+            {renderSynthesisCard()}
 
-      {/* Modal de Revisão + overlays globais */}
+            <div className="flex gap-xxxs items-center">
+              {h.subPhase !== 'complete' && h.subPhase !== 'reveal' && (
+                <Button
+                  style="secondary"
+                  size="small"
+                  icon={h.subPhase === 'strategyReview' && h.confrontMessage ? <ArrowRight /> : <Check />}
+                  onClick={h.checkOnClick}
+                  disabled={h.disabledCheckButton}
+                >
+                  {h.subPhase === 'strategyReview' && h.confrontMessage
+                    ? 'Entendi, continuar'
+                    : 'Conferir'}
+                </Button>
+              )}
+              {renderProgressionButtons()}
+            </div>
+          </div>
+
+          <TwoDicesFormulation
+            events={h.activeEvents}
+            textsInputs={h.probabilitiesTextInputs}
+            selectInputs={h.operationSelectInputs}
+            eventColors={eventColors}
+            eventLabels={eventLabels}
+          />
+
+          <Alerts alerts={h.alerts} updateAlert={h.updateAlert} deleteAlerts={h.deleteAlerts} />
+          <Modal modal={h.modal} updateModal={h.updateModal} />
+        </div>
+      )}
+
+      {/* Strategy choice — sem tabela, só botão Continuar */}
+      {hideTable && (
+        <>
+          <div className="flex justify-center mt-micro">
+            <Button
+              style="primary"
+              size="small"
+              icon={<ArrowRight />}
+              onClick={h.checkOnClick}
+            >
+              {checkButtonLabel}
+            </Button>
+          </div>
+          <Alerts alerts={h.alerts} updateAlert={h.updateAlert} deleteAlerts={h.deleteAlerts} />
+          <Modal modal={h.modal} updateModal={h.updateModal} />
+        </>
+      )}
+
+      {/* Modal de Revisão */}
       <ComplementaryReviewModal open={reviewOpen} onClose={() => setReviewOpen(false)} />
-      <Alerts alerts={h.alerts} updateAlert={h.updateAlert} deleteAlerts={h.deleteAlerts} />
-      <Modal modal={h.modal} updateModal={h.updateModal} />
     </div>
   );
 }

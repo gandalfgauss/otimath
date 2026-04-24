@@ -1790,7 +1790,7 @@ export function TwoDicesExperiment({
 
   // ═══════ RENDER ═══════
   return (
-    <div className={`w-full ${phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
+    <div className={`w-full ${phase === 'complementaryEvents' || phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
       <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
         Lançamento de dois dados
       </h2>
@@ -3207,7 +3207,7 @@ export function TwoDicesExperiment({
               {raceBet !== null && raceWinner !== raceBet && raceBet !== 1 && raceBet !== 13 && (
                 <p className="ds-body text-center">
                   Você apostou no carrinho <strong>{raceBet}</strong>, mas o <strong>{raceWinner}</strong> venceu.
-                  Isso não é falha — é a probabilidade em ação. O carrinho 7 é o mais provável porque tem mais formas de ser alcançado (6 pares).
+                  Isso não é falha — é a probabilidade em ação. O carrinho 7 é o mais provável porque há mais casos favoráveis à soma 7 no lançamento de dois dados.
                 </p>
               )}
               {raceBet !== null && (raceBet === 1 || raceBet === 13) && (
