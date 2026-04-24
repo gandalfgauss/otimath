@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/global/Button';
 import { Grid } from '@/components/global/Grid';
@@ -16,7 +16,7 @@ import type { UnionExercise3Handle } from './UnionExercise3';
 import type { UnionExercise4Handle } from './UnionExercise4';
 import type { DiceMachineSceneHandle } from './DiceMachineScene';
 import { TwoDicesPractice } from './TwoDicesPractice';
-import { TwoDicesExperiment } from './TwoDicesExperiment';
+import { TwoDicesExperiment, DEV_PHASE_ORDER, type DevExperimentPhase } from './TwoDicesExperiment';
 import { DiceMachineExperiment } from './DiceMachineExperiment';
 
 // Skeleton exibido enquanto o chunk JS do componente 3D é baixado
@@ -215,6 +215,31 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   const [scene7HideAllDice, setScene7HideAllDice] = useState(false);
   // Dev: pular direto para a fase unionTheory na Cena 7
   const [devSkipToUnion, setDevSkipToUnion] = useState(false);
+
+  // DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS.
+  // Ref que recebe a função setPhase do TwoDicesExperiment para a barra dev.
+  const devExperimentPhaseRef = useRef<((p: DevExperimentPhase) => void) | null>(null);
+  // Fase pendente aguardando o Experiment montar após goToScene(7).
+  const [devPendingPhase, setDevPendingPhase] = useState<DevExperimentPhase | null>(null);
+
+  // Quando há fase dev pendente E chegamos à Cena 7 E o ref está populado,
+  // aplica imediatamente (sem setTimeout arbitrário — reduz latência percebida).
+  useEffect(() => {
+    if (!devPendingPhase) return;
+    if (scene !== 7) return;
+    let cancelled = false;
+    const tryApply = () => {
+      if (cancelled) return;
+      if (devExperimentPhaseRef.current) {
+        devExperimentPhaseRef.current(devPendingPhase);
+        setDevPendingPhase(null);
+      } else {
+        requestAnimationFrame(tryApply);
+      }
+    };
+    tryApply();
+    return () => { cancelled = true; };
+  }, [devPendingPhase, scene]);
 
   // Cena 2: face atual na sequência
   const [currentFaceIdx, setCurrentFaceIdx] = useState(-1);
@@ -1241,6 +1266,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   onMachineVisibilityChange={setScene7UsesMachine}
                   onHideAllDice={setScene7HideAllDice}
                   onPhaseChange={setScene7ExperimentPhase}
+                  devSetPhaseRef={devExperimentPhaseRef}
                   onFinished={() => {
                     setScene7Finished(true);
                   }}
@@ -1274,6 +1300,17 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
           )}
         </div>
       </div>
+
+      {/* ══════ DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS ══════
+           Barra de navegação unificada: cenas 1–6 + 35 fases do Experiment.
+           Aparece desde a Cena 1 (início do OVA). Verde ◀ retrocede; laranja ▶ avança. */}
+      <DevUnifiedNavBar
+        scene={scene}
+        experimentPhase={scene7ExperimentPhase}
+        goToScene={goToScene}
+        devExperimentPhaseRef={devExperimentPhaseRef}
+        setPendingPhase={setDevPendingPhase}
+      />
 
       {/* Botões dev — canto inferior esquerdo, empilhados (JOGO acima, UNIÃO abaixo) */}
       <div style={{ position: 'fixed', bottom: 52, left: 16, zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
@@ -1314,3 +1351,159 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
     </main>
   );
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// █ DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS █
+// Barra unificada de navegação cobrindo TODO o OVA Dois Dados:
+//   • Cenas 1–6 do TwoDicesPresentation (introdução, espaço amostral,
+//     probabilidade simples, máquina, tabela).
+//   • 35 fases do TwoDicesExperiment (Cena 7), incluindo a fase do
+//     alienígena (colorExplain) e a nova seção complementaryEvents.
+// Total: 6 + 35 = 41 destinos em uma lista linear.
+// Seta verde ◀ retrocede; laranja ▶ avança. Sem validação.
+// ══════════════════════════════════════════════════════════════════════════
+
+type DevTarget =
+  | { kind: 'scene'; scene: 1 | 2 | 3 | 4 | 5 | 6 }
+  | { kind: 'experiment'; phase: DevExperimentPhase };
+
+function buildDevTargets(): DevTarget[] {
+  const targets: DevTarget[] = [
+    { kind: 'scene', scene: 1 },
+    { kind: 'scene', scene: 2 },
+    { kind: 'scene', scene: 3 },
+    { kind: 'scene', scene: 4 },
+    { kind: 'scene', scene: 5 },
+    { kind: 'scene', scene: 6 },
+  ];
+  DEV_PHASE_ORDER.forEach(phase => {
+    targets.push({ kind: 'experiment', phase });
+  });
+  return targets;
+}
+
+function describeTarget(t: DevTarget): string {
+  if (t.kind === 'scene') return `Cena ${t.scene}`;
+  return `7 · ${t.phase}`;
+}
+
+interface DevUnifiedNavBarProps {
+  scene: number;
+  experimentPhase: string;
+  goToScene: (n: number) => void;
+  devExperimentPhaseRef: React.MutableRefObject<((p: DevExperimentPhase) => void) | null>;
+  setPendingPhase: (p: DevExperimentPhase | null) => void;
+}
+
+function DevUnifiedNavBar({
+  scene,
+  experimentPhase,
+  goToScene,
+  devExperimentPhaseRef,
+  setPendingPhase,
+}: DevUnifiedNavBarProps) {
+  const targets = useMemo(buildDevTargets, []);
+
+  // Índice atual na lista plana.
+  const currentIdx = useMemo(() => {
+    if (scene < 7) return scene - 1;
+    const phaseIdx = DEV_PHASE_ORDER.indexOf(experimentPhase as DevExperimentPhase);
+    return phaseIdx >= 0 ? 6 + phaseIdx : 6;
+  }, [scene, experimentPhase]);
+
+  const canBack = currentIdx > 0;
+  const canFwd = currentIdx < targets.length - 1;
+
+  const applyTarget = (t: DevTarget) => {
+    if (t.kind === 'scene') {
+      goToScene(t.scene);
+      return;
+    }
+    // kind === 'experiment' — precisa estar na cena 7
+    if (scene !== 7) {
+      // Enfileira a fase: o useEffect no pai dispara assim que ref popular.
+      setPendingPhase(t.phase);
+      goToScene(7);
+    } else {
+      devExperimentPhaseRef.current?.(t.phase);
+    }
+  };
+
+  const goBack = () => { if (canBack) applyTarget(targets[currentIdx - 1]); };
+  const goFwd = () => { if (canFwd) applyTarget(targets[currentIdx + 1]); };
+
+  const btnBase: React.CSSProperties = {
+    border: 'none',
+    borderRadius: 6,
+    padding: '6px 12px',
+    fontSize: 16,
+    fontWeight: 800,
+    color: '#fff',
+    fontFamily: 'monospace',
+    minWidth: 40,
+  };
+
+  const currentLabel = describeTarget(targets[currentIdx] ?? targets[0]);
+
+  return (
+    <div
+      role="toolbar"
+      aria-label="Navegação dev do OVA (remover antes de aplicar)"
+      style={{
+        position: 'fixed',
+        bottom: 52,
+        right: 16,
+        zIndex: 100,
+        background: 'rgba(20, 20, 30, 0.92)',
+        color: '#fff',
+        borderRadius: 10,
+        padding: '8px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        boxShadow: '0 6px 18px rgba(0, 0, 0, 0.35)',
+        fontFamily: 'monospace',
+        fontSize: 12,
+        userSelect: 'none',
+      }}
+    >
+      <button
+        type="button"
+        onClick={goBack}
+        disabled={!canBack}
+        aria-label="Destino anterior (dev)"
+        style={{
+          ...btnBase,
+          background: canBack ? '#16a34a' : '#3f3f46',
+          cursor: canBack ? 'pointer' : 'not-allowed',
+          opacity: canBack ? 1 : 0.5,
+        }}
+      >
+        ◀
+      </button>
+      <div style={{ minWidth: 210, textAlign: 'center', lineHeight: 1.2 }}>
+        <div style={{ fontSize: 10, opacity: 0.7, letterSpacing: 0.5 }}>DEV — REMOVER</div>
+        <div style={{ fontSize: 12, fontWeight: 700 }}>
+          {currentIdx + 1}/{targets.length} · {currentLabel}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={goFwd}
+        disabled={!canFwd}
+        aria-label="Próximo destino (dev)"
+        style={{
+          ...btnBase,
+          background: canFwd ? '#ea580c' : '#3f3f46',
+          cursor: canFwd ? 'pointer' : 'not-allowed',
+          opacity: canFwd ? 1 : 0.5,
+        }}
+      >
+        ▶
+      </button>
+    </div>
+  );
+}
+// ══════════════════════════════════════════════════════════════════════════
+// █ FIM DEV ONLY █
+// ══════════════════════════════════════════════════════════════════════════

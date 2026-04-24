@@ -12,6 +12,7 @@ import { UnionExercise1, type UnionExercise1Handle } from './UnionExercise1';
 import { UnionExercise2, type UnionExercise2Handle } from './UnionExercise2';
 import { UnionExercise3, type UnionExercise3Handle } from './UnionExercise3';
 import { UnionExercise4, type UnionExercise4Handle } from './UnionExercise4';
+import { ComplementaryEventsActivity } from './ComplementaryEventsActivity';
 
 // ═══════ Faces do dado com pintas ═══════
 const PIP_PATTERNS: Record<number, number[]> = {
@@ -120,7 +121,9 @@ function CarrinhoIcon({ numero, width = 72, highlighted = false }: {
 }
 
 function DiceFaceIcon({ face, size, color = 'blue' }: { face: number; size: number; color?: 'blue' | 'green' }) {
-  const pips = PIP_PATTERNS[face];
+  // Defensivo: face pode ser 0 em pulos via barra dev antes do useEffect
+  // defensivo inicializar greenResult/blueResult. Retorna dado "vazio".
+  const pips = PIP_PATTERNS[face] ?? [0, 0, 0, 0, 0, 0, 0, 0, 0];
   const pipSize = Math.floor(size * 0.22);
   const gap = Math.floor(size * 0.04);
   const bgColor = color === 'green' ? '#1a5c2e' : 'var(--color-brand-otimath-dark)';
@@ -301,6 +304,7 @@ type Phase =
   | 'sumInput' | 'sumMarkTable' | 'sumComplete'
   | 'sumAlienIntro' | 'sumPredictMax' | 'sumPredictMin' | 'sumImpossible' | 'sumReveal'
   | 'probPair' | 'probPairReveal' | 'probSumTable' | 'probSumReveal'
+  | 'complementaryEvents'
   | 'unionTheory'
   | 'unionExercises'
   | 'unionExercise2'
@@ -311,6 +315,29 @@ type Phase =
   | 'finished';
 
 const TOTAL_ROUNDS = 3;
+
+// ══════════════════════════════════════════════════════════════════════════
+// █ DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS █
+// Ordem das fases do TwoDicesExperiment, exportada para a barra dev
+// que vive no TwoDicesPresentation (cenas 1–6 + fases do Experiment).
+// ══════════════════════════════════════════════════════════════════════════
+export const DEV_PHASE_ORDER: Phase[] = [
+  'intro', 'tree', 'ready', 'rolling', 'landed',
+  'pickPair', 'pickConfirm', 'markTable', 'feedback',
+  'sumInput', 'sumMarkTable', 'sumComplete',
+  'sumAlienIntro', 'sumPredictMax', 'sumPredictMin', 'sumImpossible', 'sumReveal',
+  'probPair', 'probPairReveal', 'probSumTable', 'probSumReveal',
+  'pairQuestion', 'pairExplain', 'colorQuestion', 'colorExplain',
+  'complementaryEvents',
+  'unionTheory',
+  'unionExercises', 'unionExercise2', 'unionExercise3', 'unionExercise4',
+  'raceBet', 'raceRunning', 'raceFinished',
+  'finished',
+];
+export type { Phase as DevExperimentPhase };
+// ══════════════════════════════════════════════════════════════════════════
+// █ FIM DEV ONLY █
+// ══════════════════════════════════════════════════════════════════════════
 
 // ═══════ Componente Principal ═══════
 interface TwoDicesExperimentProps {
@@ -336,6 +363,10 @@ interface TwoDicesExperimentProps {
   unionExercise3Ref?: React.RefObject<UnionExercise3Handle | null>;
   /** Ref dev para navegar pelos passos do UnionExercise4 */
   unionExercise4Ref?: React.RefObject<UnionExercise4Handle | null>;
+  /** DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS.
+   *  Ref que recebe a função setPhase para controle externo via barra dev
+   *  no TwoDicesPresentation. Null quando o componente desmonta. */
+  devSetPhaseRef?: React.MutableRefObject<((p: Phase) => void) | null>;
 }
 
 export function TwoDicesExperiment({
@@ -353,11 +384,36 @@ export function TwoDicesExperiment({
   onHideAllDice,
   onFinished,
   onPhaseChange,
+  devSetPhaseRef,
 }: Readonly<TwoDicesExperimentProps>) {
   const [phase, setPhase] = useState<Phase>(initialPhase ?? 'intro');
+
+  // DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS.
+  // Registra setPhase no ref externo para a barra dev no TwoDicesPresentation.
+  useEffect(() => {
+    if (!devSetPhaseRef) return;
+    devSetPhaseRef.current = setPhase;
+    return () => { devSetPhaseRef.current = null; };
+  }, [devSetPhaseRef]);
   const [round, setRound] = useState(0);
   const [greenResult, setGreenResult] = useState(0);
   const [blueResult, setBlueResult] = useState(0);
+
+  // DEV ONLY — inicialização defensiva para pulos via barra dev.
+  // Se o aluno (dev) saltou para uma fase que depende de greenResult/blueResult
+  // sem ter passado por 'landed', popula valores aleatórios válidos (1..6).
+  // No fluxo normal, esses valores já estão setados antes de chegar nessas fases.
+  useEffect(() => {
+    const needsDiceResult: Phase[] = [
+      'pickConfirm', 'markTable', 'feedback',
+      'sumInput', 'sumMarkTable', 'sumComplete',
+      'sumAlienIntro', 'sumPredictMax', 'sumPredictMin', 'sumImpossible', 'sumReveal',
+    ];
+    if (needsDiceResult.includes(phase) && (greenResult === 0 || blueResult === 0)) {
+      setGreenResult(1 + Math.floor(Math.random() * 6));
+      setBlueResult(1 + Math.floor(Math.random() * 6));
+    }
+  }, [phase, greenResult, blueResult]);
 
   // Quando o aluno navega de volta de um exercício/fase para o anterior, a
   // fase anterior precisa ser re-montada no estado 'done' (final), não no
@@ -3203,12 +3259,25 @@ export function TwoDicesExperiment({
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={() => {
                   playSound('/sounds/nextChallenge.mp3');
-                  setPhase('unionTheory');
+                  setPhase('complementaryEvents');
                 }}>
-                  Próximo: união de eventos
+                  Próximo: eventos complementares
                 </Button>
               </div>
             </div>
+          )}
+
+          {/* ═══════ EVENTOS COMPLEMENTARES ═══════
+               Entre evento simples e união. Aluno descobre a heurística
+               P(A) = 1 − P(Ā) pela experiência (marcação econômica de Ā
+               em vermelho; A auto-revelado em verde; Ω = A ⊔ Ā). */}
+          {phase === 'complementaryEvents' && (
+            <ComplementaryEventsActivity
+              onContinue={() => {
+                playSound('/sounds/challengeFinished.mp3');
+                setPhase('unionTheory');
+              }}
+            />
           )}
 
           {/* ═══════ FUNDAMENTAÇÃO DE P(A ∪ B) — após a corrida ═══════ */}
@@ -3527,6 +3596,7 @@ export function TwoDicesExperiment({
           </div>
         </div>
       )}
+
     </div>
   );
 }

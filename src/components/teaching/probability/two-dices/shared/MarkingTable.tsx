@@ -91,12 +91,31 @@ export interface MarkingTableProps {
   onToggle: (row: number, col: number) => void;
   eventLabel: string | null;
   readOnlyMarks?: { label: string; matrix: MarkMatrix; color?: string }[];
+  /** Nome da camada (label) que deve piscar. Aplica animação
+   *  `opacity 1 → 0.2 → 1` uma única vez. Usado na fase Reveal
+   *  da seção "Eventos Complementares" para materializar
+   *  Ω = A ⊔ Ā (primeiro pisca Ā vermelho, depois A verde). */
+  blinkLabel?: string | null;
 }
 
-export function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: MarkingTableProps) {
+export function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks, blinkLabel }: MarkingTableProps) {
   const activeColor = eventLabel ? (EVENT_COLORS[eventLabel] ?? 'var(--color-brand-otimath-pure)') : undefined;
   return (
     <div className="w-full overflow-x-auto snap-both snap-mandatory scroll-p-[50px] max-lg:flex max-lg:justify-center max-sm:justify-start rounded-md shadow-level-1 max-lg:w-fit max-sm:w-full">
+      {/* Keyframe usado pela prop blinkLabel (seção Eventos Complementares).
+          Respeita prefers-reduced-motion (zera a animação). */}
+      <style>{`
+        @keyframes ovaDualBlink {
+          0% { opacity: 1; }
+          50% { opacity: 0.2; }
+          100% { opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes ovaDualBlink {
+            0%, 100% { opacity: 1; }
+          }
+        }
+      `}</style>
       <table className="bg-background-otimath relative w-fit h-full text-center rounded-md outline-solid outline-neutral-lighter outline-(length:--border-width-hairline) border-collapse mx-auto">
         <thead className="flex justify-end bg-background-otimath sticky top-[-1px] z-1">
           <tr className="flex justify-end">
@@ -129,11 +148,16 @@ export function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: Mar
                       {readOnlyMarks?.map(ro => {
                         const roColor = ro.color ?? EVENT_COLORS[ro.label] ?? 'var(--color-neutral-dark)';
                         const roChecked = ro.matrix[row][col];
+                        const isBlinking = blinkLabel === ro.label;
                         return (
                           <div
                             key={ro.label}
                             className="flex items-center gap-x-nano"
-                            style={{ userSelect: 'none', cursor: 'not-allowed' }}
+                            style={{
+                              userSelect: 'none',
+                              cursor: 'not-allowed',
+                              animation: isBlinking ? 'ovaDualBlink 600ms ease-in-out 1' : undefined,
+                            }}
                             title={`${ro.label} já validado — marcação congelada`}
                           >
                             <FrozenCheckbox checked={roChecked} color={roColor} label={`${ro.label} em (${r},${c})`} />
