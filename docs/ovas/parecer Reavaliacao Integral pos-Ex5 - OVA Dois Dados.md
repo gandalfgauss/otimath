@@ -148,30 +148,43 @@ O OVA atende **WCAG 2.1 nível AA** em pontos que parceiros menos rigorosos negl
 
 ## 14. LACUNAS REMANESCENTES (o que ainda falta)
 
-Esta é a parte mais valiosa do parecer. Identifico **seis lacunas substantivas** + **um recorte formalmente decidido** (T8 e T9 → OVA 3, que será **implementado** nesta dissertação mas **não aplicado em sala** por restrições logísticas externas), classificados por prioridade:
+Esta é a parte mais valiosa do parecer. Identifico **seis lacunas substantivas** + **um recorte formalmente decidido** (T8 e T9 → OVA 3 será **implementado e descrito** nesta dissertação; apenas a **aplicação empírica em sala** fica como Trabalho Futuro por restrições logísticas), classificados por prioridade:
 
 ### 14.1 Avaliação a posteriori empírica (PRIORITÁRIO)
 
 A **avaliação a posteriori** (Almouloud & Coutinho, 2008, p. 69) — confronto entre análise a priori e desempenho real de alunos — ainda **NÃO foi realizada**. O OVA está pronto para piloto. Sem dados empíricos, a defesa em banca PROFMAT terá um flanco aberto. **Recomendação:** piloto mínimo com 5–10 alunos do 3º ano do EM, com captura de tela + áudio (think-aloud), aplicado em ≥ 2 escolas distintas (pública + privada) para garantir variação socioeconômica.
 
-### 14.2 e 14.3 — RECORTE FORMAL: T8 e T9 vão para o OVA 3 (IMPLEMENTADO na dissertação, mas NÃO APLICADO em sala)
+### 14.2 e 14.3 — RECORTE FORMAL: T8 e T9 → OVA 3 (IMPLEMENTADO e DESCRITO na dissertação; APLICAÇÃO EMPÍRICA fica como Trabalho Futuro)
 
-**DECISÃO ARQUITETURAL FORMALIZADA (2026-04-25):** os tópicos **T8 (probabilidade condicional)** e **T9 (independência estocástica)** ficam **inteiramente fora do escopo do OVA Dois Dados**. Serão tratados em um terceiro Objeto Virtual de Aprendizagem (**OVA 3**), que **será efetivamente implementado** como parte desta dissertação, mas que **NÃO será aplicado em sala de aula** por duas restrições logísticas externas, alheias ao mérito do artefato:
+**DECISÃO ARQUITETURAL FORMALIZADA (2026-04-25, revisada — versão final):** os tópicos **T8 (probabilidade condicional)** e **T9 (independência estocástica e Teorema de Bayes)** ficam **inteiramente fora do escopo do OVA Dois Dados**. Serão tratados em um terceiro Objeto Virtual de Aprendizagem (**OVA 3**), com a seguinte distribuição de status nesta dissertação:
 
-1. **Tempo do programa PROFMAT** — o cronograma de defesa não comporta a aplicação empírica de três OVAs sequenciais.
-2. **Poucas aulas cedidas pela escola** — a cessão de tempo letivo pelas escolas parceiras é insuficiente para uma aplicação completa dos três OVAs em sala.
+| Atividade sobre o OVA 3 | Realizada nesta dissertação? |
+|---|:---:|
+| **Delineamento conceitual** (escopo, registros, situações fundamentais) | ✅ **Sim** |
+| **Implementação técnica** (artefato funcional, código, validação interna) | ✅ **Sim** |
+| **Descrição na dissertação** (capítulo dedicado, fundamentação, design) | ✅ **Sim** |
+| **Aplicação empírica em sala de aula** | ❌ **Não — Trabalho Futuro** |
+| **Avaliação a posteriori com dados de alunos** | ❌ **Não — Trabalho Futuro** |
 
-Essa distinção é importante e deve ficar absolutamente clara na dissertação:
+A **única dimensão que fica para Trabalhos Futuros** é a **aplicação empírica do OVA 3 em sala de aula** (e sua avaliação a posteriori). Isso decorre de duas restrições reais e cumulativas:
+
+1. **Tempo de cronograma para a aplicação** — o calendário do programa PROFMAT, somado ao tempo já consumido pela aplicação dos OVAs Disco e Dois Dados, não permite uma terceira intervenção empírica antes da defesa.
+2. **Tempo letivo cedido pelas escolas** — a cessão de aulas pelas escolas parceiras é estruturalmente insuficiente para três aplicações sequenciais (cada OVA exige múltiplas aulas).
+
+**Importante:** essas restrições afetam **exclusivamente a etapa de aplicação empírica** do OVA 3 — *não* afetam sua implementação técnica nem sua descrição teórica. O OVA 3 será **artefato funcional pronto e descrito** na dissertação, faltando apenas a **rodada empírica** com alunos reais, que fica como item explícito de Trabalhos Futuros.
+
+#### Comparação completa entre os 3 OVAs
 
 | Dimensão | OVA Disco | OVA Dois Dados | **OVA 3 (condicional, independência, Bayes)** |
 |---|:---:|:---:|:---:|
-| **Implementado** (artefato pronto para uso) | ✅ Sim | ✅ Sim | ✅ **Sim** |
-| **Aplicado em sala** (intervenção empírica com alunos) | ✅ Sim | ✅ Sim (planejado) | ❌ **Não — restrição logística externa** |
-| **Avaliado a posteriori** | ✅ Sim | ✅ Sim (planejado) | ❌ **Não nesta dissertação** |
+| **Implementado** (artefato pronto) | ✅ Sim | ✅ Sim | ✅ **Sim** |
+| **Descrito na dissertação** | ✅ Sim | ✅ Sim | ✅ **Sim** |
+| **Aplicado em sala** | ✅ Sim | ✅ Sim (planejado) | ❌ **Trabalho Futuro** |
+| **Avaliado a posteriori** | ✅ Sim | ✅ Sim (planejado) | ❌ **Trabalho Futuro** |
 
-#### Escopo planejado do OVA 3 (implementado nesta dissertação, sem aplicação empírica)
+#### Escopo do OVA 3 (implementado e descrito nesta dissertação)
 
-O OVA 3 está conceitualmente delineado e **será desenvolvido** como artefato funcional para cobrir, em sequência didática própria:
+O OVA 3 será desenvolvido como artefato funcional e descrito como capítulo da dissertação para cobrir, em sequência didática própria:
 
 1. **Independência e dependência de eventos** — distinção conceitual fundamental, com situações fundamentais brousseaunianas dedicadas (predição → confronto → institucionalização).
 2. **Probabilidade de eventos independentes em contextos diversos:**
@@ -205,17 +218,19 @@ A presença do `conditionalGlimpse` no Ex5 **não é tentativa parcial de cobrir
 
 Na **seção "Recortes Metodológicos"** do texto da dissertação, documentar literalmente:
 
-> *"Os tópicos T8 (Probabilidade Condicional) e T9 (Independência Estocástica e Teorema de Bayes) NÃO são contemplados no OVA Dois Dados, sendo tratados no terceiro Objeto Virtual de Aprendizagem (OVA 3) desta dissertação, com situações fundamentais próprias e novos registros semióticos (notadamente a árvore de probabilidades). O OVA 3 foi efetivamente implementado como artefato funcional, integrando o produto educacional desta pesquisa. Entretanto, sua **aplicação empírica em sala de aula não foi possível dentro do prazo desta dissertação** por duas restrições logísticas externas: (i) o cronograma do programa PROFMAT, que não comporta três aplicações sequenciais; e (ii) o tempo letivo cedido pelas escolas parceiras, insuficiente para a intervenção completa dos três OVAs. A avaliação empírica do OVA 3 fica formalmente registrada como **trabalho futuro**. A presença do `conditionalGlimpse` no Exercício 5 do OVA Dois Dados cumpre função estrita de organizador prévio (AUSUBEL, 2000, p. 43), preparando o estudante para uma futura segunda passagem pela espiral curricular (BRUNER, 1960, p. 33) que se realiza no OVA 3, sem pretensão de cobrir o tópico T8 dentro do OVA Dois Dados."*
+> *"Os tópicos T8 (Probabilidade Condicional) e T9 (Independência Estocástica e Teorema de Bayes) NÃO são contemplados no OVA Dois Dados, sendo tratados em um terceiro Objeto Virtual de Aprendizagem (OVA 3) que integra esta dissertação. O OVA 3 foi efetivamente implementado como artefato funcional e tem capítulo dedicado de descrição teórica e fundamentação didática. Entretanto, sua **aplicação empírica em sala de aula não foi possível dentro do prazo desta dissertação** por duas restrições logísticas reais e cumulativas: (i) o cronograma do programa PROFMAT, que não comporta a aplicação sequencial de três OVAs antes da defesa; e (ii) o tempo letivo cedido pelas escolas parceiras, estruturalmente insuficiente para três intervenções consecutivas. A **avaliação empírica do OVA 3** com alunos do Ensino Médio fica formalmente registrada como **trabalho futuro**, a ser realizada em pesquisa subsequente. A presença do `conditionalGlimpse` no Exercício 5 do OVA Dois Dados cumpre função estrita de organizador prévio (AUSUBEL, 2000, p. 43), preparando o estudante para uma futura segunda passagem pela espiral curricular (BRUNER, 1960, p. 33) que se realiza no OVA 3, sem pretensão de cobrir o tópico T8 dentro do OVA Dois Dados."*
 
 #### Implicação para o juízo de banca
 
-Três pontos a sustentar na arguição:
+Quatro pontos a sustentar na arguição:
 
 1. **Sobre o OVA Dois Dados:** com o recorte formalmente documentado, **T8 e T9 deixam de ser lacunas do OVA Dois Dados e passam a ser escolhas metodológicas defensáveis**. O OVA permanece **completo e coerente dentro do escopo declarado (T1–T7)**.
 
-2. **Sobre o OVA 3 implementado:** sua presença como artefato funcional **agrega valor científico à dissertação** mesmo sem aplicação empírica — corresponde a uma contribuição de Design Science Research em que o artefato está pronto, validado internamente (consistência matemática, vieses endereçados, registros coordenados) e disponível para futuras pesquisas. Isso é cientificamente legítimo (Dresch, Lacerda, Antunes Junior, 2015, p. 130).
+2. **Sobre o OVA 3 implementado e descrito:** sua presença como **artefato funcional finalizado + capítulo dedicado de descrição teórica** agrega valor científico substantivo à dissertação. Conforme Design Science Research (Dresch, Lacerda, Antunes Junior, 2015, p. 130), um artefato pronto, validado internamente (consistência matemática, vieses endereçados, registros semióticos coordenados) e descrito no detalhe **é contribuição científica plena**, mesmo sem rodada empírica.
 
-3. **Sobre a não-aplicação:** as **restrições logísticas externas são limites razoáveis de qualquer dissertação PROFMAT** com cronograma fixo e dependência de cessão de tempo letivo por escolas parceiras. A banca tipicamente reconhece esses limites como justificativa válida para escopo de aplicação empírica reduzido em relação ao escopo de implementação.
+3. **Sobre a aplicação empírica do OVA 3 como Trabalho Futuro:** as **restrições logísticas (cronograma PROFMAT + cessão de tempo letivo pelas escolas)** são limites estruturais de qualquer dissertação de mestrado profissional aplicado. A banca tipicamente reconhece esses limites como **justificativa válida** para que a aplicação empírica de uma das peças didáticas fique como trabalho futuro — especialmente quando os outros artefatos da sequência (Disco e Dois Dados) **foram aplicados e avaliados empiricamente**, garantindo a substância empírica geral da dissertação.
+
+4. **Sobre o conjunto da obra:** a dissertação entrega **três OVAs implementados, três OVAs descritos teoricamente e dois OVAs aplicados empiricamente** — proporção robusta para um mestrado profissional, com escopo declarado e justificado de forma transparente.
 
 ### 14.4 Modo professor / kit de aplicação ausente
 
@@ -282,7 +297,7 @@ O OVA "Probabilidade — Dois Dados" em sua versão pós-Ex5 constitui **artefat
 
 1. **Realizar piloto empírico com 5–10 alunos** (avaliação a posteriori) — fecha o flanco mais frágil da defesa.
 2. **Produzir Guia do Professor em PDF** — fortalece a aplicabilidade do artefato.
-3. **Documentar formalmente o status do OVA 3** na seção "Recortes Metodológicos" da dissertação: o OVA 3 **será implementado** como artefato funcional (cobrindo independência, dependência, contextos diversos — bolas, flecha, moedas, baralho, disco, dois dados; continuação do contexto Roxa; condicional em contextos diversos; Bayes; árvore de probabilidades), porém **NÃO será aplicado em sala** por duas restrições logísticas externas (cronograma do programa PROFMAT + tempo letivo cedido pelas escolas). A avaliação empírica do OVA 3 fica registrada como **trabalho futuro**. Decisão formalizada nas seções 14.2/14.3 deste parecer.
+3. **Documentar formalmente o status do OVA 3** na seção "Recortes Metodológicos" da dissertação: o OVA 3 **será implementado** como artefato funcional **e descrito** em capítulo próprio (cobrindo independência, dependência, contextos diversos — bolas, flecha, moedas, baralho, disco, dois dados; continuação do contexto Roxa; condicional em contextos diversos; Bayes; árvore de probabilidades). Apenas a **aplicação empírica em sala não cabe no prazo** por duas restrições logísticas (cronograma PROFMAT + tempo letivo cedido pelas escolas) e fica registrada como **trabalho futuro**. Decisão formalizada nas seções 14.2/14.3 deste parecer.
 4. **Adicionar persistência local** — pequena melhoria com grande retorno em usabilidade real.
 
 As demais recomendações (14.5–14.8) são desejáveis mas **não bloqueantes** para a defesa. Podem entrar como "trabalhos futuros" no capítulo final da dissertação.
