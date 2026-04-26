@@ -13,6 +13,8 @@ import { UnionExercise2, type UnionExercise2Handle } from './UnionExercise2';
 import { UnionExercise3, type UnionExercise3Handle } from './UnionExercise3';
 import { UnionExercise4, type UnionExercise4Handle } from './UnionExercise4';
 import { UnionExercise5, type UnionExercise5Handle } from './UnionExercise5';
+import { UnionExercise6Review, type UnionExercise6Handle } from './UnionExercise6Review';
+import { TwoDicesGame } from './TwoDicesGame';
 import { ComplementaryEventsActivity } from './ComplementaryEventsActivity';
 
 // ═══════ Faces do dado com pintas ═══════
@@ -312,6 +314,8 @@ type Phase =
   | 'unionExercise3'
   | 'unionExercise4'
   | 'unionExercise5'
+  | 'unionExercise6'
+  | 'twoDicesGameFree'
   | 'raceBet' | 'raceRunning' | 'raceFinished'
   | 'pairQuestion' | 'pairExplain' | 'colorQuestion' | 'colorExplain'
   | 'finished';
@@ -333,6 +337,8 @@ export const DEV_PHASE_ORDER: Phase[] = [
   'complementaryEvents',
   'unionTheory',
   'unionExercises', 'unionExercise2', 'unionExercise3', 'unionExercise4', 'unionExercise5',
+  'unionExercise6',
+  'twoDicesGameFree',
   'raceBet', 'raceRunning', 'raceFinished',
   'finished',
 ];
@@ -367,6 +373,8 @@ interface TwoDicesExperimentProps {
   unionExercise4Ref?: React.RefObject<UnionExercise4Handle | null>;
   /** Ref dev para navegar pelos passos do UnionExercise5 */
   unionExercise5Ref?: React.RefObject<UnionExercise5Handle | null>;
+  /** Ref dev para navegar pelos passos do UnionExercise6Review */
+  unionExercise6Ref?: React.RefObject<UnionExercise6Handle | null>;
   /** DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS.
    *  Ref que recebe a função setPhase para controle externo via barra dev
    *  no TwoDicesPresentation. Null quando o componente desmonta. */
@@ -385,6 +393,7 @@ export function TwoDicesExperiment({
   unionExercise3Ref,
   unionExercise4Ref,
   unionExercise5Ref,
+  unionExercise6Ref,
   onMachineVisibilityChange,
   onHideAllDice,
   onFinished,
@@ -1248,6 +1257,8 @@ export function TwoDicesExperiment({
       phase === 'unionExercise3' ||
       phase === 'unionExercise4' ||
       phase === 'unionExercise5' ||
+      phase === 'unionExercise6' ||
+      phase === 'twoDicesGameFree' ||
       phase === 'raceFinished';
     onHideAllDice(shouldHide);
   }, [phase, onHideAllDice]);
@@ -1796,8 +1807,8 @@ export function TwoDicesExperiment({
 
   // ═══════ RENDER ═══════
   return (
-    <div className={`w-full ${phase === 'complementaryEvents' || phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' || phase === 'unionExercise5' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
-      {phase !== 'unionExercise5' && (
+    <div className={`w-full ${phase === 'complementaryEvents' || phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' || phase === 'unionExercise5' || phase === 'unionExercise6' || phase === 'twoDicesGameFree' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
+      {phase !== 'unionExercise5' && phase !== 'unionExercise6' && phase !== 'twoDicesGameFree' && (
         <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
           Lançamento de dois dados
         </h2>
@@ -3372,13 +3383,62 @@ export function TwoDicesExperiment({
             <UnionExercise5
               ref={unionExercise5Ref}
               onFinished={() => {
-                playSound('/sounds/gameFinished.mp3');
-                onFinished();
+                playSound('/sounds/challengeFinished.mp3');
+                setPhase('unionExercise6');
               }}
               onRequestPreviousPhase={() => {
                 setPhase('unionExercise4');
               }}
             />
+          )}
+
+          {/* ═══════ EXERCÍCIO 6 — REVISÃO (2 rodadas: ∪ e ∩, ordem sorteada) ═══════
+               Fechamento conceitual do OVA. Após Ex6, o estudante pode finalizar
+               o OVA OU optar pelo Ex7 (jogo livre completo). */}
+          {phase === 'unionExercise6' && (
+            <UnionExercise6Review
+              ref={unionExercise6Ref}
+              onFinished={() => {
+                playSound('/sounds/gameFinished.mp3');
+                onFinished();
+              }}
+              onRequestFreePlay={() => {
+                playSound('/sounds/nextChallenge.mp3');
+                setPhase('twoDicesGameFree');
+              }}
+              onRequestPreviousPhase={() => {
+                setPhase('unionExercise5');
+              }}
+            />
+          )}
+
+          {/* ═══════ EXERCÍCIO 7 (OPCIONAL) — JOGO LIVRE COM 12 EVENTOS ═══════
+               Reuso integral do TwoDicesGame da seção introdutória. Estudante
+               revisita os 12 eventos sob 7 desafios sorteados (2 puros + 5
+               com operação) com plena autonomia. Botão "Finalizar" sai. */}
+          {phase === 'twoDicesGameFree' && (
+            <div className="flex flex-col gap-y-xxs">
+              <div className="flex justify-between items-center gap-x-micro flex-wrap">
+                <h3 className="ds-heading-large text-brand-otimath-darker">
+                  Exercícios de Fixação (Opcional)
+                </h3>
+                <Button
+                  style="primary"
+                  size="small"
+                  onClick={() => {
+                    playSound('/sounds/gameFinished.mp3');
+                    onFinished();
+                  }}
+                >
+                  Finalizar OVA
+                </Button>
+              </div>
+              <p className="ds-small text-neutral-dark italic">
+                Continue praticando o jogo completo dos dois dados — 12 eventos
+                sorteados em 7 desafios. Você pode finalizar o OVA quando quiser.
+              </p>
+              <TwoDicesGame enableMarkAll />
+            </div>
           )}
 
           {/* Feedback */}

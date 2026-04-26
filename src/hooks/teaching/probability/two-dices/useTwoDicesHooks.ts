@@ -881,6 +881,38 @@ export const useTwoDicesHooks = () => {
     });
   }
 
+  /* ──────────────────────────────────────────────────────────────
+     markAllOnClick — adicionado para o Ex7 (Exercícios de Fixação).
+     Marca todas as 36 células dos eventos ATIVOS (não-disabled) do
+     step atual. Eventos congelados (disabled=true após validação
+     de step anterior) NUNCA são tocados — guarda célula a célula.
+     Uso ergonômico para eventos com cardinalidade alta (n>15):
+     marca tudo e o estudante desmarca os que não satisfazem.
+     Adição é puramente aditiva — preserva todo comportamento atual.
+     ──────────────────────────────────────────────────────────── */
+  const markAllOnClick = () => {
+    setEventsCheckboxes((prev) => {
+      const next: EventCheckboxes = { ...prev };
+      Object.keys(next).forEach((eventName) => {
+        const grid = next[eventName];
+        if (!grid?.[0]?.[0]) return;
+        // Pula evento inteiramente congelado (disabled na primeira célula).
+        if (grid[0][0].disabled) return;
+        next[eventName] = grid.map((row) =>
+          row.map((cell) => (cell.disabled ? cell : { ...cell, checked: true })),
+        );
+      });
+      return next;
+    });
+    playSound('/sounds/clear.mp3');
+    createAlert(
+      'Todas as células marcadas',
+      'Agora desmarque as células que NÃO satisfazem o evento.',
+      'info',
+      4000,
+    );
+  };
+
   const startGame = () => {
     setChallenge(0);
     setStep(0);
@@ -897,12 +929,18 @@ export const useTwoDicesHooks = () => {
   return {
     instructions,
     resetGameOnClick,
-    disabledClearButton, dicesChecksClearOnClick, 
-    disabledCheckButton, checkOnClick, 
-    disabledNextStepButton, goToNextStepOnClick, 
-    activeEvents, eventsCheckboxes, updateEventsCheckboxes,  
-    operationSelectInputs, probabilitiesTextInputs, 
+    disabledClearButton, dicesChecksClearOnClick,
+    disabledCheckButton, checkOnClick,
+    disabledNextStepButton, goToNextStepOnClick,
+    activeEvents, eventsCheckboxes, updateEventsCheckboxes,
+    operationSelectInputs, probabilitiesTextInputs,
     alerts, updateAlert, deleteAlerts,
-    modal, updateModal
+    modal, updateModal,
+    /** Marca todas as 36 células dos eventos ATIVOS do step atual.
+     *  Eventos congelados (disabled após validação) não são tocados.
+     *  Disponibilizado opcionalmente — TwoDicesGame só renderiza o botão
+     *  quando recebe a prop `enableMarkAll`. Seção introdutória do OVA
+     *  permanece inalterada (não passa a prop). */
+    markAllOnClick,
   };
 };

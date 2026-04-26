@@ -135,8 +135,32 @@ export function TwoDicesTable({
                     <TableDiceFace face={rowIndex + 1} size={32} color="green" />
                     :
 
-                    <div className="w-full flex justify-center items-center flex-wrap gap-x-xs gap-y-nano">
-                      {Object.keys(eventsCheckboxes).map((eventName) => {
+                    (() => {
+                      // ─── Pré-cálculo: topologia GLOBAL e visibilidade da célula ───
+                      // Topologia GLOBAL = ordem alfabética de TODAS as keys do estado
+                      // (não da célula atual). Isso reserva slot fixo para cada evento
+                      // em TODAS as células da tabela, garantindo alinhamento horizontal
+                      // e vertical estável (Lei de continuidade da Gestalt + consistência
+                      // espacial — NIELSEN, 1994). Ex.: em mark-D do Ex6, mesmo se A
+                      // está oculto numa célula, o slot de A permanece reservado e B
+                      // continua na col 2, D continua embaixo centralizado.
+                      const allEventNames = Object.keys(eventsCheckboxes);
+                      const sortedNames = [...allEventNames].sort((a, b) => a.localeCompare(b));
+                      const totalSlots = sortedNames.length;
+
+                      // Mapa nome → posição GLOBAL fixa no grid (estável entre células).
+                      const globalSlotIndex: Record<string, number> = {};
+                      sortedNames.forEach((name, idx) => { globalSlotIndex[name] = idx; });
+
+                      // Visibilidade desta célula específica (após hideIfUnchecked / mask).
+                      const visibleNames = sortedNames.filter((eventName) => {
+                        const isChecked = eventsCheckboxes[eventName][rowIndex][colIndex - 1].checked;
+                        if (visibilityMask?.[eventName]?.[rowIndex]?.[colIndex - 1] === false) return false;
+                        if (hideIfUnchecked?.includes(eventName) && !isChecked) return false;
+                        return true;
+                      });
+
+                      const renderEventLabel = (eventName: string) => {
                         const id = `checkbox-${eventName}-${rowIndex+1}-${colIndex}`;
                         const isChecked = eventsCheckboxes[eventName][rowIndex][colIndex-1].checked;
                         const isDisabled = eventsCheckboxes[eventName][rowIndex][colIndex-1].disabled as boolean;
@@ -145,35 +169,41 @@ export function TwoDicesTable({
                         const isBlinking = blinkLabel === eventName;
                         const hasCustomLook = !!(color || label);
 
-                        // Renderização customizada: cores por evento, rótulo React,
-                        // animação de piscada, ocultamento seletivo. Ativa quando
-                        // qualquer dessas props é passada.
+                        // Posicionamento no grid 2D (Venn) — slot GLOBAL FIXO por evento:
+                        //   slot 0 (1º alfabético, ex.: A) → linha 1, coluna 1
+                        //   slot 1 (2º alfabético, ex.: B) → linha 1, coluna 2
+                        //   slot 2 (3º alfabético, ex.: D) → linha 2, ocupa 2 colunas
+                        //   slot 3+ (patológico) → linhas seguintes, ocupa 2 colunas
+                        // Isso é APLICADO INDEPENDENTEMENTE de quantos eventos estão
+                        // visíveis na célula — mantém alinhamento entre células.
+                        const slot = globalSlotIndex[eventName];
+                        const useGridLayout = useCustomRendering && hasCustomLook && totalSlots >= 2;
+                        const gridStyle: React.CSSProperties = useGridLayout
+                          ? slot === 0
+                            ? { gridColumn: '1', gridRow: '1', justifySelf: 'center' }
+                            : slot === 1
+                            ? { gridColumn: '2', gridRow: '1', justifySelf: 'center' }
+                            : slot === 2
+                            ? { gridColumn: '1 / -1', gridRow: '2', justifySelf: 'center' }
+                            : { gridColumn: '1 / -1', gridRow: `${slot}`, justifySelf: 'center' }
+                          : {};
+
                         if (useCustomRendering && hasCustomLook) {
-                          // Máscara de visibilidade (prioritária): se false, oculta.
-                          if (visibilityMask?.[eventName]?.[rowIndex]?.[colIndex - 1] === false) {
-                            return null;
-                          }
-                          // Se a prop hideIfUnchecked inclui este evento E ele está
-                          // unchecked nesta célula, omite a renderização.
-                          if (hideIfUnchecked?.includes(eventName) && !isChecked) {
-                            return null;
-                          }
                           return (
                             <label
                               key={id}
                               htmlFor={id}
+                              onClick={(e) => { if (isDisabled) e.preventDefault(); }}
                               style={{
                                 display: 'inline-flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
                                 gap: 2,
-                                // Usa pointer-events: none (em vez de disabled) para
-                                // que o accent-color do check marcado seja preservado
-                                // (browsers acinzentam inputs disabled).
-                                pointerEvents: isDisabled ? 'none' : 'auto',
-                                cursor: isDisabled ? 'default' : 'pointer',
+                                pointerEvents: 'auto',
+                                cursor: isDisabled ? 'not-allowed' : 'pointer',
                                 animation: isBlinking ? 'twoDicesTableBlink 600ms ease-in-out 1' : undefined,
                                 userSelect: 'none',
+                                ...gridStyle,
                               }}
                             >
                               <span
@@ -190,42 +220,79 @@ export function TwoDicesTable({
                                 id={id}
                                 type="checkbox"
                                 checked={!!isChecked}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  if (isDisabled) return;
                                   updateEventsCheckboxes(
                                     eventName,
                                     rowIndex + 1,
                                     colIndex,
                                     e.target.checked,
                                     isDisabled,
-                                  )
-                                }
+                                  );
+                                }}
                                 style={{
                                   width: 16,
                                   height: 16,
                                   accentColor: color ?? undefined,
+                                  pointerEvents: isDisabled ? 'none' : 'auto',
+                                  cursor: isDisabled ? 'not-allowed' : 'pointer',
                                 }}
                               />
                             </label>
                           );
                         }
 
-                        // Fallback — Checkbox global (idêntico ao comportamento original).
+                        // Fallback — Checkbox global (sem cor custom).
                         return (
                           <Checkbox
                             key={id}
-                            checkbox={
-                              {
-                                label: eventName,
-                                id: id,
-                                checked: isChecked,
-                                disabled: isDisabled,
-                                onChange:(checked: boolean) => updateEventsCheckboxes(eventName, rowIndex+1, colIndex, checked, isDisabled),
-                              }
-                            }
+                            checkbox={{
+                              label: eventName,
+                              id,
+                              checked: isChecked,
+                              disabled: isDisabled,
+                              onChange: (checked: boolean) =>
+                                updateEventsCheckboxes(eventName, rowIndex + 1, colIndex, checked, isDisabled),
+                            }}
                           />
                         );
-                      })}
-                    </div> }
+                      };
+
+                      // Decide o wrapper conforme topologia GLOBAL (totalSlots) e layout custom:
+                      // - useCustomRendering + totalSlots >= 2 → grid 2D Venn (slots fixos por evento)
+                      //   • Reserva linha 2 com gridTemplateRows quando há 3+ slots, garantindo
+                      //     alinhamento vertical estável mesmo quando D está oculto na célula.
+                      // - Fallback (sem custom OU totalSlots <= 1) → flex centralizado.
+                      if (useCustomRendering && totalSlots >= 2) {
+                        const reserveRow2 = totalSlots >= 3;
+                        return (
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr 1fr',
+                              gridTemplateRows: reserveRow2 ? 'auto auto' : 'auto',
+                              rowGap: 4,
+                              columnGap: 8,
+                              width: '100%',
+                              justifyItems: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            {visibleNames.map((eventName) => renderEventLabel(eventName))}
+                          </div>
+                        );
+                      }
+
+                      // Caso fallback: 0 ou 1 evento total no estado, OU sem useCustomRendering.
+                      // Usa visibleNames (já filtrado por hideIfUnchecked + visibilityMask)
+                      // para não renderizar placeholders de eventos ocultos.
+                      return (
+                        <div className="w-full flex justify-center items-center flex-wrap gap-x-xs gap-y-nano">
+                          {visibleNames.map((eventName) => renderEventLabel(eventName))}
+                        </div>
+                      );
+                    })()
+                  }
                 </td>
                 })
               }
