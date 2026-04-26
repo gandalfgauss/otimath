@@ -1,0 +1,11 @@
+Exemplos:
+--- RECORDSEPARATOR ---
+1) Jogar um dado e observar o número da face que ficar para cima. O 
+--- RECORDSEPARATOR ---
+Espaço Amostral desse experimento seriam todas as possibilidades, ou 
+--- RECORDSEPARATOR ---
+seja:
+--- RECORDSEPARATOR ---
+ 
+--- RECORDSEPARATOR ---
+S={1,2,3,4,5,6}      número de possibilidades        n(S)=6

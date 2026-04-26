@@ -1,0 +1,11 @@
+A um evento impossível atribui-se probabilidade zero, enquanto que a um 
+--- RECORDSEPARATOR ---
+evento certo tem probabilidade 1,0. 
+--- RECORDSEPARATOR ---
+As probabilidades podem ser expressas por frações, decimais ou 
+--- RECORDSEPARATOR ---
+porcentagens. 
+--- RECORDSEPARATOR ---
+Por exemplo, a chance de ocorrência de um determinado evento pode ser 
+--- RECORDSEPARATOR ---
+expressa por 1/10; 0,1 ou ainda 10%.

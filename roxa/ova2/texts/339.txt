@@ -1,0 +1,5 @@
+Exemplos: 
+--- RECORDSEPARATOR ---
+No lançamento do dado, caso o resultado seja um número par, as opções 
+--- RECORDSEPARATOR ---
+seriam 2, 4 ou 6. 

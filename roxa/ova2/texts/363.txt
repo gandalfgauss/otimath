@@ -1,0 +1,25 @@
+A probabilidade da ocorrência de um evento E, formado por e Pontos 
+--- RECORDSEPARATOR ---
+Amostrais, é: 
+--- RECORDSEPARATOR ---
+E = {e
+--- RECORDSEPARATOR ---
+1
+--- RECORDSEPARATOR ---
+, e
+--- RECORDSEPARATOR ---
+2
+--- RECORDSEPARATOR ---
+, e
+--- RECORDSEPARATOR ---
+3
+--- RECORDSEPARATOR ---
+, ....., e
+--- RECORDSEPARATOR ---
+k
+--- RECORDSEPARATOR ---
+} 
+--- RECORDSEPARATOR ---
+Dada por: 
+--- RECORDSEPARATOR ---
+P(E) = 

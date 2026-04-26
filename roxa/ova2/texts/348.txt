@@ -1,0 +1,9 @@
+Assim, denotando por p a probabilidade de ocorrência de cada um dos 
+--- RECORDSEPARATOR ---
+Pontos Amostrais de S, temos que:
+--- RECORDSEPARATOR ---
+p + p + p + ... + p = 1          k . p = 1.
+--- RECORDSEPARATOR ---
+Por exemplo: 
+--- RECORDSEPARATOR ---
+Ao lançarmos o dado, a probabilidade da ocorrência de cada face é 1/6.

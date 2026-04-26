@@ -1,0 +1,3 @@
+Assim o evento, a ocorrência de um número par,  é o subconjunto 
+--- RECORDSEPARATOR ---
+E {2, 4, 6}, n(E) = 3 possibilidades.

@@ -1,0 +1,5 @@
+Um evento seria qualquer subconjunto de um espaço amostral S.
+--- RECORDSEPARATOR ---
+Ou seja, dentre os resultados possíveis que fazem parte do Espaço 
+--- RECORDSEPARATOR ---
+Amostral, existem os subconjuntos de eventos que podem ocorrer.

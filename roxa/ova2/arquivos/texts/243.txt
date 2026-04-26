@@ -1,0 +1,19 @@
+A probabilidade de um evento na certeza da ocorrência de um evento 
+--- RECORDSEPARATOR ---
+anterior.
+--- RECORDSEPARATOR ---
+EVENTO: (W) Retirar uma bola e registrar sua cor. Repor a bola na urna e 
+--- RECORDSEPARATOR ---
+realizar uma nova retirada: A probabilidade da cor da primeira retirada 
+--- RECORDSEPARATOR ---
+ser amarela e da segunda ser roxa.
+--- RECORDSEPARATOR ---
+                                            
+--- RECORDSEPARATOR ---
+            
+--- RECORDSEPARATOR ---
+A probabilidade de ocorrer um evento e sucessivamente o outro é dada 
+--- RECORDSEPARATOR ---
+por:
+--- RECORDSEPARATOR ---
+          P (A      R)  = 

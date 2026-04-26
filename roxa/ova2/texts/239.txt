@@ -1,0 +1,3 @@
+n(R)
+--- RECORDSEPARATOR ---
+n(S)

@@ -14,6 +14,7 @@ import type { UnionExercise1Handle } from './UnionExercise1';
 import type { UnionExercise2Handle } from './UnionExercise2';
 import type { UnionExercise3Handle } from './UnionExercise3';
 import type { UnionExercise4Handle } from './UnionExercise4';
+import type { UnionExercise5Handle } from './UnionExercise5';
 import type { DiceMachineSceneHandle } from './DiceMachineScene';
 import { TwoDicesPractice } from './TwoDicesPractice';
 import { TwoDicesExperiment, DEV_PHASE_ORDER, type DevExperimentPhase } from './TwoDicesExperiment';
@@ -205,6 +206,8 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   const unionExercise3Ref = useRef<UnionExercise3Handle>(null);
   // Ref para navegar pelos passos do UnionExercise4 (setinhas dev)
   const unionExercise4Ref = useRef<UnionExercise4Handle>(null);
+  // Ref para navegar pelos passos do UnionExercise5 (setinhas dev)
+  const unionExercise5Ref = useRef<UnionExercise5Handle>(null);
   const twoDiceContainerRef = useRef<HTMLDivElement>(null);
   // Cena 7: troca a cena de dois dados pela máquina (com dados brancos)
   // durante a fase colorQuestion. Controlado via callback do TwoDicesExperiment.
@@ -585,7 +588,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
 
       <Grid id="apresentacao-dado" paddings="pt-xl pb-huge">
         <GridItem cols="col-[1_/_13]">
-          <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && (scene7ExperimentPhase === 'complementaryEvents' || scene7ExperimentPhase === 'unionTheory' || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4') ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
+          <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && (scene7ExperimentPhase === 'complementaryEvents' || scene7ExperimentPhase === 'unionTheory' || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5') ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
 
             {/* ═══════ BOLINHAS DE NAVEGAÇÃO (verde=voltar, laranja=avançar) ═══════ */}
             <div style={{
@@ -603,7 +606,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   type="button"
                   onClick={() => {
                     if (transitioning) return;
-                    if (scene === 7 && scene7ExperimentPhase === 'unionExercise4' && unionExercise4Ref.current?.canBack()) {
+                    if (scene === 7 && scene7ExperimentPhase === 'unionExercise5' && unionExercise5Ref.current?.canBack()) {
+                      unionExercise5Ref.current.back();
+                    } else if (scene === 7 && scene7ExperimentPhase === 'unionExercise4' && unionExercise4Ref.current?.canBack()) {
                       unionExercise4Ref.current.back();
                     } else if (scene === 7 && scene7ExperimentPhase === 'unionExercise3' && unionExercise3Ref.current?.canBack()) {
                       unionExercise3Ref.current.back();
@@ -649,7 +654,9 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   type="button"
                   onClick={() => {
                     if (transitioning) return;
-                    if (scene === 7 && scene7ExperimentPhase === 'unionExercise4' && unionExercise4Ref.current?.canAdvance()) {
+                    if (scene === 7 && scene7ExperimentPhase === 'unionExercise5' && unionExercise5Ref.current?.canAdvance()) {
+                      unionExercise5Ref.current.advance();
+                    } else if (scene === 7 && scene7ExperimentPhase === 'unionExercise4' && unionExercise4Ref.current?.canAdvance()) {
                       unionExercise4Ref.current.advance();
                     } else if (scene === 7 && scene7ExperimentPhase === 'unionExercise3' && unionExercise3Ref.current?.canAdvance()) {
                       unionExercise3Ref.current.advance();
@@ -1263,6 +1270,7 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
                   unionExercise2Ref={unionExercise2Ref}
                   unionExercise3Ref={unionExercise3Ref}
                   unionExercise4Ref={unionExercise4Ref}
+                  unionExercise5Ref={unionExercise5Ref}
                   onMachineVisibilityChange={setScene7UsesMachine}
                   onHideAllDice={setScene7HideAllDice}
                   onPhaseChange={setScene7ExperimentPhase}

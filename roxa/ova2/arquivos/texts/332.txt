@@ -1,0 +1,3 @@
+O Espaço Amostral é o conjunto de todos os resultados possíveis de um 
+--- RECORDSEPARATOR ---
+experimento aleatório. Geralmente esse conjunto é indicado por U ou S.

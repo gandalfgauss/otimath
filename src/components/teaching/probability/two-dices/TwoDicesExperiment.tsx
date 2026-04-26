@@ -12,6 +12,7 @@ import { UnionExercise1, type UnionExercise1Handle } from './UnionExercise1';
 import { UnionExercise2, type UnionExercise2Handle } from './UnionExercise2';
 import { UnionExercise3, type UnionExercise3Handle } from './UnionExercise3';
 import { UnionExercise4, type UnionExercise4Handle } from './UnionExercise4';
+import { UnionExercise5, type UnionExercise5Handle } from './UnionExercise5';
 import { ComplementaryEventsActivity } from './ComplementaryEventsActivity';
 
 // ═══════ Faces do dado com pintas ═══════
@@ -310,6 +311,7 @@ type Phase =
   | 'unionExercise2'
   | 'unionExercise3'
   | 'unionExercise4'
+  | 'unionExercise5'
   | 'raceBet' | 'raceRunning' | 'raceFinished'
   | 'pairQuestion' | 'pairExplain' | 'colorQuestion' | 'colorExplain'
   | 'finished';
@@ -330,7 +332,7 @@ export const DEV_PHASE_ORDER: Phase[] = [
   'pairQuestion', 'pairExplain', 'colorQuestion', 'colorExplain',
   'complementaryEvents',
   'unionTheory',
-  'unionExercises', 'unionExercise2', 'unionExercise3', 'unionExercise4',
+  'unionExercises', 'unionExercise2', 'unionExercise3', 'unionExercise4', 'unionExercise5',
   'raceBet', 'raceRunning', 'raceFinished',
   'finished',
 ];
@@ -363,6 +365,8 @@ interface TwoDicesExperimentProps {
   unionExercise3Ref?: React.RefObject<UnionExercise3Handle | null>;
   /** Ref dev para navegar pelos passos do UnionExercise4 */
   unionExercise4Ref?: React.RefObject<UnionExercise4Handle | null>;
+  /** Ref dev para navegar pelos passos do UnionExercise5 */
+  unionExercise5Ref?: React.RefObject<UnionExercise5Handle | null>;
   /** DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS.
    *  Ref que recebe a função setPhase para controle externo via barra dev
    *  no TwoDicesPresentation. Null quando o componente desmonta. */
@@ -380,6 +384,7 @@ export function TwoDicesExperiment({
   unionExercise2Ref,
   unionExercise3Ref,
   unionExercise4Ref,
+  unionExercise5Ref,
   onMachineVisibilityChange,
   onHideAllDice,
   onFinished,
@@ -1242,6 +1247,7 @@ export function TwoDicesExperiment({
       phase === 'unionExercise2' ||
       phase === 'unionExercise3' ||
       phase === 'unionExercise4' ||
+      phase === 'unionExercise5' ||
       phase === 'raceFinished';
     onHideAllDice(shouldHide);
   }, [phase, onHideAllDice]);
@@ -1790,10 +1796,12 @@ export function TwoDicesExperiment({
 
   // ═══════ RENDER ═══════
   return (
-    <div className={`w-full ${phase === 'complementaryEvents' || phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
-      <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
-        Lançamento de dois dados
-      </h2>
+    <div className={`w-full ${phase === 'complementaryEvents' || phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' || phase === 'unionExercise5' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
+      {phase !== 'unionExercise5' && (
+        <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
+          Lançamento de dois dados
+        </h2>
+      )}
 
       {/* ═══════ INTRO — costura narrativa após a Cena 6 (máquina automática) ═══════
           Reordenamento didático: o aluno chega aqui já tendo observado o
@@ -3349,12 +3357,26 @@ export function TwoDicesExperiment({
             <UnionExercise4
               ref={unionExercise4Ref}
               onFinished={() => {
-                playSound('/sounds/gameFinished.mp3');
-                onFinished();
+                playSound('/sounds/challengeFinished.mp3');
+                setPhase('unionExercise5');
               }}
               onRequestPreviousPhase={() => {
                 setUnionExercise3InitialStep('done');
                 setPhase('unionExercise3');
+              }}
+            />
+          )}
+
+          {/* ═══════ EXERCÍCIO 5 — TABELA DE CONTINGÊNCIA (registro tabular cruzado) ═══════ */}
+          {phase === 'unionExercise5' && (
+            <UnionExercise5
+              ref={unionExercise5Ref}
+              onFinished={() => {
+                playSound('/sounds/gameFinished.mp3');
+                onFinished();
+              }}
+              onRequestPreviousPhase={() => {
+                setPhase('unionExercise4');
               }}
             />
           )}

@@ -1,0 +1,19 @@
+A probabilidade trabalha com experimentos aleatórios. Esses 
+--- RECORDSEPARATOR ---
+são os experimentos que, mesmo repetidos várias vezes e 
+--- RECORDSEPARATOR ---
+nas mesmas condições, geram resultados diferentes. Eles 
+--- RECORDSEPARATOR ---
+estão sujeitos à lei do acaso, assim os resultados não serão 
+--- RECORDSEPARATOR ---
+previsíveis, mesmo que haja um grande número de 
+--- RECORDSEPARATOR ---
+repetições do mesmo fenômeno.
+--- RECORDSEPARATOR ---
+Exemplos: lançamento de uma moeda, lançamento de um 
+--- RECORDSEPARATOR ---
+dado, determinação da vida útil de um componente 
+--- RECORDSEPARATOR ---
+eletrônico, previsão do tempo, sorteios, etc.
+--- RECORDSEPARATOR ---
+ 

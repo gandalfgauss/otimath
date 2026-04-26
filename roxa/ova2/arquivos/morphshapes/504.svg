@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns:ffdec="https://www.free-decompiler.com/flash" xmlns:xlink="http://www.w3.org/1999/xlink" ffdec:objectType="morphshape" height="270.7px" width="393.35px" xmlns="http://www.w3.org/2000/svg">
+  <g transform="matrix(1.0, 0.0, 0.0, 1.0, 196.65, 131.85)">
+    <path d="M-187.75 -100.9 L-187.75 107.9 Q-187.75 126.9 -172.05 127.35 L172.15 127.35 Q187.8 126.9 187.8 107.9 L187.8 -100.9 Q187.8 -119.9 172.15 -120.35 L-172.05 -120.35 Q-187.75 -119.9 -187.75 -100.9" fill="#eeeeee" fill-rule="evenodd" stroke="none">
+      <animate attributeName="fill" dur="2.0s" repeatCount="indefinite" values="#eeeeee;#eeeeef"/>
+      <animate attributeName="fill-opacity" dur="2.0s" repeatCount="indefinite" values="1.0;1.0"/>
+      <animate attributeName="d" dur="2.0s" repeatCount="indefinite" values="M-187.75 -100.9 L-187.75 107.9 Q-187.75 126.9 -172.05 127.35 L172.15 127.35 Q187.8 126.9 187.8 107.9 L187.8 -100.9 Q187.8 -119.9 172.15 -120.35 L-172.05 -120.35 Q-187.75 -119.9 -187.75 -100.9;M-183.0 -86.0 L-183.0 86.0 Q-183.0 101.65 -167.7 102.0 L167.75 102.0 Q183.0 101.65 183.0 86.0 L183.0 -86.0 Q183.0 -101.65 167.75 -102.0 L-167.7 -102.0 Q-183.0 -101.65 -183.0 -86.0"/>
+    </path>
+    <path d="M-191.65 -106.35 Q-191.65 -126.4 -175.65 -126.85 L175.75 -126.85 Q191.7 -126.4 191.7 -106.35 L191.7 113.35 Q191.7 133.45 175.75 133.85 L-175.65 133.85 Q-191.65 133.45 -191.65 113.35 L-191.65 -106.35 Q-191.65 -126.4 -175.65 -126.85 L175.75 -126.85 Q191.7 -126.4 191.7 -106.35 L191.7 113.35 Q191.7 133.45 175.75 133.85 L-175.65 133.85 Q-191.65 133.45 -191.65 113.35 L-191.65 -106.35" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.37254903" stroke-width="10.0">
+      <animate attributeName="stroke" dur="2.0s" repeatCount="indefinite" values="#000000;#000001"/>
+      <animate attributeName="stroke-width" dur="2.0s" repeatCount="indefinite" values="10.0;10.0"/>
+      <animate attributeName="fill-opacity" dur="2.0s" repeatCount="indefinite" values="0.37254903;0.37254903"/>
+      <animate attributeName="d" dur="2.0s" repeatCount="indefinite" values="M-191.65 -106.35 Q-191.65 -126.4 -175.65 -126.85 L175.75 -126.85 Q191.7 -126.4 191.7 -106.35 L191.7 113.35 Q191.7 133.45 175.75 133.85 L-175.65 133.85 Q-191.65 133.45 -191.65 113.35 L-191.65 -106.35 Q-191.65 -126.4 -175.65 -126.85 L175.75 -126.85 Q191.7 -126.4 191.7 -106.35 L191.7 113.35 Q191.7 133.45 175.75 133.85 L-175.65 133.85 Q-191.65 133.45 -191.65 113.35 L-191.65 -106.35;M-186.8 -90.5 Q-186.8 -107.0 -171.2 -107.35 L171.25 -107.35 Q186.8 -107.0 186.8 -90.5 L186.8 90.5 Q186.8 107.0 171.25 107.35 L-171.2 107.35 Q-186.8 107.0 -186.8 90.5 L-186.8 -90.5 Q-186.8 -107.0 -171.2 -107.35 L171.25 -107.35 Q186.8 -107.0 186.8 -90.5 L186.8 90.5 Q186.8 107.0 171.25 107.35 L-171.2 107.35 Q-186.8 107.0 -186.8 90.5 L-186.8 -90.5"/>
+    </path>
+    <path d="M-187.75 -100.9 Q-187.75 -119.9 -172.05 -120.35 L172.15 -120.35 Q187.8 -119.9 187.8 -100.9 L187.8 107.9 Q187.8 126.9 172.15 127.35 L-172.05 127.35 Q-187.75 126.9 -187.75 107.9 L-187.75 -100.9 Z" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.0" stroke-width="0.0">
+      <animate attributeName="stroke" dur="2.0s" repeatCount="indefinite" values="#000000;#000001"/>
+      <animate attributeName="stroke-width" dur="2.0s" repeatCount="indefinite" values="0.0;0.0"/>
+      <animate attributeName="fill-opacity" dur="2.0s" repeatCount="indefinite" values="0.0;0.0"/>
+      <animate attributeName="d" dur="2.0s" repeatCount="indefinite" values="M-187.75 -100.9 Q-187.75 -119.9 -172.05 -120.35 L172.15 -120.35 Q187.8 -119.9 187.8 -100.9 L187.8 107.9 Q187.8 126.9 172.15 127.35 L-172.05 127.35 Q-187.75 126.9 -187.75 107.9 L-187.75 -100.9 Z;M-183.0 -86.0 Q-183.0 -101.65 -167.7 -102.0 L167.75 -102.0 Q183.0 -101.65 183.0 -86.0 L183.0 86.0 Q183.0 101.65 167.75 102.0 L-167.7 102.0 Q-183.0 101.65 -183.0 86.0 L-183.0 -86.0 Z"/>
+    </path>
+  </g>
+</svg>

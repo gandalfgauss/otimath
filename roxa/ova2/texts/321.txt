@@ -1,0 +1,3 @@
+ser bola roxa
+--- RECORDSEPARATOR ---
+número de bolas na urna

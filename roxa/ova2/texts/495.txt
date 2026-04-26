@@ -1,0 +1,7 @@
+Lessi
+--- RECORDSEPARATOR ---
+Programmer
+--- RECORDSEPARATOR ---
+Game Designer
+--- RECORDSEPARATOR ---
+Concept Designer

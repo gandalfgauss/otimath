@@ -1,0 +1,7 @@
+EVENTO: (Z) Ao retirar um bola e esta ser de cor roxa, a probabilidade de 
+--- RECORDSEPARATOR ---
+ser de número 1
+--- RECORDSEPARATOR ---
+Primeiro Evento: ser de cor roxa -> p(R)
+--- RECORDSEPARATOR ---
+Segundo Evento: ser número 1 -> p(n1)
