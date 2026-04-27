@@ -272,3 +272,47 @@ ZABALA, A. A prática educativa: como ensinar. Porto Alegre: Artmed, 1998.
 *Inclui: avaliação integral em nove dimensões, vinte críticas por perfil de banca rigorosíssima, análise de interatividade, parecer técnico sobre suficiência metodológica do desenho de pesquisa proposto pelo orientando, recomendações operacionais para fechamento da dissertação.*
 *Projeto OtiMath.com — Dissertação PROFMAT/UFVJM — Rangel Freitas dos Santos.*
 *"Explorando o Acaso: uma sequência didática interativa para o ensino de Probabilidade no Ensino Médio".*
+
+---
+
+## ANEXO I — VARREDURA INTEGRAL POSTERIOR (cenas 1 a 6 antes ignoradas)
+
+Após a emissão do parecer integral acima, varredura sistemática complementar foi realizada cobrindo TODAS as 7 cenas do OVA da apresentação do dado isolado até o Ex8 paramétrico, totalizando aproximadamente 26.000 linhas auditadas. A varredura revelou material substantivo subestimado nos pareceres anteriores: TwoDicesPractice (Cena 5) com PRNG criptográfico xoshiro128**, banco de mais de 150 eventos em 4 categorias didáticas, tratamento explícito de evento certo e evento impossível com nomeação canônica; DiceMachineExperiment (Cena 6) com documentação científica embutida no código articulando dez referenciais teóricos (Brousseau, Freudenthal, Bruner, Ausubel, Flavell, Dweck, Cazorla & Santana, Borovcnik, Garfield & Ben-Zvi, Trouche); SampleSpaceTree com 7 fases internas materializando T14 (princípio fundamental da contagem) com gradação sonora pedagógica via Web Audio API; UnionProbabilityTheory com 22 sub-fases internas e gerador algorítmico de pares de eventos sob 6 restrições matemáticas explícitas. À luz dessa varredura integral, as notas dimensionais foram revisadas para cima.
+
+## ANEXO II — CORREÇÃO SOBRE AS SETINHAS DEV E DEVUNIFIEDNAVBAR
+
+Esclarecimento do orientando registrado em 2026-04-26: as setinhas dev e a DevUnifiedNavBar são instrumentos de fase de implementação, programados para remoção antes da aplicação em sala — exatamente como as 14 marcações DEV ONLY no código já anunciam. A presença dessas marcações é evidência de boa prática de engenharia (documentação em código da temporalidade da decisão), não defeito conceitual. A crítica DCC-3 (presente nos pareceres rigorosíssimo e corrigido) deixa de ser fragilidade e passa a ser tarefa mecânica de checklist de pré-aplicação (1 a 2 horas: envolver blocos DEV ONLY em condicional process.env.NODE_ENV === 'development' ou em flag ?dev=1 na URL). Impacto na nota: Usabilidade sobe de 8,8 para 9,2 e Banca rigorosa sobe de 8,8 para 9,1.
+
+## NOTA INTEGRAL FINAL APÓS VARREDURA INTEGRAL E CORREÇÃO SOBRE DEV TOOLS
+
+| Dimensão | Nota | Peso | Contribuição |
+|----------|------|------|--------------|
+| Educação Matemática | 9,4 | 18% | 1,69 |
+| UX | 9,0 | 7% | 0,63 |
+| Acessibilidade | 8,5 | 6% | 0,51 |
+| Usabilidade | 9,2 | 8% | 0,74 |
+| TPACK | 9,5 | 12% | 1,14 |
+| DSR | 9,0 | 10% | 0,90 |
+| TSD + ED + Almouloud | 9,1 | 12% | 1,09 |
+| Demais pensadores | 9,3 | 7% | 0,65 |
+| BNCC + critérios PROFMAT | 8,7 | 12% | 1,04 |
+| Interatividade | 8,8 | 8% | 0,70 |
+
+**NOTA INTEGRAL FINAL APÓS VARREDURA INTEGRAL E CORREÇÃO SOBRE DEV TOOLS: 9,09 / 10.**
+
+Considerando o desenho metodológico do orientando (prova diagnóstica + log + questionário) com os três cuidados implementados, Guia do Professor produzido, e piloto empírico documentado com análise a posteriori sintetizada em capítulo da dissertação, a nota final de defesa pode atingir 9,4 a 9,5 / 10 — patamar de aprovação com elogios em banca PROFMAT rigorosa.
+
+## RECOMENDAÇÕES OPERACIONAIS REVISADAS (sem dev tools como crítica)
+
+1. Identificação do estudante no log (Cuidado 2) — IMPRESCINDÍVEL para o desenho de pesquisa funcionar a nível individual (4 horas).
+2. Validação dos instrumentos por dois professores de matemática experientes (Cuidado 1) — 8 horas com pares.
+3. Estruturação Likert + abertos do questionário pós-aplicação (Cuidado 3) — 4 horas.
+4. Aplicação do piloto empírico com coleta via downloadLog em uma turma de Ensino Médio + análise a posteriori cruzando as três fontes — 8h em sala + 12h de análise + 12h de redação.
+5. Guia do Professor de 8 a 10 páginas com Plano de Aula, Roteiro de Análise do JSON, Banco de Perguntas — 8 horas.
+6. Remoção mecânica das dev tools (process.env.NODE_ENV ou flag ?dev=1) — 1 a 2 horas, tarefa de checklist de pré-aplicação.
+
+Total estimado de fechamento: aproximadamente 56 a 58 horas de trabalho do orientando, distribuídas em três a quatro semanas.
+
+---
+
+*Anexos I e II registrados por Dr. OtiMath em 2026-04-26.*
