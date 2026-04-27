@@ -184,6 +184,19 @@ export const VERBETES: readonly Verbete[] = [
 
 export type Ex6StepKind = 'mark-A' | 'mark-B' | 'mark-D' | 'identify-operation' | 'compute-probability';
 
+/* ───────────────────────────────────────────────────────────────────
+   Ex8AdvancedStepKind — superconjunto de Ex6StepKind, usado pelo Ex8
+   (Fixação avançada). Inclui o step 'compute-probability-and-complementary'
+   que aparece nos dois desafios simples do Ex8 (P(A) + P(Ā)). Os verbetes
+   sugeridos e a mensagem usam os mesmos princípios pedagógicos (relevância
+   contextual — MAYER, 2014, p. 280) com inserção do verbete "complementar".
+   Ex8 também opera com Operation ∈ { Union, Intersection, Difference,
+   ReverseDifference } — tipo `AdvancedOperation` cobre as quatro.
+   ─────────────────────────────────────────────────────────────────── */
+
+export type Ex8AdvancedStepKind = Ex6StepKind | 'compute-probability-and-complementary';
+export type AdvancedOperation = 'Union' | 'Intersection' | 'Difference' | 'ReverseDifference';
+
 export function getSuggestedVerbetes(
   step: Ex6StepKind,
   operation: 'Union' | 'Intersection',
@@ -222,5 +235,79 @@ export function getFeedbackMessage(
       return 'Identifique a operação observando como D se relaciona com A e B. Clique no botão Ajuda e estude os verbetes sobre operações entre eventos.';
     case 'compute-probability':
       return 'P(D) = n(D) / n(S), onde S é o espaço amostral. Conte as células marcadas em D e divida pelo total de pares do espaço amostral (S tem 36 pares). Frações equivalentes são aceitas (ex.: 11/18 = 22/36). Clique no botão Ajuda e estude os verbetes sobre operações com eventos e cálculo de probabilidade.';
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────
+   getSuggestedVerbetesAdvanced — versão para o Ex8 (Fixação avançada).
+   Cobre as quatro operações (Union, Intersection, Difference,
+   ReverseDifference) e o step extra compute-probability-and-complementary.
+   Quando a operação é Difference ou ReverseDifference, o verbete sugerido
+   inclui "diferenca". Quando o step é compute-probability-and-complementary
+   (apenas nos desafios simples do Ex8), sugere "complementar" + "equiprovavel".
+   ─────────────────────────────────────────────────────────────────── */
+
+export function getSuggestedVerbetesAdvanced(
+  step: Ex8AdvancedStepKind,
+  operation: AdvancedOperation,
+): readonly VerbeteId[] {
+  if (step === 'compute-probability-and-complementary') {
+    return ['equiprovavel', 'complementar'];
+  }
+  switch (step) {
+    case 'mark-A':
+    case 'mark-B':
+      return ['equiprovavel'];
+    case 'mark-D':
+      switch (operation) {
+        case 'Union':              return ['uniao'];
+        case 'Intersection':       return ['intersecao'];
+        case 'Difference':
+        case 'ReverseDifference':  return ['diferenca', 'intersecao'];
+      }
+    case 'identify-operation':
+      switch (operation) {
+        case 'Union':              return ['uniao', 'diferenca'];
+        case 'Intersection':       return ['intersecao', 'diferenca'];
+        case 'Difference':
+        case 'ReverseDifference':  return ['diferenca', 'intersecao', 'complementar'];
+      }
+    case 'compute-probability':
+      switch (operation) {
+        case 'Union':              return ['equiprovavel', 'cardinalidade-uniao', 'probabilidade-uniao'];
+        case 'Intersection':       return ['equiprovavel', 'intersecao'];
+        case 'Difference':
+        case 'ReverseDifference':  return ['equiprovavel', 'diferenca', 'complementar'];
+      }
+  }
+}
+
+export function getFeedbackMessageAdvanced(
+  step: Ex8AdvancedStepKind,
+  operation: AdvancedOperation,
+): string {
+  if (step === 'compute-probability-and-complementary') {
+    return 'Calcule P(A) = n(A)/n(S) e P(Ā) = 1 − P(A) = (n(S) − n(A))/n(S). Use n(S) = 36 (espaço amostral). Frações equivalentes são aceitas. Clique em Ajuda e estude "Evento Complementar" e "Probabilidade em espaço amostral equiprovável".';
+  }
+  switch (step) {
+    case 'mark-A':
+      return 'Releia a definição do Evento A no Quadro de Eventos. Para cada par (verde, azul) da tabela 6×6, pergunte: o predicado de A é verdadeiro? Marque apenas onde for. O Evento B só aparecerá depois que A estiver correto. Clique no botão Ajuda.';
+    case 'mark-B':
+      return 'O Evento A já está congelado em azul nas células corretas — use como referência. Agora foque apenas no Evento B: releia sua definição no Quadro de Eventos e marque as células onde o predicado de B é verdadeiro.';
+    case 'mark-D':
+      switch (operation) {
+        case 'Union':
+          return 'A operação é UNIÃO (∪): marque as células que pertencem a A OU a B (ou às duas). Clique em Ajuda e estude "União".';
+        case 'Intersection':
+          return 'A operação é INTERSEÇÃO (∩): marque apenas as células que pertencem a A E a B simultaneamente. Clique em Ajuda e estude "Interseção".';
+        case 'Difference':
+          return 'A operação é DIFERENÇA (A − B): marque as células que pertencem a A MAS NÃO a B. Equivalente a A ∩ B̄. Clique em Ajuda e estude "Diferença".';
+        case 'ReverseDifference':
+          return 'A operação é DIFERENÇA INVERSA (B − A): marque as células que pertencem a B MAS NÃO a A. Equivalente a B ∩ Ā. Clique em Ajuda e estude "Diferença".';
+      }
+    case 'identify-operation':
+      return 'Identifique a operação observando como D se relaciona com A e B. Clique em Ajuda e estude os verbetes sobre operações entre eventos.';
+    case 'compute-probability':
+      return 'P(D) = n(D) / n(S), onde S é o espaço amostral (n(S) = 36). Conte as células marcadas em D e divida por 36. Frações equivalentes são aceitas (ex.: 11/18 = 22/36). Clique em Ajuda para revisar a fórmula adequada à operação.';
   }
 }

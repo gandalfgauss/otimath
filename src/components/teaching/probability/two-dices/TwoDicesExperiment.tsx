@@ -15,7 +15,18 @@ import { UnionExercise4, type UnionExercise4Handle } from './UnionExercise4';
 import { UnionExercise5, type UnionExercise5Handle } from './UnionExercise5';
 import { UnionExercise6Review, type UnionExercise6Handle } from './UnionExercise6Review';
 import { TwoDicesGame } from './TwoDicesGame';
+import { TwoDicesGameAdvanced } from './TwoDicesGameAdvanced';
 import { ComplementaryEventsActivity } from './ComplementaryEventsActivity';
+import {
+  TwoDicesClosingScreen,
+  TwoDicesProgressOverlay,
+} from './TwoDicesClosingScreen';
+import { History } from 'lucide-react';
+import {
+  logTransition,
+  logBet,
+  logSpinResult,
+} from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
 
 // ═══════ Faces do dado com pintas ═══════
 const PIP_PATTERNS: Record<number, number[]> = {
@@ -316,8 +327,10 @@ type Phase =
   | 'unionExercise5'
   | 'unionExercise6'
   | 'twoDicesGameFree'
+  | 'unionExercise8'
   | 'raceBet' | 'raceRunning' | 'raceFinished'
   | 'pairQuestion' | 'pairExplain' | 'colorQuestion' | 'colorExplain'
+  | 'closing'
   | 'finished';
 
 const TOTAL_ROUNDS = 3;
@@ -339,7 +352,9 @@ export const DEV_PHASE_ORDER: Phase[] = [
   'unionExercises', 'unionExercise2', 'unionExercise3', 'unionExercise4', 'unionExercise5',
   'unionExercise6',
   'twoDicesGameFree',
+  'unionExercise8',
   'raceBet', 'raceRunning', 'raceFinished',
+  'closing',
   'finished',
 ];
 export type { Phase as DevExperimentPhase };
@@ -1091,6 +1106,7 @@ export function TwoDicesExperiment({
     }
     setRaceBet(carNumber);
     setRaceImpossibleConfirm(null);
+    logBet('raceBet', '0', carNumber);
     playSound('/sounds/correct.mp3');
   };
 
@@ -1098,6 +1114,7 @@ export function TwoDicesExperiment({
   const confirmImpossibleBet = () => {
     if (raceImpossibleConfirm !== null) {
       setRaceBet(raceImpossibleConfirm);
+      logBet('raceBet', '0', raceImpossibleConfirm);
       setRaceImpossibleConfirm(null);
       playSound('/sounds/nextChallenge.mp3');
     }
@@ -1131,6 +1148,7 @@ export function TwoDicesExperiment({
       const sum = result.green + result.blue;
       setRacePendingSum(sum);
       setRaceClickError(false);
+      logSpinResult('raceRunning', '0', `green=${result.green},blue=${result.blue},sum=${sum}`);
       // 300ms depois dos dados pararem, ancora para baixo (pista de carrinhos)
       setTimeout(() => {
         cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1259,6 +1277,8 @@ export function TwoDicesExperiment({
       phase === 'unionExercise5' ||
       phase === 'unionExercise6' ||
       phase === 'twoDicesGameFree' ||
+      phase === 'unionExercise8' ||
+      phase === 'closing' ||
       phase === 'raceFinished';
     onHideAllDice(shouldHide);
   }, [phase, onHideAllDice]);
@@ -1266,6 +1286,16 @@ export function TwoDicesExperiment({
   useEffect(() => {
     onPhaseChange?.(phase);
   }, [phase, onPhaseChange]);
+
+  // Log de transição de phase — instrumentação invisível para análise
+  // a posteriori. Cada mudança de phase do Experiment vira um entry de
+  // tipo 'transition' no log. Mantém referência da phase anterior via
+  // ref para popular `from`.
+  const prevPhaseRef = useRef<Phase | null>(null);
+  useEffect(() => {
+    logTransition(phase, '0', prevPhaseRef.current ?? undefined);
+    prevPhaseRef.current = phase;
+  }, [phase]);
 
   // ── Sorteio do par (x,y) quando entra na fase probPair ──
   // Par numérico dinâmico: x,y ∈ {1..6}, sorteado a cada entrada na fase.
@@ -1806,9 +1836,32 @@ export function TwoDicesExperiment({
   };
 
   // ═══════ RENDER ═══════
+  /* Painel de Histórico ao Vivo — visibilidade do estado do sistema
+     (NIELSEN, 1994, h. 1). Botão sutil no canto sup. dir. abre overlay
+     com a posição atual do estudante no percurso completo do OVA. */
+  const [progressOverlayOpen, setProgressOverlayOpen] = useState(false);
+
   return (
-    <div className={`w-full ${phase === 'complementaryEvents' || phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' || phase === 'unionExercise5' || phase === 'unionExercise6' || phase === 'twoDicesGameFree' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
-      {phase !== 'unionExercise5' && phase !== 'unionExercise6' && phase !== 'twoDicesGameFree' && (
+    <div className={`w-full ${phase === 'complementaryEvents' || phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' || phase === 'unionExercise5' || phase === 'unionExercise6' || phase === 'twoDicesGameFree' || phase === 'unionExercise8' || phase === 'closing' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
+      {/* Botão do Painel de Histórico ao Vivo — discreto, sempre visível,
+          permite consulta a qualquer momento sem interromper o fluxo. */}
+      <div className="flex justify-end mb-quarck">
+        <Button
+          style="borderless"
+          size="extra-small"
+          icon={<History />}
+          onClick={() => setProgressOverlayOpen(true)}
+          ariaLabel="Abrir painel: Onde você está no OVA"
+        >
+          Onde estou
+        </Button>
+      </div>
+      <TwoDicesProgressOverlay
+        open={progressOverlayOpen}
+        onClose={() => setProgressOverlayOpen(false)}
+        currentPhaseId={phase}
+      />
+      {phase !== 'unionExercise5' && phase !== 'unionExercise6' && phase !== 'twoDicesGameFree' && phase !== 'unionExercise8' && phase !== 'closing' && (
         <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
           Lançamento de dois dados
         </h2>
@@ -3400,11 +3453,15 @@ export function TwoDicesExperiment({
               ref={unionExercise6Ref}
               onFinished={() => {
                 playSound('/sounds/gameFinished.mp3');
-                onFinished();
+                setPhase('closing');
               }}
               onRequestFreePlay={() => {
                 playSound('/sounds/nextChallenge.mp3');
                 setPhase('twoDicesGameFree');
+              }}
+              onRequestAdvancedFreePlay={() => {
+                playSound('/sounds/nextChallenge.mp3');
+                setPhase('unionExercise8');
               }}
               onRequestPreviousPhase={() => {
                 setPhase('unionExercise5');
@@ -3420,7 +3477,7 @@ export function TwoDicesExperiment({
             <div className="flex flex-col gap-y-xxs">
               <div className="flex justify-between items-center gap-x-micro flex-wrap">
                 <h3 className="ds-heading-large text-brand-otimath-darker">
-                  Exercícios de Fixação (Opcional)
+                  Exercício 7 — Fixação básica (Opcional)
                 </h3>
                 <Button
                   style="primary"
@@ -3438,6 +3495,38 @@ export function TwoDicesExperiment({
                 sorteados em 7 desafios. Você pode finalizar o OVA quando quiser.
               </p>
               <TwoDicesGame enableMarkAll />
+            </div>
+          )}
+
+          {/* ═══════ EXERCÍCIO 8 (OPCIONAL) — JOGO LIVRE PARAMETRIZADO ═══════
+               Pool ampliado (~50 eventos parametrizados via famílias),
+               restrições matemáticas R1–R4, progressão de dificuldade,
+               balanceamento por família, marcação sequencial A → B → D
+               (Opção i) e StudyMenu integrado. Coexiste com Ex7 (Leitura β):
+               Ex7 e Ex8 são duas vias opcionais distintas pós-Ex6. */}
+          {phase === 'unionExercise8' && (
+            <div className="flex flex-col gap-y-xxs">
+              <div className="flex justify-between items-center gap-x-micro flex-wrap">
+                <h3 className="ds-heading-large text-brand-otimath-darker">
+                  Exercício 8 — Fixação avançada (Opcional)
+                </h3>
+                <Button
+                  style="primary"
+                  size="small"
+                  onClick={() => {
+                    playSound('/sounds/gameFinished.mp3');
+                    onFinished();
+                  }}
+                >
+                  Finalizar OVA
+                </Button>
+              </div>
+              <p className="ds-small text-neutral-dark italic">
+                Pool ampliado de eventos parametrizados (~50), com progressão
+                de dificuldade, balanceamento por família e marcação sequencial
+                A → B → D nos compostos. Você pode finalizar o OVA quando quiser.
+              </p>
+              <TwoDicesGameAdvanced />
             </div>
           )}
 
@@ -3657,6 +3746,18 @@ export function TwoDicesExperiment({
             </Button>
           </div>
         </div>
+      )}
+
+      {/* ═══════ TELA DE FECHAMENTO REFLEXIVA ═══════
+           Apresenta espelho metacognitivo do percurso após Finalizar OVA
+           (vieses cognitivos detectados, dificuldades, desempenho por
+           exercício com habilidades operacionais e BNCC, transição para
+           o próximo OVA). Render delegado ao TwoDicesClosingScreen. */}
+      {phase === 'closing' && (
+        <TwoDicesClosingScreen
+          onRestart={() => setPhase('intro')}
+          onConclude={onFinished}
+        />
       )}
 
       {/* ═══════ FINALIZAÇÃO ═══════ */}

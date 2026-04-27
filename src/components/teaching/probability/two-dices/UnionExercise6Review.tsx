@@ -47,6 +47,7 @@ import {
 } from './shared/studyMenuContent';
 import type { SingleShotStepKind } from '@/hooks/teaching/probability/two-dices/useTwoDicesSingleShotHooks';
 import { playSound } from '@/hooks/global/useSound';
+import { logStudyMenuOpened } from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
 import { BookOpen } from 'lucide-react';
 
 type Step = 'intro' | 'round1' | 'transition' | 'round2' | 'finalSynthesis';
@@ -55,10 +56,14 @@ const STEP_SEQUENCE: Step[] = ['intro', 'round1', 'transition', 'round2', 'final
 
 interface UnionExercise6Props {
   onFinished: () => void;
-  /** Disparado quando o estudante escolhe "Continuar treinando" no painel
-   *  final — leva ao Ex7 opcional (TwoDicesGame completo). Se ausente, o
-   *  botão de continuar treinando não é exibido. */
+  /** Disparado quando o estudante escolhe "Ex7 — Fixação básica" no painel
+   *  final — leva ao Ex7 opcional (TwoDicesGame completo, 12 eventos fixos).
+   *  Se ausente, o botão de Ex7 não é exibido. */
   onRequestFreePlay?: () => void;
+  /** Disparado quando o estudante escolhe "Ex8 — Fixação avançada" no painel
+   *  final — leva ao Ex8 opcional (TwoDicesGameAdvanced, ~50 eventos
+   *  parametrizados, marcação A→B→D). Se ausente, o botão de Ex8 não é exibido. */
+  onRequestAdvancedFreePlay?: () => void;
   onRequestPreviousPhase?: () => void;
   initialStep?: Step;
 }
@@ -79,7 +84,7 @@ interface RoundOutcome {
 
 export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExercise6Props>(
   function UnionExercise6Review(
-    { onFinished, onRequestFreePlay, onRequestPreviousPhase, initialStep = 'intro' },
+    { onFinished, onRequestFreePlay, onRequestAdvancedFreePlay, onRequestPreviousPhase, initialStep = 'intro' },
     ref,
   ) {
     const [step, setStep] = useState<Step>(initialStep);
@@ -199,7 +204,10 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
           style="secondary"
           size="extra-small"
           icon={<BookOpen />}
-          onClick={() => setStudyMenuOpen(true)}
+          onClick={() => {
+            logStudyMenuOpened('unionExercise6', step, initialVerbeteId, lastErrorStep ?? undefined);
+            setStudyMenuOpen(true);
+          }}
           ariaLabel="Abrir Menu de Revisão"
           additionalStyles={pulseHelp ? 'animate-pulse ring-2 ring-feedback-warning-darkest' : ''}
         >
@@ -299,17 +307,25 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
               Parabéns! Você concluiu o OVA Probabilidade Dois Dados
             </h2>
             <TextBlock
-              paragraph={`<p class="ds-body">Os conceitos centrais — <strong>espaço amostral 6×6 equiprovável</strong>, <strong>eventos compostos</strong> por união e interseção, e <strong>cálculo de P(D) = n(D)/36</strong> — foram exercitados.</p><p class="ds-body">Resumo:</p><ul class="ds-body" style="text-align:left; max-width:560px; margin: 0 auto; padding-left: 24px;"><li>Rodada 1 (${session[0].operation === 'Union' ? 'União' : 'Interseção'}): ${round1Outcome.errorsCount === 0 ? 'sem erros' : `${round1Outcome.errorsCount} ${round1Outcome.errorsCount === 1 ? 'erro' : 'erros'} antes do acerto`}.</li><li>Rodada 2 (${session[1].operation === 'Union' ? 'União' : 'Interseção'}): ${round2Outcome.errorsCount === 0 ? 'sem erros' : `${round2Outcome.errorsCount} ${round2Outcome.errorsCount === 1 ? 'erro' : 'erros'} antes do acerto`}.</li></ul><p class="ds-body">Você pode <strong>finalizar o OVA agora</strong> ou seguir para os <strong>Exercícios de Fixação (opcionais)</strong> — uma rodada livre do jogo completo dos dois dados, com 12 eventos sorteados em 7 desafios. Use a fixação para consolidar o que aprendeu antes de fechar.</p>`}
+              paragraph={`<p class="ds-body">Os conceitos centrais — <strong>espaço amostral 6×6 equiprovável</strong>, <strong>eventos compostos</strong> por união e interseção, e <strong>cálculo de P(D) = n(D)/36</strong> — foram exercitados.</p><p class="ds-body">Resumo:</p><ul class="ds-body" style="text-align:left; max-width:560px; margin: 0 auto; padding-left: 24px;"><li>Rodada 1 (${session[0].operation === 'Union' ? 'União' : 'Interseção'}): ${round1Outcome.errorsCount === 0 ? 'sem erros' : `${round1Outcome.errorsCount} ${round1Outcome.errorsCount === 1 ? 'erro' : 'erros'} antes do acerto`}.</li><li>Rodada 2 (${session[1].operation === 'Union' ? 'União' : 'Interseção'}): ${round2Outcome.errorsCount === 0 ? 'sem erros' : `${round2Outcome.errorsCount} ${round2Outcome.errorsCount === 1 ? 'erro' : 'erros'} antes do acerto`}.</li></ul><p class="ds-body">Você pode <strong>finalizar o OVA agora</strong> ou seguir para uma das duas vias opcionais de Fixação: o <strong>Ex7 — Fixação básica</strong> (jogo completo com 12 eventos fixos) ou o <strong>Ex8 — Fixação avançada</strong> (pool ampliado de ~50 eventos parametrizados, com progressão de dificuldade e marcação sequencial A → B → D). Use a fixação para consolidar o que aprendeu antes de fechar.</p>`}
               maxWidthParagraph="max-w-[700px]"
               centralize={true}
             />
             <div className="flex gap-x-micro flex-wrap justify-center">
-              <Button style="borderless" size="small" onClick={() => setStudyMenuOpen(true)}>
+              <Button style="borderless" size="small" onClick={() => {
+                logStudyMenuOpened('unionExercise6', step, initialVerbeteId);
+                setStudyMenuOpen(true);
+              }}>
                 Revisar conceitos
               </Button>
               {onRequestFreePlay && (
                 <Button style="secondary" size="small" onClick={onRequestFreePlay}>
-                  Exercícios de Fixação — Continuar praticando (Opcional)
+                  Ex7 — Fixação básica (Opcional)
+                </Button>
+              )}
+              {onRequestAdvancedFreePlay && (
+                <Button style="secondary" size="small" onClick={onRequestAdvancedFreePlay}>
+                  Ex8 — Fixação avançada (Opcional)
                 </Button>
               )}
               <Button style="primary" size="medium" onClick={onFinished}>

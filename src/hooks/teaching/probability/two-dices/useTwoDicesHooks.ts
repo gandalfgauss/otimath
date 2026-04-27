@@ -7,6 +7,7 @@ import { useState, useEffect} from 'react';
 import { useAlerts } from '@/hooks/global/useAlerts';
 import { useModal } from '@/hooks/global/useModal';
 import { playSound } from '@/hooks/global/useSound';
+import { logAttempt, logMarkAllUsed } from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
 
 export interface EventCheckboxes {
   [eventName: string]: CheckboxInterface[][];
@@ -803,7 +804,16 @@ export const useTwoDicesHooks = () => {
   }
 
   const checkOnClick = () => {
-    if(checkSolution()) {
+    const ok = checkSolution();
+    // Instrumentação de log — `stepKind` = checkType para o Ex7/cena 1.
+    // Atende o requisito REQ-3 do framework DSR (validação longitudinal).
+    logAttempt(
+      'twoDicesGame',
+      `c${challenge}-s${step}`,
+      !!ok,
+      getCheckTypeByChallengeAndStep(challenge, step),
+    );
+    if(ok) {
       if(isGameOver()) {
         createAlert("Parabéns!", "Você acertou! Parabéns por finalizar todos os desafios!", "success", 5000);
         playSound("/sounds/gameFinished.mp3");
@@ -891,6 +901,9 @@ export const useTwoDicesHooks = () => {
      Adição é puramente aditiva — preserva todo comportamento atual.
      ──────────────────────────────────────────────────────────── */
   const markAllOnClick = () => {
+    // Loga — registra que o botão foi acionado nesta sub-fase.
+    // Como o Ex7 não diferencia A/B/D explicitamente nos steps, marca 'all'.
+    logMarkAllUsed('twoDicesGame', `c${challenge}-s${step}`, 'all');
     setEventsCheckboxes((prev) => {
       const next: EventCheckboxes = { ...prev };
       Object.keys(next).forEach((eventName) => {

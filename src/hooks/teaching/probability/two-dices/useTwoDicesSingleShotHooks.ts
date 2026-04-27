@@ -40,6 +40,7 @@ import type { TextInputInterface } from '@/components/global/TextInput';
 import type { SelectInputInterface } from '@/components/global/SelectInput';
 import type { Ex6Candidate } from '@/components/teaching/probability/two-dices/shared/exercise6Challenges';
 import { validateFractionR14 } from '@/components/teaching/probability/two-dices/shared/exercise6Challenges';
+import { logAttempt, logMarkAllUsed } from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
 
 const MAXIMUM_VALUE_DICE = 6;
 const TOTAL = MAXIMUM_VALUE_DICE * MAXIMUM_VALUE_DICE;
@@ -577,7 +578,11 @@ export const useTwoDicesSingleShotHooks = ({
      HANDLERS DE BOTÃO (Conferir, Próximo, Limpar)
      ──────────────────────────────────────────────────────────── */
   const checkOnClick = () => {
-    if (checkSolution()) {
+    const ok = checkSolution();
+    // Instrumentação de log — registra cada tentativa com stepKind para
+    // posterior análise a posteriori e detecção de viés cognitivo.
+    logAttempt('unionExercise6', String(stepIndex), ok, currentStep.kind);
+    if (ok) {
       const isLastStep = stepIndex + 1 >= steps.length;
       if (isLastStep) {
         createAlert('Parabéns!', 'Você acertou! Rodada concluída.', 'success', 4000);
@@ -636,6 +641,7 @@ export const useTwoDicesSingleShotHooks = ({
       currentStep.kind === 'mark-B' ? 'B' :
       currentStep.kind === 'mark-D' ? 'D' : null;
     if (!targetName) return;
+    logMarkAllUsed('unionExercise6', String(stepIndex), targetName);
 
     setEventsCheckboxes((prev) => {
       if (!prev[targetName]) return prev;
