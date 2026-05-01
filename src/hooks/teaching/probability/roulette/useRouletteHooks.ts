@@ -5525,6 +5525,7 @@ export const useRouletteHooks = () => {
         // CASO 2: Ganhou, mas NÃO era o setor mais provável → feedback + nova aposta
         const newAttempts = suboptimalAttempts + 1;
         setSuboptimalAttempts(newAttempts);
+        playSound("/sounds/incorrect.mp3");
         setShowInfoBox(true);
         setInfoBoxContent({
           type: 'warning',
@@ -5538,6 +5539,7 @@ export const useRouletteHooks = () => {
         // CASO 3: Perdeu + NÃO era o setor mais provável → feedback + nova aposta
         const newAttempts = suboptimalAttempts + 1;
         setSuboptimalAttempts(newAttempts);
+        playSound("/sounds/incorrect.mp3");
         setShowInfoBox(true);
         setInfoBoxContent({
           type: 'warning',
@@ -5551,6 +5553,7 @@ export const useRouletteHooks = () => {
         // CASO 4: Perdeu, mas apostou no maior setor → feedback de aleatoriedade → prossegue
         setSuboptimalAttempts(0);
         setGameState(prev => ({ ...prev, subStep: 0.18 }));
+        playSound("/sounds/nextChallenge.mp3");
         setShowInfoBox(true);
         setInfoBoxContent({
           type: 'info',
@@ -6304,8 +6307,10 @@ export const useRouletteHooks = () => {
         setFracTraining(prev => ({ ...prev, completedCount: completed, allCorrect: true }));
       } else if (!allOk) {
         playSound("/sounds/incorrect.mp3");
+        createAlert("Tente novamente.", "Verifique o ângulo de cada setor no disco e use a forma a/b.", "error", 4000);
       } else {
         playSound("/sounds/correct.mp3");
+        createAlert("Continue!", "Preencha os setores restantes para concluir o treino.", "info", 3000);
       }
       return;
     }
@@ -7029,6 +7034,7 @@ export const useRouletteHooks = () => {
             <p class="ds-small">2ª cor sorteada: ${newDraws[1]}</p>
             <p class="ds-small">3ª cor sorteada: ${newDraws[2]}</p>`);
 
+          playSound("/sounds/challengeFinished.mp3");
           createAlert("Experimentação concluída!", "Agora responda à questão sobre as características do experimento aleatório.", "success", 4000);
         }
       }, 1500); // 1.5 segundos para ver a cor revelada
@@ -8114,6 +8120,7 @@ export const useRouletteHooks = () => {
     const correctB = JSON.stringify(disjointCorrectB) === JSON.stringify(sortedUserB);
 
     if (correctA && correctB) {
+      playSound("/sounds/correct.mp3");
       setDisjointExercisePhase('correct');
       setDisjointExamplesViewed(prev => prev + 1);
       setInfoBoxContent({
@@ -8124,6 +8131,7 @@ export const useRouletteHooks = () => {
       setInstructions(`<p class="ds-body"><strong>Correto!</strong></p>
         <p class="ds-body">Você marcou corretamente os eventos A e B no disco.</p>`);
     } else {
+      playSound("/sounds/incorrect.mp3");
       setDisjointExercisePhase('wrong');
       const errorText = !correctA && !correctB
         ? 'Os setores selecionados para A e B estão incorretos.'
@@ -8868,6 +8876,7 @@ export const useRouletteHooks = () => {
 
     // Após explicação sobre probabilidade teórica por simetria (subStep 5.8)
     if (stage === 1 && subStep === 5.8) {
+      playSound("/sounds/nextChallenge.mp3");
       setShowInfoBox(true);
       setInfoBoxContent({
         type: 'info',
@@ -9295,6 +9304,7 @@ export const useRouletteHooks = () => {
           setInstructions(`<p class="ds-body"><strong>Cálculo da probabilidade do complementar a partir de P(A)</strong></p>
             <p class="ds-body">Preencha as frações para calcular P(Ā) = 1 − P(A).</p>`);
         } else {
+          playSound("/sounds/nextChallenge.mp3");
           setShowInfoBox(true);
           setInfoBoxContent({
             type: 'info',
@@ -9680,6 +9690,7 @@ export const useRouletteHooks = () => {
     if (!s3State.betColor) return;
 
     playSound("/sounds/correct.mp3");
+    createAlert("Aposta registrada!", `Você apostou na cor ${s3State.betColor}. Agora justifique sua escolha.`, "success", 3000);
     setGameState(prev => ({
       ...prev,
       subStep: 1.5,
@@ -10122,6 +10133,7 @@ export const useRouletteHooks = () => {
     setCompPhase('selecting_A');
     setCompUserSelectA([]);
     setCompUserSelectAbar([]);
+    playSound("/sounds/nextChallenge.mp3");
     setShowInfoBox(true);
     setInfoBoxContent({
       type: 'info',
@@ -10155,6 +10167,7 @@ export const useRouletteHooks = () => {
 
     if (correctSet.size === userSet.size && [...correctSet].every(i => userSet.has(i))) {
       // Correto — avançar para selecting_Abar
+      playSound("/sounds/correct.mp3");
       setCompPhase('selecting_Abar');
       setShowInfoBox(true);
       setInfoBoxContent({
@@ -10163,6 +10176,7 @@ export const useRouletteHooks = () => {
         message: `Agora identifique o evento complementar <strong>Ā = "${ev.textAbar}"</strong>.<br/>Clique nos setores que pertencem a Ā e depois confirme.`
       });
     } else {
+      playSound("/sounds/incorrect.mp3");
       setCompPhase('wrong_A');
       setShowInfoBox(true);
       setInfoBoxContent({
@@ -10183,6 +10197,7 @@ export const useRouletteHooks = () => {
 
     if (correctSet.size === userSet.size && [...correctSet].every(i => userSet.has(i))) {
       // Correto — mostrar ambos
+      playSound("/sounds/correct.mp3");
       setCompPhase('show_both');
       setCompExamplesViewed(prev => prev + 1);
       setShowInfoBox(true);
@@ -10202,6 +10217,7 @@ export const useRouletteHooks = () => {
         });
       }
     } else {
+      playSound("/sounds/incorrect.mp3");
       setCompPhase('wrong_Abar');
       setShowInfoBox(true);
       setInfoBoxContent({
@@ -10217,6 +10233,7 @@ export const useRouletteHooks = () => {
     if (compPhase === 'wrong_A') {
       setCompPhase('selecting_A');
       setCompUserSelectA([]);
+      playSound("/sounds/nextChallenge.mp3");
       setShowInfoBox(true);
       const ev = gameState.compEventA;
       setInfoBoxContent({
@@ -10227,6 +10244,7 @@ export const useRouletteHooks = () => {
     } else if (compPhase === 'wrong_Abar') {
       setCompPhase('selecting_Abar');
       setCompUserSelectAbar([]);
+      playSound("/sounds/nextChallenge.mp3");
       setShowInfoBox(true);
       const ev = gameState.compEventA;
       setInfoBoxContent({
