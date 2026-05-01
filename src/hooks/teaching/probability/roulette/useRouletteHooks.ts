@@ -46,7 +46,7 @@ const SYNONYMS = {
 };
 
 // Propriedades numéricas para o Desafio Dinâmico 1 (conjunto completo atualizado)
-const PROPRIEDADES_NUMERICAS = [
+const NUMERIC_PROPERTIES = [
   'ímpar',
   'par',
   'primo',
@@ -80,7 +80,7 @@ const PROPRIEDADES_NUMERICAS = [
 ];
 
 // Exemplos de experimentos determinísticos (sorteados aleatoriamente)
-const EXEMPLOS_DETERMINISTICOS = [
+const DETERMINISTIC_EXAMPLES = [
   'Escolher um número natural par e verificar se ele é divisível por 2.',
   'Somar dois números naturais previamente fixados.',
   'Calcular o resto da divisão de um número natural por 3.',
@@ -148,7 +148,7 @@ const EXEMPLOS_DETERMINISTICOS = [
 ];
 
 // Exemplos de experimentos aleatórios (sorteados aleatoriamente)
-const EXEMPLOS_ALEATORIOS = [
+const RANDOM_EXAMPLES = [
   'Lançar uma moeda e observar a face de cima.',
   'Lançar um dado e observar o número da face de cima.',
   'Lançar duas moedas e observar as sequências de caras e coroas obtidas.',
@@ -204,7 +204,7 @@ const EXEMPLOS_ALEATORIOS = [
 ];
 
 // Características do experimento aleatório (todas são verdadeiras)
-const CARACTERISTICAS_EXPERIMENTO_ALEATORIO = [
+const RANDOM_EXPERIMENT_CHARACTERISTICS = [
   'Não é possível prever com certeza o resultado antes de sua realização, mesmo repetindo o experimento nas mesmas condições.',
   'O conjunto de resultados possíveis é conhecido previamente.',
   'Cada realização do experimento produz exatamente um resultado, entre todos os resultados possíveis.',
@@ -215,102 +215,102 @@ const CARACTERISTICAS_EXPERIMENTO_ALEATORIO = [
 ];
 
 // Função auxiliar para verificar se um número é primo
-function ehPrimo(numero: number): boolean {
-  if (numero < 2) return false;
-  for (let i = 2; i <= Math.sqrt(numero); i++) {
-    if (numero % i === 0) return false;
+function isPrime(num: number): boolean {
+  if (num < 2) return false;
+  for (let i = 2; i <= Math.sqrt(num); i++) {
+    if (num % i === 0) return false;
   }
   return true;
 }
 
 // Função para verificar se um número satisfaz uma propriedade
 // O parâmetro valorP é usado apenas para propriedades "maior que p" e "menor que p"
-function verificaPropriedade(numero: number, propriedade: string, valorP?: number): boolean {
-  switch (propriedade) {
+function checkProperty(num: number, property: string, valueP?: number): boolean {
+  switch (property) {
     case 'ímpar':
-      return numero % 2 !== 0;
+      return num % 2 !== 0;
     case 'par':
-      return numero % 2 === 0;
+      return num % 2 === 0;
     case 'primo':
-      return ehPrimo(numero);
+      return isPrime(num);
     case 'não primo':
-      return !ehPrimo(numero);
+      return !isPrime(num);
     case 'composto':
       // Composto: número > 1 que não é primo
-      return numero > 1 && !ehPrimo(numero);
+      return num > 1 && !isPrime(num);
     case 'divisível por 3':
-      return numero % 3 === 0;
+      return num % 3 === 0;
     case 'divisível por 4':
-      return numero % 4 === 0;
+      return num % 4 === 0;
     case 'divisível por 5':
-      return numero % 5 === 0;
+      return num % 5 === 0;
     case 'primo ímpar':
       // Primo ímpar: primos diferentes de 2 (3, 5, 7, 11, ...)
-      return ehPrimo(numero) && numero !== 2;
+      return isPrime(num) && num !== 2;
     case 'primo par':
       // Primo par: exclusivamente o número 2
-      return numero === 2;
+      return num === 2;
     case 'múltiplo de 2 e 3 ao mesmo tempo':
       // Equivale a múltiplo de 6
-      return numero % 6 === 0;
+      return num % 6 === 0;
     case 'múltiplo de 3':
-      return numero % 3 === 0;
+      return num % 3 === 0;
     case 'múltiplo de 4':
-      return numero % 4 === 0;
+      return num % 4 === 0;
     case 'múltiplo de 5':
-      return numero % 5 === 0;
+      return num % 5 === 0;
     case 'múltiplo de 6':
-      return numero % 6 === 0;
+      return num % 6 === 0;
     case 'múltiplo de 3 e 4 ao mesmo tempo':
       // Equivale a múltiplo de 12
-      return numero % 12 === 0;
+      return num % 12 === 0;
     case 'divisor de 2':
-      return 2 % numero === 0; // 1, 2
+      return 2 % num === 0; // 1, 2
     case 'divisor de 3':
-      return 3 % numero === 0; // 1, 3
+      return 3 % num === 0; // 1, 3
     case 'divisor de 4':
-      return 4 % numero === 0; // 1, 2, 4
+      return 4 % num === 0; // 1, 2, 4
     case 'divisor de 5':
-      return 5 % numero === 0; // 1, 5
+      return 5 % num === 0; // 1, 5
     case 'divisor de 6':
-      return 6 % numero === 0; // 1, 2, 3, 6
+      return 6 % num === 0; // 1, 2, 3, 6
     case 'divisor de 7':
-      return 7 % numero === 0; // 1, 7
+      return 7 % num === 0; // 1, 7
     case 'divisor de 8':
-      return 8 % numero === 0; // 1, 2, 4, 8
+      return 8 % num === 0; // 1, 2, 4, 8
     case 'divisor de 9':
-      return 9 % numero === 0; // 1, 3, 9
+      return 9 % num === 0; // 1, 3, 9
     case 'divisor de 10':
-      return 10 % numero === 0; // 1, 2, 5, 10
+      return 10 % num === 0; // 1, 2, 5, 10
     case 'divisor de 11':
-      return 11 % numero === 0; // 1, 11
+      return 11 % num === 0; // 1, 11
     case 'divisor de 12':
-      return 12 % numero === 0; // 1, 2, 3, 4, 6, 12
+      return 12 % num === 0; // 1, 2, 3, 4, 6, 12
     case 'divisor de qualquer número natural':
       // Exclusivamente o número 1
-      return numero === 1;
+      return num === 1;
     case 'maior que p':
-      return valorP !== undefined && numero > valorP;
+      return valueP !== undefined && num > valueP;
     case 'menor que p':
-      return valorP !== undefined && numero < valorP;
+      return valueP !== undefined && num < valueP;
     default:
       return false;
   }
 }
 
 // Função para gerar números distintos para os setores
-function gerarNumerosSetores(n: number, p: number): number[] {
+function generateSectorNumbers(n: number, p: number): number[] {
   // Gerar conjunto {1, 2, ..., p}
-  const conjuntoCompleto = Array.from({ length: p }, (_, i) => i + 1);
+  const fullSet = Array.from({ length: p }, (_, i) => i + 1);
 
   // Embaralhar e pegar os primeiros n números
-  const embaralhado = [...conjuntoCompleto].sort(() => Math.random() - 0.5);
-  return embaralhado.slice(0, n);
+  const shuffled = [...fullSet].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, n);
 }
 
 // Função para verificar se existe pelo menos um número que satisfaz a propriedade
-function existeCasoFavoravel(numeros: number[], propriedade: string, valorP?: number): boolean {
-  return numeros.some(num => verificaPropriedade(num, propriedade, valorP));
+function hasFavorableCase(nums: number[], property: string, valueP?: number): boolean {
+  return nums.some(num => checkProperty(num, property, valueP));
 }
 
 // === Tipos para exemplos de eventos mutuamente exclusivos (subStep 6.55) ===
@@ -328,10 +328,10 @@ interface DisjointExampleMeta {
 }
 
 interface DisjointExampleResult {
-  textoA: string;
-  textoB: string;
-  conjuntoA: string;
-  conjuntoB: string;
+  textA: string;
+  textB: string;
+  setA: string;
+  setB: string;
   indicesA: number[];  // índices dos setores do evento A
   indicesB: number[];  // índices dos setores do evento B
   needsNumbers: boolean;  // se o exemplo precisa de números visíveis no disco
@@ -357,24 +357,15 @@ interface UnionEvent {
   completed: boolean;      // se a probabilidade já foi confirmada
 }
 
-const UNION_HIGHLIGHT_COLORS = [
-  '#FFD700',  // A - dourado
-  '#00E5FF',  // B - ciano
-  '#FF69B4',  // C - rosa choque
-  '#7CFC00',  // D - verde claro
-  '#FF8C00',  // E - laranja escuro
-  '#BA55D3',  // F - orquídea
-];
-
 const EVENT_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 // Propriedades numéricas para eventos compostos com números
-const PROPRIEDADES_DISJUNTOS_PARES: [string, string][] = [
+const DISJOINT_PROPERTY_PAIRS: [string, string][] = [
   ['par', 'ímpar'],
   ['primo', 'composto'],
 ];
 
-const PROPRIEDADES_DISJUNTOS_SIMPLES = [
+const DISJOINT_SIMPLE_PROPERTIES = [
   'par', 'ímpar', 'primo', 'composto',
   'múltiplo de 3', 'múltiplo de 5',
 ];
@@ -389,76 +380,76 @@ function shuffleArray<T>(arr: T[]): T[] {
   return copy;
 }
 
-function setProp(numeros: number[], prop: string): number[] {
-  return numeros.map((_, i) => i).filter(i => verificaPropriedade(numeros[i], prop));
+function indicesByProperty(nums: number[], prop: string): number[] {
+  return nums.map((_, i) => i).filter(i => checkProperty(nums[i], prop));
 }
 
-function formatConjunto(indices: number[], cores: string[], numeros: number[], usarNumeros: boolean): string {
+function formatSet(indices: number[], colors: string[], nums: number[], useNumbers: boolean): string {
   if (indices.length === 0) return '∅';
   const items = indices.map(i =>
-    usarNumeros ? `${cores[i]}(${numeros[i]})` : cores[i]
+    useNumbers ? `${colors[i]}(${nums[i]})` : colors[i]
   );
   return `{${items.join(', ')}}`;
 }
 
-function formatLabelCores(coresArr: string[]): string {
-  if (coresArr.length === 1) return `ocorrer a cor ${coresArr[0]}`;
-  return `ocorrer a cor ${coresArr.slice(0, -1).join(', ')} ou ${coresArr[coresArr.length - 1]}`;
+function formatColorsLabel(colorsArr: string[]): string {
+  if (colorsArr.length === 1) return `ocorrer a cor ${colorsArr[0]}`;
+  return `ocorrer a cor ${colorsArr.slice(0, -1).join(', ')} ou ${colorsArr[colorsArr.length - 1]}`;
 }
 
 // === Gerador de exemplos disjuntos por categoria (subStep 6.55) ===
-function gerarExemploDisjunto(
+function generateDisjointExample(
   sectors: RouletteSector[],
-  numerosSetores: number[],
+  sectorNums: number[],
   lastMeta: DisjointExampleMeta | null
 ): DisjointExampleResult {
   const n = sectors.length;
-  const cores = sectors.map(s => s.colorName);
-  const uniqueCores = [...new Set(cores)];
+  const colors = sectors.map(s => s.colorName);
+  const uniqueColors = [...new Set(colors)];
   const omega = Array.from({ length: n }, (_, i) => i);
 
   // Montar lista de categorias possíveis com base no disco atual
-  const categoriasPossiveis: DisjointCategory[] = [];
+  const possibleCategories: DisjointCategory[] = [];
 
   // Cor simples × cor simples: precisa de pelo menos 2 cores distintas
-  if (uniqueCores.length >= 2) categoriasPossiveis.push('cor_simples_x_cor_simples');
+  if (uniqueColors.length >= 2) possibleCategories.push('cor_simples_x_cor_simples');
   // Cor simples × cor composta: precisa de pelo menos 3 cores distintas
-  if (uniqueCores.length >= 3) categoriasPossiveis.push('cor_simples_x_cor_composta');
+  if (uniqueColors.length >= 3) possibleCategories.push('cor_simples_x_cor_composta');
   // Cor composta × cor composta: precisa de pelo menos 4 cores distintas
-  if (uniqueCores.length >= 4) categoriasPossiveis.push('cor_composta_x_cor_composta');
+  if (uniqueColors.length >= 4) possibleCategories.push('cor_composta_x_cor_composta');
   // Número simples × número simples: precisa de pelo menos 2 números distintos
-  const uniqueNums = [...new Set(numerosSetores)];
-  if (uniqueNums.length >= 2) categoriasPossiveis.push('num_simples_x_num_simples');
+  const uniqueNums = [...new Set(sectorNums)];
+  if (uniqueNums.length >= 2) possibleCategories.push('num_simples_x_num_simples');
   // Número simples × número composto: precisa de números com propriedades variadas
-  if (numerosSetores.length >= 2) categoriasPossiveis.push('num_simples_x_num_composto');
+  if (sectorNums.length >= 2) possibleCategories.push('num_simples_x_num_composto');
   // Número composto × número composto: precisa de pares de propriedades disjuntas
-  if (numerosSetores.length >= 2) categoriasPossiveis.push('num_composto_x_num_composto');
+  if (sectorNums.length >= 2) possibleCategories.push('num_composto_x_num_composto');
 
   // Evitar repetir a mesma categoria do exemplo anterior
-  const semRepetir = categoriasPossiveis.filter(c => c !== lastMeta?.category);
-  const pool = semRepetir.length > 0 ? semRepetir : categoriasPossiveis;
-  const categoria = pool[Math.floor(Math.random() * pool.length)];
+  const semRepetir = possibleCategories.filter(c => c !== lastMeta?.category);
+  const pool = semRepetir.length > 0 ? semRepetir : possibleCategories;
+  const category = pool[Math.floor(Math.random() * pool.length)];
 
   // Tentar gerar o exemplo da categoria escolhida
-  const resultado = tentarGerarCategoria(categoria, sectors, numerosSetores, cores, uniqueCores, omega, n);
-  if (resultado) return resultado;
+  const result = tryGenerateCategory(category, sectors, sectorNums, colors, uniqueColors, omega, n);
+  if (result) return result;
 
   // Se falhou, tentar outras categorias
-  const outrasPool = shuffleArray(categoriasPossiveis.filter(c => c !== categoria));
-  for (const cat of outrasPool) {
-    const res = tentarGerarCategoria(cat, sectors, numerosSetores, cores, uniqueCores, omega, n);
+  const otherPool = shuffleArray(possibleCategories.filter(c => c !== category));
+  for (const cat of otherPool) {
+    const res = tryGenerateCategory(cat, sectors, sectorNums, colors, uniqueColors, omega, n);
     if (res) return res;
   }
 
   // Fallback absoluto: duas cores distintas
-  const shuffled = shuffleArray([...uniqueCores]);
-  const idxA = omega.filter(i => cores[i] === shuffled[0]);
-  const idxB = omega.filter(i => cores[i] === shuffled[1] || (shuffled.length < 2 && i !== idxA[0]));
+  const shuffled = shuffleArray([...uniqueColors]);
+  const idxA = omega.filter(i => colors[i] === shuffled[0]);
+  const idxB = omega.filter(i => colors[i] === shuffled[1] || (shuffled.length < 2 && i !== idxA[0]));
   return {
-    textoA: `ocorrer a cor ${shuffled[0]}`,
-    textoB: `ocorrer a cor ${shuffled[1] || cores[idxB[0]]}`,
-    conjuntoA: formatConjunto(idxA, cores, numerosSetores, false),
-    conjuntoB: formatConjunto(idxB, cores, numerosSetores, false),
+    textA: `ocorrer a cor ${shuffled[0]}`,
+    textB: `ocorrer a cor ${shuffled[1] || colors[idxB[0]]}`,
+    setA: formatSet(idxA, colors, sectorNums, false),
+    setB: formatSet(idxB, colors, sectorNums, false),
     indicesA: idxA,
     indicesB: idxB,
     needsNumbers: false,
@@ -467,12 +458,12 @@ function gerarExemploDisjunto(
 }
 
 // Tenta gerar um exemplo para uma categoria específica
-function tentarGerarCategoria(
-  categoria: DisjointCategory,
+function tryGenerateCategory(
+  category: DisjointCategory,
   sectors: RouletteSector[],
-  numeros: number[],
-  cores: string[],
-  uniqueCores: string[],
+  nums: number[],
+  colors: string[],
+  uniqueColors: string[],
   omega: number[],
   n: number
 ): DisjointExampleResult | null {
@@ -481,18 +472,18 @@ function tentarGerarCategoria(
   // 1) COR SIMPLES × COR SIMPLES
   //    A = {uma cor}, B = {outra cor diferente}
   // ============================================================
-  if (categoria === 'cor_simples_x_cor_simples') {
-    if (uniqueCores.length < 2) return null;
-    const shuffled = shuffleArray(uniqueCores);
-    const corA = shuffled[0];
-    const corB = shuffled[1];
-    const idxA = omega.filter(i => cores[i] === corA);
-    const idxB = omega.filter(i => cores[i] === corB);
+  if (category === 'cor_simples_x_cor_simples') {
+    if (uniqueColors.length < 2) return null;
+    const shuffled = shuffleArray(uniqueColors);
+    const colorA = shuffled[0];
+    const colorB = shuffled[1];
+    const idxA = omega.filter(i => colors[i] === colorA);
+    const idxB = omega.filter(i => colors[i] === colorB);
     return {
-      textoA: `ocorrer a cor ${corA}`,
-      textoB: `ocorrer a cor ${corB}`,
-      conjuntoA: formatConjunto(idxA, cores, numeros, false),
-      conjuntoB: formatConjunto(idxB, cores, numeros, false),
+      textA: `ocorrer a cor ${colorA}`,
+      textB: `ocorrer a cor ${colorB}`,
+      setA: formatSet(idxA, colors, nums, false),
+      setB: formatSet(idxB, colors, nums, false),
       indicesA: idxA,
       indicesB: idxB,
       needsNumbers: false,
@@ -504,23 +495,23 @@ function tentarGerarCategoria(
   // 2) COR SIMPLES × COR COMPOSTA
   //    A = {uma cor}, B = {duas ou mais cores diferentes}
   // ============================================================
-  if (categoria === 'cor_simples_x_cor_composta') {
-    if (uniqueCores.length < 3) return null;
-    const shuffled = shuffleArray(uniqueCores);
-    const corA = shuffled[0];
-    const restantes = shuffled.filter(c => c !== corA);
+  if (category === 'cor_simples_x_cor_composta') {
+    if (uniqueColors.length < 3) return null;
+    const shuffled = shuffleArray(uniqueColors);
+    const colorA = shuffled[0];
+    const remainingItems = shuffled.filter(c => c !== colorA);
     // B com 2 cores (ou 3 se houver espaço, sem pegar todas)
-    const qtdB = Math.min(2 + Math.floor(Math.random() * 2), restantes.length, uniqueCores.length - 2);
-    const coresB = restantes.slice(0, Math.max(2, qtdB));
-    const idxA = omega.filter(i => cores[i] === corA);
-    const idxB = omega.filter(i => coresB.includes(cores[i]));
+    const countB = Math.min(2 + Math.floor(Math.random() * 2), remainingItems.length, uniqueColors.length - 2);
+    const colorsB = remainingItems.slice(0, Math.max(2, countB));
+    const idxA = omega.filter(i => colors[i] === colorA);
+    const idxB = omega.filter(i => colorsB.includes(colors[i]));
     // Sortear se A é simples e B composto, ou inverso
     if (Math.random() < 0.5) {
       return {
-        textoA: `ocorrer a cor ${corA}`,
-        textoB: formatLabelCores(coresB),
-        conjuntoA: formatConjunto(idxA, cores, numeros, false),
-        conjuntoB: formatConjunto(idxB, cores, numeros, false),
+        textA: `ocorrer a cor ${colorA}`,
+        textB: formatColorsLabel(colorsB),
+        setA: formatSet(idxA, colors, nums, false),
+        setB: formatSet(idxB, colors, nums, false),
         indicesA: idxA,
         indicesB: idxB,
         needsNumbers: false,
@@ -528,10 +519,10 @@ function tentarGerarCategoria(
       };
     } else {
       return {
-        textoA: formatLabelCores(coresB),
-        textoB: `ocorrer a cor ${corA}`,
-        conjuntoA: formatConjunto(idxB, cores, numeros, false),
-        conjuntoB: formatConjunto(idxA, cores, numeros, false),
+        textA: formatColorsLabel(colorsB),
+        textB: `ocorrer a cor ${colorA}`,
+        setA: formatSet(idxB, colors, nums, false),
+        setB: formatSet(idxA, colors, nums, false),
         indicesA: idxB,
         indicesB: idxA,
         needsNumbers: false,
@@ -544,21 +535,21 @@ function tentarGerarCategoria(
   // 3) COR COMPOSTA × COR COMPOSTA
   //    A = {2+ cores}, B = {2+ cores diferentes}
   // ============================================================
-  if (categoria === 'cor_composta_x_cor_composta') {
-    if (uniqueCores.length < 4) return null;
-    const shuffled = shuffleArray(uniqueCores);
+  if (category === 'cor_composta_x_cor_composta') {
+    if (uniqueColors.length < 4) return null;
+    const shuffled = shuffleArray(uniqueColors);
     // Dividir as cores em dois grupos (cada um com pelo menos 2)
-    const metade = Math.floor(shuffled.length / 2);
-    const coresA = shuffled.slice(0, Math.max(2, metade));
-    const coresB = shuffled.slice(Math.max(2, metade));
-    if (coresB.length < 2) return null; // precisa de pelo menos 2 em cada
-    const idxA = omega.filter(i => coresA.includes(cores[i]));
-    const idxB = omega.filter(i => coresB.includes(cores[i]));
+    const half = Math.floor(shuffled.length / 2);
+    const colorsA = shuffled.slice(0, Math.max(2, half));
+    const colorsB = shuffled.slice(Math.max(2, half));
+    if (colorsB.length < 2) return null; // precisa de pelo menos 2 em cada
+    const idxA = omega.filter(i => colorsA.includes(colors[i]));
+    const idxB = omega.filter(i => colorsB.includes(colors[i]));
     return {
-      textoA: formatLabelCores(coresA),
-      textoB: formatLabelCores(coresB),
-      conjuntoA: formatConjunto(idxA, cores, numeros, false),
-      conjuntoB: formatConjunto(idxB, cores, numeros, false),
+      textA: formatColorsLabel(colorsA),
+      textB: formatColorsLabel(colorsB),
+      setA: formatSet(idxA, colors, nums, false),
+      setB: formatSet(idxB, colors, nums, false),
       indicesA: idxA,
       indicesB: idxB,
       needsNumbers: false,
@@ -570,19 +561,19 @@ function tentarGerarCategoria(
   // 4) NÚMERO SIMPLES × NÚMERO SIMPLES
   //    A = {um número específico}, B = {outro número específico}
   // ============================================================
-  if (categoria === 'num_simples_x_num_simples') {
-    const uniqueNums = [...new Set(numeros)];
+  if (category === 'num_simples_x_num_simples') {
+    const uniqueNums = [...new Set(nums)];
     if (uniqueNums.length < 2) return null;
     const shuffled = shuffleArray(uniqueNums);
     const numA = shuffled[0];
     const numB = shuffled[1];
-    const idxA = omega.filter(i => numeros[i] === numA);
-    const idxB = omega.filter(i => numeros[i] === numB);
+    const idxA = omega.filter(i => nums[i] === numA);
+    const idxB = omega.filter(i => nums[i] === numB);
     return {
-      textoA: `ocorrer o número ${numA}`,
-      textoB: `ocorrer o número ${numB}`,
-      conjuntoA: formatConjunto(idxA, cores, numeros, true),
-      conjuntoB: formatConjunto(idxB, cores, numeros, true),
+      textA: `ocorrer o número ${numA}`,
+      textB: `ocorrer o número ${numB}`,
+      setA: formatSet(idxA, colors, nums, true),
+      setB: formatSet(idxB, colors, nums, true),
       indicesA: idxA,
       indicesB: idxB,
       needsNumbers: true,
@@ -594,24 +585,24 @@ function tentarGerarCategoria(
   // 5) NÚMERO SIMPLES × NÚMERO COMPOSTO (propriedade)
   //    A = {um número}, B = {propriedade que exclui esse número}
   // ============================================================
-  if (categoria === 'num_simples_x_num_composto') {
+  if (category === 'num_simples_x_num_composto') {
     // Escolher um setor aleatório como âncora
     const s = omega[Math.floor(Math.random() * n)];
-    const numAncora = numeros[s];
+    const anchorNum = nums[s];
     // Procurar propriedade que o número âncora NÃO satisfaz
-    const propsToTry = shuffleArray(PROPRIEDADES_DISJUNTOS_SIMPLES);
+    const propsToTry = shuffleArray(DISJOINT_SIMPLE_PROPERTIES);
     for (const prop of propsToTry) {
-      if (!verificaPropriedade(numAncora, prop)) {
-        const idxB = setProp(numeros, prop);
+      if (!checkProperty(anchorNum, prop)) {
+        const idxB = indicesByProperty(nums, prop);
         if (idxB.length > 0 && !idxB.includes(s)) {
           const idxA = [s];
           // Sortear se A é simples e B composto, ou inverso
           if (Math.random() < 0.5) {
             return {
-              textoA: `ocorrer o número ${numAncora}`,
-              textoB: `ocorrer número ${prop}`,
-              conjuntoA: formatConjunto(idxA, cores, numeros, true),
-              conjuntoB: formatConjunto(idxB, cores, numeros, true),
+              textA: `ocorrer o número ${anchorNum}`,
+              textB: `ocorrer número ${prop}`,
+              setA: formatSet(idxA, colors, nums, true),
+              setB: formatSet(idxB, colors, nums, true),
               indicesA: idxA,
               indicesB: idxB,
               needsNumbers: true,
@@ -619,10 +610,10 @@ function tentarGerarCategoria(
             };
           } else {
             return {
-              textoA: `ocorrer número ${prop}`,
-              textoB: `ocorrer o número ${numAncora}`,
-              conjuntoA: formatConjunto(idxB, cores, numeros, true),
-              conjuntoB: formatConjunto(idxA, cores, numeros, true),
+              textA: `ocorrer número ${prop}`,
+              textB: `ocorrer o número ${anchorNum}`,
+              setA: formatSet(idxB, colors, nums, true),
+              setB: formatSet(idxA, colors, nums, true),
               indicesA: idxB,
               indicesB: idxA,
               needsNumbers: true,
@@ -639,22 +630,22 @@ function tentarGerarCategoria(
   // 6) NÚMERO COMPOSTO × NÚMERO COMPOSTO
   //    A = {propriedade X}, B = {propriedade Y disjunta}
   // ============================================================
-  if (categoria === 'num_composto_x_num_composto') {
+  if (category === 'num_composto_x_num_composto') {
     // Tentar pares naturalmente disjuntos primeiro (par/ímpar, primo/composto)
-    const paresEmbaralhados = shuffleArray(PROPRIEDADES_DISJUNTOS_PARES);
-    for (const [propA, propB] of paresEmbaralhados) {
-      const idxA = setProp(numeros, propA);
-      const idxB = setProp(numeros, propB);
+    const shuffledPairs = shuffleArray(DISJOINT_PROPERTY_PAIRS);
+    for (const [propA, propB] of shuffledPairs) {
+      const idxA = indicesByProperty(nums, propA);
+      const idxB = indicesByProperty(nums, propB);
       if (idxA.length > 0 && idxB.length > 0) {
         // Verificar disjunção
         const setB = new Set(idxB);
-        const temIntersecao = idxA.some(i => setB.has(i));
-        if (!temIntersecao) {
+        const hasIntersection = idxA.some(i => setB.has(i));
+        if (!hasIntersection) {
           return {
-            textoA: `ocorrer número ${propA}`,
-            textoB: `ocorrer número ${propB}`,
-            conjuntoA: formatConjunto(idxA, cores, numeros, true),
-            conjuntoB: formatConjunto(idxB, cores, numeros, true),
+            textA: `ocorrer número ${propA}`,
+            textB: `ocorrer número ${propB}`,
+            setA: formatSet(idxA, colors, nums, true),
+            setB: formatSet(idxB, colors, nums, true),
             indicesA: idxA,
             indicesB: idxB,
             needsNumbers: true,
@@ -664,21 +655,21 @@ function tentarGerarCategoria(
       }
     }
     // Se nenhum par natural funcionou, tentar combinações livres
-    const props = shuffleArray(PROPRIEDADES_DISJUNTOS_SIMPLES);
+    const props = shuffleArray(DISJOINT_SIMPLE_PROPERTIES);
     for (let i = 0; i < props.length; i++) {
-      const idxA = setProp(numeros, props[i]);
+      const idxA = indicesByProperty(nums, props[i]);
       if (idxA.length === 0 || idxA.length >= n) continue;
       for (let j = i + 1; j < props.length; j++) {
-        const idxB = setProp(numeros, props[j]);
+        const idxB = indicesByProperty(nums, props[j]);
         if (idxB.length === 0) continue;
         const setB = new Set(idxB);
-        const temIntersecao = idxA.some(k => setB.has(k));
-        if (!temIntersecao) {
+        const hasIntersection = idxA.some(k => setB.has(k));
+        if (!hasIntersection) {
           return {
-            textoA: `ocorrer número ${props[i]}`,
-            textoB: `ocorrer número ${props[j]}`,
-            conjuntoA: formatConjunto(idxA, cores, numeros, true),
-            conjuntoB: formatConjunto(idxB, cores, numeros, true),
+            textA: `ocorrer número ${props[i]}`,
+            textB: `ocorrer número ${props[j]}`,
+            setA: formatSet(idxA, colors, nums, true),
+            setB: formatSet(idxB, colors, nums, true),
             indicesA: idxA,
             indicesB: idxB,
             needsNumbers: true,
@@ -695,10 +686,10 @@ function tentarGerarCategoria(
 
 // === Gerador de eventos mutuamente exclusivos para a fase de União (subStep 6.56) ===
 // Propriedades numéricas simples para uso em eventos da união
-const UNION_NUM_PROPS_SIMPLES = ['par', 'ímpar', 'primo', 'divisível por 3'];
+const UNION_SIMPLE_NUM_PROPS = ['par', 'ímpar', 'primo', 'divisível por 3'];
 
 // Gerar números "interessantes" para setores (mix de pares, ímpares, primos)
-function gerarNumerosInteressantes(n: number): number[] {
+function generateInterestingNumbers(n: number): number[] {
   // Pool com boa variedade de propriedades
   const pools = [
     [2, 3, 5, 6, 7, 9, 4, 8, 11, 10, 1, 12],  // mix geral
@@ -711,52 +702,51 @@ function gerarNumerosInteressantes(n: number): number[] {
   return shuffled.slice(0, n);
 }
 
-function gerarEventosUniao(
+function generateUnionEvents(
   sectors: RouletteSector[],
   numEvents: number,
-  sectorNumbers: number[],
-  _isDesafio: boolean = false
+  sectorNumbers: number[]
 ): { events: UnionEvent[], needsNumbers: boolean } {
   const n = sectors.length;
-  const cores = sectors.map(s => s.colorName);
-  const uniqueCores = [...new Set(cores)];
+  const colors = sectors.map(s => s.colorName);
+  const uniqueColors = [...new Set(colors)];
 
   // Coletar todas as receitas aplicáveis e embaralhar
-  const receitas = shuffleArray(obterReceitasAplicaveis(numEvents, uniqueCores.length, n));
+  const recipes = shuffleArray(getApplicableRecipes(numEvents, uniqueColors.length, n));
 
   // Tentar cada receita por ordem (já embaralhada)
-  for (const receita of receitas) {
-    for (let tentativa = 0; tentativa < 5; tentativa++) {
-      const resultado = receita(sectors, sectorNumbers, cores, uniqueCores, n);
-      if (resultado) {
-        const totalSetores = resultado.events.reduce((sum, e) => sum + e.sectorIndices.length, 0);
+  for (const recipe of recipes) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const result = recipe(sectors, sectorNumbers, colors, uniqueColors, n);
+      if (result) {
+        const totalSectors = result.events.reduce((sum, e) => sum + e.sectorIndices.length, 0);
         // Forte preferência por P(união) < 1
-        if (totalSetores < n) return resultado;
+        if (totalSectors < n) return result;
       }
     }
   }
 
   // Segunda passagem: aceitar P=1 se nada melhor funcionar
-  for (const receita of receitas) {
-    const resultado = receita(sectors, sectorNumbers, cores, uniqueCores, n);
-    if (resultado) return resultado;
+  for (const recipe of recipes) {
+    const result = recipe(sectors, sectorNumbers, colors, uniqueColors, n);
+    if (result) return result;
   }
 
   // Fallback seguro
-  return fallbackEventos(sectors, numEvents, cores, uniqueCores, n);
+  return fallbackEvents(sectors, numEvents, colors, uniqueColors, n);
 }
 
 // Tipo para receitas de geração de eventos
-type ReceitaFn = (
+type RecipeFn = (
   sectors: RouletteSector[],
   sectorNumbers: number[],
-  cores: string[],
-  uniqueCores: string[],
+  colors: string[],
+  uniqueColors: string[],
   n: number
 ) => { events: UnionEvent[], needsNumbers: boolean } | null;
 
 // Auxiliar: criar um UnionEvent
-function criarEvento(label: string, desc: string, indices: number[], n: number): UnionEvent {
+function createEvent(label: string, desc: string, indices: number[], n: number): UnionEvent {
   return {
     label, description: desc,
     sectorIndices: indices.sort((a, b) => a - b),
@@ -765,179 +755,179 @@ function criarEvento(label: string, desc: string, indices: number[], n: number):
 }
 
 // Auxiliar: índices de uma cor
-function indicesCor(cores: string[], cor: string): number[] {
-  return cores.map((c, i) => c === cor ? i : -1).filter(i => i >= 0);
+function colorIndices(colors: string[], color: string): number[] {
+  return colors.map((c, i) => c === color ? i : -1).filter(i => i >= 0);
 }
 
 // Auxiliar: índices que satisfazem propriedade numérica
-function indicesProp(sectorNumbers: number[], prop: string, valorP?: number): number[] {
-  return sectorNumbers.map((num, i) => verificaPropriedade(num, prop, valorP) ? i : -1).filter(i => i >= 0);
+function propertyIndices(sectorNumbers: number[], prop: string, valueP?: number): number[] {
+  return sectorNumbers.map((num, i) => checkProperty(num, prop, valueP) ? i : -1).filter(i => i >= 0);
 }
 
 // Determinar quais receitas são aplicáveis e retornar lista embaralhada
-function obterReceitasAplicaveis(numEvents: number, numCores: number, n: number): ReceitaFn[] {
-  const receitas: ReceitaFn[] = [];
+function getApplicableRecipes(numEvents: number, numCores: number, n: number): RecipeFn[] {
+  const recipes: RecipeFn[] = [];
 
   // --- RECEITAS PARA 2 EVENTOS ---
   if (numEvents === 2) {
     // R1: simples+simples (cor + cor, subconjunto)
-    if (numCores > 2) receitas.push(receitaCorSimplesPar);
+    if (numCores > 2) recipes.push(recipeSimpleColorPair);
     // R2: simples+simples (número específico + número específico)
-    receitas.push(receitaNumeroEspecificoPar);
+    recipes.push(recipeSpecificNumberPair);
     // R3: simples+composto (cor + propriedade numérica restrita)
-    if (numCores >= 2) receitas.push(receitaCorMaisNumProp);
+    if (numCores >= 2) recipes.push(recipeColorPlusNumProp);
     // R4: composto+composto (cor∧num + cor∧num)
-    if (numCores >= 2) receitas.push(receitaCorENumero);
+    if (numCores >= 2) recipes.push(recipeColorAndNumber);
     // R5: simples+composto (número prop + cor∧número)
-    if (numCores >= 2) receitas.push(receitaNumPropMaisCorNum);
+    if (numCores >= 2) recipes.push(recipeNumPropPlusColorNum);
     // R6: composto+composto (propriedades numéricas disjuntas)
-    receitas.push(receitaPropsNumericas2);
+    recipes.push(recipeNumericProps2);
     // R7: simples+composto (cor + "cor ou" composto)
-    if (numCores >= 3) receitas.push(receitaCorSimplesMaisCorOu);
+    if (numCores >= 3) recipes.push(recipeSimpleColorPlusColorOr);
     // R8: composto+simples (cor∧num + cor simples)
-    if (numCores >= 2) receitas.push(receitaCorNumMaisCorSimples);
+    if (numCores >= 2) recipes.push(recipeColorNumPlusSimpleColor);
     // R18: "Cor X ou par" + "Cor Y e ímpar"
-    if (numCores >= 2) receitas.push(receitaCorOuPropMaisCorEProp);
+    if (numCores >= 2) recipes.push(recipeColorOrPropPlusColorAndProp);
     // R19: "(Cor X e par) ou (Cor Y e ímpar)" + "Cor Z"
-    if (numCores >= 3) receitas.push(receitaCompoundOuPar);
+    if (numCores >= 3) recipes.push(recipeCompoundOrPair);
     // R20: "Cor X ou (Cor Y e primo)" + "Cor Z"
-    if (numCores >= 3) receitas.push(receitaCorOuCorEProp);
+    if (numCores >= 3) recipes.push(recipeColorOrColorAndProp);
     // R21: "Cor X e soma s" + "Cor Y"
-    if (numCores >= 2) receitas.push(receitaCorESoma);
+    if (numCores >= 2) recipes.push(recipeColorAndSum);
     // R26: "(Cor X e primo) ou (Cor Y e par)" + "Cor Z e ímpar"
-    if (numCores >= 3) receitas.push(receitaCompoundOuMaisCompound);
+    if (numCores >= 3) recipes.push(recipeCompoundOrPlusCompound);
     // R27: "Cor X ou primo" + "Cor Y"
-    if (numCores >= 3) receitas.push(receitaCorOuPropSimples);
+    if (numCores >= 3) recipes.push(recipeColorOrSimpleProp);
     // R28: "soma" + cor
-    if (numCores >= 2) receitas.push(receitaSomaMaisCor);
+    if (numCores >= 2) recipes.push(recipeSumPlusColor);
   }
 
   // --- RECEITAS PARA 3 EVENTOS ---
   if (numEvents === 3) {
     // R9: simples+simples+simples (3 cores)
-    if (numCores > 3) receitas.push(receita3Cores);
+    if (numCores > 3) recipes.push(recipe3Colors);
     // R10: simples+simples+composto (2 cores + prop numérica nos restantes)
-    if (numCores >= 3) receitas.push(receita2CoresMaisNumProp);
+    if (numCores >= 3) recipes.push(recipe2ColorsPlusNumProp);
     // R11: composto+composto+composto (3 faixas numéricas)
-    receitas.push(receita3FaixasNumericas);
+    recipes.push(recipe3NumericRanges);
     // R12: misto (cor + cor∧num + número)
-    if (numCores >= 2) receitas.push(receitaMista3);
+    if (numCores >= 2) recipes.push(recipeMixed3);
     // R13: 3 números específicos
-    receitas.push(receita3NumerosEspecificos);
+    recipes.push(recipe3SpecificNumbers);
     // R22: "Cor X" + "Cor Y e par" + "Cor Y e ímpar"
-    if (numCores >= 2) receitas.push(receitaCorMaisCorParticionada);
+    if (numCores >= 2) recipes.push(recipeColorPlusPartitionedColor);
     // R23: "Cor X ou ímpar" + "Cor Y e par" + "Cor Z e primo"
-    if (numCores >= 3) receitas.push(receita3Compound);
+    if (numCores >= 3) recipes.push(recipe3Compound);
     // R24: "Cor X e primo" + "Cor Y e par" + "número ímpar nos restantes"
-    if (numCores >= 3) receitas.push(receitaPrimoParImpar);
+    if (numCores >= 3) recipes.push(recipePrimeEvenOdd);
     // R25: "soma" + cor + cor∧prop
-    if (numCores >= 3) receitas.push(receita3ComSoma);
+    if (numCores >= 3) recipes.push(recipe3WithSum);
     // R29: "Cor X" + "Cor Y ou primo" + "Cor Z e par"
-    if (numCores >= 4) receitas.push(receita3MistoOuE);
+    if (numCores >= 4) recipes.push(recipe3MixedOrAnd);
   }
 
   // --- RECEITAS PARA 4+ EVENTOS ---
   if (numEvents >= 4) {
     // R14: cores parciais (subconjunto de cores)
-    if (numCores > numEvents) receitas.push(receitaCoresParciais);
+    if (numCores > numEvents) recipes.push(recipePartialColors);
     // R15: cores + prop numérica no restante
-    if (numCores >= numEvents - 1) receitas.push(receitaCoresMaisNum);
+    if (numCores >= numEvents - 1) recipes.push(recipeColorsPlusNum);
     // R16: números específicos
-    if (n >= numEvents + 1) receitas.push(receitaNumerosEspecificosN);
+    if (n >= numEvents + 1) recipes.push(recipeSpecificNumbersN);
     // R17: misto cores∧num
-    if (numCores >= 2) receitas.push(receitaMistaN);
+    if (numCores >= 2) recipes.push(recipeMixedN);
     // R30: N mistos cor + cor∧prop
-    if (numCores >= 3) receitas.push(receitaNMistoCorEProp);
+    if (numCores >= 3) recipes.push(recipeNMixedColorAndProp);
   }
 
   // Receita universal (qualquer numEvents): cores parciais se possível
-  if (numCores > numEvents && !receitas.includes(receitaCorSimplesPar) && !receitas.includes(receitaCoresParciais)) {
-    receitas.push(receitaCoresParciais);
+  if (numCores > numEvents && !recipes.includes(recipeSimpleColorPair) && !recipes.includes(recipePartialColors)) {
+    recipes.push(recipePartialColors);
   }
 
-  return receitas;
+  return recipes;
 }
 
 // ======= RECEITAS PARA 2 EVENTOS =======
 
 // R1: simples+simples — duas cores (não todas)
-const receitaCorSimplesPar: ReceitaFn = (_s, _sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length <= 2) return null;
-  const shuffled = shuffleArray([...uniqueCores]);
-  const [corA, corB] = shuffled;
-  const iA = indicesCor(cores, corA);
-  const iB = indicesCor(cores, corB);
+const recipeSimpleColorPair: RecipeFn = (_s, _sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length <= 2) return null;
+  const shuffled = shuffleArray([...uniqueColors]);
+  const [colorA, colorB] = shuffled;
+  const iA = colorIndices(colors, colorA);
+  const iB = colorIndices(colors, colorB);
   if (iA.length === 0 || iB.length === 0) return null;
   return {
-    events: [criarEvento('A', `ocorrer a cor ${corA}`, iA, n), criarEvento('B', `ocorrer a cor ${corB}`, iB, n)],
+    events: [createEvent('A', `ocorrer a cor ${colorA}`, iA, n), createEvent('B', `ocorrer a cor ${colorB}`, iB, n)],
     needsNumbers: false
   };
 };
 
 // R2: simples+simples — dois números específicos
-const receitaNumeroEspecificoPar: ReceitaFn = (_s, sn, _c, _uc, n) => {
-  const numerosUnicos = [...new Set(sn)];
-  if (numerosUnicos.length < 3) return null; // precisa de pelo menos 3 para sobrar
-  const shuffled = shuffleArray(numerosUnicos);
+const recipeSpecificNumberPair: RecipeFn = (_s, sn, _c, _uc, n) => {
+  const uniqueNums = [...new Set(sn)];
+  if (uniqueNums.length < 3) return null; // precisa de pelo menos 3 para sobrar
+  const shuffled = shuffleArray(uniqueNums);
   const [numA, numB] = shuffled;
   const iA = sn.map((v, i) => v === numA ? i : -1).filter(i => i >= 0);
   const iB = sn.map((v, i) => v === numB ? i : -1).filter(i => i >= 0);
   if (iA.length === 0 || iB.length === 0) return null;
   if (iA.length + iB.length >= n) return null;
   return {
-    events: [criarEvento('A', `obter o número ${numA}`, iA, n), criarEvento('B', `obter o número ${numB}`, iB, n)],
+    events: [createEvent('A', `obter o número ${numA}`, iA, n), createEvent('B', `obter o número ${numB}`, iB, n)],
     needsNumbers: true
   };
 };
 
 // R3: simples+composto — cor + "número [prop] em setor que não é [cor]"
-const receitaCorMaisNumProp: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  const cor = shuffleArray([...uniqueCores])[0];
-  const iCor = indicesCor(cores, cor);
-  const iNaoCor = cores.map((c, i) => c !== cor ? i : -1).filter(i => i >= 0);
-  if (iCor.length === 0 || iNaoCor.length === 0) return null;
+const recipeColorPlusNumProp: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  const color = shuffleArray([...uniqueColors])[0];
+  const iColor = colorIndices(colors, color);
+  const iNotColor = colors.map((c, i) => c !== color ? i : -1).filter(i => i >= 0);
+  if (iColor.length === 0 || iNotColor.length === 0) return null;
 
-  const prop = shuffleArray(UNION_NUM_PROPS_SIMPLES)[0];
-  const iB = iNaoCor.filter(j => verificaPropriedade(sn[j], prop));
-  if (iB.length === 0 || iB.length === iNaoCor.length) return null; // precisa ser subconjunto estrito
+  const prop = shuffleArray(UNION_SIMPLE_NUM_PROPS)[0];
+  const iB = iNotColor.filter(j => checkProperty(sn[j], prop));
+  if (iB.length === 0 || iB.length === iNotColor.length) return null; // precisa ser subconjunto estrito
   return {
     events: [
-      criarEvento('A', `ocorrer a cor ${cor}`, iCor, n),
-      criarEvento('B', `obter número ${prop} em setor que não é ${cor}`, iB, n)
+      createEvent('A', `ocorrer a cor ${color}`, iColor, n),
+      createEvent('B', `obter número ${prop} em setor que não é ${color}`, iB, n)
     ],
     needsNumbers: true
   };
 };
 
 // R4: composto+composto — "cor X e número [prop]" + "cor Y e número [prop2]"
-const receitaCorENumero: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 2) return null;
-  const [corA, corB] = shuffleArray([...uniqueCores]);
-  const propsParesDisjuntos = shuffleArray([
+const recipeColorAndNumber: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 2) return null;
+  const [colorA, colorB] = shuffleArray([...uniqueColors]);
+  const disjointPropertyPairs = shuffleArray([
     ['par', 'ímpar'], ['primo', 'não primo']
   ]);
-  for (const [propA, propB] of propsParesDisjuntos) {
-    const iA = cores.map((c, i) => c === corA && verificaPropriedade(sn[i], propA) ? i : -1).filter(i => i >= 0);
-    const iB = cores.map((c, i) => c === corB && verificaPropriedade(sn[i], propB) ? i : -1).filter(i => i >= 0);
+  for (const [propA, propB] of disjointPropertyPairs) {
+    const iA = colors.map((c, i) => c === colorA && checkProperty(sn[i], propA) ? i : -1).filter(i => i >= 0);
+    const iB = colors.map((c, i) => c === colorB && checkProperty(sn[i], propB) ? i : -1).filter(i => i >= 0);
     if (iA.length > 0 && iB.length > 0 && iA.length + iB.length < n) {
       return {
         events: [
-          criarEvento('A', `ocorrer ${corA} e número ${propA}`, iA, n),
-          criarEvento('B', `ocorrer ${corB} e número ${propB}`, iB, n)
+          createEvent('A', `ocorrer ${colorA} e número ${propA}`, iA, n),
+          createEvent('B', `ocorrer ${colorB} e número ${propB}`, iB, n)
         ],
         needsNumbers: true
       };
     }
   }
   // Fallback: mesma prop, cores diferentes (sempre ME por cor)
-  const prop = shuffleArray(UNION_NUM_PROPS_SIMPLES)[0];
-  const iA = cores.map((c, i) => c === corA && verificaPropriedade(sn[i], prop) ? i : -1).filter(i => i >= 0);
-  const iB = cores.map((c, i) => c === corB && verificaPropriedade(sn[i], prop) ? i : -1).filter(i => i >= 0);
+  const prop = shuffleArray(UNION_SIMPLE_NUM_PROPS)[0];
+  const iA = colors.map((c, i) => c === colorA && checkProperty(sn[i], prop) ? i : -1).filter(i => i >= 0);
+  const iB = colors.map((c, i) => c === colorB && checkProperty(sn[i], prop) ? i : -1).filter(i => i >= 0);
   if (iA.length > 0 && iB.length > 0 && iA.length + iB.length < n) {
     return {
       events: [
-        criarEvento('A', `ocorrer ${corA} e número ${prop}`, iA, n),
-        criarEvento('B', `ocorrer ${corB} e número ${prop}`, iB, n)
+        createEvent('A', `ocorrer ${colorA} e número ${prop}`, iA, n),
+        createEvent('B', `ocorrer ${colorB} e número ${prop}`, iB, n)
       ],
       needsNumbers: true
     };
@@ -946,21 +936,21 @@ const receitaCorENumero: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
 };
 
 // R5: simples+composto — "número [prop]" + "cor X e número [prop2 oposta]"
-const receitaNumPropMaisCorNum: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  const cor = shuffleArray([...uniqueCores])[0];
-  const pares = shuffleArray([['par', 'ímpar'], ['primo', 'não primo']]);
-  for (const [propA, propB] of pares) {
+const recipeNumPropPlusColorNum: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  const color = shuffleArray([...uniqueColors])[0];
+  const pairList = shuffleArray([['par', 'ímpar'], ['primo', 'não primo']]);
+  for (const [propA, propB] of pairList) {
     // A = "número [propA]" nos setores que NÃO são da cor
-    const iNaoCor = cores.map((c, i) => c !== cor ? i : -1).filter(i => i >= 0);
-    const iA = iNaoCor.filter(j => verificaPropriedade(sn[j], propA));
+    const iNotColor = colors.map((c, i) => c !== color ? i : -1).filter(i => i >= 0);
+    const iA = iNotColor.filter(j => checkProperty(sn[j], propA));
     // B = "cor X e número [propB]"
-    const iB = cores.map((c, i) => c === cor && verificaPropriedade(sn[i], propB) ? i : -1).filter(i => i >= 0);
+    const iB = colors.map((c, i) => c === color && checkProperty(sn[i], propB) ? i : -1).filter(i => i >= 0);
     // ME: A só pega setores fora de cor, B só pega setores da cor → disjuntos
     if (iA.length > 0 && iB.length > 0 && iA.length + iB.length < n) {
       return {
         events: [
-          criarEvento('A', `obter número ${propA} em setor que não é ${cor}`, iA, n),
-          criarEvento('B', `ocorrer ${cor} e número ${propB}`, iB, n)
+          createEvent('A', `obter número ${propA} em setor que não é ${color}`, iA, n),
+          createEvent('B', `ocorrer ${color} e número ${propB}`, iB, n)
         ],
         needsNumbers: true
       };
@@ -970,34 +960,34 @@ const receitaNumPropMaisCorNum: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
 };
 
 // R6: composto+composto — propriedades numéricas disjuntas (par vs primo ímpar, > vs <)
-const receitaPropsNumericas2: ReceitaFn = (_s, sn, _c, _uc, n) => {
+const recipeNumericProps2: RecipeFn = (_s, sn, _c, _uc, n) => {
   // Limiares: A = "> p", B = "< p"
-  const numeros = [...new Set(sn)].sort((a, b) => a - b);
-  if (numeros.length >= 3) {
-    const meio = numeros[Math.floor(numeros.length / 2)];
-    const iA = sn.map((v, i) => v > meio ? i : -1).filter(i => i >= 0);
-    const iB = sn.map((v, i) => v < meio ? i : -1).filter(i => i >= 0);
+  const nums = [...new Set(sn)].sort((a, b) => a - b);
+  if (nums.length >= 3) {
+    const middle = nums[Math.floor(nums.length / 2)];
+    const iA = sn.map((v, i) => v > middle ? i : -1).filter(i => i >= 0);
+    const iB = sn.map((v, i) => v < middle ? i : -1).filter(i => i >= 0);
     if (iA.length > 0 && iB.length > 0 && iA.length + iB.length < n) {
       return {
         events: [
-          criarEvento('A', `obter número maior que ${meio}`, iA, n),
-          criarEvento('B', `obter número menor que ${meio}`, iB, n)
+          createEvent('A', `obter número maior que ${middle}`, iA, n),
+          createEvent('B', `obter número menor que ${middle}`, iB, n)
         ],
         needsNumbers: true
       };
     }
   }
   // par vs primo ímpar
-  const iA = indicesProp(sn, 'par');
-  const iB = indicesProp(sn, 'primo ímpar');
+  const iA = propertyIndices(sn, 'par');
+  const iB = propertyIndices(sn, 'primo ímpar');
   if (iA.length > 0 && iB.length > 0) {
     // Verificar disjunção (par ∩ primo ímpar = ∅)
     const inter = iA.filter(i => iB.includes(i));
     if (inter.length === 0 && iA.length + iB.length < n) {
       return {
         events: [
-          criarEvento('A', 'obter número par', iA, n),
-          criarEvento('B', 'obter número primo ímpar', iB, n)
+          createEvent('A', 'obter número par', iA, n),
+          createEvent('B', 'obter número primo ímpar', iB, n)
         ],
         needsNumbers: true
       };
@@ -1007,36 +997,36 @@ const receitaPropsNumericas2: ReceitaFn = (_s, sn, _c, _uc, n) => {
 };
 
 // R7: simples+composto — cor simples + "cor X ou cor Y" (compound via ou)
-const receitaCorSimplesMaisCorOu: ReceitaFn = (_s, _sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 4) return null; // precisa 4+ para que sobre
-  const shuffled = shuffleArray([...uniqueCores]);
-  const [corA, corB, corC] = shuffled;
-  const iA = indicesCor(cores, corA);
-  const iB = [...indicesCor(cores, corB), ...indicesCor(cores, corC)];
+const recipeSimpleColorPlusColorOr: RecipeFn = (_s, _sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 4) return null; // precisa 4+ para que sobre
+  const shuffled = shuffleArray([...uniqueColors]);
+  const [colorA, colorB, colorC] = shuffled;
+  const iA = colorIndices(colors, colorA);
+  const iB = [...colorIndices(colors, colorB), ...colorIndices(colors, colorC)];
   if (iA.length === 0 || iB.length === 0) return null;
   if (iA.length + iB.length >= n) return null;
   return {
     events: [
-      criarEvento('A', `ocorrer a cor ${corA}`, iA, n),
-      criarEvento('B', `ocorrer a cor ${corB} ou a cor ${corC}`, iB, n)
+      createEvent('A', `ocorrer a cor ${colorA}`, iA, n),
+      createEvent('B', `ocorrer a cor ${colorB} ou a cor ${colorC}`, iB, n)
     ],
     needsNumbers: false
   };
 };
 
 // R8: composto+simples — "cor X e número [prop]" + cor Y simples
-const receitaCorNumMaisCorSimples: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 2) return null;
-  const [corA, corB] = shuffleArray([...uniqueCores]);
-  const prop = shuffleArray(UNION_NUM_PROPS_SIMPLES)[0];
-  const iA = cores.map((c, i) => c === corA && verificaPropriedade(sn[i], prop) ? i : -1).filter(i => i >= 0);
-  const iB = indicesCor(cores, corB);
+const recipeColorNumPlusSimpleColor: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 2) return null;
+  const [colorA, colorB] = shuffleArray([...uniqueColors]);
+  const prop = shuffleArray(UNION_SIMPLE_NUM_PROPS)[0];
+  const iA = colors.map((c, i) => c === colorA && checkProperty(sn[i], prop) ? i : -1).filter(i => i >= 0);
+  const iB = colorIndices(colors, colorB);
   if (iA.length === 0 || iB.length === 0) return null;
   if (iA.length + iB.length >= n) return null;
   return {
     events: [
-      criarEvento('A', `ocorrer ${corA} e número ${prop}`, iA, n),
-      criarEvento('B', `ocorrer a cor ${corB}`, iB, n)
+      createEvent('A', `ocorrer ${colorA} e número ${prop}`, iA, n),
+      createEvent('B', `ocorrer a cor ${colorB}`, iB, n)
     ],
     needsNumbers: true
   };
@@ -1045,46 +1035,46 @@ const receitaCorNumMaisCorSimples: ReceitaFn = (_s, sn, cores, uniqueCores, n) =
 // ======= RECEITAS PARA 3 EVENTOS =======
 
 // R9: simples+simples+simples — 3 cores
-const receita3Cores: ReceitaFn = (_s, _sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length <= 3) return null;
-  const shuffled = shuffleArray([...uniqueCores]).slice(0, 3);
-  const events = shuffled.map((cor, i) => criarEvento(EVENT_LABELS[i], `ocorrer a cor ${cor}`, indicesCor(cores, cor), n));
+const recipe3Colors: RecipeFn = (_s, _sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length <= 3) return null;
+  const shuffled = shuffleArray([...uniqueColors]).slice(0, 3);
+  const events = shuffled.map((color, i) => createEvent(EVENT_LABELS[i], `ocorrer a cor ${color}`, colorIndices(colors, color), n));
   if (events.some(e => e.sectorIndices.length === 0)) return null;
   return { events, needsNumbers: false };
 };
 
 // R10: simples+simples+composto — 2 cores + "número [prop] nos restantes"
-const receita2CoresMaisNumProp: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 3) return null;
-  const shuffled = shuffleArray([...uniqueCores]);
-  const [corA, corB] = shuffled;
-  const coresUsadas = [corA, corB];
-  const iA = indicesCor(cores, corA);
-  const iB = indicesCor(cores, corB);
-  const iRestantes = cores.map((c, i) => !coresUsadas.includes(c) ? i : -1).filter(i => i >= 0);
-  if (iA.length === 0 || iB.length === 0 || iRestantes.length === 0) return null;
+const recipe2ColorsPlusNumProp: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 3) return null;
+  const shuffled = shuffleArray([...uniqueColors]);
+  const [colorA, colorB] = shuffled;
+  const usedColors = [colorA, colorB];
+  const iA = colorIndices(colors, colorA);
+  const iB = colorIndices(colors, colorB);
+  const iRemaining = colors.map((c, i) => !usedColors.includes(c) ? i : -1).filter(i => i >= 0);
+  if (iA.length === 0 || iB.length === 0 || iRemaining.length === 0) return null;
 
-  const prop = shuffleArray(UNION_NUM_PROPS_SIMPLES)[0];
-  const iC = iRestantes.filter(j => verificaPropriedade(sn[j], prop));
-  if (iC.length === 0 || iC.length === iRestantes.length) return null;
+  const prop = shuffleArray(UNION_SIMPLE_NUM_PROPS)[0];
+  const iC = iRemaining.filter(j => checkProperty(sn[j], prop));
+  if (iC.length === 0 || iC.length === iRemaining.length) return null;
   return {
     events: [
-      criarEvento('A', `ocorrer a cor ${corA}`, iA, n),
-      criarEvento('B', `ocorrer a cor ${corB}`, iB, n),
-      criarEvento('C', `obter número ${prop} em setor que não é ${corA} nem ${corB}`, iC, n)
+      createEvent('A', `ocorrer a cor ${colorA}`, iA, n),
+      createEvent('B', `ocorrer a cor ${colorB}`, iB, n),
+      createEvent('C', `obter número ${prop} em setor que não é ${colorA} nem ${colorB}`, iC, n)
     ],
     needsNumbers: true
   };
 };
 
 // R11: composto+composto+composto — 3 faixas numéricas
-const receita3FaixasNumericas: ReceitaFn = (_s, sn, _c, _uc, n) => {
-  const numeros = [...new Set(sn)].sort((a, b) => a - b);
-  if (numeros.length < 4) return null;
-  const i1 = Math.floor(numeros.length * 0.33);
-  const i2 = Math.ceil(numeros.length * 0.66);
-  const lim1 = numeros[i1];
-  const lim2 = numeros[Math.min(i2, numeros.length - 1)];
+const recipe3NumericRanges: RecipeFn = (_s, sn, _c, _uc, n) => {
+  const nums = [...new Set(sn)].sort((a, b) => a - b);
+  if (nums.length < 4) return null;
+  const i1 = Math.floor(nums.length * 0.33);
+  const i2 = Math.ceil(nums.length * 0.66);
+  const lim1 = nums[i1];
+  const lim2 = nums[Math.min(i2, nums.length - 1)];
   if (lim1 >= lim2) return null;
 
   const iA = sn.map((v, i) => v < lim1 ? i : -1).filter(i => i >= 0);
@@ -1093,50 +1083,50 @@ const receita3FaixasNumericas: ReceitaFn = (_s, sn, _c, _uc, n) => {
   if (iA.length === 0 || iB.length === 0 || iC.length === 0) return null;
   return {
     events: [
-      criarEvento('A', `obter número menor que ${lim1}`, iA, n),
-      criarEvento('B', `obter número maior que ${lim2}`, iB, n),
-      criarEvento('C', `obter o número ${lim1}${lim1 !== lim2 ? ` ou o número ${lim2}` : ''}`, iC, n)
+      createEvent('A', `obter número menor que ${lim1}`, iA, n),
+      createEvent('B', `obter número maior que ${lim2}`, iB, n),
+      createEvent('C', `obter o número ${lim1}${lim1 !== lim2 ? ` ou o número ${lim2}` : ''}`, iC, n)
     ],
     needsNumbers: true
   };
 };
 
 // R12: misto — cor + cor∧num + número específico
-const receitaMista3: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 2) return null;
-  const [corA, corB] = shuffleArray([...uniqueCores]);
-  const iA = indicesCor(cores, corA);
-  const prop = shuffleArray(UNION_NUM_PROPS_SIMPLES)[0];
-  const iB = cores.map((c, i) => c === corB && verificaPropriedade(sn[i], prop) ? i : -1).filter(i => i >= 0);
+const recipeMixed3: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 2) return null;
+  const [colorA, colorB] = shuffleArray([...uniqueColors]);
+  const iA = colorIndices(colors, colorA);
+  const prop = shuffleArray(UNION_SIMPLE_NUM_PROPS)[0];
+  const iB = colors.map((c, i) => c === colorB && checkProperty(sn[i], prop) ? i : -1).filter(i => i >= 0);
   if (iA.length === 0 || iB.length === 0) return null;
 
   // C = um número específico que não está em A nem B
-  const indicesUsados = new Set([...iA, ...iB]);
-  const livres = sn.map((_, i) => i).filter(i => !indicesUsados.has(i));
-  if (livres.length === 0) return null;
-  const numAlvo = sn[livres[0]];
-  const iC = livres.filter(j => sn[j] === numAlvo);
+  const usedIndices = new Set([...iA, ...iB]);
+  const freeItems = sn.map((_, i) => i).filter(i => !usedIndices.has(i));
+  if (freeItems.length === 0) return null;
+  const targetNum = sn[freeItems[0]];
+  const iC = freeItems.filter(j => sn[j] === targetNum);
   if (iC.length === 0) return null;
-  const sobraTotal = n - iA.length - iB.length - iC.length;
-  if (sobraTotal <= 0) return null;
+  const totalRemainder = n - iA.length - iB.length - iC.length;
+  if (totalRemainder <= 0) return null;
   return {
     events: [
-      criarEvento('A', `ocorrer a cor ${corA}`, iA, n),
-      criarEvento('B', `ocorrer ${corB} e número ${prop}`, iB, n),
-      criarEvento('C', `obter o número ${numAlvo}`, iC, n)
+      createEvent('A', `ocorrer a cor ${colorA}`, iA, n),
+      createEvent('B', `ocorrer ${colorB} e número ${prop}`, iB, n),
+      createEvent('C', `obter o número ${targetNum}`, iC, n)
     ],
     needsNumbers: true
   };
 };
 
 // R13: 3 números específicos
-const receita3NumerosEspecificos: ReceitaFn = (_s, sn, _c, _uc, n) => {
-  const numerosUnicos = [...new Set(sn)];
-  if (numerosUnicos.length < 4) return null;
-  const shuffled = shuffleArray(numerosUnicos).slice(0, 3);
+const recipe3SpecificNumbers: RecipeFn = (_s, sn, _c, _uc, n) => {
+  const uniqueNums = [...new Set(sn)];
+  if (uniqueNums.length < 4) return null;
+  const shuffled = shuffleArray(uniqueNums).slice(0, 3);
   const events = shuffled.map((num, i) => {
     const indices = sn.map((v, j) => v === num ? j : -1).filter(j => j >= 0);
-    return criarEvento(EVENT_LABELS[i], `obter o número ${num}`, indices, n);
+    return createEvent(EVENT_LABELS[i], `obter o número ${num}`, indices, n);
   });
   if (events.some(e => e.sectorIndices.length === 0)) return null;
   const total = events.reduce((s, e) => s + e.sectorIndices.length, 0);
@@ -1147,34 +1137,34 @@ const receita3NumerosEspecificos: ReceitaFn = (_s, sn, _c, _uc, n) => {
 // ======= RECEITAS PARA 4+ EVENTOS =======
 
 // R14: cores parciais (subconjunto estrito)
-const receitaCoresParciais: ReceitaFn = (_s, _sn, cores, uniqueCores, n) => {
-  const numEvents = Math.min(uniqueCores.length - 1, 6); // deixar pelo menos 1 cor fora
+const recipePartialColors: RecipeFn = (_s, _sn, colors, uniqueColors, n) => {
+  const numEvents = Math.min(uniqueColors.length - 1, 6); // deixar pelo menos 1 cor fora
   if (numEvents < 2) return null;
-  const shuffled = shuffleArray([...uniqueCores]).slice(0, numEvents);
-  const events = shuffled.map((cor, i) => criarEvento(EVENT_LABELS[i], `ocorrer a cor ${cor}`, indicesCor(cores, cor), n));
+  const shuffled = shuffleArray([...uniqueColors]).slice(0, numEvents);
+  const events = shuffled.map((color, i) => createEvent(EVENT_LABELS[i], `ocorrer a cor ${color}`, colorIndices(colors, color), n));
   if (events.some(e => e.sectorIndices.length === 0)) return null;
   return { events, needsNumbers: false };
 };
 
 // R15: (numEvents-1) cores + prop numérica no restante
-const receitaCoresMaisNum: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  const numEvCores = Math.min(uniqueCores.length - 1, 5);
-  if (numEvCores < 1) return null;
-  const shuffled = shuffleArray([...uniqueCores]);
-  const coresUsadas = shuffled.slice(0, numEvCores);
-  const events: UnionEvent[] = coresUsadas.map((cor, i) =>
-    criarEvento(EVENT_LABELS[i], `ocorrer a cor ${cor}`, indicesCor(cores, cor), n)
+const recipeColorsPlusNum: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  const numEventColors = Math.min(uniqueColors.length - 1, 5);
+  if (numEventColors < 1) return null;
+  const shuffled = shuffleArray([...uniqueColors]);
+  const usedColors = shuffled.slice(0, numEventColors);
+  const events: UnionEvent[] = usedColors.map((color, i) =>
+    createEvent(EVENT_LABELS[i], `ocorrer a cor ${color}`, colorIndices(colors, color), n)
   );
-  const indicesUsados = new Set(events.flatMap(e => e.sectorIndices));
-  const livres = sn.map((_, i) => i).filter(i => !indicesUsados.has(i));
-  if (livres.length === 0) return null;
+  const usedIndices = new Set(events.flatMap(e => e.sectorIndices));
+  const freeItems = sn.map((_, i) => i).filter(i => !usedIndices.has(i));
+  if (freeItems.length === 0) return null;
 
-  const prop = shuffleArray(UNION_NUM_PROPS_SIMPLES)[0];
-  const iNum = livres.filter(j => verificaPropriedade(sn[j], prop));
-  if (iNum.length === 0 || iNum.length === livres.length) return null;
-  events.push(criarEvento(
+  const prop = shuffleArray(UNION_SIMPLE_NUM_PROPS)[0];
+  const iNum = freeItems.filter(j => checkProperty(sn[j], prop));
+  if (iNum.length === 0 || iNum.length === freeItems.length) return null;
+  events.push(createEvent(
     EVENT_LABELS[events.length],
-    `obter número ${prop} em setor que não é ${coresUsadas.join(' nem ')}`,
+    `obter número ${prop} em setor que não é ${usedColors.join(' nem ')}`,
     iNum, n
   ));
   if (events.some(e => e.sectorIndices.length === 0)) return null;
@@ -1182,14 +1172,14 @@ const receitaCoresMaisNum: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
 };
 
 // R16: N números específicos
-const receitaNumerosEspecificosN: ReceitaFn = (_s, sn, _c, _uc, n) => {
+const recipeSpecificNumbersN: RecipeFn = (_s, sn, _c, _uc, n) => {
   const numEvents = Math.min(4, n - 1);
-  const numerosUnicos = [...new Set(sn)];
-  if (numerosUnicos.length < numEvents + 1) return null;
-  const shuffled = shuffleArray(numerosUnicos).slice(0, numEvents);
+  const uniqueNums = [...new Set(sn)];
+  if (uniqueNums.length < numEvents + 1) return null;
+  const shuffled = shuffleArray(uniqueNums).slice(0, numEvents);
   const events = shuffled.map((num, i) => {
     const indices = sn.map((v, j) => v === num ? j : -1).filter(j => j >= 0);
-    return criarEvento(EVENT_LABELS[i], `obter o número ${num}`, indices, n);
+    return createEvent(EVENT_LABELS[i], `obter o número ${num}`, indices, n);
   });
   if (events.some(e => e.sectorIndices.length === 0)) return null;
   const total = events.reduce((s, e) => s + e.sectorIndices.length, 0);
@@ -1198,26 +1188,26 @@ const receitaNumerosEspecificosN: ReceitaFn = (_s, sn, _c, _uc, n) => {
 };
 
 // R17: misto N — cores + cor∧número
-const receitaMistaN: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  const numEvCores = Math.min(2, uniqueCores.length - 1);
-  if (numEvCores < 1) return null;
-  const shuffled = shuffleArray([...uniqueCores]);
-  const coresSimples = shuffled.slice(0, numEvCores);
-  const coresRestantes = shuffled.slice(numEvCores);
-  const events: UnionEvent[] = coresSimples.map((cor, i) =>
-    criarEvento(EVENT_LABELS[i], `ocorrer a cor ${cor}`, indicesCor(cores, cor), n)
+const recipeMixedN: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  const numEventColors = Math.min(2, uniqueColors.length - 1);
+  if (numEventColors < 1) return null;
+  const shuffled = shuffleArray([...uniqueColors]);
+  const simpleColors = shuffled.slice(0, numEventColors);
+  const remainingColors = shuffled.slice(numEventColors);
+  const events: UnionEvent[] = simpleColors.map((color, i) =>
+    createEvent(EVENT_LABELS[i], `ocorrer a cor ${color}`, colorIndices(colors, color), n)
   );
 
   // Adicionar eventos cor∧número com cores restantes
-  const props = shuffleArray(UNION_NUM_PROPS_SIMPLES);
+  const props = shuffleArray(UNION_SIMPLE_NUM_PROPS);
   let propIdx = 0;
-  for (const cor of coresRestantes) {
+  for (const color of remainingColors) {
     if (events.length >= 6) break;
     const prop = props[propIdx % props.length];
     propIdx++;
-    const indices = cores.map((c, i) => c === cor && verificaPropriedade(sn[i], prop) ? i : -1).filter(i => i >= 0);
+    const indices = colors.map((c, i) => c === color && checkProperty(sn[i], prop) ? i : -1).filter(i => i >= 0);
     if (indices.length > 0) {
-      events.push(criarEvento(EVENT_LABELS[events.length], `ocorrer ${cor} e número ${prop}`, indices, n));
+      events.push(createEvent(EVENT_LABELS[events.length], `ocorrer ${color} e número ${prop}`, indices, n));
     }
   }
   if (events.length < 3 || events.some(e => e.sectorIndices.length === 0)) return null;
@@ -1229,37 +1219,37 @@ const receitaMistaN: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
 // ======= RECEITAS ADICIONAIS — COMBINAÇÕES AVANÇADAS =======
 
 // Auxiliar: encontrar somas interessantes entre números dos setores
-function encontrarSomasInteressantes(sectorNumbers: number[]): Array<{ soma: number; parcelas: number[]; indicesAlvo: number[] }> {
-  const resultados: Array<{ soma: number; parcelas: number[]; indicesAlvo: number[] }> = [];
+function findInterestingSums(sectorNumbers: number[]): Array<{ sum: number; addends: number[]; targetIndices: number[] }> {
+  const results: Array<{ sum: number; addends: number[]; targetIndices: number[] }> = [];
   const n = sectorNumbers.length;
   // Tentar somas de 2 parcelas
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const s = sectorNumbers[i] + sectorNumbers[j];
-      const alvos = sectorNumbers.map((v, k) => v === s && k !== i && k !== j ? k : -1).filter(k => k >= 0);
-      if (alvos.length > 0) {
-        resultados.push({ soma: s, parcelas: [sectorNumbers[i], sectorNumbers[j]], indicesAlvo: alvos });
+      const targets = sectorNumbers.map((v, k) => v === s && k !== i && k !== j ? k : -1).filter(k => k >= 0);
+      if (targets.length > 0) {
+        results.push({ sum: s, addends: [sectorNumbers[i], sectorNumbers[j]], targetIndices: targets });
       }
     }
   }
-  return resultados;
+  return results;
 }
 
 // Auxiliar: índices de "cor X ou prop numérica" (união de cor com propriedade)
-function indicesCorOuProp(cores: string[], cor: string, sn: number[], prop: string): number[] {
+function colorOrPropertyIndices(colors: string[], color: string, sn: number[], prop: string): number[] {
   const set = new Set<number>();
-  cores.forEach((c, i) => { if (c === cor) set.add(i); });
-  sn.forEach((num, i) => { if (verificaPropriedade(num, prop)) set.add(i); });
+  colors.forEach((c, i) => { if (c === color) set.add(i); });
+  sn.forEach((num, i) => { if (checkProperty(num, prop)) set.add(i); });
   return [...set].sort((a, b) => a - b);
 }
 
 // Auxiliar: índices de "cor X e prop numérica" (interseção)
-function indicesCorEProp(cores: string[], cor: string, sn: number[], prop: string): number[] {
-  return cores.map((c, i) => c === cor && verificaPropriedade(sn[i], prop) ? i : -1).filter(i => i >= 0);
+function colorAndPropertyIndices(colors: string[], color: string, sn: number[], prop: string): number[] {
+  return colors.map((c, i) => c === color && checkProperty(sn[i], prop) ? i : -1).filter(i => i >= 0);
 }
 
 // Auxiliar: verificar que grupos são ME (sem interseção)
-function gruposME(groups: number[][]): boolean {
+function mutuallyExclusiveGroups(groups: number[][]): boolean {
   const all = new Set<number>();
   for (const g of groups) {
     for (const idx of g) {
@@ -1271,23 +1261,23 @@ function gruposME(groups: number[][]): boolean {
 }
 
 // R18: "Cor X ou par" + "Cor Y e ímpar" (compound_ou + compound_e)
-const receitaCorOuPropMaisCorEProp: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 2) return null;
-  const [corA, corB] = shuffleArray([...uniqueCores]);
-  const pares = shuffleArray([['par', 'ímpar'], ['primo', 'não primo']]);
-  for (const [propOu, propE] of pares) {
-    const iCorA = indicesCor(cores, corA);
-    const iProp = indicesProp(sn, propOu);
+const recipeColorOrPropPlusColorAndProp: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 2) return null;
+  const [colorA, colorB] = shuffleArray([...uniqueColors]);
+  const pairList = shuffleArray([['par', 'ímpar'], ['primo', 'não primo']]);
+  for (const [propOr, propE] of pairList) {
+    const iColorA = colorIndices(colors, colorA);
+    const iProp = propertyIndices(sn, propOr);
     // Verificar que a propriedade contribui setores FORA de corA (senão "ou propOu" é redundante/enganoso)
-    const propForaCorA = iProp.filter(i => !iCorA.includes(i));
-    if (iCorA.length === 0 || propForaCorA.length === 0) continue;
-    const iA = indicesCorOuProp(cores, corA, sn, propOu);
-    const iB = indicesCorEProp(cores, corB, sn, propE);
-    if (iA.length > 0 && iB.length > 0 && gruposME([iA, iB]) && iA.length + iB.length < n) {
+    const propOutsideColorA = iProp.filter(i => !iColorA.includes(i));
+    if (iColorA.length === 0 || propOutsideColorA.length === 0) continue;
+    const iA = colorOrPropertyIndices(colors, colorA, sn, propOr);
+    const iB = colorAndPropertyIndices(colors, colorB, sn, propE);
+    if (iA.length > 0 && iB.length > 0 && mutuallyExclusiveGroups([iA, iB]) && iA.length + iB.length < n) {
       return {
         events: [
-          criarEvento('A', `ocorrer ${corA} ou número ${propOu}`, iA, n),
-          criarEvento('B', `ocorrer ${corB} e número ${propE}`, iB, n)
+          createEvent('A', `ocorrer ${colorA} ou número ${propOr}`, iA, n),
+          createEvent('B', `ocorrer ${colorB} e número ${propE}`, iB, n)
         ],
         needsNumbers: true
       };
@@ -1297,22 +1287,22 @@ const receitaCorOuPropMaisCorEProp: ReceitaFn = (_s, sn, cores, uniqueCores, n) 
 };
 
 // R19: "(Cor X e par) ou (Cor Y e ímpar)" + "Cor Z"
-const receitaCompoundOuPar: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 3) return null;
-  const [corX, corY, corZ] = shuffleArray([...uniqueCores]);
-  const pares = shuffleArray([['par', 'ímpar'], ['primo', 'não primo']]);
-  for (const [p1, p2] of pares) {
-    const iXp1 = indicesCorEProp(cores, corX, sn, p1);
-    const iYp2 = indicesCorEProp(cores, corY, sn, p2);
+const recipeCompoundOrPair: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 3) return null;
+  const [colorX, colorY, colorZ] = shuffleArray([...uniqueColors]);
+  const pairList = shuffleArray([['par', 'ímpar'], ['primo', 'não primo']]);
+  for (const [p1, p2] of pairList) {
+    const iXp1 = colorAndPropertyIndices(colors, colorX, sn, p1);
+    const iYp2 = colorAndPropertyIndices(colors, colorY, sn, p2);
     // Cada sub-parte deve ser não-vazia para que a descrição faça sentido
     if (iXp1.length === 0 || iYp2.length === 0) continue;
     const iA = [...new Set([...iXp1, ...iYp2])].sort((a, b) => a - b);
-    const iB = indicesCor(cores, corZ);
-    if (iA.length > 0 && iB.length > 0 && gruposME([iA, iB]) && iA.length + iB.length < n) {
+    const iB = colorIndices(colors, colorZ);
+    if (iA.length > 0 && iB.length > 0 && mutuallyExclusiveGroups([iA, iB]) && iA.length + iB.length < n) {
       return {
         events: [
-          criarEvento('A', `(${corX} e ${p1}) ou (${corY} e ${p2})`, iA, n),
-          criarEvento('B', `ocorrer a cor ${corZ}`, iB, n)
+          createEvent('A', `(${colorX} e ${p1}) ou (${colorY} e ${p2})`, iA, n),
+          createEvent('B', `ocorrer a cor ${colorZ}`, iB, n)
         ],
         needsNumbers: true
       };
@@ -1322,22 +1312,22 @@ const receitaCompoundOuPar: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
 };
 
 // R20: "Cor X ou (Cor Y e primo)" + "Cor Z"
-const receitaCorOuCorEProp: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 3) return null;
-  const [corX, corY, corZ] = shuffleArray([...uniqueCores]);
-  const props = shuffleArray(UNION_NUM_PROPS_SIMPLES);
+const recipeColorOrColorAndProp: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 3) return null;
+  const [colorX, colorY, colorZ] = shuffleArray([...uniqueColors]);
+  const props = shuffleArray(UNION_SIMPLE_NUM_PROPS);
   for (const prop of props) {
-    const iX = indicesCor(cores, corX);
-    const iYprop = indicesCorEProp(cores, corY, sn, prop);
+    const iX = colorIndices(colors, colorX);
+    const iYprop = colorAndPropertyIndices(colors, colorY, sn, prop);
     // Cada sub-parte deve ser não-vazia: iX (corX) e iYprop (corY e prop)
     if (iX.length === 0 || iYprop.length === 0) continue;
     const iA = [...new Set([...iX, ...iYprop])].sort((a, b) => a - b);
-    const iB = indicesCor(cores, corZ);
-    if (iA.length > 0 && iB.length > 0 && gruposME([iA, iB]) && iA.length + iB.length < n) {
+    const iB = colorIndices(colors, colorZ);
+    if (iA.length > 0 && iB.length > 0 && mutuallyExclusiveGroups([iA, iB]) && iA.length + iB.length < n) {
       return {
         events: [
-          criarEvento('A', `ocorrer ${corX} ou (${corY} e ${prop})`, iA, n),
-          criarEvento('B', `ocorrer a cor ${corZ}`, iB, n)
+          createEvent('A', `ocorrer ${colorX} ou (${colorY} e ${prop})`, iA, n),
+          createEvent('B', `ocorrer a cor ${colorZ}`, iB, n)
         ],
         needsNumbers: true
       };
@@ -1347,25 +1337,25 @@ const receitaCorOuCorEProp: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
 };
 
 // R21: "Cor X e soma s" + "Cor Y"  (soma = parcela1 + parcela2 de outros setores)
-const receitaCorESoma: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 2) return null;
-  const somas = encontrarSomasInteressantes(sn);
-  if (somas.length === 0) return null;
-  const somaInfo = shuffleArray(somas)[0];
+const recipeColorAndSum: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 2) return null;
+  const sums = findInterestingSums(sn);
+  if (sums.length === 0) return null;
+  const sumInfo = shuffleArray(sums)[0];
   // Encontrar setores com essa soma que sejam de uma cor específica
-  for (const corX of shuffleArray([...uniqueCores])) {
-    const iA = somaInfo.indicesAlvo.filter(j => cores[j] === corX);
+  for (const colorX of shuffleArray([...uniqueColors])) {
+    const iA = sumInfo.targetIndices.filter(j => colors[j] === colorX);
     if (iA.length === 0) continue;
     // Escolher cor Y diferente
-    const outrasCorres = uniqueCores.filter(c => c !== corX);
-    if (outrasCorres.length === 0) continue;
-    const corY = shuffleArray(outrasCorres)[0];
-    const iB = indicesCor(cores, corY);
-    if (iB.length > 0 && gruposME([iA, iB]) && iA.length + iB.length < n) {
+    const otherColors = uniqueColors.filter(c => c !== colorX);
+    if (otherColors.length === 0) continue;
+    const colorY = shuffleArray(otherColors)[0];
+    const iB = colorIndices(colors, colorY);
+    if (iB.length > 0 && mutuallyExclusiveGroups([iA, iB]) && iA.length + iB.length < n) {
       return {
         events: [
-          criarEvento('A', `ocorrer ${corX} e número igual a ${somaInfo.parcelas.join(' + ')}`, iA, n),
-          criarEvento('B', `ocorrer a cor ${corY}`, iB, n)
+          createEvent('A', `ocorrer ${colorX} e número igual a ${sumInfo.addends.join(' + ')}`, iA, n),
+          createEvent('B', `ocorrer a cor ${colorY}`, iB, n)
         ],
         needsNumbers: true
       };
@@ -1375,126 +1365,124 @@ const receitaCorESoma: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
 };
 
 // R22: "Cor X" + "Cor Y e par" + "Cor Y e ímpar" (3 eventos, mesma cor secundária particionada)
-const receitaCorMaisCorParticionada: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 2) return null;
-  const [corX, corY] = shuffleArray([...uniqueCores]);
-  const iA = indicesCor(cores, corX);
-  const iB = indicesCorEProp(cores, corY, sn, 'par');
-  const iC = indicesCorEProp(cores, corY, sn, 'ímpar');
+const recipeColorPlusPartitionedColor: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 2) return null;
+  const [colorX, colorY] = shuffleArray([...uniqueColors]);
+  const iA = colorIndices(colors, colorX);
+  const iB = colorAndPropertyIndices(colors, colorY, sn, 'par');
+  const iC = colorAndPropertyIndices(colors, colorY, sn, 'ímpar');
   if (iA.length === 0 || iB.length === 0 || iC.length === 0) return null;
-  if (!gruposME([iA, iB, iC])) return null;
+  if (!mutuallyExclusiveGroups([iA, iB, iC])) return null;
   const total = iA.length + iB.length + iC.length;
   if (total >= n) return null;
   return {
     events: [
-      criarEvento('A', `ocorrer a cor ${corX}`, iA, n),
-      criarEvento('B', `ocorrer ${corY} e número par`, iB, n),
-      criarEvento('C', `ocorrer ${corY} e número ímpar`, iC, n)
+      createEvent('A', `ocorrer a cor ${colorX}`, iA, n),
+      createEvent('B', `ocorrer ${colorY} e número par`, iB, n),
+      createEvent('C', `ocorrer ${colorY} e número ímpar`, iC, n)
     ],
     needsNumbers: true
   };
 };
 
 // R23: "Cor X ou ímpar" + "Cor Y e par" + "Cor Z e primo"  (3 compound)
-const receita3Compound: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 3) return null;
-  const [cX, cY, cZ] = shuffleArray([...uniqueCores]);
+const recipe3Compound: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 3) return null;
+  const [cX, cY, cZ] = shuffleArray([...uniqueColors]);
   // Verificar que 'ímpar' contribui setores fora de cX (senão "ou ímpar" é enganoso)
-  const iCX = indicesCor(cores, cX);
-  const iImpar = indicesProp(sn, 'ímpar');
-  const imparForaCX = iImpar.filter(i => !iCX.includes(i));
-  if (iCX.length === 0 || imparForaCX.length === 0) return null;
-  const iA = indicesCorOuProp(cores, cX, sn, 'ímpar');
-  const iB = indicesCorEProp(cores, cY, sn, 'par');
-  const iC = indicesCorEProp(cores, cZ, sn, 'primo');
+  const iCX = colorIndices(colors, cX);
+  const iOdd = propertyIndices(sn, 'ímpar');
+  const oddOutsideCX = iOdd.filter(i => !iCX.includes(i));
+  if (iCX.length === 0 || oddOutsideCX.length === 0) return null;
+  const iA = colorOrPropertyIndices(colors, cX, sn, 'ímpar');
+  const iB = colorAndPropertyIndices(colors, cY, sn, 'par');
+  const iC = colorAndPropertyIndices(colors, cZ, sn, 'primo');
   if (iA.length === 0 || iB.length === 0 || iC.length === 0) return null;
-  if (!gruposME([iA, iB, iC])) return null;
+  if (!mutuallyExclusiveGroups([iA, iB, iC])) return null;
   const total = iA.length + iB.length + iC.length;
   if (total >= n) return null;
   return {
     events: [
-      criarEvento('A', `ocorrer ${cX} ou número ímpar`, iA, n),
-      criarEvento('B', `ocorrer ${cY} e número par`, iB, n),
-      criarEvento('C', `ocorrer ${cZ} e número primo`, iC, n)
+      createEvent('A', `ocorrer ${cX} ou número ímpar`, iA, n),
+      createEvent('B', `ocorrer ${cY} e número par`, iB, n),
+      createEvent('C', `ocorrer ${cZ} e número primo`, iC, n)
     ],
     needsNumbers: true
   };
 };
 
 // R24: "Cor X e primo" + "Cor Y e par" + "número ímpar em setor que não é X nem Y"
-const receitaPrimoParImpar: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 3) return null;
-  const [cX, cY] = shuffleArray([...uniqueCores]);
-  const iA = indicesCorEProp(cores, cX, sn, 'primo');
-  const iB = indicesCorEProp(cores, cY, sn, 'par');
-  const iRest = cores.map((c, i) => c !== cX && c !== cY ? i : -1).filter(i => i >= 0);
-  const iC = iRest.filter(j => verificaPropriedade(sn[j], 'ímpar'));
+const recipePrimeEvenOdd: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 3) return null;
+  const [cX, cY] = shuffleArray([...uniqueColors]);
+  const iA = colorAndPropertyIndices(colors, cX, sn, 'primo');
+  const iB = colorAndPropertyIndices(colors, cY, sn, 'par');
+  const iRest = colors.map((c, i) => c !== cX && c !== cY ? i : -1).filter(i => i >= 0);
+  const iC = iRest.filter(j => checkProperty(sn[j], 'ímpar'));
   if (iA.length === 0 || iB.length === 0 || iC.length === 0) return null;
-  if (!gruposME([iA, iB, iC])) return null;
+  if (!mutuallyExclusiveGroups([iA, iB, iC])) return null;
   const total = iA.length + iB.length + iC.length;
   if (total >= n) return null;
   return {
     events: [
-      criarEvento('A', `ocorrer ${cX} e número primo`, iA, n),
-      criarEvento('B', `ocorrer ${cY} e número par`, iB, n),
-      criarEvento('C', `número ímpar em setor que não é ${cX} nem ${cY}`, iC, n)
+      createEvent('A', `ocorrer ${cX} e número primo`, iA, n),
+      createEvent('B', `ocorrer ${cY} e número par`, iB, n),
+      createEvent('C', `número ímpar em setor que não é ${cX} nem ${cY}`, iC, n)
     ],
     needsNumbers: true
   };
 };
 
 // R25: "número igual a soma" + "cor X" + "cor Y e prop" (3 eventos com soma)
-const receita3ComSoma: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 2) return null;
-  const somas = encontrarSomasInteressantes(sn);
-  if (somas.length === 0) return null;
-  const somaInfo = shuffleArray(somas)[0];
+const recipe3WithSum: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 2) return null;
+  const sums = findInterestingSums(sn);
+  if (sums.length === 0) return null;
+  const sumInfo = shuffleArray(sums)[0];
   // A = obter a soma
-  const iA = somaInfo.indicesAlvo;
-  const coresDoA = [...new Set(iA.map(j => cores[j]))];
+  const iA = sumInfo.targetIndices;
   // B e C = cores que não estão em A
-  const coresLivres = uniqueCores.filter(c => !coresDoA.includes(c) || indicesCor(cores, c).some(j => !iA.includes(j)));
-  const coresEstritamenteLivres = uniqueCores.filter(c => indicesCor(cores, c).every(j => !iA.includes(j)));
-  if (coresEstritamenteLivres.length < 2) return null;
-  const [cB, cC] = shuffleArray(coresEstritamenteLivres);
-  const iB = indicesCor(cores, cB);
-  const propC = shuffleArray(UNION_NUM_PROPS_SIMPLES)[0];
-  const iC = indicesCorEProp(cores, cC, sn, propC);
+  const strictlyFreeColors = uniqueColors.filter(c => colorIndices(colors, c).every(j => !iA.includes(j)));
+  if (strictlyFreeColors.length < 2) return null;
+  const [cB, cC] = shuffleArray(strictlyFreeColors);
+  const iB = colorIndices(colors, cB);
+  const propC = shuffleArray(UNION_SIMPLE_NUM_PROPS)[0];
+  const iC = colorAndPropertyIndices(colors, cC, sn, propC);
   if (iB.length === 0 || iC.length === 0) return null;
-  if (!gruposME([iA, iB, iC])) return null;
+  if (!mutuallyExclusiveGroups([iA, iB, iC])) return null;
   const total = iA.length + iB.length + iC.length;
   if (total >= n) return null;
   return {
     events: [
-      criarEvento('A', `obter número igual a ${somaInfo.parcelas.join(' + ')}`, iA, n),
-      criarEvento('B', `ocorrer a cor ${cB}`, iB, n),
-      criarEvento('C', `ocorrer ${cC} e número ${propC}`, iC, n)
+      createEvent('A', `obter número igual a ${sumInfo.addends.join(' + ')}`, iA, n),
+      createEvent('B', `ocorrer a cor ${cB}`, iB, n),
+      createEvent('C', `ocorrer ${cC} e número ${propC}`, iC, n)
     ],
     needsNumbers: true
   };
 };
 
 // R26: "(Cor X e primo) ou (Cor Y e par)" + "Cor Z e ímpar" (2 eventos compound)
-const receitaCompoundOuMaisCompound: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 3) return null;
-  const [cX, cY, cZ] = shuffleArray([...uniqueCores]);
+const recipeCompoundOrPlusCompound: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 3) return null;
+  const [cX, cY, cZ] = shuffleArray([...uniqueColors]);
   const combos = shuffleArray([
     { a1: 'primo', a2: 'par', b: 'ímpar' },
     { a1: 'par', a2: 'primo', b: 'ímpar' },
     { a1: 'ímpar', a2: 'primo', b: 'par' },
   ]);
   for (const { a1, a2, b } of combos) {
-    const iXa1 = indicesCorEProp(cores, cX, sn, a1);
-    const iYa2 = indicesCorEProp(cores, cY, sn, a2);
+    const iXa1 = colorAndPropertyIndices(colors, cX, sn, a1);
+    const iYa2 = colorAndPropertyIndices(colors, cY, sn, a2);
     // Cada sub-parte deve ser não-vazia para que a descrição faça sentido
     if (iXa1.length === 0 || iYa2.length === 0) continue;
     const iA = [...new Set([...iXa1, ...iYa2])].sort((a, b) => a - b);
-    const iB = indicesCorEProp(cores, cZ, sn, b);
-    if (iA.length > 0 && iB.length > 0 && gruposME([iA, iB]) && iA.length + iB.length < n) {
+    const iB = colorAndPropertyIndices(colors, cZ, sn, b);
+    if (iA.length > 0 && iB.length > 0 && mutuallyExclusiveGroups([iA, iB]) && iA.length + iB.length < n) {
       return {
         events: [
-          criarEvento('A', `(${cX} e ${a1}) ou (${cY} e ${a2})`, iA, n),
-          criarEvento('B', `ocorrer ${cZ} e número ${b}`, iB, n)
+          createEvent('A', `(${cX} e ${a1}) ou (${cY} e ${a2})`, iA, n),
+          createEvent('B', `ocorrer ${cZ} e número ${b}`, iB, n)
         ],
         needsNumbers: true
       };
@@ -1504,23 +1492,23 @@ const receitaCompoundOuMaisCompound: ReceitaFn = (_s, sn, cores, uniqueCores, n)
 };
 
 // R27: "Cor X ou primo" + "Cor Y" (simple ou + simple, 2 eventos)
-const receitaCorOuPropSimples: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 3) return null;
-  const [cX, cY] = shuffleArray([...uniqueCores]);
-  const props = shuffleArray(UNION_NUM_PROPS_SIMPLES);
+const recipeColorOrSimpleProp: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 3) return null;
+  const [cX, cY] = shuffleArray([...uniqueColors]);
+  const props = shuffleArray(UNION_SIMPLE_NUM_PROPS);
   for (const prop of props) {
     // Verificar que a propriedade contribui setores FORA de cX (senão "ou prop" é enganoso)
-    const iCX = indicesCor(cores, cX);
-    const iProp = indicesProp(sn, prop);
-    const propForaCX = iProp.filter(i => !iCX.includes(i));
-    if (iCX.length === 0 || propForaCX.length === 0) continue;
-    const iA = indicesCorOuProp(cores, cX, sn, prop);
-    const iB = indicesCor(cores, cY);
-    if (iA.length > 0 && iB.length > 0 && gruposME([iA, iB]) && iA.length + iB.length < n) {
+    const iCX = colorIndices(colors, cX);
+    const iProp = propertyIndices(sn, prop);
+    const propOutsideCX = iProp.filter(i => !iCX.includes(i));
+    if (iCX.length === 0 || propOutsideCX.length === 0) continue;
+    const iA = colorOrPropertyIndices(colors, cX, sn, prop);
+    const iB = colorIndices(colors, cY);
+    if (iA.length > 0 && iB.length > 0 && mutuallyExclusiveGroups([iA, iB]) && iA.length + iB.length < n) {
       return {
         events: [
-          criarEvento('A', `ocorrer ${cX} ou número ${prop}`, iA, n),
-          criarEvento('B', `ocorrer a cor ${cY}`, iB, n)
+          createEvent('A', `ocorrer ${cX} ou número ${prop}`, iA, n),
+          createEvent('B', `ocorrer a cor ${cY}`, iB, n)
         ],
         needsNumbers: true
       };
@@ -1530,87 +1518,87 @@ const receitaCorOuPropSimples: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
 };
 
 // R28: "soma" + cor (2 eventos simples com soma descritiva)
-const receitaSomaMaisCor: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  const somas = encontrarSomasInteressantes(sn);
-  if (somas.length === 0 || uniqueCores.length < 2) return null;
-  const somaInfo = shuffleArray(somas)[0];
-  const iA = somaInfo.indicesAlvo;
-  const coresLivres = uniqueCores.filter(c => indicesCor(cores, c).every(j => !iA.includes(j)));
-  if (coresLivres.length === 0) return null;
-  const corB = shuffleArray(coresLivres)[0];
-  const iB = indicesCor(cores, corB);
-  if (iB.length === 0 || !gruposME([iA, iB]) || iA.length + iB.length >= n) return null;
+const recipeSumPlusColor: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  const sums = findInterestingSums(sn);
+  if (sums.length === 0 || uniqueColors.length < 2) return null;
+  const sumInfo = shuffleArray(sums)[0];
+  const iA = sumInfo.targetIndices;
+  const freeColors = uniqueColors.filter(c => colorIndices(colors, c).every(j => !iA.includes(j)));
+  if (freeColors.length === 0) return null;
+  const colorB = shuffleArray(freeColors)[0];
+  const iB = colorIndices(colors, colorB);
+  if (iB.length === 0 || !mutuallyExclusiveGroups([iA, iB]) || iA.length + iB.length >= n) return null;
   return {
     events: [
-      criarEvento('A', `obter número igual a ${somaInfo.parcelas.join(' + ')}`, iA, n),
-      criarEvento('B', `ocorrer a cor ${corB}`, iB, n)
+      createEvent('A', `obter número igual a ${sumInfo.addends.join(' + ')}`, iA, n),
+      createEvent('B', `ocorrer a cor ${colorB}`, iB, n)
     ],
     needsNumbers: true
   };
 };
 
 // R29: 3 eventos — "Cor X" + "Cor Y ou primo" + "Cor Z e par"
-const receita3MistoOuE: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 4) return null;
-  const [cX, cY, cZ] = shuffleArray([...uniqueCores]);
-  const iA = indicesCor(cores, cX);
+const recipe3MixedOrAnd: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 4) return null;
+  const [cX, cY, cZ] = shuffleArray([...uniqueColors]);
+  const iA = colorIndices(colors, cX);
   // Verificar que 'primo' contribui setores fora de cY (senão "ou primo" é enganoso)
-  const iCY = indicesCor(cores, cY);
-  const iPrimo = indicesProp(sn, 'primo');
-  const primoForaCY = iPrimo.filter(i => !iCY.includes(i));
-  if (iA.length === 0 || iCY.length === 0 || primoForaCY.length === 0) return null;
-  const iB = indicesCorOuProp(cores, cY, sn, 'primo');
-  const iC = indicesCorEProp(cores, cZ, sn, 'par');
+  const iCY = colorIndices(colors, cY);
+  const iPrime = propertyIndices(sn, 'primo');
+  const primeOutsideCY = iPrime.filter(i => !iCY.includes(i));
+  if (iA.length === 0 || iCY.length === 0 || primeOutsideCY.length === 0) return null;
+  const iB = colorOrPropertyIndices(colors, cY, sn, 'primo');
+  const iC = colorAndPropertyIndices(colors, cZ, sn, 'par');
   if (iA.length === 0 || iB.length === 0 || iC.length === 0) return null;
-  if (!gruposME([iA, iB, iC])) return null;
+  if (!mutuallyExclusiveGroups([iA, iB, iC])) return null;
   if (iA.length + iB.length + iC.length >= n) return null;
   return {
     events: [
-      criarEvento('A', `ocorrer a cor ${cX}`, iA, n),
-      criarEvento('B', `ocorrer ${cY} ou número primo`, iB, n),
-      criarEvento('C', `ocorrer ${cZ} e número par`, iC, n)
+      createEvent('A', `ocorrer a cor ${cX}`, iA, n),
+      createEvent('B', `ocorrer ${cY} ou número primo`, iB, n),
+      createEvent('C', `ocorrer ${cZ} e número par`, iC, n)
     ],
     needsNumbers: true
   };
 };
 
 // R30: 4+ eventos — cores + "(cor e prop)" mistos
-const receitaNMistoCorEProp: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
-  if (uniqueCores.length < 3) return null;
-  const shuffled = shuffleArray([...uniqueCores]);
+const recipeNMixedColorAndProp: RecipeFn = (_s, sn, colors, uniqueColors, n) => {
+  if (uniqueColors.length < 3) return null;
+  const shuffled = shuffleArray([...uniqueColors]);
   const events: UnionEvent[] = [];
-  const indicesUsados = new Set<number>();
+  const usedIndices = new Set<number>();
 
   // Primeiro evento: cor simples
-  const iFirst = indicesCor(cores, shuffled[0]);
+  const iFirst = colorIndices(colors, shuffled[0]);
   if (iFirst.length === 0) return null;
-  events.push(criarEvento('A', `ocorrer a cor ${shuffled[0]}`, iFirst, n));
-  iFirst.forEach(i => indicesUsados.add(i));
+  events.push(createEvent('A', `ocorrer a cor ${shuffled[0]}`, iFirst, n));
+  iFirst.forEach(i => usedIndices.add(i));
 
   // Eventos seguintes: alternar entre cor simples e cor∧prop
-  const propsDisp = shuffleArray(UNION_NUM_PROPS_SIMPLES);
+  const propsAvail = shuffleArray(UNION_SIMPLE_NUM_PROPS);
   for (let k = 1; k < shuffled.length && events.length < 6; k++) {
-    const cor = shuffled[k];
-    const usarProp = Math.random() < 0.5 && propsDisp.length > 0;
+    const color = shuffled[k];
+    const useProperty = Math.random() < 0.5 && propsAvail.length > 0;
     let indices: number[];
     let desc: string;
 
-    if (usarProp) {
-      const prop = propsDisp.pop() || 'par';
-      indices = indicesCorEProp(cores, cor, sn, prop);
-      desc = `ocorrer ${cor} e número ${prop}`;
+    if (useProperty) {
+      const prop = propsAvail.pop() || 'par';
+      indices = colorAndPropertyIndices(colors, color, sn, prop);
+      desc = `ocorrer ${color} e número ${prop}`;
     } else {
-      indices = indicesCor(cores, cor);
-      desc = `ocorrer a cor ${cor}`;
+      indices = colorIndices(colors, color);
+      desc = `ocorrer a cor ${color}`;
     }
 
     // Verificar que não sobrepõe
-    const limpos = indices.filter(i => !indicesUsados.has(i));
-    if (limpos.length === 0) continue;
+    const cleaned = indices.filter(i => !usedIndices.has(i));
+    if (cleaned.length === 0) continue;
     // Para cor∧prop, usar limpos = mesmos que indices (cor diferente → sempre limpos)
-    if (indices.every(i => !indicesUsados.has(i)) && indices.length > 0) {
-      events.push(criarEvento(EVENT_LABELS[events.length], desc, indices, n));
-      indices.forEach(i => indicesUsados.add(i));
+    if (indices.every(i => !usedIndices.has(i)) && indices.length > 0) {
+      events.push(createEvent(EVENT_LABELS[events.length], desc, indices, n));
+      indices.forEach(i => usedIndices.add(i));
     }
   }
 
@@ -1621,19 +1609,19 @@ const receitaNMistoCorEProp: ReceitaFn = (_s, sn, cores, uniqueCores, n) => {
 };
 
 // Fallback seguro: selecionar subconjunto de cores (nunca todas)
-function fallbackEventos(
+function fallbackEvents(
   _sectors: RouletteSector[],
   numEvents: number,
-  cores: string[],
-  uniqueCores: string[],
+  colors: string[],
+  uniqueColors: string[],
   n: number
 ): { events: UnionEvent[], needsNumbers: boolean } {
-  const shuffled = shuffleArray([...uniqueCores]);
-  const maxCores = Math.min(numEvents, Math.max(1, shuffled.length - 1));
-  const coresUsadas = shuffled.slice(0, maxCores);
+  const shuffled = shuffleArray([...uniqueColors]);
+  const maxColors = Math.min(numEvents, Math.max(1, shuffled.length - 1));
+  const usedColors = shuffled.slice(0, maxColors);
 
-  const events: UnionEvent[] = coresUsadas.map((cor, i) =>
-    criarEvento(EVENT_LABELS[i], `ocorrer a cor ${cor}`, indicesCor(cores, cor), n)
+  const events: UnionEvent[] = usedColors.map((color, i) =>
+    createEvent(EVENT_LABELS[i], `ocorrer a cor ${color}`, colorIndices(colors, color), n)
   );
 
   return { events, needsNumbers: false };
@@ -1659,8 +1647,8 @@ interface ChallengeGenResult {
   values: number[];
   m: number | null;
   p: number | null;
-  corX: string | null;
-  corY: string | null;
+  colorX: string | null;
+  colorY: string | null;
   problemType: ChallengeType;
   events: UnionEvent[];
 }
@@ -1736,33 +1724,20 @@ function partitionIndices(indices: number[], sizes: number[]): number[][] {
   return groups;
 }
 
-// Calcular distribuição-alvo: dividir n em k grupos de pelo menos 1, com resto opcional
-function targetSplit(total: number, numGroups: number, minEach: number = 1): number[] | null {
-  if (total < numGroups * minEach) return null;
-  const sizes = new Array(numGroups).fill(minEach);
-  let remaining = total - numGroups * minEach;
-  // Distribuir restante aleatoriamente
-  while (remaining > 0) {
-    sizes[Math.floor(Math.random() * numGroups)]++;
-    remaining--;
-  }
-  return sizes;
-}
-
 // Obter tipos de desafio compatíveis para a configuração de setores
 function getCompatibleChallengeTypes(sectors: RouletteSector[]): ChallengeType[] {
   const n = sectors.length;
-  const cores = sectors.map(s => s.colorName);
-  const uniqueCores = [...new Set(cores)];
-  const nc = uniqueCores.length;
+  const colors = sectors.map(s => s.colorName);
+  const uniqueColors = [...new Set(colors)];
+  const nc = uniqueColors.length;
   const types: ChallengeType[] = [];
 
   // Tipos 2, 3: não precisa de cor, apenas n ≥ 2
   types.push(2, 3);
 
   // Verificar se alguma cor X tem ≥1 setor-X E ≥2 setores não-X
-  const hasGoodSingleColor = nc >= 2 && uniqueCores.some(c => {
-    const cx = cores.filter(cc => cc === c).length;
+  const hasGoodSingleColor = nc >= 2 && uniqueColors.some(c => {
+    const cx = colors.filter(cc => cc === c).length;
     return cx >= 1 && n - cx >= 2;
   });
 
@@ -1788,15 +1763,15 @@ function getCompatibleChallengeTypes(sectors: RouletteSector[]): ChallengeType[]
 // === GERADORES ESPECÍFICOS POR TIPO ===
 
 // Tipo 1: cor X OU divisor de m OU múltiplo de p
-function genType1(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  const corX = shuffleArray([...uniqueCores]).find(c => {
-    const cx = cores.filter(cc => cc === c).length;
+function genType1(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  const colorX = shuffleArray([...uniqueColors]).find(c => {
+    const cx = colors.filter(cc => cc === c).length;
     return cx >= 1 && n - cx >= 2;
   });
-  if (!corX) return null;
+  if (!colorX) return null;
 
-  const idxX = cores.map((c, i) => c === corX ? i : -1).filter(i => i >= 0);
-  const idxRest = cores.map((c, i) => c !== corX ? i : -1).filter(i => i >= 0);
+  const idxX = colors.map((c, i) => c === colorX ? i : -1).filter(i => i >= 0);
+  const idxRest = colors.map((c, i) => c !== colorX ? i : -1).filter(i => i >= 0);
   if (idxRest.length < 2) return null;
 
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
@@ -1835,11 +1810,11 @@ function genType1(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   if (n >= 4 && evA.length + evB.length + evC.length >= n) return null;
 
   return {
-    values, m, p, corX, corY: null, problemType: 1,
+    values, m, p, colorX, colorY: null, problemType: 1,
     events: [
-      criarEvento('A', `ocorrer a cor ${corX}`, evA, n),
-      criarEvento('B', `obter número divisor de ${m}`, evB, n),
-      criarEvento('C', `obter número múltiplo de ${p}`, evC, n),
+      createEvent('A', `ocorrer a cor ${colorX}`, evA, n),
+      createEvent('B', `obter número divisor de ${m}`, evB, n),
+      createEvent('C', `obter número múltiplo de ${p}`, evC, n),
     ]
   };
 }
@@ -1862,16 +1837,16 @@ function genType2(_s: RouletteSector[], _c: string[], _uc: string[], n: number):
   (idxNeither || []).forEach((idx, i) => values[idx] = neitherNums[i]);
 
   const evA = values.map((v, i) => v % 2 === 0 ? i : -1).filter(i => i >= 0);
-  const evB = values.map((v, i) => ehPrimo(v) ? i : -1).filter(i => i >= 0);
+  const evB = values.map((v, i) => isPrime(v) ? i : -1).filter(i => i >= 0);
   if (evA.length === 0 || evB.length === 0) return null;
   if (evA.some(i => evB.includes(i))) return null;
   if (n >= 3 && evA.length + evB.length >= n) return null;
 
   return {
-    values, m: null, p: null, corX: null, corY: null, problemType: 2,
+    values, m: null, p: null, colorX: null, colorY: null, problemType: 2,
     events: [
-      criarEvento('A', 'obter número par', evA, n),
-      criarEvento('B', 'obter número primo', evB, n),
+      createEvent('A', 'obter número par', evA, n),
+      createEvent('B', 'obter número primo', evB, n),
     ]
   };
 }
@@ -1879,38 +1854,38 @@ function genType2(_s: RouletteSector[], _c: string[], _uc: string[], n: number):
 // Tipo 3: primo par OU ímpar composto
 function genType3(_s: RouletteSector[], _c: string[], _uc: string[], n: number): ChallengeGenResult | null {
   const indices = Array.from({ length: n }, (_, i) => i);
-  const [idxPrimoPar, idxCompImpar, idxNeither] = partitionIndices(indices, [1, Math.max(1, Math.round((n - 1) / 2))]);
+  const [idxPrimeEven, idxCompOdd, idxNeither] = partitionIndices(indices, [1, Math.max(1, Math.round((n - 1) / 2))]);
 
   const values: number[] = new Array(n).fill(0);
-  idxPrimoPar.forEach(idx => values[idx] = 2); // único primo par
-  const compOddNums = pickDistinct(CH_COMP_ODD, idxCompImpar.length);
-  idxCompImpar.forEach((idx, i) => values[idx] = compOddNums[i]);
+  idxPrimeEven.forEach(idx => values[idx] = 2); // único primo par
+  const compOddNums = pickDistinct(CH_COMP_ODD, idxCompOdd.length);
+  idxCompOdd.forEach((idx, i) => values[idx] = compOddNums[i]);
   // Nenhum: primos ímpares (não 2) ou compostos pares
   const nPool = [...CH_PRIME_ODD.filter(v => v !== 2), ...CH_COMP_EVEN];
   const neitherNums = pickDistinct(nPool, (idxNeither || []).length);
   (idxNeither || []).forEach((idx, i) => values[idx] = neitherNums[i]);
 
   const evA = values.map((v, i) => v === 2 ? i : -1).filter(i => i >= 0);
-  const evB = values.map((v, i) => (v % 2 !== 0 && v > 1 && !ehPrimo(v)) ? i : -1).filter(i => i >= 0);
+  const evB = values.map((v, i) => (v % 2 !== 0 && v > 1 && !isPrime(v)) ? i : -1).filter(i => i >= 0);
   if (evA.length === 0 || evB.length === 0) return null;
   if (n >= 3 && evA.length + evB.length >= n) return null;
 
   return {
-    values, m: null, p: null, corX: null, corY: null, problemType: 3,
+    values, m: null, p: null, colorX: null, colorY: null, problemType: 3,
     events: [
-      criarEvento('A', 'obter número primo par', evA, n),
-      criarEvento('B', 'obter número ímpar composto', evB, n),
+      createEvent('A', 'obter número primo par', evA, n),
+      createEvent('B', 'obter número ímpar composto', evB, n),
     ]
   };
 }
 
 // Tipo 4: cor X OU cor Y OU divisor de m
-function genType4(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  if (uniqueCores.length < 3) return null;
-  const [corX, corY] = shuffleArray([...uniqueCores]);
-  const idxX = indicesCor(cores, corX);
-  const idxY = indicesCor(cores, corY);
-  const idxO = cores.map((c, i) => c !== corX && c !== corY ? i : -1).filter(i => i >= 0);
+function genType4(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  if (uniqueColors.length < 3) return null;
+  const [colorX, colorY] = shuffleArray([...uniqueColors]);
+  const idxX = colorIndices(colors, colorX);
+  const idxY = colorIndices(colors, colorY);
+  const idxO = colors.map((c, i) => c !== colorX && c !== colorY ? i : -1).filter(i => i >= 0);
   if (idxX.length === 0 || idxY.length === 0 || idxO.length === 0) return null;
 
   const values: number[] = new Array(n).fill(0);
@@ -1939,22 +1914,22 @@ function genType4(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   if (n >= 5 && evA.length + evB.length + evC.length >= n) return null;
 
   return {
-    values, m, p: null, corX, corY, problemType: 4,
+    values, m, p: null, colorX, colorY, problemType: 4,
     events: [
-      criarEvento('A', `ocorrer a cor ${corX}`, evA, n),
-      criarEvento('B', `ocorrer a cor ${corY}`, evB, n),
-      criarEvento('C', `obter número divisor de ${m}`, evC, n),
+      createEvent('A', `ocorrer a cor ${colorX}`, evA, n),
+      createEvent('B', `ocorrer a cor ${colorY}`, evB, n),
+      createEvent('C', `obter número divisor de ${m}`, evC, n),
     ]
   };
 }
 
 // Tipo 5: cor X OU cor Y OU múltiplo de p
-function genType5(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  if (uniqueCores.length < 3) return null;
-  const [corX, corY] = shuffleArray([...uniqueCores]);
-  const idxX = indicesCor(cores, corX);
-  const idxY = indicesCor(cores, corY);
-  const idxO = cores.map((c, i) => c !== corX && c !== corY ? i : -1).filter(i => i >= 0);
+function genType5(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  if (uniqueColors.length < 3) return null;
+  const [colorX, colorY] = shuffleArray([...uniqueColors]);
+  const idxX = colorIndices(colors, colorX);
+  const idxY = colorIndices(colors, colorY);
+  const idxO = colors.map((c, i) => c !== colorX && c !== colorY ? i : -1).filter(i => i >= 0);
   if (idxX.length === 0 || idxY.length === 0 || idxO.length === 0) return null;
 
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
@@ -1984,21 +1959,21 @@ function genType5(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   if (n >= 5 && evA.length + evB.length + evC.length >= n) return null;
 
   return {
-    values, m: null, p, corX, corY, problemType: 5,
+    values, m: null, p, colorX, colorY, problemType: 5,
     events: [
-      criarEvento('A', `ocorrer a cor ${corX}`, evA, n),
-      criarEvento('B', `ocorrer a cor ${corY}`, evB, n),
-      criarEvento('C', `obter número múltiplo de ${p}`, evC, n),
+      createEvent('A', `ocorrer a cor ${colorX}`, evA, n),
+      createEvent('B', `ocorrer a cor ${colorY}`, evB, n),
+      createEvent('C', `obter número múltiplo de ${p}`, evC, n),
     ]
   };
 }
 
 // Tipo 6: cor X E divisor de m (pareado com cor Y)
-function genType6(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  if (uniqueCores.length < 2) return null;
-  const [corX, corY] = shuffleArray([...uniqueCores]);
-  const idxX = indicesCor(cores, corX);
-  const idxY = indicesCor(cores, corY);
+function genType6(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  if (uniqueColors.length < 2) return null;
+  const [colorX, colorY] = shuffleArray([...uniqueColors]);
+  const idxX = colorIndices(colors, colorX);
+  const idxY = colorIndices(colors, colorY);
   if (idxX.length === 0 || idxY.length === 0) return null;
 
   const values: number[] = new Array(n).fill(0);
@@ -2018,35 +1993,35 @@ function genType6(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   idxY.forEach((idx, i) => values[idx] = yNums[i]);
 
   // Setores restantes: DIV_NO
-  const idxRest = cores.map((c, i) => c !== corX && c !== corY ? i : -1).filter(i => i >= 0);
+  const idxRest = colors.map((c, i) => c !== colorX && c !== colorY ? i : -1).filter(i => i >= 0);
   const rNums = pickDistinct(CH_DIV_NO, idxRest.length);
   idxRest.forEach((idx, i) => values[idx] = rNums[i]);
 
-  const evA = values.map((v, i) => cores[i] === corX && m % v === 0 ? i : -1).filter(i => i >= 0);
+  const evA = values.map((v, i) => colors[i] === colorX && m % v === 0 ? i : -1).filter(i => i >= 0);
   const evB = idxY;
   if (evA.length === 0 || evB.length === 0) return null;
   if (evA.some(i => evB.includes(i))) return null;
   if (n >= 3 && evA.length + evB.length >= n) return null;
 
   return {
-    values, m, p: null, corX, corY, problemType: 6,
+    values, m, p: null, colorX, colorY, problemType: 6,
     events: [
-      criarEvento('A', `ocorrer ${corX} e número divisor de ${m}`, evA, n),
-      criarEvento('B', `ocorrer a cor ${corY}`, evB, n),
+      createEvent('A', `ocorrer ${colorX} e número divisor de ${m}`, evA, n),
+      createEvent('B', `ocorrer a cor ${colorY}`, evB, n),
     ]
   };
 }
 
 // Tipo 7: NÃO cor X E primo (pareado com cor X)
-function genType7(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  const corX = shuffleArray([...uniqueCores]).find(c => {
-    const cx = cores.filter(cc => cc === c).length;
+function genType7(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  const colorX = shuffleArray([...uniqueColors]).find(c => {
+    const cx = colors.filter(cc => cc === c).length;
     return cx >= 1 && n - cx >= 2;
   });
-  if (!corX) return null;
+  if (!colorX) return null;
 
-  const idxX = indicesCor(cores, corX);
-  const idxNotX = cores.map((c, i) => c !== corX ? i : -1).filter(i => i >= 0);
+  const idxX = colorIndices(colors, colorX);
+  const idxNotX = colors.map((c, i) => c !== colorX ? i : -1).filter(i => i >= 0);
   if (idxNotX.length < 2) return null;
 
   const values: number[] = new Array(n).fill(0);
@@ -2063,30 +2038,30 @@ function genType7(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   const npNums = pickDistinct(CH_COMP_ODD, (idxNonPrime || []).length);
   (idxNonPrime || []).forEach((idx, i) => values[idx] = npNums[i]);
 
-  const evA = values.map((v, i) => cores[i] !== corX && ehPrimo(v) ? i : -1).filter(i => i >= 0);
+  const evA = values.map((v, i) => colors[i] !== colorX && isPrime(v) ? i : -1).filter(i => i >= 0);
   const evB = idxX;
   if (evA.length === 0 || evB.length === 0) return null;
   if (n >= 3 && evA.length + evB.length >= n) return null;
 
   return {
-    values, m: null, p: null, corX, corY: null, problemType: 7,
+    values, m: null, p: null, colorX, colorY: null, problemType: 7,
     events: [
-      criarEvento('A', `não ocorrer ${corX} e obter número primo`, evA, n),
-      criarEvento('B', `ocorrer a cor ${corX}`, evB, n),
+      createEvent('A', `não ocorrer ${colorX} e obter número primo`, evA, n),
+      createEvent('B', `ocorrer a cor ${colorX}`, evB, n),
     ]
   };
 }
 
 // Tipo 8: NÃO cor Y E NÃO divisor de m (pareado com cor Y)
-function genType8(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  const corY = shuffleArray([...uniqueCores]).find(c => {
-    const cy = cores.filter(cc => cc === c).length;
+function genType8(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  const colorY = shuffleArray([...uniqueColors]).find(c => {
+    const cy = colors.filter(cc => cc === c).length;
     return cy >= 1 && n - cy >= 2;
   });
-  if (!corY) return null;
+  if (!colorY) return null;
 
-  const idxY = indicesCor(cores, corY);
-  const idxNotY = cores.map((c, i) => c !== corY ? i : -1).filter(i => i >= 0);
+  const idxY = colorIndices(colors, colorY);
+  const idxNotY = colors.map((c, i) => c !== colorY ? i : -1).filter(i => i >= 0);
   if (idxNotY.length < 2) return null;
 
   const values: number[] = new Array(n).fill(0);
@@ -2112,43 +2087,43 @@ function genType8(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   if (m === null) {
     // Fallback: m=30 e garantir que setores não-Y não-div tenham números DIV_NO
     const mFallback = 30;
-    const evA = values.map((v, i) => cores[i] !== corY && mFallback % v !== 0 ? i : -1).filter(i => i >= 0);
+    const evA = values.map((v, i) => colors[i] !== colorY && mFallback % v !== 0 ? i : -1).filter(i => i >= 0);
     const evB = idxY;
     if (evA.length === 0 || evB.length === 0) return null;
     if (n >= 3 && evA.length + evB.length >= n) return null;
     return {
-      values, m: mFallback, p: null, corX: null, corY, problemType: 8,
+      values, m: mFallback, p: null, colorX: null, colorY, problemType: 8,
       events: [
-        criarEvento('A', `não ocorrer ${corY} e obter número que não é divisor de ${mFallback}`, evA, n),
-        criarEvento('B', `ocorrer a cor ${corY}`, evB, n),
+        createEvent('A', `não ocorrer ${colorY} e obter número que não é divisor de ${mFallback}`, evA, n),
+        createEvent('B', `ocorrer a cor ${colorY}`, evB, n),
       ]
     };
   }
 
-  const evA = values.map((v, i) => cores[i] !== corY && m % v !== 0 ? i : -1).filter(i => i >= 0);
+  const evA = values.map((v, i) => colors[i] !== colorY && m % v !== 0 ? i : -1).filter(i => i >= 0);
   const evB = idxY;
   if (evA.length === 0 || evB.length === 0) return null;
   if (n >= 3 && evA.length + evB.length >= n) return null;
 
   return {
-    values, m, p: null, corX: null, corY, problemType: 8,
+    values, m, p: null, colorX: null, colorY, problemType: 8,
     events: [
-      criarEvento('A', `não ocorrer ${corY} e obter número que não é divisor de ${m}`, evA, n),
-      criarEvento('B', `ocorrer a cor ${corY}`, evB, n),
+      createEvent('A', `não ocorrer ${colorY} e obter número que não é divisor de ${m}`, evA, n),
+      createEvent('B', `ocorrer a cor ${colorY}`, evB, n),
     ]
   };
 }
 
 // Tipo 9: NÃO cor X E múltiplo de p (pareado com cor X)
-function genType9(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  const corX = shuffleArray([...uniqueCores]).find(c => {
-    const cx = cores.filter(cc => cc === c).length;
+function genType9(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  const colorX = shuffleArray([...uniqueColors]).find(c => {
+    const cx = colors.filter(cc => cc === c).length;
     return cx >= 1 && n - cx >= 2;
   });
-  if (!corX) return null;
+  if (!colorX) return null;
 
-  const idxX = indicesCor(cores, corX);
-  const idxNotX = cores.map((c, i) => c !== corX ? i : -1).filter(i => i >= 0);
+  const idxX = colorIndices(colors, colorX);
+  const idxNotX = colors.map((c, i) => c !== colorX ? i : -1).filter(i => i >= 0);
   if (idxNotX.length < 2) return null;
 
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
@@ -2167,30 +2142,30 @@ function genType9(sectors: RouletteSector[], cores: string[], uniqueCores: strin
   const nmNums = pickDistinct(nmPool.length > 0 ? nmPool : CH_DIV_NO, (idxNonMult || []).length);
   (idxNonMult || []).forEach((idx, i) => values[idx] = nmNums[i]);
 
-  const evA = values.map((v, i) => cores[i] !== corX && v % p === 0 ? i : -1).filter(i => i >= 0);
+  const evA = values.map((v, i) => colors[i] !== colorX && v % p === 0 ? i : -1).filter(i => i >= 0);
   const evB = idxX;
   if (evA.length === 0 || evB.length === 0) return null;
   if (n >= 3 && evA.length + evB.length >= n) return null;
 
   return {
-    values, m: null, p, corX, corY: null, problemType: 9,
+    values, m: null, p, colorX, colorY: null, problemType: 9,
     events: [
-      criarEvento('A', `não ocorrer ${corX} e obter número múltiplo de ${p}`, evA, n),
-      criarEvento('B', `ocorrer a cor ${corX}`, evB, n),
+      createEvent('A', `não ocorrer ${colorX} e obter número múltiplo de ${p}`, evA, n),
+      createEvent('B', `ocorrer a cor ${colorX}`, evB, n),
     ]
   };
 }
 
 // Tipo 10: NÃO cor Y E múltiplo de p (pareado com cor Y)
-function genType10(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  const corY = shuffleArray([...uniqueCores]).find(c => {
-    const cy = cores.filter(cc => cc === c).length;
+function genType10(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  const colorY = shuffleArray([...uniqueColors]).find(c => {
+    const cy = colors.filter(cc => cc === c).length;
     return cy >= 1 && n - cy >= 2;
   });
-  if (!corY) return null;
+  if (!colorY) return null;
 
-  const idxY = indicesCor(cores, corY);
-  const idxNotY = cores.map((c, i) => c !== corY ? i : -1).filter(i => i >= 0);
+  const idxY = colorIndices(colors, colorY);
+  const idxNotY = colors.map((c, i) => c !== colorY ? i : -1).filter(i => i >= 0);
   if (idxNotY.length < 2) return null;
 
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
@@ -2209,27 +2184,27 @@ function genType10(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   const nmNums = pickDistinct(nmPool.length > 0 ? nmPool : CH_DIV_NO, (idxNonMult || []).length);
   (idxNonMult || []).forEach((idx, i) => values[idx] = nmNums[i]);
 
-  const evA = values.map((v, i) => cores[i] !== corY && v % p === 0 ? i : -1).filter(i => i >= 0);
+  const evA = values.map((v, i) => colors[i] !== colorY && v % p === 0 ? i : -1).filter(i => i >= 0);
   const evB = idxY;
   if (evA.length === 0 || evB.length === 0) return null;
   if (n >= 3 && evA.length + evB.length >= n) return null;
 
   return {
-    values, m: null, p, corX: null, corY, problemType: 10,
+    values, m: null, p, colorX: null, colorY, problemType: 10,
     events: [
-      criarEvento('A', `não ocorrer ${corY} e obter número múltiplo de ${p}`, evA, n),
-      criarEvento('B', `ocorrer a cor ${corY}`, evB, n),
+      createEvent('A', `não ocorrer ${colorY} e obter número múltiplo de ${p}`, evA, n),
+      createEvent('B', `ocorrer a cor ${colorY}`, evB, n),
     ]
   };
 }
 
 // Tipo 11: NÃO (X ou Y) E divisor de m (+ cor X + cor Y)
-function genType11(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  if (uniqueCores.length < 3) return null;
-  const [corX, corY] = shuffleArray([...uniqueCores]);
-  const idxX = indicesCor(cores, corX);
-  const idxY = indicesCor(cores, corY);
-  const idxO = cores.map((c, i) => c !== corX && c !== corY ? i : -1).filter(i => i >= 0);
+function genType11(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  if (uniqueColors.length < 3) return null;
+  const [colorX, colorY] = shuffleArray([...uniqueColors]);
+  const idxX = colorIndices(colors, colorX);
+  const idxY = colorIndices(colors, colorY);
+  const idxO = colors.map((c, i) => c !== colorX && c !== colorY ? i : -1).filter(i => i >= 0);
   if (idxX.length === 0 || idxY.length === 0 || idxO.length === 0) return null;
 
   const values: number[] = new Array(n).fill(0);
@@ -2250,29 +2225,29 @@ function genType11(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   const nNums = pickDistinct(CH_DIV_NO, (idxNeith || []).length);
   (idxNeith || []).forEach((idx, i) => values[idx] = nNums[i]);
 
-  const evA = values.map((v, i) => cores[i] !== corX && cores[i] !== corY && m % v === 0 ? i : -1).filter(i => i >= 0);
+  const evA = values.map((v, i) => colors[i] !== colorX && colors[i] !== colorY && m % v === 0 ? i : -1).filter(i => i >= 0);
   const evB = idxX;
   const evC = idxY;
   if (evA.length === 0 || evB.length === 0 || evC.length === 0) return null;
   if (n >= 5 && evA.length + evB.length + evC.length >= n) return null;
 
   return {
-    values, m, p: null, corX, corY, problemType: 11,
+    values, m, p: null, colorX, colorY, problemType: 11,
     events: [
-      criarEvento('A', `não ocorrer ${corX} nem ${corY} e obter divisor de ${m}`, evA, n),
-      criarEvento('B', `ocorrer a cor ${corX}`, evB, n),
-      criarEvento('C', `ocorrer a cor ${corY}`, evC, n),
+      createEvent('A', `não ocorrer ${colorX} nem ${colorY} e obter divisor de ${m}`, evA, n),
+      createEvent('B', `ocorrer a cor ${colorX}`, evB, n),
+      createEvent('C', `ocorrer a cor ${colorY}`, evC, n),
     ]
   };
 }
 
 // Tipo 12: NÃO (X ou Y) E múltiplo de p (+ cor X + cor Y)
-function genType12(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  if (uniqueCores.length < 3) return null;
-  const [corX, corY] = shuffleArray([...uniqueCores]);
-  const idxX = indicesCor(cores, corX);
-  const idxY = indicesCor(cores, corY);
-  const idxO = cores.map((c, i) => c !== corX && c !== corY ? i : -1).filter(i => i >= 0);
+function genType12(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  if (uniqueColors.length < 3) return null;
+  const [colorX, colorY] = shuffleArray([...uniqueColors]);
+  const idxX = colorIndices(colors, colorX);
+  const idxY = colorIndices(colors, colorY);
+  const idxO = colors.map((c, i) => c !== colorX && c !== colorY ? i : -1).filter(i => i >= 0);
   if (idxX.length === 0 || idxY.length === 0 || idxO.length === 0) return null;
 
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
@@ -2293,29 +2268,29 @@ function genType12(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   const nNums = pickDistinct(nmPool.length > 0 ? nmPool : CH_DIV_NO, (idxNeith || []).length);
   (idxNeith || []).forEach((idx, i) => values[idx] = nNums[i]);
 
-  const evA = values.map((v, i) => cores[i] !== corX && cores[i] !== corY && v % p === 0 ? i : -1).filter(i => i >= 0);
+  const evA = values.map((v, i) => colors[i] !== colorX && colors[i] !== colorY && v % p === 0 ? i : -1).filter(i => i >= 0);
   const evB = idxX;
   const evC = idxY;
   if (evA.length === 0 || evB.length === 0 || evC.length === 0) return null;
   if (n >= 5 && evA.length + evB.length + evC.length >= n) return null;
 
   return {
-    values, m: null, p, corX, corY, problemType: 12,
+    values, m: null, p, colorX, colorY, problemType: 12,
     events: [
-      criarEvento('A', `não ocorrer ${corX} nem ${corY} e obter múltiplo de ${p}`, evA, n),
-      criarEvento('B', `ocorrer a cor ${corX}`, evB, n),
-      criarEvento('C', `ocorrer a cor ${corY}`, evC, n),
+      createEvent('A', `não ocorrer ${colorX} nem ${colorY} e obter múltiplo de ${p}`, evA, n),
+      createEvent('B', `ocorrer a cor ${colorX}`, evB, n),
+      createEvent('C', `ocorrer a cor ${colorY}`, evC, n),
     ]
   };
 }
 
 // Tipo 13: NÃO (X ou Y) E NÃO múltiplo de p (+ cor X + cor Y e primo)
-function genType13(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  if (uniqueCores.length < 3) return null;
-  const [corX, corY] = shuffleArray([...uniqueCores]);
-  const idxX = indicesCor(cores, corX);
-  const idxY = indicesCor(cores, corY);
-  const idxO = cores.map((c, i) => c !== corX && c !== corY ? i : -1).filter(i => i >= 0);
+function genType13(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  if (uniqueColors.length < 3) return null;
+  const [colorX, colorY] = shuffleArray([...uniqueColors]);
+  const idxX = colorIndices(colors, colorX);
+  const idxY = colorIndices(colors, colorY);
+  const idxO = colors.map((c, i) => c !== colorX && c !== colorY ? i : -1).filter(i => i >= 0);
   if (idxX.length === 0 || idxY.length === 0 || idxO.length === 0) return null;
 
   const p = [2, 3, 5][Math.floor(Math.random() * 3)];
@@ -2342,29 +2317,29 @@ function genType13(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   const mNums = pickDistinct(CH_MULT_OK[p], (idxMult || []).length);
   (idxMult || []).forEach((idx, i) => values[idx] = mNums[i]);
 
-  const evA = values.map((v, i) => cores[i] !== corX && cores[i] !== corY && v % p !== 0 ? i : -1).filter(i => i >= 0);
+  const evA = values.map((v, i) => colors[i] !== colorX && colors[i] !== colorY && v % p !== 0 ? i : -1).filter(i => i >= 0);
   const evB = idxX;
-  const evC = values.map((v, i) => cores[i] === corY && ehPrimo(v) ? i : -1).filter(i => i >= 0);
+  const evC = values.map((v, i) => colors[i] === colorY && isPrime(v) ? i : -1).filter(i => i >= 0);
   if (evA.length === 0 || evB.length === 0 || evC.length === 0) return null;
   if (n >= 5 && evA.length + evB.length + evC.length >= n) return null;
 
   return {
-    values, m: null, p, corX, corY, problemType: 13,
+    values, m: null, p, colorX, colorY, problemType: 13,
     events: [
-      criarEvento('A', `não ocorrer ${corX} nem ${corY} e obter número que não é múltiplo de ${p}`, evA, n),
-      criarEvento('B', `ocorrer a cor ${corX}`, evB, n),
-      criarEvento('C', `ocorrer ${corY} e número primo`, evC, n),
+      createEvent('A', `não ocorrer ${colorX} nem ${colorY} e obter número que não é múltiplo de ${p}`, evA, n),
+      createEvent('B', `ocorrer a cor ${colorX}`, evB, n),
+      createEvent('C', `ocorrer ${colorY} e número primo`, evC, n),
     ]
   };
 }
 
 // Tipo 14: NÃO (X ou Y) E NÃO divisor de m (+ cor X e par + cor Y)
-function genType14(sectors: RouletteSector[], cores: string[], uniqueCores: string[], n: number): ChallengeGenResult | null {
-  if (uniqueCores.length < 3) return null;
-  const [corX, corY] = shuffleArray([...uniqueCores]);
-  const idxX = indicesCor(cores, corX);
-  const idxY = indicesCor(cores, corY);
-  const idxO = cores.map((c, i) => c !== corX && c !== corY ? i : -1).filter(i => i >= 0);
+function genType14(sectors: RouletteSector[], colors: string[], uniqueColors: string[], n: number): ChallengeGenResult | null {
+  if (uniqueColors.length < 3) return null;
+  const [colorX, colorY] = shuffleArray([...uniqueColors]);
+  const idxX = colorIndices(colors, colorX);
+  const idxY = colorIndices(colors, colorY);
+  const idxO = colors.map((c, i) => c !== colorX && c !== colorY ? i : -1).filter(i => i >= 0);
   if (idxX.length === 0 || idxY.length === 0 || idxO.length === 0) return null;
 
   const values: number[] = new Array(n).fill(0);
@@ -2396,18 +2371,18 @@ function genType14(sectors: RouletteSector[], cores: string[], uniqueCores: stri
   const evACheck = [...idxNonDiv, ...idxY].every(idx => m % values[idx] !== 0);
   if (!evACheck) return null;
 
-  const evA = values.map((v, i) => cores[i] !== corX && cores[i] !== corY && m % v !== 0 ? i : -1).filter(i => i >= 0);
-  const evB = values.map((v, i) => cores[i] === corX && v % 2 === 0 ? i : -1).filter(i => i >= 0);
+  const evA = values.map((v, i) => colors[i] !== colorX && colors[i] !== colorY && m % v !== 0 ? i : -1).filter(i => i >= 0);
+  const evB = values.map((v, i) => colors[i] === colorX && v % 2 === 0 ? i : -1).filter(i => i >= 0);
   const evC = idxY;
   if (evA.length === 0 || evB.length === 0 || evC.length === 0) return null;
   if (n >= 5 && evA.length + evB.length + evC.length >= n) return null;
 
   return {
-    values, m, p: null, corX, corY, problemType: 14,
+    values, m, p: null, colorX, colorY, problemType: 14,
     events: [
-      criarEvento('A', `não ocorrer ${corX} nem ${corY} e obter número que não é divisor de ${m}`, evA, n),
-      criarEvento('B', `ocorrer ${corX} e número par`, evB, n),
-      criarEvento('C', `ocorrer a cor ${corY}`, evC, n),
+      createEvent('A', `não ocorrer ${colorX} nem ${colorY} e obter número que não é divisor de ${m}`, evA, n),
+      createEvent('B', `ocorrer ${colorX} e número par`, evB, n),
+      createEvent('C', `ocorrer a cor ${colorY}`, evC, n),
     ]
   };
 }
@@ -2417,8 +2392,8 @@ function generateUnionChallenge(
   sectors: RouletteSector[],
   problemType?: ChallengeType
 ): ChallengeGenResult | null {
-  const cores = sectors.map(s => s.colorName);
-  const uniqueCores = [...new Set(cores)];
+  const colors = sectors.map(s => s.colorName);
+  const uniqueColors = [...new Set(colors)];
   const n = sectors.length;
   const compatibleTypes = getCompatibleChallengeTypes(sectors);
   if (compatibleTypes.length === 0) return null;
@@ -2432,7 +2407,7 @@ function generateUnionChallenge(
   // Se tipo específico solicitado e compatível, tentar primeiro
   if (problemType && compatibleTypes.includes(problemType)) {
     for (let attempt = 0; attempt < 10; attempt++) {
-      const result = generators[problemType](sectors, cores, uniqueCores, n);
+      const result = generators[problemType](sectors, colors, uniqueColors, n);
       if (result) return result;
     }
   }
@@ -2441,7 +2416,7 @@ function generateUnionChallenge(
   const shuffledTypes = shuffleArray([...compatibleTypes]);
   for (const type of shuffledTypes) {
     for (let attempt = 0; attempt < 10; attempt++) {
-      const result = generators[type](sectors, cores, uniqueCores, n);
+      const result = generators[type](sectors, colors, uniqueColors, n);
       if (result) return result;
     }
   }
@@ -2539,10 +2514,10 @@ function evalInterPred(v: number, pred: string, m: number|null, p: number|null, 
     case '!even':  return v % 2 !== 0;
     case 'odd':    return v % 2 !== 0;
     case '!odd':   return v % 2 === 0;
-    case 'prime':  return ehPrimo(v);
-    case '!prime': return !ehPrimo(v);
-    case 'comp':   return v > 1 && !ehPrimo(v);
-    case '!comp':  return ehPrimo(v); // para v >= 2 (evitamos 1)
+    case 'prime':  return isPrime(v);
+    case '!prime': return !isPrime(v);
+    case 'comp':   return v > 1 && !isPrime(v);
+    case '!comp':  return isPrime(v); // para v >= 2 (evitamos 1)
     case 'sq':     return INTER_SQUARES.includes(v);
     case '!sq':    return !INTER_SQUARES.includes(v);
     default:       return false;
@@ -2575,7 +2550,7 @@ function validateIntersection(
 }
 
 // Obter tipos de interseção compatíveis para um dado N
-function getCompatibleInterTypes(n: number): number[] {
+function getCompatibleInterTypes(): number[] {
   const types: number[] = [];
   for (let t = 1; t <= 45; t++) {
     // Tipo 26 (primo ∩ par) requer colocar 2 — viável se n >= 2 (sempre)
@@ -2614,26 +2589,13 @@ function allCandidateM(): number[] {
   return ms;
 }
 
-// Pontuar m ou p com base em quantos números do pool mestre satisfazem ambas as condições
-function scoreParam(
-  c1: string, c2: string, m: number|null, p: number|null, k: number|null, n: number
-): number {
-  const sat = interSatisfyPool(c1, c2, m, p, k);
-  const fail = interFailPool(c1, c2, m, p, k);
-  if (sat.length === 0 || fail.length === 0) return -9999;
-  const alvo = n >= 4 ? 2 : 1;
-  // Pontuação: proximidade da contagem-alvo a partir dos números satisfatórios disponíveis
-  const possibleSat = Math.min(sat.length, n);
-  return -Math.abs(possibleSat - alvo) - (m !== null ? 0.0005 * m : 0);
-}
-
 // Gerador principal
 function generateIntersectionChallenge(
   sectors: RouletteSector[],
   requestedType?: number
 ): { values: number[]; m: number|null; p: number|null; k: number|null; problemType: number; description: string } | null {
   const n = sectors.length;
-  const compatible = getCompatibleInterTypes(n);
+  const compatible = getCompatibleInterTypes();
   if (compatible.length === 0) return null;
 
   // Tentar tipo solicitado primeiro, depois fallback para aleatório
@@ -2677,8 +2639,8 @@ function tryGenerateInterType(
         if (n >= 3 && fail.length === 0) continue; // seria trivial
 
         // Construir valores: contagem-alvo de setores satisfatórios
-        const alvo = n >= 4 ? 2 : 1;
-        const numSat = Math.min(alvo, sat.length, n - (n >= 3 ? 1 : 0));
+        const target = n >= 4 ? 2 : 1;
+        const numSat = Math.min(target, sat.length, n - (n >= 3 ? 1 : 0));
         const numFail = n - numSat;
 
         if (numSat <= 0) continue;
@@ -2699,7 +2661,7 @@ function tryGenerateInterType(
 
         // Pontuar
         const solSize = solveIntersectionSet(pType, values, mVal, pVal, kVal).size;
-        const score = -Math.abs(solSize - alvo) - (mVal !== null ? 0.0005 * mVal : 0);
+        const score = -Math.abs(solSize - target) - (mVal !== null ? 0.0005 * mVal : 0);
 
         if (!bestResult || score > bestResult.score) {
           bestResult = { values, m: mVal, p: pVal, k: kVal, score };
@@ -2745,8 +2707,8 @@ function getComplementText(prop: string): string {
 }
 
 interface CompEventResult {
-  textoA: string;
-  textoAbar: string;
+  textA: string;
+  textAbar: string;
   indicesA: number[];
   indicesAbar: number[];
   needsNumbers: boolean;
@@ -2761,8 +2723,8 @@ function tryCompT1(sectors: RouletteSector[], n: number, allIndices: number[]): 
   const indicesAbar = allIndices.filter(i => sectors[i].colorName !== color);
   if (indicesA.length === 0 || indicesA.length === n) return null;
   return {
-    textoA: `ocorrer a cor ${color}`,
-    textoAbar: `não ocorrer a cor ${color}`,
+    textA: `ocorrer a cor ${color}`,
+    textAbar: `não ocorrer a cor ${color}`,
     indicesA, indicesAbar, needsNumbers: false, templateType: 1,
   };
 }
@@ -2770,12 +2732,12 @@ function tryCompT1(sectors: RouletteSector[], n: number, allIndices: number[]): 
 // T2: Propriedade numérica P
 function tryCompT2(sectors: RouletteSector[], sectorNumbers: number[], n: number, allIndices: number[]): CompEventResult | null {
   const prop = COMP_PROPERTIES[Math.floor(Math.random() * COMP_PROPERTIES.length)];
-  const indicesA = allIndices.filter(i => verificaPropriedade(sectorNumbers[i], prop));
-  const indicesAbar = allIndices.filter(i => !verificaPropriedade(sectorNumbers[i], prop));
+  const indicesA = allIndices.filter(i => checkProperty(sectorNumbers[i], prop));
+  const indicesAbar = allIndices.filter(i => !checkProperty(sectorNumbers[i], prop));
   if (indicesA.length === 0 || indicesA.length === n) return null;
   return {
-    textoA: `obter número ${prop}`,
-    textoAbar: `obter número ${getComplementText(prop)}`,
+    textA: `obter número ${prop}`,
+    textAbar: `obter número ${getComplementText(prop)}`,
     indicesA, indicesAbar, needsNumbers: true, templateType: 2,
   };
 }
@@ -2786,13 +2748,13 @@ function tryCompT3(sectors: RouletteSector[], sectorNumbers: number[], n: number
   const color = colors[Math.floor(Math.random() * colors.length)];
   const prop = COMP_PROPERTIES[Math.floor(Math.random() * COMP_PROPERTIES.length)];
   const indicesA = allIndices.filter(i =>
-    sectors[i].colorName === color && verificaPropriedade(sectorNumbers[i], prop)
+    sectors[i].colorName === color && checkProperty(sectorNumbers[i], prop)
   );
   const indicesAbar = allIndices.filter(i => !indicesA.includes(i));
   if (indicesA.length === 0 || indicesA.length === n) return null;
   return {
-    textoA: `ocorrer a cor ${color} e obter número ${prop}`,
-    textoAbar: `não ocorrer a cor ${color} ou obter número ${getComplementText(prop)}`,
+    textA: `ocorrer a cor ${color} e obter número ${prop}`,
+    textAbar: `não ocorrer a cor ${color} ou obter número ${getComplementText(prop)}`,
     indicesA, indicesAbar, needsNumbers: true, templateType: 3,
   };
 }
@@ -2803,13 +2765,13 @@ function tryCompT4(sectors: RouletteSector[], sectorNumbers: number[], n: number
   const color = colors[Math.floor(Math.random() * colors.length)];
   const prop = COMP_PROPERTIES[Math.floor(Math.random() * COMP_PROPERTIES.length)];
   const indicesA = allIndices.filter(i =>
-    sectors[i].colorName === color || verificaPropriedade(sectorNumbers[i], prop)
+    sectors[i].colorName === color || checkProperty(sectorNumbers[i], prop)
   );
   const indicesAbar = allIndices.filter(i => !indicesA.includes(i));
   if (indicesA.length === 0 || indicesA.length === n) return null;
   return {
-    textoA: `ocorrer a cor ${color} ou obter número ${prop}`,
-    textoAbar: `não ocorrer a cor ${color} e obter número ${getComplementText(prop)}`,
+    textA: `ocorrer a cor ${color} ou obter número ${prop}`,
+    textAbar: `não ocorrer a cor ${color} e obter número ${getComplementText(prop)}`,
     indicesA, indicesAbar, needsNumbers: true, templateType: 4,
   };
 }
@@ -2823,15 +2785,15 @@ function tryCompT5(sectors: RouletteSector[], sectorNumbers: number[], n: number
   const sp = [...COMP_PROPERTIES].sort(() => Math.random() - 0.5);
   const pP = sp[0], pQ = sp[1] || sp[0];
   // Cada ramo do OU deve ser realizável individualmente
-  const branchX = allIndices.filter(i => sectors[i].colorName === cX && verificaPropriedade(sectorNumbers[i], pP));
-  const branchY = allIndices.filter(i => sectors[i].colorName === cY && verificaPropriedade(sectorNumbers[i], pQ));
+  const branchX = allIndices.filter(i => sectors[i].colorName === cX && checkProperty(sectorNumbers[i], pP));
+  const branchY = allIndices.filter(i => sectors[i].colorName === cY && checkProperty(sectorNumbers[i], pQ));
   if (branchX.length === 0 || branchY.length === 0) return null;
   const indicesA = [...new Set([...branchX, ...branchY])];
   const indicesAbar = allIndices.filter(i => !indicesA.includes(i));
   if (indicesA.length === 0 || indicesA.length === n) return null;
   return {
-    textoA: `(ocorrer a cor ${cX} e obter número ${pP}) ou (ocorrer a cor ${cY} e obter número ${pQ})`,
-    textoAbar: `(não ocorrer a cor ${cX} ou obter número ${getComplementText(pP)}) e (não ocorrer a cor ${cY} ou obter número ${getComplementText(pQ)})`,
+    textA: `(ocorrer a cor ${cX} e obter número ${pP}) ou (ocorrer a cor ${cY} e obter número ${pQ})`,
+    textAbar: `(não ocorrer a cor ${cX} ou obter número ${getComplementText(pP)}) e (não ocorrer a cor ${cY} ou obter número ${getComplementText(pQ)})`,
     indicesA, indicesAbar, needsNumbers: true, templateType: 5,
   };
 }
@@ -2845,15 +2807,15 @@ function tryCompT6(sectors: RouletteSector[], sectorNumbers: number[], n: number
   const sp = [...COMP_PROPERTIES].sort(() => Math.random() - 0.5);
   const pP = sp[0], pQ = sp[1] || sp[0];
   // Cada ramo do E deve ser realizável individualmente
-  const branchX = allIndices.filter(i => sectors[i].colorName === cX || verificaPropriedade(sectorNumbers[i], pP));
-  const branchY = allIndices.filter(i => sectors[i].colorName === cY || verificaPropriedade(sectorNumbers[i], pQ));
+  const branchX = allIndices.filter(i => sectors[i].colorName === cX || checkProperty(sectorNumbers[i], pP));
+  const branchY = allIndices.filter(i => sectors[i].colorName === cY || checkProperty(sectorNumbers[i], pQ));
   if (branchX.length === 0 || branchY.length === 0) return null;
   const indicesA = allIndices.filter(i => branchX.includes(i) && branchY.includes(i));
   const indicesAbar = allIndices.filter(i => !indicesA.includes(i));
   if (indicesA.length === 0 || indicesA.length === n) return null;
   return {
-    textoA: `(ocorrer a cor ${cX} ou obter número ${pP}) e (ocorrer a cor ${cY} ou obter número ${pQ})`,
-    textoAbar: `(não ocorrer a cor ${cX} e obter número ${getComplementText(pP)}) ou (não ocorrer a cor ${cY} e obter número ${getComplementText(pQ)})`,
+    textA: `(ocorrer a cor ${cX} ou obter número ${pP}) e (ocorrer a cor ${cY} ou obter número ${pQ})`,
+    textAbar: `(não ocorrer a cor ${cX} e obter número ${getComplementText(pP)}) ou (não ocorrer a cor ${cY} e obter número ${getComplementText(pQ)})`,
     indicesA, indicesAbar, needsNumbers: true, templateType: 6,
   };
 }
@@ -3052,7 +3014,7 @@ function generateS3Roulette(): {
 
     // 2) Colocar C1 em posições vazias, evitando adjacência excessiva
     let left1 = count1;
-    let empties = s3Shuffle(
+    const empties = s3Shuffle(
       wheel.map((v, i) => v === null ? i : -1).filter(i => i >= 0)
     );
 
@@ -3206,29 +3168,29 @@ interface GameState {
   theoreticalK: number;
   correctAnswer: string;
   studentPrediction: string | null;
-  eventoCompostoE: string[];
+  compositeEventE: string[];
   // Estados para o exercício dinâmico (Aplicação do Teorema de Laplace)
-  exercicioEventoE: string[]; // Cores do evento E para o exercício
+  exerciseEventE: string[]; // Cores do evento E para o exercício
   selectedSectors: number[]; // Índices dos setores selecionados pelo aluno
   sectorNumbers: number[]; // Números aleatórios atribuídos aos setores (1 a n)
   // Estados para o Desafio Dinâmico 1 (Conectivo Lógico Variável)
-  desafio1P: number; // Valor de p (n ≤ p ≤ 12) para geração de números
-  desafio1SectorNumbers: number[]; // Números distintos atribuídos aos setores
-  desafio1PropriedadeY: string; // Propriedade numérica sorteada
-  desafio1ValorP: number; // Valor de p para propriedades "maior que p" / "menor que p"
-  desafio1EventoXCores: string[]; // Cores sorteadas para o evento X
-  desafio1EventoXTexto: string; // Texto formatado do evento X
-  desafio1EventoXTipo: 'inclusao' | 'exclusao'; // Tipo do evento X (cores inclusas ou excluída)
-  desafio1Conectivo: 'e' | 'ou'; // Conectivo lógico sorteado (E / OU)
+  challenge1P: number; // Valor de p (n ≤ p ≤ 12) para geração de números
+  challenge1SectorNumbers: number[]; // Números distintos atribuídos aos setores
+  challenge1PropertyY: string; // Propriedade numérica sorteada
+  challenge1ValueP: number; // Valor de p para propriedades "maior que p" / "menor que p"
+  challenge1EventXColors: string[]; // Cores sorteadas para o evento X
+  challenge1EventXText: string; // Texto formatado do evento X
+  challenge1EventXType: 'inclusao' | 'exclusao'; // Tipo do evento X (cores inclusas ou excluída)
+  challenge1Connective: 'e' | 'ou'; // Conectivo lógico sorteado (E / OU)
   // Campos adicionais para o gerador de interseção (null = desafio antigo)
-  desafio1InterProblemType: number | null;
-  desafio1InterM: number | null;
-  desafio1InterP: number | null;
-  desafio1InterK: number | null;
+  challenge1InterProblemType: number | null;
+  challenge1InterM: number | null;
+  challenge1InterP: number | null;
+  challenge1InterK: number | null;
   // Eventos Complementares
   compEventA: {
-    textoA: string;
-    textoAbar: string;
+    textA: string;
+    textAbar: string;
     indicesA: number[];
     indicesAbar: number[];
     needsNumbers: boolean;
@@ -3273,13 +3235,6 @@ function generateCorrectAnswer(): string {
 function selectRandomDistractors(count: number): string[] {
   const shuffled = [...DISTRACTORS].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
-}
-
-// Máximo divisor comum (algoritmo de Euclides)
-function gcd(a: number, b: number): number {
-  a = Math.abs(a); b = Math.abs(b);
-  while (b) { [a, b] = [b, a % b]; }
-  return a;
 }
 
 // Função para verificar equivalência de frações (validação matemática por produto cruzado)
@@ -3341,7 +3296,7 @@ function areSplitFractionsEquivalent(num: number, den: number, expectedNum: numb
 // Exige formato S={cor1, cor2, ...} com vírgulas obrigatórias separando as cores
 function validateSampleSpace(input: string, colors: string[]): boolean {
   // Normalizar a entrada (ignorar maiúsculas/minúsculas e espaços extras)
-  let normalized = input.trim().toLowerCase();
+  const normalized = input.trim().toLowerCase();
 
   // Verificar se tem o formato S={...}
   const formatMatch = normalized.match(/^s\s*=\s*\{(.+)\}$/i);
@@ -3375,34 +3330,31 @@ function validateSampleSpace(input: string, colors: string[]): boolean {
   return true;
 }
 
-// Auxiliar: mapear subStep atual para índice de fase (em ordem de fluxo)
-export function getPhaseIndex(subStep: number): number {
-  // Verificar subSteps específicos primeiro (fora de ordem numérica no fluxo)
-  if (subStep === 6.55) return 9;
-  if (subStep === 6.56) return 10;  // Probabilidade da União (ME)
-  if (subStep >= 6.6 && subStep <= 6.69) return 11;
-  if (subStep >= 6.70 && subStep <= 6.99) return 12; // Eventos Complementares
-  if (subStep === 6.5) return 13;   // Faça uma Previsão
-  if (subStep >= 6.41 && subStep <= 6.45) return 8;
-  if (subStep >= 6.3 && subStep <= 6.4) return 7;
+// Tamanhos de blocos sequenciais para a simulação de convergência da Etapa 2
+const CONVERGENCE_BLOCKS = [10, 500, 1000, 10000, 20000];
 
-  // Faixas padrão (ordem numérica)
-  if (subStep <= 0.6) return 0;   // Introdução + Configuração
-  if (subStep <= 1.5) return 1;   // Experimento Aleatório
-  if (subStep < 3) return 2;      // Espaço Amostral
-  if (subStep <= 3.6) return 3;   // Eventos
-  if (subStep <= 4.5) return 4;   // Equiprobabilidade
-  if (subStep <= 5.9) return 5;   // Classificação + Conceitos
-  if (subStep <= 6.2) return 6;   // Cálculo de Probabilidade
-  if (subStep >= 7 && subStep <= 7.6) return 13; // Giros manuais
-  if (subStep >= 8 && subStep < 9) return 14;    // Frequência relativa
-  if (subStep >= 9 && subStep < 10) return 15;   // Análise
-  if (subStep >= 10 && subStep <= 11) return 16;  // Giros automáticos
-  if (subStep >= 12 && subStep <= 14) return 17;  // Convergência teórica + interpretação
-  if (subStep === 15) return 18;                   // Consolidação LGN
-  if (subStep === 16) return 19;                   // Etapa 1 Concluída
-  return 17;
-}
+// Conjuntos de alternativas para questão diagnóstica da Etapa 3 (subStep 1.5)
+// A = corretas (contagem de setores), B = viés visual (agrupamento), I = distratores diversos
+const S3_DIAG_A = [
+  'Escolhi a cor que aparece em mais setores, pois quanto maior o número de setores dessa cor, maior é a chance de ela ocorrer.',
+  'Escolhi a cor que se repete mais vezes no disco, porque a probabilidade depende da quantidade de casos favoráveis.',
+  'Escolhi a cor com maior número de setores, já que mais ocorrências aumentam a probabilidade de ser sorteada.',
+  'Escolhi a cor que ocupa mais setores no disco, pois mais setores significam maior chance no sorteio.'
+];
+const S3_DIAG_B = [
+  'Escolhi a cor cujos setores estão juntos, pois isso dá a impressão de que ela tem mais chance.',
+  'Escolhi a cor porque seus setores aparecem agrupados, o que faz parecer que ela ocorre com maior frequência.',
+  'Escolhi essa cor porque os setores da mesma cor estão próximos, dando a sensação de maior probabilidade.'
+];
+const S3_DIAG_I = [
+  'Escolhi essa cor porque chamou mais minha atenção no disco.',
+  'Escolhi essa cor porque o setor parecia estar em uma posição favorável para o ponteiro parar.',
+  'Escolhi essa cor porque achei que todos os setores têm a mesma chance de serem sorteados.',
+  'Escolhi essa cor apenas por preferência ou intuição.',
+  'Escolhi aleatoriamente, sem nenhum critério. O disco é imprevisível de qualquer forma.',
+  'Escolhi porque é a cor com menos setores — acredito que cores raras têm mais "sorte".',
+  'Escolhi essa cor porque é minha cor favorita — isso influencia o resultado.'
+];
 
 export const useRouletteHooks = () => {
   // Estado principal do jogo
@@ -3437,23 +3389,23 @@ export const useRouletteHooks = () => {
     theoreticalK: 0,
     correctAnswer: '',
     studentPrediction: null,
-    eventoCompostoE: [],
-    exercicioEventoE: [],
+    compositeEventE: [],
+    exerciseEventE: [],
     selectedSectors: [],
     sectorNumbers: [],
     // Desafio Dinâmico 1
-    desafio1P: 0,
-    desafio1SectorNumbers: [],
-    desafio1PropriedadeY: '',
-    desafio1ValorP: 0,
-    desafio1EventoXCores: [],
-    desafio1EventoXTexto: '',
-    desafio1EventoXTipo: 'inclusao',
-    desafio1Conectivo: 'ou',
-    desafio1InterProblemType: null,
-    desafio1InterM: null,
-    desafio1InterP: null,
-    desafio1InterK: null,
+    challenge1P: 0,
+    challenge1SectorNumbers: [],
+    challenge1PropertyY: '',
+    challenge1ValueP: 0,
+    challenge1EventXColors: [],
+    challenge1EventXText: '',
+    challenge1EventXType: 'inclusao',
+    challenge1Connective: 'ou',
+    challenge1InterProblemType: null,
+    challenge1InterM: null,
+    challenge1InterP: null,
+    challenge1InterK: null,
     compEventA: null,
     // Etapa 2
     s2K: 0,
@@ -3495,7 +3447,7 @@ export const useRouletteHooks = () => {
   });
 
   // Cores aleatórias para a pergunta conceitual 2.4 (P(X ou Y) = 2/k?)
-  const [s2RandomColors, setS2RandomColors] = useState<{ corX: string; corY: string }>({ corX: '', corY: '' });
+  const [s2RandomColors, setS2RandomColors] = useState<{ colorX: string; colorY: string }>({ colorX: '', colorY: '' });
 
   // Leitura progressiva antes da tabela θ/360 (subStep 7)
   // 0-3: trechos de leitura, 4: pergunta 90°, 5: tabela ativa
@@ -3527,40 +3479,40 @@ export const useRouletteHooks = () => {
     setValue: (val: string) => setPredictionInput(prev => ({ ...prev, value: val.slice(0, 35) }))
   });
 
-  const [casosFavoraveisInput, setCasosFavoraveisInput] = useState<TextInputInterface>({
+  const [favorableCasesInput, setFavorableCasesInput] = useState<TextInputInterface>({
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setCasosFavoraveisInput(prev => ({ ...prev, value: val }))
+    setValue: (val: string) => setFavorableCasesInput(prev => ({ ...prev, value: val }))
   });
 
   // Inputs para o exercício dinâmico (Aplicação do Teorema de Laplace)
-  const [exercicioNEInput, setExercicioNEInput] = useState<TextInputInterface>({
+  const [exerciseNEInput, setExerciseNEInput] = useState<TextInputInterface>({
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setExercicioNEInput(prev => ({ ...prev, value: val }))
+    setValue: (val: string) => setExerciseNEInput(prev => ({ ...prev, value: val }))
   });
 
-  const [exercicioNSInput, setExercicioNSInput] = useState<TextInputInterface>({
+  const [exerciseNSInput, setExerciseNSInput] = useState<TextInputInterface>({
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setExercicioNSInput(prev => ({ ...prev, value: val }))
+    setValue: (val: string) => setExerciseNSInput(prev => ({ ...prev, value: val }))
   });
 
-  const [exercicioPENumeradorInput, setExercicioPENumeradorInput] = useState<TextInputInterface>({
+  const [exercisePENumeratorInput, setExercisePENumeratorInput] = useState<TextInputInterface>({
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setExercicioPENumeradorInput(prev => ({ ...prev, value: val }))
+    setValue: (val: string) => setExercisePENumeratorInput(prev => ({ ...prev, value: val }))
   });
 
-  const [exercicioPEDenominadorInput, setExercicioPEDenominadorInput] = useState<TextInputInterface>({
+  const [exercisePEDenominatorInput, setExercisePEDenominatorInput] = useState<TextInputInterface>({
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setExercicioPEDenominadorInput(prev => ({ ...prev, value: val }))
+    setValue: (val: string) => setExercisePEDenominatorInput(prev => ({ ...prev, value: val }))
   });
 
   // InfoBox state
@@ -3576,11 +3528,11 @@ export const useRouletteHooks = () => {
   });
 
   // Estado para contar exemplos vistos (experimento determinístico e aleatório)
-  const [exemplosVistosDeterministico, setExemplosVistosDeterministico] = useState(1);
-  const [exemplosVistosAleatorio, setExemplosVistosAleatorio] = useState(1);
+  const [deterministicExamplesViewed, setDeterministicExamplesViewed] = useState(1);
+  const [randomExamplesViewed, setRandomExamplesViewed] = useState(1);
 
   // Estado para exemplos de eventos mutuamente exclusivos (disjuntos)
-  const [exemplosDisjuntosVistos, setExemplosDisjuntosVistos] = useState(0);
+  const [disjointExamplesViewed, setDisjointExamplesViewed] = useState(0);
   const [lastDisjointMeta, setLastDisjointMeta] = useState<DisjointExampleMeta | null>(null);
   const [disjointNeedsNumbers, setDisjointNeedsNumbers] = useState(false);
 
@@ -3590,8 +3542,8 @@ export const useRouletteHooks = () => {
   const [disjointUserSelectB, setDisjointUserSelectB] = useState<number[]>([]);
   const [disjointCorrectA, setDisjointCorrectA] = useState<number[]>([]);
   const [disjointCorrectB, setDisjointCorrectB] = useState<number[]>([]);
-  const [disjointExerciseTextoA, setDisjointExerciseTextoA] = useState('');
-  const [disjointExerciseTextoB, setDisjointExerciseTextoB] = useState('');
+  const [disjointExerciseTextA, setDisjointExerciseTextA] = useState('');
+  const [disjointExerciseTextB, setDisjointExerciseTextB] = useState('');
 
   // Estado para a fase de Probabilidade da União (subStep 6.56)
   const [unionPhase, setUnionPhase] = useState<UnionPhase>('definition1');
@@ -3799,47 +3751,40 @@ export const useRouletteHooks = () => {
     spin2Color: string;        // Cor do 2o giro
     bet1Color: string;         // Cor apostada no 1o giro
     bet2Color: string;         // Cor apostada no 2o giro
-    resposta1: string;         // Resposta da pergunta após 1o giro
-    resposta2: string;         // Resposta da pergunta após 2o giro
+    answer1: string;         // Resposta da pergunta após 1o giro
+    answer2: string;         // Resposta da pergunta após 2o giro
     selectedOption: string;    // Opção selecionada na pergunta atual
     phase: 'betting' | 'spinning' | 'question' | 'done';
     betConstraint: 'none' | 'same' | 'not_same' | 'largest'; // Restrição na aposta do 2o giro
   }>({
     spin1Color: '', spin2Color: '',
     bet1Color: '', bet2Color: '',
-    resposta1: '', resposta2: '',
+    answer1: '', answer2: '',
     selectedOption: '',
     phase: 'betting',
     betConstraint: 'none',
   });
 
-  // Estado para o fluxo de reinício
-  const [restartPhase, setRestartPhase] = useState<
-    'hidden' | 'choosing' |
-    'confirm_stage1' | 'confirm_stage2' | 'confirm_stage3' |
-    'confirm_previous' | 'confirm_back'
-  >('hidden');
-
   // Estado para características do experimento aleatório (múltipla seleção)
-  const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<number[]>([]);
+  const [selectedCharacteristics, setSelectedCharacteristics] = useState<number[]>([]);
 
   // Estados para a fase de experimentação (3 tentativas antes da questão)
-  const [experimentacaoState, setExperimentacaoState] = useState<{
-    corApostada: string | null;
-    sorteios: string[];
-    tentativaAtual: number;
-    aguardandoConfirmacao: boolean;
-    corSorteadaInterna: string | null;
-    corRevelada: boolean; // True quando o usuário confirmou corretamente
+  const [experimentationState, setExperimentationState] = useState<{
+    wageredColor: string | null;
+    draws: string[];
+    currentAttempt: number;
+    waitingForConfirmation: boolean;
+    internalDrawnColor: string | null;
+    colorRevealed: boolean; // True quando o usuário confirmou corretamente
   }>({
-    corApostada: null,
-    sorteios: [],
-    tentativaAtual: 1,
-    aguardandoConfirmacao: false,
-    corSorteadaInterna: null,
-    corRevelada: false
+    wageredColor: null,
+    draws: [],
+    currentAttempt: 1,
+    waitingForConfirmation: false,
+    internalDrawnColor: null,
+    colorRevealed: false
   });
-  const [tentativasNaoOtimas, setTentativasNaoOtimas] = useState(0);
+  const [suboptimalAttempts, setSuboptimalAttempts] = useState(0);
   const [progressiveReadingStep, setProgressiveReadingStep] = useState(0);
 
   // Estado de instruções
@@ -3848,7 +3793,6 @@ export const useRouletteHooks = () => {
   // Estados de controle de botões
   const [disabledSpinButton, setDisabledSpinButton] = useState(true);
   const [disabledCheckButton, setDisabledCheckButton] = useState(false);
-  const [disabledClearButton, setDisabledClearButton] = useState(true);
   const [disabledNextButton, setDisabledNextButton] = useState(true);
   const [showAutoSpinButtons, setShowAutoSpinButtons] = useState(false);
 
@@ -3870,10 +3814,9 @@ export const useRouletteHooks = () => {
   }, [_createAlert]);
 
   // Refs
-  const _autoSpinIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const restartDesafio1Ref = useRef<() => void>(() => {});
+  const restartChallenge1Ref = useRef<() => void>(() => {});
   const initCompCalcExampleRef = useRef<(guided: boolean) => void>(() => {});
-  const transitionToPrevisaoRef = useRef<() => void>(() => {});
+  const transitionToPredictionRef = useRef<() => void>(() => {});
   const initComplementaryPhaseRef = useRef<() => void>(() => {});
   const handleStartCompExerciseRef = useRef<() => void>(() => {});
 
@@ -3930,8 +3873,8 @@ export const useRouletteHooks = () => {
       perfectPatternExtraSpinsDone: 0,
       correctAnswer: '',
       studentPrediction: null,
-      eventoCompostoE: [],
-      exercicioEventoE: [],
+      compositeEventE: [],
+      exerciseEventE: [],
       selectedSectors: [],
       sectorNumbers: []
     }));
@@ -3948,13 +3891,12 @@ export const useRouletteHooks = () => {
     setShowInfoBox(false);
     setDisabledSpinButton(true);
     setDisabledCheckButton(false);
-    setDisabledClearButton(true);
     setDisabledNextButton(true);
     setShowAutoSpinButtons(false);
 
     // Resetar contadores de exemplos vistos
-    setExemplosVistosDeterministico(1);
-    setExemplosVistosAleatorio(1);
+    setDeterministicExamplesViewed(1);
+    setRandomExamplesViewed(1);
 
     setInstructions(`<p class="ds-body">Use o controle deslizante para dividir o disco em <strong>${targetCount}</strong> setores iguais e clique em <strong>Confirmar</strong>.</p>`);
   }, []);
@@ -3991,7 +3933,7 @@ export const useRouletteHooks = () => {
     }));
 
     setDisabledSpinButton(true);
-  }, [gameState.isSpinning, gameState.sectors.length, gameState.currentRotation, playSound]);
+  }, [gameState.isSpinning, gameState.sectors.length, gameState.currentRotation]);
 
   // Função para determinar a cor onde o ponteiro parou
   const getColorAtAngle = useCallback((angle: number): string => {
@@ -4044,7 +3986,7 @@ export const useRouletteHooks = () => {
         pendingRegistration: false,
         subStep: 6.204,
       }));
-      setS2SpinReflection(prev => ({ ...prev, resposta1: prev.selectedOption, spin2Color: resultColor, selectedOption: '', phase: 'question', bet2Color: '', betConstraint: 'none' }));
+      setS2SpinReflection(prev => ({ ...prev, answer1: prev.selectedOption, spin2Color: resultColor, selectedOption: '', phase: 'question', bet2Color: '', betConstraint: 'none' }));
       playSound(won ? "/sounds/correct.mp3" : "/sounds/incorrect.mp3");
       createAlert(won ? "Acertou!" : "Errou!", `Você apostou em ${betColor}. Foi sorteada a cor ${resultColor}.`, won ? "success" : "error", 3000);
       setInstructions(`<p class="ds-body"><strong>Resultado do segundo giro</strong></p>
@@ -4122,7 +4064,7 @@ export const useRouletteHooks = () => {
         const predColor = gameState.predictionColor;
         const predVal = gameState.predictionValue;
         const observedCount = newFrequencies[predColor] || 0;
-        const totalGiros = gameState.manualSpinsRequired;
+        const totalSpinsLocal = gameState.manualSpinsRequired;
 
         const match = parseInt(predVal, 10) === observedCount;
         setGameState(prev => ({ ...prev, subStep: 7.1 }));
@@ -4131,7 +4073,7 @@ export const useRouletteHooks = () => {
         setInfoBoxContent({
           type: match ? 'success' : 'info',
           title: 'Confronto: Previsão × Resultado',
-          message: `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${totalGiros} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
+          message: `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${totalSpinsLocal} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
             ? 'Sua previsão coincidiu com o resultado! Mas isso <strong>sempre</strong> aconteceria se repetíssemos o experimento?'
             : 'Sua previsão não coincidiu com o resultado. Isso acontece porque cada giro é um <strong>experimento aleatório</strong> — não é possível prever com certeza o resultado.'}`
         });
@@ -4152,7 +4094,6 @@ export const useRouletteHooks = () => {
         const predColor = gameState.predictionColor;
         const predVal = gameState.predictionValue;
         const observedCount = newFrequencies[predColor] || 0;
-        const totalGiros = Object.values(newFrequencies).reduce((a, b) => a + b, 0);
 
         const match = parseInt(predVal, 10) === observedCount;
         setGameState(prev => ({ ...prev, subStep: 7.1 }));
@@ -4203,7 +4144,7 @@ export const useRouletteHooks = () => {
   }, [gameState, createAlert]);
 
   // Função para mostrar a pergunta de incerteza
-  const showUncertaintyQuestion = useCallback((frequencies: { [color: string]: number }) => {
+  const showUncertaintyQuestion = useCallback(() => {
     const randomColor = AVAILABLE_COLORS[Math.floor(Math.random() * gameState.targetSectorCount)];
     const n = gameState.targetSectorCount;
 
@@ -4411,7 +4352,7 @@ export const useRouletteHooks = () => {
         setInfoBoxContent({
           type: 'concept',
           title: 'Experimento determinístico',
-          message: `Procedimento que, ao ser repetido nas mesmas condições, produz sempre o mesmo resultado, podendo ser previsto com certeza.<br/><br/><strong>Exemplo:</strong> ${EXEMPLOS_DETERMINISTICOS[Math.floor(Math.random() * EXEMPLOS_DETERMINISTICOS.length)]}`
+          message: `Procedimento que, ao ser repetido nas mesmas condições, produz sempre o mesmo resultado, podendo ser previsto com certeza.<br/><br/><strong>Exemplo:</strong> ${DETERMINISTIC_EXAMPLES[Math.floor(Math.random() * DETERMINISTIC_EXAMPLES.length)]}`
         });
 
         setInstructions(`<p class="ds-body"><strong>Conceitos Fundamentais</strong></p>
@@ -4430,13 +4371,13 @@ export const useRouletteHooks = () => {
         createAlert("Parabéns!", "Você identificou corretamente o experimento aleatório!", "success", 3000);
 
         // Ir para a fase de experimentação (3 tentativas antes da questão)
-        setExperimentacaoState({
-          corApostada: null,
-          sorteios: [],
-          tentativaAtual: 1,
-          aguardandoConfirmacao: false,
-          corSorteadaInterna: null,
-          corRevelada: false
+        setExperimentationState({
+          wageredColor: null,
+          draws: [],
+          currentAttempt: 1,
+          waitingForConfirmation: false,
+          internalDrawnColor: null,
+          colorRevealed: false
         });
         setGameState(prev => ({ ...prev, subStep: 1.1 }));
         setShowInfoBox(false);
@@ -4458,9 +4399,9 @@ export const useRouletteHooks = () => {
 
     // STAGE 1 - SubStep 1.25: Verificar características do experimento aleatório (todas devem estar marcadas)
     if (stage === 1 && subStep === 1.25) {
-      const todasMarcadas = caracteristicasSelecionadas.length === CARACTERISTICAS_EXPERIMENTO_ALEATORIO.length;
+      const allChecked = selectedCharacteristics.length === RANDOM_EXPERIMENT_CHARACTERISTICS.length;
 
-      if (todasMarcadas) {
+      if (allChecked) {
         playSound("/sounds/correct.mp3");
         createAlert("Parabéns!", "Você identificou corretamente todas as características do experimento aleatório!", "success", 3000);
 
@@ -4473,7 +4414,7 @@ export const useRouletteHooks = () => {
         });
 
         setGameState(prev => ({ ...prev, subStep: 1.5 })); // Estado intermediário para o balão
-      } else if (caracteristicasSelecionadas.length > 0) {
+      } else if (selectedCharacteristics.length > 0) {
         // Algumas marcadas, mas não todas
         playSound("/sounds/incorrect.mp3");
         createAlert("Correto! Mas está incompleto.", "", "warning", 4000);
@@ -4512,11 +4453,11 @@ export const useRouletteHooks = () => {
 
         // Gerar eventos A e B dinamicamente (CONTRATO FORMAL)
         // Seja S o espaço amostral do disco atual (conjunto das cores)
-        const coresDisponiveis = [...sectors.map(s => s.colorName)];
+        const availableColors = [...sectors.map(s => s.colorName)];
 
         // Sortear X: uma cor aleatória de S para o Exemplo 1 (A = {X})
-        const idxX = Math.floor(Math.random() * coresDisponiveis.length);
-        const X = coresDisponiveis[idxX];
+        const idxX = Math.floor(Math.random() * availableColors.length);
+        const X = availableColors[idxX];
 
         // Gerar B: subconjunto aleatório de S com |B| >= 2
         // Passo 1: Sortear k ∈ {2,...,n} para cardinalidade de B
@@ -4526,13 +4467,13 @@ export const useRouletteHooks = () => {
         const k = kOptions[Math.floor(Math.random() * kOptions.length)];
 
         // Passo 2: Escolher k cores aleatórias distintas de S para formar B
-        const coresParaB: string[] = [];
-        const coresRestantes = [...coresDisponiveis];
+        const colorsForB: string[] = [];
+        const remainingColors = [...availableColors];
         for (let i = 0; i < k; i++) {
-          const idx = Math.floor(Math.random() * coresRestantes.length);
-          coresParaB.push(coresRestantes.splice(idx, 1)[0]);
+          const idx = Math.floor(Math.random() * remainingColors.length);
+          colorsForB.push(remainingColors.splice(idx, 1)[0]);
         }
-        const conjuntoB = coresParaB.join(', ');
+        const setB = colorsForB.join(', ');
 
         // Mostrar balão de definição de Evento (REGRA DE EXIBIÇÃO DIDÁTICA)
         // O texto apresenta a definição geral, não substitui pelo exemplo
@@ -4540,7 +4481,7 @@ export const useRouletteHooks = () => {
         setInfoBoxContent({
           type: 'concept',
           title: 'Evento',
-          message: `Evento é qualquer subconjunto do espaço amostral.<br/><br/><strong>Exemplo 1:</strong><br/>A = {${X}}.<br/><br/><strong>Exemplo 2:</strong><br/>B = {${conjuntoB}}.`
+          message: `Evento é qualquer subconjunto do espaço amostral.<br/><br/><strong>Exemplo 1:</strong><br/>A = {${X}}.<br/><br/><strong>Exemplo 2:</strong><br/>B = {${setB}}.`
         });
 
         setGameState(prev => ({ ...prev, subStep: 3.4 })); // Estado intermediário para o balão de Evento
@@ -4639,8 +4580,8 @@ export const useRouletteHooks = () => {
         createAlert("Parabéns!", "Todas as probabilidades estão corretas!", "success", 3000);
 
         // Gerar evento composto E dinamicamente (subconjunto com 2+ elementos)
-        const coresDisponiveis = [...sectors.map(s => s.colorName)];
-        const n = coresDisponiveis.length;
+        const availableColors = [...sectors.map(s => s.colorName)];
+        const n = availableColors.length;
 
         // Sortear k entre 2 e n para cardinalidade de E
         const kOptions = [];
@@ -4648,21 +4589,21 @@ export const useRouletteHooks = () => {
         const k = kOptions[Math.floor(Math.random() * kOptions.length)];
 
         // Escolher k cores aleatórias distintas
-        const eventoE: string[] = [];
-        const coresRestantes = [...coresDisponiveis];
+        const eventE: string[] = [];
+        const remainingColors = [...availableColors];
         for (let i = 0; i < k; i++) {
-          const idx = Math.floor(Math.random() * coresRestantes.length);
-          eventoE.push(coresRestantes.splice(idx, 1)[0]);
+          const idx = Math.floor(Math.random() * remainingColors.length);
+          eventE.push(remainingColors.splice(idx, 1)[0]);
         }
 
         setGameState(prev => ({
           ...prev,
           subStep: 6.1,
-          eventoCompostoE: eventoE
+          compositeEventE: eventE
         }));
 
         // Limpar input de casos favoráveis
-        setCasosFavoraveisInput({ value: '', disabled: false, error: false, setValue: (val: string) => setCasosFavoraveisInput(prev => ({ ...prev, value: val })) });
+        setFavorableCasesInput({ value: '', disabled: false, error: false, setValue: (val: string) => setFavorableCasesInput(prev => ({ ...prev, value: val })) });
 
         setInstructions(`<p class="ds-body"><strong>Probabilidade do Evento Composto</strong></p>
           <p class="ds-body">Responda a pergunta abaixo.</p>`);
@@ -4676,8 +4617,8 @@ export const useRouletteHooks = () => {
 
     // STAGE 1 - SubStep 6.1: Verificar casos favoráveis do evento composto
     if (stage === 1 && subStep === 6.1) {
-      const inputValue = parseInt(casosFavoraveisInput.value || '');
-      const expectedValue = gameState.eventoCompostoE.length;
+      const inputValue = parseInt(favorableCasesInput.value || '');
+      const expectedValue = gameState.compositeEventE.length;
 
       if (inputValue === expectedValue) {
         playSound("/sounds/correct.mp3");
@@ -4688,35 +4629,35 @@ export const useRouletteHooks = () => {
         const n = targetSectorCount;
 
         // Função helper para criar fração HTML vertical
-        const fracaoHTML = (num: string | number, den: string | number) =>
+        const fractionHTML = (num: string | number, den: string | number) =>
           `<span style="display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 2px;"><span style="padding: 0 4px;">${num}</span><span style="width: 100%; height: 1px; background: currentColor;"></span><span style="padding: 0 4px;">${den}</span></span>`;
 
         // Construir a expressão P(E) = P{cor1} + P{cor2} + ... = 1/n + 1/n + ... = k/n = decimal = porcentagem
-        const coresDoEvento = gameState.eventoCompostoE;
-        const probabilidadesCores = coresDoEvento.map(cor => `P{${cor}}`).join(' + ');
-        const parcelasHTML = Array(k).fill(fracaoHTML(1, n)).join(' + ');
-        const resultadoDecimal = k / n;
-        const resultadoPorcentagem = (resultadoDecimal * 100);
+        const eventColors = gameState.compositeEventE;
+        const colorProbabilities = eventColors.map(color => `P{${color}}`).join(' + ');
+        const addendsHTML = Array(k).fill(fractionHTML(1, n)).join(' + ');
+        const resultDecimal = k / n;
+        const resultPercentage = (resultDecimal * 100);
         // Formatar o decimal (remover zeros desnecessários)
-        const decimalFormatado = Number.isInteger(resultadoDecimal)
-          ? resultadoDecimal.toString()
-          : resultadoDecimal.toFixed(4).replace(/\.?0+$/, '');
+        const formattedDecimal = Number.isInteger(resultDecimal)
+          ? resultDecimal.toString()
+          : resultDecimal.toFixed(4).replace(/\.?0+$/, '');
         // Formatar a porcentagem (remover zeros desnecessários)
-        const porcentagemFormatada = Number.isInteger(resultadoPorcentagem)
-          ? resultadoPorcentagem.toString()
-          : resultadoPorcentagem.toFixed(2).replace(/\.?0+$/, '');
+        const formattedPercentage = Number.isInteger(resultPercentage)
+          ? resultPercentage.toString()
+          : resultPercentage.toFixed(2).replace(/\.?0+$/, '');
 
         setShowInfoBox(true);
         setInfoBoxContent({
           type: 'concept',
           title: 'Probabilidade do Evento Composto',
-          message: `<strong>E = {${gameState.eventoCompostoE.join(', ')}}</strong><br/><br/>Como o espaço amostral do disco é equiprovável, cada setor possui a mesma chance de ocorrer.<br/><br/>Se o disco está dividido em <strong>${n}</strong> setores e o evento E é formado por <strong>${k}</strong> resultados simples distintos (ou seja, ${k} cores do disco), então a probabilidade de ocorrência do evento E é obtida somando as probabilidades dos eventos simples que o compõem.<br/><br/><strong style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">P(E) = ${probabilidadesCores} = ${parcelasHTML} = ${fracaoHTML(k, n)} = ${decimalFormatado} = ${porcentagemFormatada}%</strong><br/><br/>Nessa expressão:<br/>• <strong>n = ${n}</strong> representa o número total de setores do disco (número de elementos do espaço amostral);<br/>• <strong>n(E) = ${k}</strong> representa o número de resultados simples favoráveis ao evento E;<br/>• <strong>P(E)</strong> = Probabilidade de ocorrência do evento E, ou seja, número que expressa a "chance" do Evento E ocorrer.<br/><br/>Assim, a probabilidade de um evento composto em um espaço amostral equiprovável é dada pela razão entre o número de casos favoráveis e o número total de resultados possíveis.`
+          message: `<strong>E = {${gameState.compositeEventE.join(', ')}}</strong><br/><br/>Como o espaço amostral do disco é equiprovável, cada setor possui a mesma chance de ocorrer.<br/><br/>Se o disco está dividido em <strong>${n}</strong> setores e o evento E é formado por <strong>${k}</strong> resultados simples distintos (ou seja, ${k} cores do disco), então a probabilidade de ocorrência do evento E é obtida somando as probabilidades dos eventos simples que o compõem.<br/><br/><strong style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">P(E) = ${colorProbabilities} = ${addendsHTML} = ${fractionHTML(k, n)} = ${formattedDecimal} = ${formattedPercentage}%</strong><br/><br/>Nessa expressão:<br/>• <strong>n = ${n}</strong> representa o número total de setores do disco (número de elementos do espaço amostral);<br/>• <strong>n(E) = ${k}</strong> representa o número de resultados simples favoráveis ao evento E;<br/>• <strong>P(E)</strong> = Probabilidade de ocorrência do evento E, ou seja, número que expressa a "chance" do Evento E ocorrer.<br/><br/>Assim, a probabilidade de um evento composto em um espaço amostral equiprovável é dada pela razão entre o número de casos favoráveis e o número total de resultados possíveis.`
         });
 
         setGameState(prev => ({ ...prev, subStep: 6.2 }));
       } else {
         playSound("/sounds/incorrect.mp3");
-        setCasosFavoraveisInput(prev => ({ ...prev, error: true }));
+        setFavorableCasesInput(prev => ({ ...prev, error: true }));
         createAlert("Erro!", "Conte a quantidade de elementos que pertencem ao conjunto E.", "error", 4000);
       }
       return;
@@ -4982,18 +4923,18 @@ export const useRouletteHooks = () => {
 
     // STAGE 1 - SubStep 6.41: Verificar seleção dos setores (Interação 1 do Exercício)
     if (stage === 1 && subStep === 6.41) {
-      const coresCorretas = gameState.exercicioEventoE;
-      const indicesCorretos = sectors
-        .map((s, i) => coresCorretas.includes(s.colorName) ? i : -1)
+      const correctColors = gameState.exerciseEventE;
+      const correctIndices = sectors
+        .map((s, i) => correctColors.includes(s.colorName) ? i : -1)
         .filter(i => i !== -1);
 
-      const selecionados = [...gameState.selectedSectors].sort((a, b) => a - b);
-      const corretos = [...indicesCorretos].sort((a, b) => a - b);
+      const selectedSorted = [...gameState.selectedSectors].sort((a, b) => a - b);
+      const correctOnes = [...correctIndices].sort((a, b) => a - b);
 
-      const estaoCorretos = selecionados.length === corretos.length &&
-        selecionados.every((val, idx) => val === corretos[idx]);
+      const allRight = selectedSorted.length === correctOnes.length &&
+        selectedSorted.every((val, idx) => val === correctOnes[idx]);
 
-      if (estaoCorretos) {
+      if (allRight) {
         playSound("/sounds/correct.mp3");
         createAlert("Correto!", "Você identificou corretamente os casos favoráveis ao evento E.", "success", 3000);
 
@@ -5010,8 +4951,8 @@ export const useRouletteHooks = () => {
 
     // STAGE 1 - SubStep 6.42: Verificar n(E) (Interação 2 do Exercício)
     if (stage === 1 && subStep === 6.42) {
-      const inputValue = parseInt(exercicioNEInput.value || '');
-      const expectedValue = gameState.exercicioEventoE.length;
+      const inputValue = parseInt(exerciseNEInput.value || '');
+      const expectedValue = gameState.exerciseEventE.length;
 
       if (inputValue === expectedValue) {
         playSound("/sounds/correct.mp3");
@@ -5023,7 +4964,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Digite o número de resultados possíveis do experimento aleatório (número de elementos do espaço amostral).</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        setExercicioNEInput(prev => ({ ...prev, error: true }));
+        setExerciseNEInput(prev => ({ ...prev, error: true }));
         createAlert("Erro!", "Conte a quantidade de elementos do evento E.", "error", 3000);
       }
       return;
@@ -5031,7 +4972,7 @@ export const useRouletteHooks = () => {
 
     // STAGE 1 - SubStep 6.43: Verificar n(S) (Interação 3 do Exercício)
     if (stage === 1 && subStep === 6.43) {
-      const inputValue = parseInt(exercicioNSInput.value || '');
+      const inputValue = parseInt(exerciseNSInput.value || '');
       const expectedValue = sectors.length;
 
       if (inputValue === expectedValue) {
@@ -5044,7 +4985,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Ao girar o disco uma única vez, qual a probabilidade de ocorrer o evento E?</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        setExercicioNSInput(prev => ({ ...prev, error: true }));
+        setExerciseNSInput(prev => ({ ...prev, error: true }));
         createAlert("Erro!", "Observe quantos setores compõem o disco.", "error", 3000);
       }
       return;
@@ -5052,23 +4993,23 @@ export const useRouletteHooks = () => {
 
     // STAGE 1 - SubStep 6.44: Verificar P(E) = n(E)/n(S) (Interação 4 do Exercício)
     if (stage === 1 && subStep === 6.44) {
-      const numerador = parseInt(exercicioPENumeradorInput.value || '');
-      const denominador = parseInt(exercicioPEDenominadorInput.value || '');
-      const expectedNumerador = gameState.exercicioEventoE.length;
-      const expectedDenominador = sectors.length;
+      const numerator = parseInt(exercisePENumeratorInput.value || '');
+      const denominator = parseInt(exercisePEDenominatorInput.value || '');
+      const expectedNumerator = gameState.exerciseEventE.length;
+      const expectedDenominator = sectors.length;
 
-      if (areSplitFractionsEquivalent(numerador, denominador, expectedNumerador, expectedDenominador)) {
+      if (areSplitFractionsEquivalent(numerator, denominator, expectedNumerator, expectedDenominator)) {
         playSound("/sounds/correct.mp3");
 
         // Calcular decimal e porcentagem
-        const resultadoDecimal = expectedNumerador / expectedDenominador;
-        const resultadoPorcentagem = resultadoDecimal * 100;
-        const decimalFormatado = Number.isInteger(resultadoDecimal)
-          ? resultadoDecimal.toString()
-          : resultadoDecimal.toFixed(4).replace(/\.?0+$/, '');
-        const porcentagemFormatada = Number.isInteger(resultadoPorcentagem)
-          ? resultadoPorcentagem.toString()
-          : resultadoPorcentagem.toFixed(2).replace(/\.?0+$/, '');
+        const resultDecimal = expectedNumerator / expectedDenominator;
+        const resultPercentage = resultDecimal * 100;
+        const formattedDecimal = Number.isInteger(resultDecimal)
+          ? resultDecimal.toString()
+          : resultDecimal.toFixed(4).replace(/\.?0+$/, '');
+        const formattedPercentage = Number.isInteger(resultPercentage)
+          ? resultPercentage.toString()
+          : resultPercentage.toFixed(2).replace(/\.?0+$/, '');
 
         setGameState(prev => ({ ...prev, subStep: 6.45 }));
 
@@ -5076,15 +5017,15 @@ export const useRouletteHooks = () => {
         setInfoBoxContent({
           type: 'success',
           title: 'Parabéns!',
-          message: `Você aplicou corretamente o modelo probabilístico de um espaço amostral equiprovável.<br/><br/><div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: bold; flex-wrap: wrap;"><span>P(E) =</span><span style="display: inline-flex; flex-direction: column; align-items: center;"><span>n(E)</span><span style="width: 100%; height: 2px; background: currentColor;"></span><span>n(S)</span></span><span>=</span><span style="display: inline-flex; flex-direction: column; align-items: center;"><span>${expectedNumerador}</span><span style="width: 100%; height: 2px; background: currentColor;"></span><span>${expectedDenominador}</span></span><span>= ${decimalFormatado} = ${porcentagemFormatada}%</span></div>`
+          message: `Você aplicou corretamente o modelo probabilístico de um espaço amostral equiprovável.<br/><br/><div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: bold; flex-wrap: wrap;"><span>P(E) =</span><span style="display: inline-flex; flex-direction: column; align-items: center;"><span>n(E)</span><span style="width: 100%; height: 2px; background: currentColor;"></span><span>n(S)</span></span><span>=</span><span style="display: inline-flex; flex-direction: column; align-items: center;"><span>${expectedNumerator}</span><span style="width: 100%; height: 2px; background: currentColor;"></span><span>${expectedDenominator}</span></span><span>= ${formattedDecimal} = ${formattedPercentage}%</span></div>`
         });
 
         setInstructions(`<p class="ds-body"><strong>Exercício Concluído</strong></p>
           <p class="ds-body">Você aplicou corretamente o modelo probabilístico!</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        setExercicioPENumeradorInput(prev => ({ ...prev, error: true }));
-        setExercicioPEDenominadorInput(prev => ({ ...prev, error: true }));
+        setExercisePENumeratorInput(prev => ({ ...prev, error: true }));
+        setExercisePEDenominatorInput(prev => ({ ...prev, error: true }));
         createAlert("Erro!", "Revise os valores de n(E) e n(S) antes de calcular a probabilidade.", "error", 4000);
       }
       return;
@@ -5092,43 +5033,43 @@ export const useRouletteHooks = () => {
 
     // STAGE 1 - SubStep 6.6: Verificar seleção de setores no Desafio Dinâmico 1 (Conectivo Variável)
     if (stage === 1 && subStep === 6.6) {
-      const { desafio1SectorNumbers, desafio1PropriedadeY, desafio1EventoXCores, desafio1Conectivo, desafio1EventoXTipo, desafio1ValorP, desafio1InterProblemType, desafio1InterM, desafio1InterP, desafio1InterK, selectedSectors } = gameState;
+      const { challenge1SectorNumbers, challenge1PropertyY, challenge1EventXColors, challenge1Connective, challenge1EventXType, challenge1ValueP, challenge1InterProblemType, challenge1InterM, challenge1InterP, challenge1InterK, selectedSectors } = gameState;
 
       // Calcular setores corretos baseado no conectivo
-      let setoresCorretos: number[];
+      let correctSectors: number[];
 
-      if (desafio1InterProblemType !== null) {
+      if (challenge1InterProblemType !== null) {
         // Gerador de interseção controlado: usar solveIntersectionSet
-        const solveSet = solveIntersectionSet(desafio1InterProblemType, desafio1SectorNumbers, desafio1InterM, desafio1InterP, desafio1InterK);
-        setoresCorretos = Array.from(solveSet);
+        const solveSet = solveIntersectionSet(challenge1InterProblemType, challenge1SectorNumbers, challenge1InterM, challenge1InterP, challenge1InterK);
+        correctSectors = Array.from(solveSet);
       } else {
         // Fluxo original (cor + propriedade numérica)
-        setoresCorretos = [];
+        correctSectors = [];
         sectors.forEach((sector, index) => {
-          const corSatisfaz = desafio1EventoXTipo === 'exclusao'
-            ? !desafio1EventoXCores.includes(sector.colorName)
-            : desafio1EventoXCores.includes(sector.colorName);
-          const numeroSatisfaz = verificaPropriedade(desafio1SectorNumbers[index], desafio1PropriedadeY, desafio1ValorP);
+          const colorSatisfies = challenge1EventXType === 'exclusao'
+            ? !challenge1EventXColors.includes(sector.colorName)
+            : challenge1EventXColors.includes(sector.colorName);
+          const numberSatisfies = checkProperty(challenge1SectorNumbers[index], challenge1PropertyY, challenge1ValueP);
 
-          if (desafio1Conectivo === 'ou') {
-            if (corSatisfaz || numeroSatisfaz) {
-              setoresCorretos.push(index);
+          if (challenge1Connective === 'ou') {
+            if (colorSatisfies || numberSatisfies) {
+              correctSectors.push(index);
             }
           } else {
-            if (corSatisfaz && numeroSatisfaz) {
-              setoresCorretos.push(index);
+            if (colorSatisfies && numberSatisfies) {
+              correctSectors.push(index);
             }
           }
         });
       }
 
       // Verificar se a seleção do aluno está correta
-      const selecionadosOrdenados = [...selectedSectors].sort((a, b) => a - b);
-      const corretosOrdenados = [...setoresCorretos].sort((a, b) => a - b);
-      const acertou = selecionadosOrdenados.length === corretosOrdenados.length &&
-        selecionadosOrdenados.every((val, idx) => val === corretosOrdenados[idx]);
+      const sortedSelected = [...selectedSectors].sort((a, b) => a - b);
+      const sortedCorrect = [...correctSectors].sort((a, b) => a - b);
+      const won = sortedSelected.length === sortedCorrect.length &&
+        sortedSelected.every((val, idx) => val === sortedCorrect[idx]);
 
-      if (acertou) {
+      if (won) {
         playSound("/sounds/correct.mp3");
 
         setGameState(prev => ({ ...prev, subStep: 6.65 }));
@@ -5141,11 +5082,11 @@ export const useRouletteHooks = () => {
         });
       } else {
         playSound("/sounds/incorrect.mp3");
-        if (desafio1InterProblemType !== null) {
-          createAlert("Erro!", `Observe atentamente: o evento é definido por números que são ${desafio1PropriedadeY}. Verifique quais setores satisfazem ambas as condições simultaneamente.`, "error", 6000);
+        if (challenge1InterProblemType !== null) {
+          createAlert("Erro!", `Observe atentamente: o evento é definido por números que são ${challenge1PropertyY}. Verifique quais setores satisfazem ambas as condições simultaneamente.`, "error", 6000);
         } else {
-          const conectivoTexto = desafio1Conectivo === 'ou' ? 'pelo menos uma das condições' : 'ambas as condições simultaneamente';
-          createAlert("Erro!", `Observe atentamente: o evento é definido por ${gameState.desafio1EventoXTexto} ${desafio1Conectivo.toUpperCase()} número ${desafio1PropriedadeY}. Verifique quais setores satisfazem ${conectivoTexto}.`, "error", 6000);
+          const connectiveText = challenge1Connective === 'ou' ? 'pelo menos uma das condições' : 'ambas as condições simultaneamente';
+          createAlert("Erro!", `Observe atentamente: o evento é definido por ${gameState.challenge1EventXText} ${challenge1Connective.toUpperCase()} número ${challenge1PropertyY}. Verifique quais setores satisfazem ${connectiveText}.`, "error", 6000);
         }
       }
       return;
@@ -5153,30 +5094,30 @@ export const useRouletteHooks = () => {
 
     // STAGE 1 - SubStep 6.66: Verificar n(E) no Desafio Dinâmico 1
     if (stage === 1 && subStep === 6.66) {
-      const inputValue = parseInt(exercicioNEInput.value || '');
-      const { desafio1SectorNumbers, desafio1PropriedadeY, desafio1EventoXCores, desafio1Conectivo, desafio1EventoXTipo, desafio1ValorP, desafio1InterProblemType, desafio1InterM, desafio1InterP, desafio1InterK } = gameState;
+      const inputValue = parseInt(exerciseNEInput.value || '');
+      const { challenge1SectorNumbers, challenge1PropertyY, challenge1EventXColors, challenge1Connective, challenge1EventXType, challenge1ValueP, challenge1InterProblemType, challenge1InterM, challenge1InterP, challenge1InterK } = gameState;
 
       // Calcular n(E): quantidade de setores favoráveis
       let nE: number;
 
-      if (desafio1InterProblemType !== null) {
+      if (challenge1InterProblemType !== null) {
         // Gerador de interseção controlado
-        nE = solveIntersectionSet(desafio1InterProblemType, desafio1SectorNumbers, desafio1InterM, desafio1InterP, desafio1InterK).size;
+        nE = solveIntersectionSet(challenge1InterProblemType, challenge1SectorNumbers, challenge1InterM, challenge1InterP, challenge1InterK).size;
       } else {
         // Fluxo original (cor + propriedade numérica)
         nE = 0;
         sectors.forEach((sector, index) => {
-          const corSatisfaz = desafio1EventoXTipo === 'exclusao'
-            ? !desafio1EventoXCores.includes(sector.colorName)
-            : desafio1EventoXCores.includes(sector.colorName);
-          const numeroSatisfaz = verificaPropriedade(desafio1SectorNumbers[index], desafio1PropriedadeY, desafio1ValorP);
+          const colorSatisfies = challenge1EventXType === 'exclusao'
+            ? !challenge1EventXColors.includes(sector.colorName)
+            : challenge1EventXColors.includes(sector.colorName);
+          const numberSatisfies = checkProperty(challenge1SectorNumbers[index], challenge1PropertyY, challenge1ValueP);
 
-          if (desafio1Conectivo === 'ou') {
-            if (corSatisfaz || numeroSatisfaz) {
+          if (challenge1Connective === 'ou') {
+            if (colorSatisfies || numberSatisfies) {
               nE++;
             }
           } else {
-            if (corSatisfaz && numeroSatisfaz) {
+            if (colorSatisfies && numberSatisfies) {
               nE++;
             }
           }
@@ -5193,7 +5134,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Digite o número de resultados possíveis do experimento.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        setExercicioNEInput(prev => ({ ...prev, error: true }));
+        setExerciseNEInput(prev => ({ ...prev, error: true }));
         createAlert("Erro!", "Conte novamente os setores favoráveis ao evento. Cada setor favorável conta como 1.", "error", 4000);
       }
       return;
@@ -5201,7 +5142,7 @@ export const useRouletteHooks = () => {
 
     // STAGE 1 - SubStep 6.67: Verificar n(S) no Desafio Dinâmico 1
     if (stage === 1 && subStep === 6.67) {
-      const inputValue = parseInt(exercicioNSInput.value || '');
+      const inputValue = parseInt(exerciseNSInput.value || '');
       const expectedValue = sectors.length;
 
       if (inputValue === expectedValue) {
@@ -5214,7 +5155,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Agora calcule a probabilidade.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        setExercicioNSInput(prev => ({ ...prev, error: true }));
+        setExerciseNSInput(prev => ({ ...prev, error: true }));
         createAlert("Erro!", "Observe quantos setores compõem o disco.", "error", 3000);
       }
       return;
@@ -5222,50 +5163,50 @@ export const useRouletteHooks = () => {
 
     // STAGE 1 - SubStep 6.68: Verificar P(E) no Desafio Dinâmico 1
     if (stage === 1 && subStep === 6.68) {
-      const numerador = parseInt(exercicioPENumeradorInput.value || '');
-      const denominador = parseInt(exercicioPEDenominadorInput.value || '');
-      const { desafio1SectorNumbers, desafio1PropriedadeY, desafio1EventoXCores, desafio1Conectivo, desafio1EventoXTipo, desafio1ValorP, desafio1InterProblemType, desafio1InterM, desafio1InterP, desafio1InterK } = gameState;
+      const numerator = parseInt(exercisePENumeratorInput.value || '');
+      const denominator = parseInt(exercisePEDenominatorInput.value || '');
+      const { challenge1SectorNumbers, challenge1PropertyY, challenge1EventXColors, challenge1Connective, challenge1EventXType, challenge1ValueP, challenge1InterProblemType, challenge1InterM, challenge1InterP, challenge1InterK } = gameState;
 
       // Calcular n(E) (numerador esperado)
-      let expectedNumerador: number;
+      let expectedNumerator: number;
 
-      if (desafio1InterProblemType !== null) {
+      if (challenge1InterProblemType !== null) {
         // Gerador de interseção controlado
-        expectedNumerador = solveIntersectionSet(desafio1InterProblemType, desafio1SectorNumbers, desafio1InterM, desafio1InterP, desafio1InterK).size;
+        expectedNumerator = solveIntersectionSet(challenge1InterProblemType, challenge1SectorNumbers, challenge1InterM, challenge1InterP, challenge1InterK).size;
       } else {
         // Fluxo original (cor + propriedade numérica)
-        expectedNumerador = 0;
+        expectedNumerator = 0;
         sectors.forEach((sector, index) => {
-          const corSatisfaz = desafio1EventoXTipo === 'exclusao'
-            ? !desafio1EventoXCores.includes(sector.colorName)
-            : desafio1EventoXCores.includes(sector.colorName);
-          const numeroSatisfaz = verificaPropriedade(desafio1SectorNumbers[index], desafio1PropriedadeY, desafio1ValorP);
+          const colorSatisfies = challenge1EventXType === 'exclusao'
+            ? !challenge1EventXColors.includes(sector.colorName)
+            : challenge1EventXColors.includes(sector.colorName);
+          const numberSatisfies = checkProperty(challenge1SectorNumbers[index], challenge1PropertyY, challenge1ValueP);
 
-          if (desafio1Conectivo === 'ou') {
-            if (corSatisfaz || numeroSatisfaz) {
-              expectedNumerador++;
+          if (challenge1Connective === 'ou') {
+            if (colorSatisfies || numberSatisfies) {
+              expectedNumerator++;
             }
           } else {
-            if (corSatisfaz && numeroSatisfaz) {
-              expectedNumerador++;
+            if (colorSatisfies && numberSatisfies) {
+              expectedNumerator++;
             }
           }
         });
       }
-      const expectedDenominador = sectors.length;
+      const expectedDenominator = sectors.length;
 
-      if (areSplitFractionsEquivalent(numerador, denominador, expectedNumerador, expectedDenominador)) {
+      if (areSplitFractionsEquivalent(numerator, denominator, expectedNumerator, expectedDenominator)) {
         playSound("/sounds/correct.mp3");
 
         // Calcular decimal e porcentagem
-        const resultadoDecimal = expectedNumerador / expectedDenominador;
-        const resultadoPorcentagem = resultadoDecimal * 100;
-        const decimalFormatado = Number.isInteger(resultadoDecimal)
-          ? resultadoDecimal.toString()
-          : resultadoDecimal.toFixed(4).replace(/\.?0+$/, '');
-        const porcentagemFormatada = Number.isInteger(resultadoPorcentagem)
-          ? resultadoPorcentagem.toString()
-          : resultadoPorcentagem.toFixed(2).replace(/\.?0+$/, '');
+        const resultDecimal = expectedNumerator / expectedDenominator;
+        const resultPercentage = resultDecimal * 100;
+        const formattedDecimal = Number.isInteger(resultDecimal)
+          ? resultDecimal.toString()
+          : resultDecimal.toFixed(4).replace(/\.?0+$/, '');
+        const formattedPercentage = Number.isInteger(resultPercentage)
+          ? resultPercentage.toString()
+          : resultPercentage.toFixed(2).replace(/\.?0+$/, '');
 
         setGameState(prev => ({ ...prev, subStep: 6.69 }));
 
@@ -5273,15 +5214,15 @@ export const useRouletteHooks = () => {
         setInfoBoxContent({
           type: 'success',
           title: 'Parabéns!',
-          message: `Você aplicou a ideia de casos favoráveis / casos possíveis em um espaço equiprovável.<br/><br/><div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: bold; flex-wrap: wrap;"><span>P(E) =</span><span style="display: inline-flex; flex-direction: column; align-items: center;"><span>${expectedNumerador}</span><span style="width: 100%; height: 2px; background: currentColor;"></span><span>${expectedDenominador}</span></span><span>= ${decimalFormatado} = ${porcentagemFormatada}%</span></div>`
+          message: `Você aplicou a ideia de casos favoráveis / casos possíveis em um espaço equiprovável.<br/><br/><div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: bold; flex-wrap: wrap;"><span>P(E) =</span><span style="display: inline-flex; flex-direction: column; align-items: center;"><span>${expectedNumerator}</span><span style="width: 100%; height: 2px; background: currentColor;"></span><span>${expectedDenominator}</span></span><span>= ${formattedDecimal} = ${formattedPercentage}%</span></div>`
         });
 
         setInstructions(`<p class="ds-body"><strong>Desafio Concluído</strong></p>
           <p class="ds-body">Você calculou corretamente a probabilidade!</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        setExercicioPENumeradorInput(prev => ({ ...prev, error: true }));
-        setExercicioPEDenominadorInput(prev => ({ ...prev, error: true }));
+        setExercisePENumeratorInput(prev => ({ ...prev, error: true }));
+        setExercisePEDenominatorInput(prev => ({ ...prev, error: true }));
         createAlert("Erro!", "Conte corretamente quantos casos favoráveis ao evento E você marcou e conte quantos casos possíveis tem no disco: P(E) = número de casos favoráveis ao evento E / número de elementos do espaço amostral.", "error", 6000);
       }
       return;
@@ -5462,7 +5403,7 @@ export const useRouletteHooks = () => {
             message: `Você dominou o cálculo de P(Ā) = 1 − P(A)! Vamos seguir em frente.`
           });
           setTimeout(() => {
-            transitionToPrevisaoRef.current();
+            transitionToPredictionRef.current();
           }, 1500);
         } else {
           setShowInfoBox(true);
@@ -5525,13 +5466,13 @@ export const useRouletteHooks = () => {
         createAlert("Parabéns!", "O disco foi dividido corretamente!", "success", 3000);
 
         // Setup fase de aposta (investigação inicial)
-        setExperimentacaoState({
-          corApostada: null,
-          sorteios: [],
-          tentativaAtual: 1,
-          aguardandoConfirmacao: false,
-          corSorteadaInterna: null,
-          corRevelada: false
+        setExperimentationState({
+          wageredColor: null,
+          draws: [],
+          currentAttempt: 1,
+          waitingForConfirmation: false,
+          internalDrawnColor: null,
+          colorRevealed: false
         });
         setDisabledSpinButton(true);
 
@@ -5552,15 +5493,15 @@ export const useRouletteHooks = () => {
       const maxAngle = Math.max(...gameState.s2Angles);
       const maxIdx = gameState.s2Angles.indexOf(maxAngle);
       const maxColor = gameState.sectors[maxIdx]?.colorName || '';
-      const apostaCor = experimentacaoState.corApostada || '';
-      const corSorteada = experimentacaoState.corSorteadaInterna || '';
+      const wagered = experimentationState.wageredColor || '';
+      const drawnColor = experimentationState.internalDrawnColor || '';
 
-      const apostouNoMaior = apostaCor === maxColor;
-      const ganhou = corSorteada === apostaCor;
+      const betOnLargest = wagered === maxColor;
+      const won = drawnColor === wagered;
 
-      if (apostouNoMaior && ganhou) {
+      if (betOnLargest && won) {
         // CASO 1: Ganhou + apostou no maior → sem alerta, pergunta direto
-        setTentativasNaoOtimas(0);
+        setSuboptimalAttempts(0);
         const shuffledF = [...S2_DISTRACTORS_F].sort(() => Math.random() - 0.5);
         const selected4F = shuffledF.slice(0, 4);
         const selectedV = S2_TRUE_OPTIONS_V[Math.floor(Math.random() * S2_TRUE_OPTIONS_V.length)];
@@ -5580,35 +5521,35 @@ export const useRouletteHooks = () => {
         setInstructions(`<p class="ds-body"><strong>Reflexão Conceitual</strong></p>
           <p class="ds-body">Responda a pergunta abaixo.</p>`);
 
-      } else if (!apostouNoMaior && ganhou) {
+      } else if (!betOnLargest && won) {
         // CASO 2: Ganhou, mas NÃO era o setor mais provável → feedback + nova aposta
-        const novasTentativas = tentativasNaoOtimas + 1;
-        setTentativasNaoOtimas(novasTentativas);
+        const newAttempts = suboptimalAttempts + 1;
+        setSuboptimalAttempts(newAttempts);
         setShowInfoBox(true);
         setInfoBoxContent({
           type: 'warning',
           title: 'Observe',
-          message: novasTentativas >= 2
+          message: newAttempts >= 2
             ? 'Você ganhou! Mas já tentou duas vezes. Antes do próximo giro, observe critérios que podem indicar maior chance, como área, ângulo ou comprimento de arco.'
             : 'Você ganhou! Mas tem alguma forma de apostar com maior chance? Tente a melhor estratégia no próximo giro.'
         });
 
-      } else if (!apostouNoMaior && !ganhou) {
+      } else if (!betOnLargest && !won) {
         // CASO 3: Perdeu + NÃO era o setor mais provável → feedback + nova aposta
-        const novasTentativas = tentativasNaoOtimas + 1;
-        setTentativasNaoOtimas(novasTentativas);
+        const newAttempts = suboptimalAttempts + 1;
+        setSuboptimalAttempts(newAttempts);
         setShowInfoBox(true);
         setInfoBoxContent({
           type: 'warning',
           title: 'Observe',
-          message: novasTentativas >= 2
+          message: newAttempts >= 2
             ? 'Você perdeu! Já tentou duas vezes. Antes do próximo giro, observe critérios que podem indicar maior chance, como área, ângulo ou comprimento de arco.'
             : 'Você perdeu! Mas tem alguma forma de apostar com maior chance? Tente a melhor estratégia no próximo giro.'
         });
 
       } else {
         // CASO 4: Perdeu, mas apostou no maior setor → feedback de aleatoriedade → prossegue
-        setTentativasNaoOtimas(0);
+        setSuboptimalAttempts(0);
         setGameState(prev => ({ ...prev, subStep: 0.18 }));
         setShowInfoBox(true);
         setInfoBoxContent({
@@ -5717,7 +5658,7 @@ export const useRouletteHooks = () => {
         // Com k=2, P(cor A ou cor B) = 2/2 = 1, pergunta trivial → pular para 2.4
         if (k === 2) {
           const colorNames = gameState.sectors.map(s => s.colorName);
-          setS2RandomColors({ corX: colorNames[0], corY: colorNames[1] });
+          setS2RandomColors({ colorX: colorNames[0], colorY: colorNames[1] });
 
           setCurrentQuestion({
             question: 'Aqui não vale a Probabilidade Laplaciana onde P{Evento} = número de casos favoráveis ao evento / número de casos possíveis, pois: o espaço amostral desse experimento é:',
@@ -5735,13 +5676,13 @@ export const useRouletteHooks = () => {
           // Sortear 2 cores aleatórias do disco
           const colorNames = gameState.sectors.map(s => s.colorName);
           const shuffled = [...colorNames].sort(() => Math.random() - 0.5);
-          const corX = shuffled[0];
-          const corY = shuffled[1];
-          setS2RandomColors({ corX, corY });
+          const colorX = shuffled[0];
+          const colorY = shuffled[1];
+          setS2RandomColors({ colorX, colorY });
 
           // Pergunta 2: P(Cor X ou Cor Y) = 2/k?
           setCurrentQuestion({
-            question: `A probabilidade de ocorrer um setor de Cor ${corX} ou Cor ${corY} é 2/${k}?`,
+            question: `A probabilidade de ocorrer um setor de Cor ${colorX} ou Cor ${colorY} é 2/${k}?`,
             options: [
               { value: 'sim', label: 'Sim', isCorrect: false },
               { value: 'nao', label: 'Não', isCorrect: true }
@@ -6096,7 +6037,6 @@ export const useRouletteHooks = () => {
     // STAGE 2 - SubStep 5.2: Resolver equação e determinar x
     if (stage === 2 && subStep === 5.2) {
       const S = gameState.s2SumI;
-      const expectedX = 1 / S;
       const expectedFrac = `1/${S}`;
 
       if (areFractionsEquivalent(s2XInput.value || '', expectedFrac)) {
@@ -6128,8 +6068,8 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setS2XInput(prev => ({ ...prev, error: true }));
-        const equacaoTermos = gameState.s2Ki.map(ki => `${ki}x`).join(' + ');
-        createAlert("Erro! Tente novamente!", `Resolva ${equacaoTermos} = 1 para encontrar x.`, "error", 5000);
+        const equationTerms = gameState.s2Ki.map(ki => `${ki}x`).join(' + ');
+        createAlert("Erro! Tente novamente!", `Resolva ${equationTerms} = 1 para encontrar x.`, "error", 5000);
       }
       return;
     }
@@ -6204,7 +6144,7 @@ export const useRouletteHooks = () => {
     // STAGE 2 - SubStep 6.204: Pergunta após 2o giro reflexivo
     if (stage === 2 && subStep === 6.204) {
       if (!s2SpinReflection.selectedOption) return;
-      setS2SpinReflection(prev => ({ ...prev, resposta2: prev.selectedOption }));
+      setS2SpinReflection(prev => ({ ...prev, answer2: prev.selectedOption }));
       // Ir para síntese
       setGameState(prev => ({ ...prev, subStep: 6.205 }));
       setInstructions(`<p class="ds-body"><strong>Suas decisões</strong></p>
@@ -6561,7 +6501,7 @@ export const useRouletteHooks = () => {
 
     // STAGE 3 - SubStep 1.75: Contagem de setores por cor
     if (stage === 3 && subStep === 1.75) {
-      const { colorCounts, n, countInputs } = s3State;
+      const { colorCounts, countInputs } = s3State;
       let allCorrect = true;
       const updCount = { ...countInputs };
 
@@ -6958,9 +6898,9 @@ export const useRouletteHooks = () => {
   }, [
     gameState, sliderValue, selectedOption, sampleSpaceInput, sampleSpaceCountInput,
     probabilityInputs, relativeFrequencyInputs, convergenceInputs, theoreticalQuestion1Input,
-    theoreticalQuestion2Input, predictionInput, casosFavoraveisInput,
-    exercicioNEInput, exercicioNSInput, exercicioPENumeradorInput, exercicioPEDenominadorInput,
-    createSectors, createAlert, caracteristicasSelecionadas,
+    theoreticalQuestion2Input, predictionInput, favorableCasesInput,
+    exerciseNEInput, exerciseNSInput, exercisePENumeratorInput, exercisePEDenominatorInput,
+    createSectors, createAlert, selectedCharacteristics,
     compPhase, compIsGuided, compCalcExampleNum, compChainInputs, compUserSelectAbar, compPaInput,
     freqAbsQuestion, freqAbsInput,
     freqRelQuestion, freqRelInput,
@@ -6989,105 +6929,105 @@ export const useRouletteHooks = () => {
   }, []);
 
   // Função para alternar seleção de característica do experimento aleatório
-  const toggleCaracteristica = useCallback((caracteristicaIndex: number) => {
-    setCaracteristicasSelecionadas(prev => {
-      const isSelected = prev.includes(caracteristicaIndex);
+  const toggleCharacteristic = useCallback((characteristicIndex: number) => {
+    setSelectedCharacteristics(prev => {
+      const isSelected = prev.includes(characteristicIndex);
       return isSelected
-        ? prev.filter(i => i !== caracteristicaIndex)
-        : [...prev, caracteristicaIndex];
+        ? prev.filter(i => i !== characteristicIndex)
+        : [...prev, characteristicIndex];
     });
   }, []);
 
   // Função para fazer aposta na fase de experimentação (clique no disco)
-  const handleApostaExperimentacao = useCallback((corClicada: string) => {
+  const handleExperimentationBet = useCallback((clickedColor: string) => {
     const { subStep } = gameState;
 
     // Só permite aposta no subStep 1.1 (fase de aposta)
     if (subStep !== 1.1) return;
 
     playSound("/sounds/click.mp3");
-    logBet(gameState.stage, gameState.subStep, corClicada);
+    logBet(gameState.stage, gameState.subStep, clickedColor);
 
-    setExperimentacaoState(prev => ({
+    setExperimentationState(prev => ({
       ...prev,
-      corApostada: corClicada
+      wageredColor: clickedColor
     }));
 
     setDisabledSpinButton(false); // Habilitar botão Sortear após aposta
 
-    const tentativa = experimentacaoState.tentativaAtual;
-    setInstructions(`<p class="ds-body"><strong>Experimentação — Tentativa ${tentativa} de 3</strong></p>
-      <p class="ds-body"><strong>Cor apostada: ${corClicada}</strong></p>
+    const attempt = experimentationState.currentAttempt;
+    setInstructions(`<p class="ds-body"><strong>Experimentação — Tentativa ${attempt} de 3</strong></p>
+      <p class="ds-body"><strong>Cor apostada: ${clickedColor}</strong></p>
       <p class="ds-body">Agora clique em <strong>Sortear</strong> para girar o disco.</p>`);
-  }, [gameState, experimentacaoState.tentativaAtual]);
+  }, [gameState, experimentationState.currentAttempt]);
 
   // Função para confirmar o resultado na fase de experimentação (clique na cor onde parou)
-  const handleConfirmacaoResultado = useCallback((corClicada: string) => {
+  const handleResultConfirmation = useCallback((clickedColor: string) => {
     goToTopOfChallenge();
     const { subStep } = gameState;
 
     // Só permite confirmação no subStep 1.17 (aguardando confirmação)
-    if (subStep !== 1.17 || !experimentacaoState.aguardandoConfirmacao) return;
+    if (subStep !== 1.17 || !experimentationState.waitingForConfirmation) return;
 
-    const corCorreta = experimentacaoState.corSorteadaInterna;
+    const correctColor = experimentationState.internalDrawnColor;
 
-    if (corClicada === corCorreta) {
+    if (clickedColor === correctColor) {
       // Acertou a confirmação - revelar a cor sorteada
       playSound("/sounds/correct.mp3");
       createAlert("✅ Cor confirmada!", "", "success", 2000);
 
       // Revelar a cor sorteada no indicador
-      setExperimentacaoState(prev => ({
+      setExperimentationState(prev => ({
         ...prev,
-        corRevelada: true
+        colorRevealed: true
       }));
 
-      const novosSorteios = [...experimentacaoState.sorteios, corCorreta!];
-      const acertouAposta = experimentacaoState.corApostada === corCorreta;
-      const tentativaAtual = experimentacaoState.tentativaAtual;
+      const newDraws = [...experimentationState.draws, correctColor!];
+      const wonBet = experimentationState.wageredColor === correctColor;
+      const currentAttempt = experimentationState.currentAttempt;
 
       // Aguardar 1.5s para o usuário ver a cor revelada antes de prosseguir
       setTimeout(() => {
-        if (tentativaAtual < 3) {
+        if (currentAttempt < 3) {
           // Ainda há mais tentativas
-          setExperimentacaoState(prev => ({
+          setExperimentationState(prev => ({
             ...prev,
-            sorteios: novosSorteios,
-            tentativaAtual: prev.tentativaAtual + 1,
-            aguardandoConfirmacao: false,
-            corSorteadaInterna: null,
-            corApostada: null,
-            corRevelada: false
+            draws: newDraws,
+            currentAttempt: prev.currentAttempt + 1,
+            waitingForConfirmation: false,
+            internalDrawnColor: null,
+            wageredColor: null,
+            colorRevealed: false
           }));
 
           setGameState(prev => ({ ...prev, subStep: 1.1 }));
           setDisabledSpinButton(true);
 
-          const proximaTentativa = tentativaAtual + 1;
-          setInstructions(`<p class="ds-body"><strong>Experimentação — Tentativa ${proximaTentativa} de 3</strong></p>
-            <p class="ds-body"><strong>Resultado da tentativa ${tentativaAtual}:</strong></p>
-            <p class="ds-small">Cor sorteada: ${corCorreta} | Sua aposta: ${experimentacaoState.corApostada} | Acertou? ${acertouAposta ? 'Sim' : 'Não'}</p>
+          const nextAttempt = currentAttempt + 1;
+          setInstructions(`<p class="ds-body"><strong>Experimentação — Tentativa ${nextAttempt} de 3</strong></p>
+            <p class="ds-body"><strong>Resultado da tentativa ${currentAttempt}:</strong></p>
+            <p class="ds-small">Cor sorteada: ${correctColor} | Sua aposta: ${experimentationState.wageredColor} | Acertou? ${wonBet ? 'Sim' : 'Não'}</p>
             <p class="ds-body mt-micro">Repita o experimento aleatório: clique em uma cor do disco para fazer sua aposta.</p>`);
         } else {
           // Completou as 3 tentativas
-          setExperimentacaoState(prev => ({
+          setExperimentationState(prev => ({
             ...prev,
-            sorteios: novosSorteios,
-            aguardandoConfirmacao: false,
-            corRevelada: false
+            draws: newDraws,
+            waitingForConfirmation: false,
+            colorRevealed: false
           }));
 
           // Mostrar resumo e ir para a questão das características
-          setCaracteristicasSelecionadas([]);
+          setSelectedCharacteristics([]);
           setGameState(prev => ({ ...prev, subStep: 1.25 }));
           setDisabledSpinButton(true);
 
           setInstructions(`<p class="ds-body"><strong>Experimentação Concluída!</strong></p>
             <p class="ds-body"><strong>Resumo das 3 tentativas:</strong></p>
-            <p class="ds-small">Cor apostada: ${experimentacaoState.corApostada}</p>
-            <p class="ds-small">1ª cor sorteada: ${novosSorteios[0]}</p>
-            <p class="ds-small">2ª cor sorteada: ${novosSorteios[1]}</p>
-            <p class="ds-small">3ª cor sorteada: ${novosSorteios[2]}</p>`);
+            <p class="ds-small">Cor apostada: ${experimentationState.wageredColor}</p>
+            <p class="ds-small">1ª cor sorteada: ${newDraws[0]}</p>
+            <p class="ds-small">2ª cor sorteada: ${newDraws[1]}</p>
+            <p class="ds-small">3ª cor sorteada: ${newDraws[2]}</p>`);
 
           createAlert("Experimentação concluída!", "Agora responda à questão sobre as características do experimento aleatório.", "success", 4000);
         }
@@ -7097,18 +7037,18 @@ export const useRouletteHooks = () => {
       playSound("/sounds/incorrect.mp3");
       createAlert("❌ Essa não é a cor em que o ponteiro parou.", "Observe o ponteiro e clique novamente na cor correta.", "error", 4000);
     }
-  }, [gameState, experimentacaoState, createAlert]);
+  }, [gameState, experimentationState, createAlert]);
 
   // Função para girar o disco na fase de experimentação
-  const spinRouletteExperimentacao = useCallback(() => {
+  const spinRouletteExperimentation = useCallback(() => {
     const { subStep, sectors, isSpinning } = gameState;
 
     // Só permite giro no subStep 1.1 com aposta feita
-    if (subStep !== 1.1 || isSpinning || !experimentacaoState.corApostada) return;
+    if (subStep !== 1.1 || isSpinning || !experimentationState.wageredColor) return;
 
     // Sortear um ÍNDICE de setor aleatório (não apenas a cor, para evitar bug com cores repetidas)
     const sectorIndex = Math.floor(Math.random() * sectors.length);
-    const corSorteada = sectors[sectorIndex].colorName;
+    const drawnColor = sectors[sectorIndex].colorName;
 
     // Calcular ângulo para o setor sorteado (usando o índice direto)
     const anglePerSector = 360 / sectors.length;
@@ -7138,15 +7078,15 @@ export const useRouletteHooks = () => {
       spinDuration: spinDuration
     }));
 
-    setExperimentacaoState(prev => ({
+    setExperimentationState(prev => ({
       ...prev,
-      corSorteadaInterna: corSorteada
+      internalDrawnColor: drawnColor
     }));
 
     setDisabledSpinButton(true);
 
-    const tentativa = experimentacaoState.tentativaAtual;
-    setInstructions(`<p class="ds-body"><strong>Experimentação — Tentativa ${tentativa} de 3</strong></p>
+    const attempt = experimentationState.currentAttempt;
+    setInstructions(`<p class="ds-body"><strong>Experimentação — Tentativa ${attempt} de 3</strong></p>
       <p class="ds-body">Girando o disco...</p>`);
 
     // Tocar som repetidamente durante o giro (usando nextChallenge.mp3 como som de giro)
@@ -7163,45 +7103,45 @@ export const useRouletteHooks = () => {
         ...prev,
         isSpinning: false,
         currentRotation: newTargetAngle,
-        selectedColor: corSorteada,
+        selectedColor: drawnColor,
         subStep: 1.17 // Ir para modo de confirmação
       }));
 
-      setExperimentacaoState(prev => ({
+      setExperimentationState(prev => ({
         ...prev,
-        aguardandoConfirmacao: true
+        waitingForConfirmation: true
       }));
 
-      setInstructions(`<p class="ds-body"><strong>Experimentação — Tentativa ${tentativa} de 3</strong></p>
+      setInstructions(`<p class="ds-body"><strong>Experimentação — Tentativa ${attempt} de 3</strong></p>
         <p class="ds-body">O disco parou. Agora clique no disco exatamente na cor em que o ponteiro parou para confirmar o resultado.</p>`);
     }, spinDuration + 300); // Tempo do giro + pausa de 300ms
-  }, [gameState, experimentacaoState]);
+  }, [gameState, experimentationState]);
 
   // ========== ETAPA 2 — HANDLERS INVESTIGAÇÃO INICIAL ==========
 
   // Handler: aposta por clique no setor (Etapa 2, subStep 0.15)
-  const handleApostaS2 = useCallback((corClicada: string) => {
+  const handleS2Bet = useCallback((clickedColor: string) => {
     if (gameState.stage !== 2 || gameState.subStep !== 0.15) return;
 
     playSound("/sounds/click.mp3");
-    logBet(gameState.stage, gameState.subStep, corClicada);
+    logBet(gameState.stage, gameState.subStep, clickedColor);
 
-    setExperimentacaoState(prev => ({
+    setExperimentationState(prev => ({
       ...prev,
-      corApostada: corClicada
+      wageredColor: clickedColor
     }));
 
     setDisabledSpinButton(false);
 
     setInstructions(`<p class="ds-body"><strong>Investigação Inicial</strong></p>
-      <p class="ds-body"><strong>Aposta registrada: ${corClicada}</strong></p>
+      <p class="ds-body"><strong>Aposta registrada: ${clickedColor}</strong></p>
       <p class="ds-body">Agora clique em <strong>Sortear</strong> para girar o disco.</p>`);
   }, [gameState.stage, gameState.subStep]);
 
   // Handler: giro do disco na investigação (Etapa 2, subStep 0.15)
   const spinRouletteS2 = useCallback(() => {
     const { stage, subStep, sectors, isSpinning } = gameState;
-    if (stage !== 2 || subStep !== 0.15 || isSpinning || !experimentacaoState.corApostada) return;
+    if (stage !== 2 || subStep !== 0.15 || isSpinning || !experimentationState.wageredColor) return;
 
     // Sortear setor ponderado pelo ângulo (acumular ângulos desiguais)
     const rand = Math.random() * 360;
@@ -7214,7 +7154,7 @@ export const useRouletteHooks = () => {
         break;
       }
     }
-    const corSorteada = sectors[sectorIndex].colorName;
+    const drawnColor = sectors[sectorIndex].colorName;
 
     // Calcular ângulo de aterrissagem (considerar setores de tamanhos diferentes)
     let startAngle = 0;
@@ -7241,9 +7181,9 @@ export const useRouletteHooks = () => {
       spinDuration: spinDuration
     }));
 
-    setExperimentacaoState(prev => ({
+    setExperimentationState(prev => ({
       ...prev,
-      corSorteadaInterna: corSorteada
+      internalDrawnColor: drawnColor
     }));
 
     setDisabledSpinButton(true);
@@ -7263,19 +7203,19 @@ export const useRouletteHooks = () => {
         ...prev,
         isSpinning: false,
         currentRotation: newTargetAngle,
-        selectedColor: corSorteada,
+        selectedColor: drawnColor,
         subStep: 0.16
       }));
 
-      setExperimentacaoState(prev => ({
+      setExperimentationState(prev => ({
         ...prev,
-        aguardandoConfirmacao: true
+        waitingForConfirmation: true
       }));
 
       setInstructions(`<p class="ds-body"><strong>Investigação Inicial</strong></p>
         <p class="ds-body">O disco parou. Clique na cor em que o ponteiro parou.</p>`);
     }, spinDuration + 300);
-  }, [gameState, experimentacaoState]);
+  }, [gameState, experimentationState]);
 
   // Handler: girar roleta na fase Falácia do Jogador (Etapa 3, subStep 8.1)
   const spinRouletteS3 = useCallback(() => {
@@ -7293,7 +7233,7 @@ export const useRouletteHooks = () => {
         break;
       }
     }
-    const corSorteada = sectors[sectorIndex].colorName;
+    const drawnColor = sectors[sectorIndex].colorName;
 
     // Calcular ângulo de aterrissagem (zona segura 25-75% do setor)
     let startAngle = 0;
@@ -7338,7 +7278,7 @@ export const useRouletteHooks = () => {
 
       setS3State(prev => ({
         ...prev,
-        spinHistory: [...prev.spinHistory, corSorteada],
+        spinHistory: [...prev.spinHistory, drawnColor],
         spinCount: prev.spinCount + 1
       }));
 
@@ -7350,10 +7290,10 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Todos os 5 giros foram realizados. Observe o histórico e clique em Continuar.</p>`);
       }
     }, spinDuration + 300);
-  }, [gameState, s3State.spinCount, playSound]);
+  }, [gameState, s3State.spinCount]);
 
   // Handler: continuar da fase 8.1 para 8.2 (percepção do padrão)
-  const handleS3FalaciaContinu = useCallback(() => {
+  const handleS3FallacyContinue = useCallback(() => {
     if (s3State.spinCount < 5) return;
     setGameState(prev => ({ ...prev, subStep: 8.2 }));
     setSelectedOption('');
@@ -7390,41 +7330,41 @@ export const useRouletteHooks = () => {
   }, [s3State.newBetColor, s3State.n]);
 
   // Handler: avançar da institucionalização da falácia (8.5) para o resumo (9)
-  const handleS3FalaciaFinish = useCallback(() => {
+  const handleS3FallacyFinish = useCallback(() => {
     setGameState(prev => ({ ...prev, subStep: 9 }));
     setInstructions(`<p class="ds-body"><strong>Institucionalização Final</strong></p>
       <p class="ds-body">Leia o resumo dos conceitos explorados nesta etapa.</p>`);
   }, []);
 
   // Handler: confirmação do resultado por clique no setor (Etapa 2, subStep 0.16)
-  const handleConfirmacaoS2 = useCallback((corClicada: string) => {
-    const isInvestigacao = gameState.stage === 2 && gameState.subStep === 0.16 && experimentacaoState.aguardandoConfirmacao;
-    const isReflexaoRetry = gameState.stage === 2 && gameState.subStep === 0.195 && experimentacaoState.aguardandoConfirmacao;
+  const handleS2Confirmation = useCallback((clickedColor: string) => {
+    const isInvestigation = gameState.stage === 2 && gameState.subStep === 0.16 && experimentationState.waitingForConfirmation;
+    const isReflectionRetry = gameState.stage === 2 && gameState.subStep === 0.195 && experimentationState.waitingForConfirmation;
 
-    if (!isInvestigacao && !isReflexaoRetry) return;
+    if (!isInvestigation && !isReflectionRetry) return;
 
-    const corCorreta = experimentacaoState.corSorteadaInterna;
+    const correctColor = experimentationState.internalDrawnColor;
 
-    if (corClicada === corCorreta) {
+    if (clickedColor === correctColor) {
       playSound("/sounds/correct.mp3");
       createAlert("Correto!", "Esse foi o resultado do sorteio.", "success", 2000);
 
-      setExperimentacaoState(prev => ({
+      setExperimentationState(prev => ({
         ...prev,
-        corRevelada: true
+        colorRevealed: true
       }));
 
-      if (isInvestigacao) {
+      if (isInvestigation) {
         // Primeiro giro: Após 1.5s → exibir quadro comparação
         setTimeout(() => {
-          const apostaCor = experimentacaoState.corApostada || '';
-          const ganhou = apostaCor === corCorreta;
+          const wagered = experimentationState.wageredColor || '';
+          const won = wagered === correctColor;
 
           setGameState(prev => ({ ...prev, subStep: 0.17 }));
 
           setInstructions(`<p class="ds-body"><strong>Resultado da Aposta</strong></p>
-            <p class="ds-body"><strong>Aposta:</strong> ${apostaCor} | <strong>Resultado:</strong> ${corCorreta}</p>
-            <p class="ds-body">${ganhou ? 'Você ganhou a aposta!' : 'Você não ganhou desta vez.'}</p>
+            <p class="ds-body"><strong>Aposta:</strong> ${wagered} | <strong>Resultado:</strong> ${correctColor}</p>
+            <p class="ds-body">${won ? 'Você ganhou a aposta!' : 'Você não ganhou desta vez.'}</p>
             <p class="ds-body">Clique em <strong>Continuar</strong> para prosseguir.</p>`);
         }, 1500);
       } else {
@@ -7458,17 +7398,17 @@ export const useRouletteHooks = () => {
       playSound("/sounds/incorrect.mp3");
       createAlert("Observe novamente onde o ponteiro parou.", "", "error", 4000);
     }
-  }, [gameState, experimentacaoState, createAlert]);
+  }, [gameState, experimentationState, createAlert]);
 
   // Handler: seleção na paleta de cores (Etapa 2, subStep 0.185)
-  const handleColorPaletteSelect = useCallback((corSelecionada: string) => {
+  const handleColorPaletteSelect = useCallback((paletteColor: string) => {
     if (gameState.stage !== 2 || gameState.subStep !== 0.185 || showInfoBox) return;
 
     const maxAngle = Math.max(...gameState.s2Angles);
     const maxIdx = gameState.s2Angles.indexOf(maxAngle);
     const maxColor = gameState.sectors[maxIdx]?.colorName || '';
 
-    if (corSelecionada === maxColor) {
+    if (paletteColor === maxColor) {
       playSound("/sounds/correct.mp3");
       createAlert("Isso mesmo!", "A maior probabilidade está associada ao maior setor, mesmo que ele não tenha sido o resultado.", "success", 5000);
 
@@ -7595,61 +7535,6 @@ export const useRouletteHooks = () => {
 
   // ========== HANDLERS FASE DE TREINOS (Treino 1-4) ==========
 
-  // Iniciar fase de treinos (chamado ao completar subStep 6)
-  const startTraining = useCallback(() => {
-    const originalK = gameState.s2K;
-    const availableKs = [2, 3, 4, 5, 6].filter(k => k !== originalK);
-    const trainK = availableKs[Math.floor(Math.random() * availableKs.length)];
-
-    const result = generateNonEquiprobableAngles(trainK);
-    const shuffledColors = [...AVAILABLE_COLORS].sort(() => Math.random() - 0.5);
-    const selectedColors = shuffledColors.slice(0, trainK);
-    const newSectors: RouletteSector[] = selectedColors.map((color, index) => ({
-      color: color,
-      colorName: color,
-      angle: result.angles[index]
-    }));
-
-    setTrainingState({
-      active: true,
-      currentTraining: 1,
-      phase: 'identify_sector',
-      k: trainK, m: result.m, ki: result.ki, angles: result.angles, S: result.S,
-      sectors: newSectors,
-      usedKValues: [originalK, trainK],
-      tableIndex: 0,
-      calcStep: 0,
-      originalSectors: [...gameState.sectors],
-      originalK: gameState.s2K,
-      originalM: gameState.s2M,
-      originalKi: [...gameState.s2Ki],
-      originalAngles: [...gameState.s2Angles],
-      originalSumI: gameState.s2SumI,
-    });
-
-    setTrainRatioInputs({});
-    setTrainIxInputs({});
-    setTrainSumInput({ value: '', disabled: true, error: false, setValue: (val: string) => setTrainSumInput(prev => ({ ...prev, value: val })) });
-    setTrainProbInputs({});
-
-    setGameState(prev => ({
-      ...prev,
-      subStep: 6.101,
-      sectors: newSectors,
-      showAngles: true,
-      s2K: trainK,
-      s2M: result.m,
-      s2Ki: result.ki,
-      s2Angles: result.angles,
-      s2SumI: result.S,
-      s2TableIndex: 0,
-    }));
-
-    setInstructions(`<p class="ds-body"><strong>Treino 1</strong></p>
-      <p class="ds-body">Girando-se o disco abaixo ao acaso, determine a probabilidade de o ponteiro indicar cada uma das cores do disco.</p>
-      <p class="ds-body">Clique no setor com o <strong>menor ângulo central</strong>.</p>`);
-  }, [gameState]);
-
   // Handler: clique no setor durante treino (identify_sector)
   const handleTrainingSectorClick = useCallback((index: number) => {
     if (!trainingState.active || trainingState.phase !== 'identify_sector') return;
@@ -7682,175 +7567,6 @@ export const useRouletteHooks = () => {
       createAlert("Tente novamente.", "Observe qual setor tem o menor ângulo central.", "error", 3000);
     }
   }, [trainingState]);
-
-  // Handler: verificar resposta do treino (todas as fases)
-  const handleTrainingCheck = useCallback(() => {
-    if (!trainingState.active) return;
-
-    const { phase, sectors, ki, S, m, angles, tableIndex } = trainingState;
-    const colors = sectors.map(s => s.colorName);
-
-    // Phase: fill_ratios
-    if (phase === 'fill_ratios') {
-      const color = colors[tableIndex];
-      const input = trainRatioInputs[color];
-      const expectedKi = ki[tableIndex];
-      const userVal = (input?.value || '').trim();
-
-      if (userVal === String(expectedKi)) {
-        playSound("/sounds/correct.mp3");
-        createAlert("Correto!", `${angles[tableIndex]}° ÷ ${m}° = ${expectedKi}`, "success", 2000);
-
-        // Travar campo correto
-        setTrainRatioInputs(prev => ({
-          ...prev,
-          [color]: { ...prev[color], value: userVal, disabled: true }
-        }));
-
-        const nextIdx = tableIndex + 1;
-        if (nextIdx >= colors.length) {
-          // Inicializar inputs i·p
-          const ixInputs: { [color: string]: TextInputInterface } = {};
-          colors.forEach((c, i) => {
-            ixInputs[c] = {
-              value: '',
-              disabled: i !== 0,
-              error: false,
-              setValue: (val: string) => setTrainIxInputs(prev => ({
-                ...prev,
-                [c]: { ...prev[c], value: val }
-              }))
-            };
-          });
-          setTrainIxInputs(ixInputs);
-          setTrainingState(prev => ({ ...prev, phase: 'fill_ip', tableIndex: 0 }));
-          setInstructions(`<p class="ds-body"><strong>Treino ${trainingState.currentTraining}</strong></p>
-            <p class="ds-body">Agora atribua probabilidades a cada setor na tabela em função de p.</p>`);
-        } else {
-          // Habilitar próximo campo
-          const nextColor = colors[nextIdx];
-          setTrainRatioInputs(prev => ({
-            ...prev,
-            [nextColor]: { ...prev[nextColor], disabled: false }
-          }));
-          setTrainingState(prev => ({ ...prev, tableIndex: nextIdx }));
-        }
-      } else {
-        playSound("/sounds/incorrect.mp3");
-        setTrainRatioInputs(prev => ({
-          ...prev,
-          [color]: { ...prev[color], error: true }
-        }));
-        createAlert("Tente novamente.", `Divida ${angles[tableIndex]}° por ${m}°.`, "error", 3000);
-      }
-      return;
-    }
-
-    // Phase: fill_ip
-    if (phase === 'fill_ip') {
-      const color = colors[tableIndex];
-      const input = trainIxInputs[color];
-      const expectedI = ki[tableIndex];
-      const userVal = (input?.value || '').trim().toLowerCase();
-      const expectedStr = `${expectedI}p`;
-      const isCorrect = userVal === expectedStr || (expectedI === 1 && userVal === 'p');
-
-      if (isCorrect) {
-        playSound("/sounds/correct.mp3");
-        createAlert("Correto!", `P(${color}) = ${expectedI === 1 ? 'p' : expectedStr}`, "success", 2000);
-
-        setTrainIxInputs(prev => ({
-          ...prev,
-          [color]: { ...prev[color], value: expectedI === 1 ? 'p' : expectedStr, disabled: true }
-        }));
-
-        const nextIdx = tableIndex + 1;
-        if (nextIdx >= colors.length) {
-          // Habilitar campo de soma
-          setTrainSumInput({ value: '', disabled: false, error: false, setValue: (val: string) => setTrainSumInput(prev => ({ ...prev, value: val })) });
-          setTrainingState(prev => ({ ...prev, phase: 'fill_sum', tableIndex: colors.length }));
-          setInstructions(`<p class="ds-body"><strong>Treino ${trainingState.currentTraining}</strong></p>
-            <p class="ds-body">Preencha a soma das probabilidades de todos os setores.</p>`);
-        } else {
-          const nextColor = colors[nextIdx];
-          setTrainIxInputs(prev => ({
-            ...prev,
-            [nextColor]: { ...prev[nextColor], disabled: false }
-          }));
-          setTrainingState(prev => ({ ...prev, tableIndex: nextIdx }));
-        }
-      } else {
-        playSound("/sounds/incorrect.mp3");
-        setTrainIxInputs(prev => ({
-          ...prev,
-          [color]: { ...prev[color], error: true }
-        }));
-        createAlert("Tente novamente.", `A razão de ${color} é ${expectedI}. Escreva na forma ip.`, "error", 3000);
-      }
-      return;
-    }
-
-    // Phase: fill_sum
-    if (phase === 'fill_sum') {
-      const val = (trainSumInput.value || '').trim();
-      if (areFractionsEquivalent(val, '1')) {
-        playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "A soma das probabilidades é igual a 1.", "success", 2000);
-        setTrainSumInput(prev => ({ ...prev, value: '1', disabled: true }));
-        setTrainingState(prev => ({ ...prev, phase: 'guided_calc', calcStep: 0 }));
-        setInstructions(`<p class="ds-body"><strong>Treino ${trainingState.currentTraining}</strong></p>
-          <p class="ds-body">Acompanhe o cálculo passo a passo. Clique em <strong>Próximo</strong> para ver cada etapa.</p>`);
-      } else {
-        playSound("/sounds/incorrect.mp3");
-        setTrainSumInput(prev => ({ ...prev, error: true }));
-        createAlert("Tente novamente.", "Qual deve ser a soma das probabilidades de todos os setores?", "error", 3000);
-      }
-      return;
-    }
-
-    // Phase: fill_prob
-    if (phase === 'fill_prob') {
-      const color = colors[tableIndex];
-      const input = trainProbInputs[color];
-      const expectedKi = ki[tableIndex];
-      const expectedFrac = `${expectedKi}/${S}`;
-
-      if (areFractionsEquivalent(input?.value || '', expectedFrac)) {
-        playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", `P(${color}) = ${expectedKi}/${S}`, "success", 2000);
-
-        setTrainProbInputs(prev => ({
-          ...prev,
-          [color]: { ...prev[color], value: input?.value || '', disabled: true }
-        }));
-
-        const nextIdx = tableIndex + 1;
-        if (nextIdx >= colors.length) {
-          // Treino completo!
-          playSound("/sounds/challengeFinished.mp3");
-          createAlert("Treino concluído!", `Você completou o Treino ${trainingState.currentTraining}.`, "success", 3000);
-          setTrainingState(prev => ({ ...prev, phase: 'completed' }));
-          setInstructions(`<p class="ds-body"><strong>Treino ${trainingState.currentTraining} concluído!</strong></p>
-            <p class="ds-body">Você pode continuar para a próxima fase ou praticar mais.</p>`);
-        } else {
-          const nextColor = colors[nextIdx];
-          setTrainProbInputs(prev => ({
-            ...prev,
-            [nextColor]: { ...prev[nextColor], disabled: false }
-          }));
-          setTrainingState(prev => ({ ...prev, tableIndex: nextIdx }));
-        }
-      } else {
-        playSound("/sounds/incorrect.mp3");
-        setTrainProbInputs(prev => ({
-          ...prev,
-          [color]: { ...prev[color], error: true }
-        }));
-        createAlert("Tente novamente.", `Substitua p = 1/${S} em ${expectedKi}·p.`, "error", 4000);
-      }
-      return;
-    }
-  }, [trainingState, trainRatioInputs, trainIxInputs, trainSumInput, trainProbInputs]);
 
   // Handler: avançar passo do cálculo guiado do treino
   const handleTrainingCalcNext = useCallback(() => {
@@ -7904,7 +7620,7 @@ export const useRouletteHooks = () => {
     }));
 
     setTrainingState(prev => ({ ...prev, active: false, phase: 'idle' }));
-    setS2SpinReflection({ spin1Color: '', spin2Color: '', bet1Color: '', bet2Color: '', resposta1: '', resposta2: '', selectedOption: '', phase: 'betting', betConstraint: 'none' });
+    setS2SpinReflection({ spin1Color: '', spin2Color: '', bet1Color: '', bet2Color: '', answer1: '', answer2: '', selectedOption: '', phase: 'betting', betConstraint: 'none' });
     setDisabledSpinButton(false);
 
     setInstructions(`<p class="ds-body"><strong>Antes de calcular as probabilidades…</strong></p>
@@ -8014,7 +7730,7 @@ export const useRouletteHooks = () => {
   }, [fracTraining]);
 
   // Handler: mudar de fase (sair dos treinos de fração → simulação de convergência)
-  const handleFracTrainingMudarFase = useCallback(() => {
+  const handleFracTrainingChangePhase = useCallback(() => {
     const restoredSectors = fracTraining.originalSectors;
     const colors = restoredSectors.map(s => s.colorName);
 
@@ -8035,8 +7751,6 @@ export const useRouletteHooks = () => {
   }, [fracTraining.originalSectors]);
 
   // Simulação de convergência — blocos sequenciais controlados pelo aluno
-  const CONVERGENCE_BLOCKS = [10, 500, 1000, 10000, 20000];
-
   const handleConvergenceBlock = useCallback(() => {
     const blockIdx = convergenceSim.currentBlock;
     if (blockIdx >= CONVERGENCE_BLOCKS.length || convergenceSim.running) return;
@@ -8124,7 +7838,7 @@ export const useRouletteHooks = () => {
 
       doBatch();
     }
-  }, [convergenceSim.currentBlock, convergenceSim.running, gameState.sectors, playSound]);
+  }, [convergenceSim.currentBlock, convergenceSim.running, gameState.sectors]);
 
   // Handler: continuar após simulação → subStep 9 (giros manuais)
   const handleConvergenceContinue = useCallback(() => {
@@ -8142,7 +7856,7 @@ export const useRouletteHooks = () => {
     setDisabledNextButton(false);
     setInstructions(`<p class="ds-body"><strong>Etapa 2 Concluída!</strong></p>
       <p class="ds-body">Clique em <strong>Etapa 3</strong> para continuar.</p>`);
-  }, [playSound, createAlert]);
+  }, [createAlert]);
 
   // Handler: mudança de alternativa na pergunta reflexiva (subStep 6.202 / 6.204)
   // Atualiza constraint + auto-bet em tempo real conforme a opção selecionada
@@ -8151,10 +7865,10 @@ export const useRouletteHooks = () => {
 
     if (option === 'apostar_mesma') {
       // Auto-aposta na mesma cor sorteada
-      const corSorteada = gameState.subStep === 6.202 ? s2SpinReflection.spin1Color : s2SpinReflection.spin2Color;
+      const drawnColor = gameState.subStep === 6.202 ? s2SpinReflection.spin1Color : s2SpinReflection.spin2Color;
       setS2SpinReflection(prev => ({
         ...prev, selectedOption: option,
-        bet2Color: corSorteada, phase: 'spinning',
+        bet2Color: drawnColor, phase: 'spinning',
         betConstraint: 'same',
       }));
       setDisabledSpinButton(false);
@@ -8169,10 +7883,10 @@ export const useRouletteHooks = () => {
       // Auto-aposta no setor de maior ângulo
       const maxAngle = Math.max(...gameState.s2Angles);
       const maxIdx = gameState.s2Angles.indexOf(maxAngle);
-      const corMaior = gameState.sectors[maxIdx]?.colorName || '';
+      const biggerColor = gameState.sectors[maxIdx]?.colorName || '';
       setS2SpinReflection(prev => ({
         ...prev, selectedOption: option,
-        bet2Color: corMaior, phase: 'spinning',
+        bet2Color: biggerColor, phase: 'spinning',
         betConstraint: 'largest',
       }));
       setDisabledSpinButton(false);
@@ -8182,11 +7896,11 @@ export const useRouletteHooks = () => {
   // Handler: clique em setor durante 6.202 betting (not_same)
   const handleReflectionBetClick = useCallback((index: number) => {
     if (gameState.stage !== 2 || gameState.subStep !== 6.202 || s2SpinReflection.phase !== 'betting') return;
-    const corClicada = gameState.sectors[index]?.colorName;
-    if (!corClicada) return;
+    const clickedColor = gameState.sectors[index]?.colorName;
+    if (!clickedColor) return;
     // Bloqueia mesma cor do 1o giro
-    if (s2SpinReflection.betConstraint === 'not_same' && corClicada === s2SpinReflection.spin1Color) return;
-    setS2SpinReflection(prev => ({ ...prev, bet2Color: corClicada, phase: 'spinning' }));
+    if (s2SpinReflection.betConstraint === 'not_same' && clickedColor === s2SpinReflection.spin1Color) return;
+    setS2SpinReflection(prev => ({ ...prev, bet2Color: clickedColor, phase: 'spinning' }));
     setDisabledSpinButton(false);
   }, [gameState, s2SpinReflection]);
 
@@ -8261,29 +7975,29 @@ export const useRouletteHooks = () => {
   }, []);
 
   // Função para mostrar mais exemplos de experimento determinístico
-  const handleVerMaisExemplosDeterministico = useCallback(() => {
-    const novoExemplo = EXEMPLOS_DETERMINISTICOS[Math.floor(Math.random() * EXEMPLOS_DETERMINISTICOS.length)];
+  const handleSeeMoreDeterministicExamples = useCallback(() => {
+    const newExample = DETERMINISTIC_EXAMPLES[Math.floor(Math.random() * DETERMINISTIC_EXAMPLES.length)];
     setInfoBoxContent({
       type: 'concept',
       title: 'Experimento determinístico',
-      message: `Procedimento que, ao ser repetido nas mesmas condições, produz sempre o mesmo resultado, podendo ser previsto com certeza.<br/><br/><strong>Exemplo:</strong> ${novoExemplo}`
+      message: `Procedimento que, ao ser repetido nas mesmas condições, produz sempre o mesmo resultado, podendo ser previsto com certeza.<br/><br/><strong>Exemplo:</strong> ${newExample}`
     });
-    setExemplosVistosDeterministico(prev => prev + 1);
+    setDeterministicExamplesViewed(prev => prev + 1);
   }, []);
 
   // Função para mostrar mais exemplos de experimento aleatório
-  const handleVerMaisExemplosAleatorio = useCallback(() => {
-    const novoExemplo = EXEMPLOS_ALEATORIOS[Math.floor(Math.random() * EXEMPLOS_ALEATORIOS.length)];
+  const handleSeeMoreRandomExamples = useCallback(() => {
+    const newExample = RANDOM_EXAMPLES[Math.floor(Math.random() * RANDOM_EXAMPLES.length)];
     setInfoBoxContent({
       type: 'concept',
       title: 'Experimento aleatório',
-      message: `Ação que pode ser repetida do mesmo jeito várias vezes, mas cujo resultado não é possível saber com certeza antes de acontecer, mesmo conhecendo todas as possibilidades.<br/><br/><strong>Exemplo:</strong> ${novoExemplo}`
+      message: `Ação que pode ser repetida do mesmo jeito várias vezes, mas cujo resultado não é possível saber com certeza antes de acontecer, mesmo conhecendo todas as possibilidades.<br/><br/><strong>Exemplo:</strong> ${newExample}`
     });
-    setExemplosVistosAleatorio(prev => prev + 1);
+    setRandomExamplesViewed(prev => prev + 1);
   }, []);
 
   // Função para ver mais exemplos de eventos disjuntos (subStep 6.55)
-  const handleVerMaisExemplosDisjuntos = useCallback(() => {
+  const handleSeeMoreDisjointExamples = useCallback(() => {
     const { sectors } = gameState;
     const n = sectors.length;
 
@@ -8291,26 +8005,26 @@ export const useRouletteHooks = () => {
     const pMin = n;
     const pMax = 12;
     const pTemp = pMin + Math.floor(Math.random() * (pMax - pMin + 1));
-    const novosNumeros = gerarNumerosSetores(n, pTemp);
+    const newNums = generateSectorNumbers(n, pTemp);
 
     // Gerar exemplo usando o histórico anti-repetição
-    const exemplo = gerarExemploDisjunto(sectors, novosNumeros, lastDisjointMeta);
+    const exampleText = generateDisjointExample(sectors, newNums, lastDisjointMeta);
 
     // Atualizar números no disco
     setGameState(prev => ({
       ...prev,
-      desafio1SectorNumbers: novosNumeros
+      challenge1SectorNumbers: newNums
     }));
-    setDisjointNeedsNumbers(exemplo.needsNumbers);
+    setDisjointNeedsNumbers(exampleText.needsNumbers);
 
     setInfoBoxContent({
       type: 'concept',
       title: 'Eventos Mutuamente Exclusivos',
-      message: `Dois eventos A e B são <strong>mutuamente exclusivos</strong> (ou disjuntos) quando não podem acontecer ao mesmo tempo no mesmo experimento.<br/><br/>Em outras palavras: se A acontece, B não acontece (e vice-versa). Dizemos que eles não têm resultados em comum.<br/><br/>Na notação: <strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> (a interseção é vazia).<br/><br/><hr style="margin: 8px 0;"/><strong>Exemplo no disco:</strong><br/>A = ${exemplo.textoA} → ${exemplo.conjuntoA}<br/>B = ${exemplo.textoB} → ${exemplo.conjuntoB}<br/><br/><strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> (nenhum resultado em comum)`
+      message: `Dois eventos A e B são <strong>mutuamente exclusivos</strong> (ou disjuntos) quando não podem acontecer ao mesmo tempo no mesmo experimento.<br/><br/>Em outras palavras: se A acontece, B não acontece (e vice-versa). Dizemos que eles não têm resultados em comum.<br/><br/>Na notação: <strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> (a interseção é vazia).<br/><br/><hr style="margin: 8px 0;"/><strong>Exemplo no disco:</strong><br/>A = ${exampleText.textA} → ${exampleText.setA}<br/>B = ${exampleText.textB} → ${exampleText.setB}<br/><br/><strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> (nenhum resultado em comum)`
     });
 
-    setLastDisjointMeta(exemplo.meta);
-    setExemplosDisjuntosVistos(prev => prev + 1);
+    setLastDisjointMeta(exampleText.meta);
+    setDisjointExamplesViewed(prev => prev + 1);
   }, [gameState, lastDisjointMeta]);
 
   // Iniciar exercício interativo de eventos disjuntos (4º exemplo)
@@ -8322,24 +8036,24 @@ export const useRouletteHooks = () => {
     const pMin = n;
     const pMax = 12;
     const pTemp = pMin + Math.floor(Math.random() * (pMax - pMin + 1));
-    const novosNumeros = gerarNumerosSetores(n, pTemp);
+    const newNums = generateSectorNumbers(n, pTemp);
 
     // Gerar exemplo
-    const exemplo = gerarExemploDisjunto(sectors, novosNumeros, lastDisjointMeta);
+    const exampleText = generateDisjointExample(sectors, newNums, lastDisjointMeta);
 
     // Atualizar roleta
     setGameState(prev => ({
       ...prev,
-      desafio1SectorNumbers: novosNumeros
+      challenge1SectorNumbers: newNums
     }));
-    setDisjointNeedsNumbers(exemplo.needsNumbers);
-    setLastDisjointMeta(exemplo.meta);
+    setDisjointNeedsNumbers(exampleText.needsNumbers);
+    setLastDisjointMeta(exampleText.meta);
 
     // Guardar resposta correta e textos
-    setDisjointCorrectA([...exemplo.indicesA].sort((a, b) => a - b));
-    setDisjointCorrectB([...exemplo.indicesB].sort((a, b) => a - b));
-    setDisjointExerciseTextoA(exemplo.textoA);
-    setDisjointExerciseTextoB(exemplo.textoB);
+    setDisjointCorrectA([...exampleText.indicesA].sort((a, b) => a - b));
+    setDisjointCorrectB([...exampleText.indicesB].sort((a, b) => a - b));
+    setDisjointExerciseTextA(exampleText.textA);
+    setDisjointExerciseTextB(exampleText.textB);
 
     // Limpar seleções do usuário
     setDisjointUserSelectA([]);
@@ -8352,11 +8066,11 @@ export const useRouletteHooks = () => {
     setInfoBoxContent({
       type: 'concept',
       title: 'Sua vez!',
-      message: `Agora é a sua vez de identificar eventos mutuamente exclusivos no disco!<br/><br/><strong>A = ${exemplo.textoA}</strong><br/><strong>B = ${exemplo.textoB}</strong><br/><br/><hr style="margin: 8px 0;"/>Clique nos setores do disco que pertencem ao <strong>evento A</strong>.`
+      message: `Agora é a sua vez de identificar eventos mutuamente exclusivos no disco!<br/><br/><strong>A = ${exampleText.textA}</strong><br/><strong>B = ${exampleText.textB}</strong><br/><br/><hr style="margin: 8px 0;"/>Clique nos setores do disco que pertencem ao <strong>evento A</strong>.`
     });
 
     setInstructions(`<p class="ds-body"><strong>Exercício: Eventos Mutuamente Exclusivos</strong></p>
-      <p class="ds-body">Clique nos setores que pertencem ao <strong>evento A</strong> (${exemplo.textoA}).</p>`);
+      <p class="ds-body">Clique nos setores que pertencem ao <strong>evento A</strong> (${exampleText.textA}).</p>`);
   }, [gameState, lastDisjointMeta]);
 
   // Handler de clique em setor durante exercício de disjuntos
@@ -8382,12 +8096,12 @@ export const useRouletteHooks = () => {
     setInfoBoxContent({
       type: 'concept',
       title: 'Sua vez!',
-      message: `<strong>A = ${disjointExerciseTextoA}</strong><br/><strong>B = ${disjointExerciseTextoB}</strong><br/><br/><hr style="margin: 8px 0;"/>Ótimo! Agora clique nos setores que pertencem ao <strong>evento B</strong>.`
+      message: `<strong>A = ${disjointExerciseTextA}</strong><br/><strong>B = ${disjointExerciseTextB}</strong><br/><br/><hr style="margin: 8px 0;"/>Ótimo! Agora clique nos setores que pertencem ao <strong>evento B</strong>.`
     });
 
     setInstructions(`<p class="ds-body"><strong>Exercício: Eventos Mutuamente Exclusivos</strong></p>
-      <p class="ds-body">Agora clique nos setores que pertencem ao <strong>evento B</strong> (${disjointExerciseTextoB}).</p>`);
-  }, [disjointUserSelectA, disjointExerciseTextoA, disjointExerciseTextoB]);
+      <p class="ds-body">Agora clique nos setores que pertencem ao <strong>evento B</strong> (${disjointExerciseTextB}).</p>`);
+  }, [disjointUserSelectA, disjointExerciseTextA, disjointExerciseTextB]);
 
   // Confirmar seleção do evento B → validar
   const handleDisjointConfirmB = useCallback(() => {
@@ -8401,17 +8115,17 @@ export const useRouletteHooks = () => {
 
     if (correctA && correctB) {
       setDisjointExercisePhase('correct');
-      setExemplosDisjuntosVistos(prev => prev + 1);
+      setDisjointExamplesViewed(prev => prev + 1);
       setInfoBoxContent({
         type: 'success',
         title: 'Parabéns!',
-        message: `Você identificou corretamente os eventos mutuamente exclusivos!<br/><br/><strong>A = ${disjointExerciseTextoA}</strong><br/><strong>B = ${disjointExerciseTextoB}</strong><br/><br/><strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> ✓<br/><br/><hr style="margin: 8px 0;"/>Note que, em um único giro, apenas um setor acontece. Repare também que as regiões marcadas de A e B não se sobrepõem: nenhum setor foi marcado ao mesmo tempo em A e em B (não há setor em comum).`
+        message: `Você identificou corretamente os eventos mutuamente exclusivos!<br/><br/><strong>A = ${disjointExerciseTextA}</strong><br/><strong>B = ${disjointExerciseTextB}</strong><br/><br/><strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> ✓<br/><br/><hr style="margin: 8px 0;"/>Note que, em um único giro, apenas um setor acontece. Repare também que as regiões marcadas de A e B não se sobrepõem: nenhum setor foi marcado ao mesmo tempo em A e em B (não há setor em comum).`
       });
       setInstructions(`<p class="ds-body"><strong>Correto!</strong></p>
         <p class="ds-body">Você marcou corretamente os eventos A e B no disco.</p>`);
     } else {
       setDisjointExercisePhase('wrong');
-      const msgErro = !correctA && !correctB
+      const errorText = !correctA && !correctB
         ? 'Os setores selecionados para A e B estão incorretos.'
         : !correctA
           ? 'Os setores selecionados para o evento A estão incorretos.'
@@ -8419,12 +8133,12 @@ export const useRouletteHooks = () => {
       setInfoBoxContent({
         type: 'error',
         title: 'Tente novamente',
-        message: `${msgErro}<br/><br/><strong>A = ${disjointExerciseTextoA}</strong><br/><strong>B = ${disjointExerciseTextoB}</strong><br/><br/>Observe o disco e tente novamente.`
+        message: `${errorText}<br/><br/><strong>A = ${disjointExerciseTextA}</strong><br/><strong>B = ${disjointExerciseTextB}</strong><br/><br/>Observe o disco e tente novamente.`
       });
       setInstructions(`<p class="ds-body"><strong>Resposta incorreta</strong></p>
         <p class="ds-body">Tente novamente. Clique em "Tentar novamente" para recomeçar.</p>`);
     }
-  }, [disjointUserSelectA, disjointUserSelectB, disjointCorrectA, disjointCorrectB, disjointExerciseTextoA, disjointExerciseTextoB]);
+  }, [disjointUserSelectA, disjointUserSelectB, disjointCorrectA, disjointCorrectB, disjointExerciseTextA, disjointExerciseTextB]);
 
   // Tentar novamente o exercício de disjuntos (mesmos eventos, limpar seleções)
   const handleDisjointRetry = useCallback(() => {
@@ -8435,25 +8149,25 @@ export const useRouletteHooks = () => {
     setInfoBoxContent({
       type: 'concept',
       title: 'Sua vez!',
-      message: `<strong>A = ${disjointExerciseTextoA}</strong><br/><strong>B = ${disjointExerciseTextoB}</strong><br/><br/><hr style="margin: 8px 0;"/>Clique nos setores do disco que pertencem ao <strong>evento A</strong>.`
+      message: `<strong>A = ${disjointExerciseTextA}</strong><br/><strong>B = ${disjointExerciseTextB}</strong><br/><br/><hr style="margin: 8px 0;"/>Clique nos setores do disco que pertencem ao <strong>evento A</strong>.`
     });
 
     setInstructions(`<p class="ds-body"><strong>Exercício: Eventos Mutuamente Exclusivos</strong></p>
-      <p class="ds-body">Clique nos setores que pertencem ao <strong>evento A</strong> (${disjointExerciseTextoA}).</p>`);
-  }, [disjointExerciseTextoA, disjointExerciseTextoB]);
+      <p class="ds-body">Clique nos setores que pertencem ao <strong>evento A</strong> (${disjointExerciseTextA}).</p>`);
+  }, [disjointExerciseTextA, disjointExerciseTextB]);
 
   // === Handlers para a fase de Probabilidade da União (subStep 6.56) ===
 
   const initUnionActivity = useCallback((activityNum: number) => {
     const { sectors } = gameState;
     const n = sectors.length;
-    const isDesafio = activityNum >= unionMaxActivities;
+    const isChallenge = activityNum >= unionMaxActivities;
 
     let events: UnionEvent[];
     let needsNumbers: boolean;
     let numbers: number[];
 
-    if (isDesafio) {
+    if (isChallenge) {
       // DESAFIO: usar gerador controlado que garante eventos válidos e não-triviais
       const challenge = generateUnionChallenge(sectors);
       if (challenge) {
@@ -8462,19 +8176,19 @@ export const useRouletteHooks = () => {
         needsNumbers = true; // desafio sempre mostra números
       } else {
         // Fallback: geração normal se o desafio falhar
-        numbers = gerarNumerosInteressantes(n);
+        numbers = generateInterestingNumbers(n);
         const numEvents = Math.min(activityNum + 1, n);
-        const resultado = gerarEventosUniao(sectors, numEvents, numbers, true);
-        events = resultado.events;
-        needsNumbers = resultado.needsNumbers;
+        const result = generateUnionEvents(sectors, numEvents, numbers);
+        events = result.events;
+        needsNumbers = result.needsNumbers;
       }
     } else {
       // Atividades normais: geração padrão
       const numEvents = Math.min(activityNum + 1, n);
-      numbers = gerarNumerosInteressantes(n);
-      const resultado = gerarEventosUniao(sectors, numEvents, numbers, false);
-      events = resultado.events;
-      needsNumbers = resultado.needsNumbers;
+      numbers = generateInterestingNumbers(n);
+      const result = generateUnionEvents(sectors, numEvents, numbers);
+      events = result.events;
+      needsNumbers = result.needsNumbers;
     }
 
     setUnionSectorNumbers(numbers);
@@ -8488,7 +8202,7 @@ export const useRouletteHooks = () => {
     setUnionFinalNumInput({ value: '', error: false });
     setUnionFinalDenInput({ value: '', error: false });
 
-    const activityTitle = isDesafio ? 'Desafio Final' : `Atividade ${activityNum}`;
+    const activityTitle = isChallenge ? 'Desafio Final' : `Atividade ${activityNum}`;
     const unionLabel = events.map(e => e.label).join(' ∪ ');
 
     setInstructions(`<p class="ds-body"><strong>${activityTitle}: P(${unionLabel})</strong></p>
@@ -8517,10 +8231,10 @@ export const useRouletteHooks = () => {
     const sortedUser = [...unionSelectedSectors].sort((a, b) => a - b);
     const sortedCorrect = [...currentEvent.sectorIndices].sort((a, b) => a - b);
 
-    const acertou = sortedUser.length === sortedCorrect.length &&
+    const won = sortedUser.length === sortedCorrect.length &&
       sortedUser.every((val, idx) => val === sortedCorrect[idx]);
 
-    if (acertou) {
+    if (won) {
       playSound("/sounds/correct.mp3");
       setUnionPhase('filling_prob');
       setUnionProbNumInput({ value: '', error: false });
@@ -8536,14 +8250,14 @@ export const useRouletteHooks = () => {
 
   const handleUnionConfirmProb = useCallback(() => {
     goToTopOfChallenge();
-    const numerador = parseInt(unionProbNumInput.value || '');
-    const denominador = parseInt(unionProbDenInput.value || '');
+    const numerator = parseInt(unionProbNumInput.value || '');
+    const denominator = parseInt(unionProbDenInput.value || '');
 
     const currentEvent = unionEvents[unionCurrentEventIdx];
     const expectedNum = currentEvent.sectorIndices.length;
     const expectedDen = gameState.sectors.length;
 
-    if (areSplitFractionsEquivalent(numerador, denominador, expectedNum, expectedDen)) {
+    if (areSplitFractionsEquivalent(numerator, denominator, expectedNum, expectedDen)) {
       playSound("/sounds/correct.mp3");
 
       const updatedEvents = unionEvents.map((e, i) =>
@@ -8588,19 +8302,19 @@ export const useRouletteHooks = () => {
 
   const handleUnionConfirmFinal = useCallback(() => {
     goToTopOfChallenge();
-    const numerador = parseInt(unionFinalNumInput.value || '');
-    const denominador = parseInt(unionFinalDenInput.value || '');
+    const numerator = parseInt(unionFinalNumInput.value || '');
+    const denominator = parseInt(unionFinalDenInput.value || '');
 
     const expectedNum = unionEvents.reduce((sum, e) => sum + e.probNumerator, 0);
     const expectedDen = gameState.sectors.length;
 
-    if (areSplitFractionsEquivalent(numerador, denominador, expectedNum, expectedDen)) {
+    if (areSplitFractionsEquivalent(numerator, denominator, expectedNum, expectedDen)) {
       playSound("/sounds/challengeFinished.mp3");
 
       const unionLabel = unionEvents.map(e => e.label).join('∪');
       const probSum = unionEvents.map(e => `${e.probNumerator}/${e.probDenominator}`).join(' + ');
       const decimal = (expectedNum / expectedDen).toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
-      const porcentagem = ((expectedNum / expectedDen) * 100).toFixed(1).replace(/\.0$/, '');
+      const percentageVal = ((expectedNum / expectedDen) * 100).toFixed(1).replace(/\.0$/, '');
 
       const isLastActivity = unionActivityNum >= unionMaxActivities;
 
@@ -8609,14 +8323,14 @@ export const useRouletteHooks = () => {
         setInfoBoxContent({
           type: 'success',
           title: 'Parabéns! Fase concluída!',
-          message: `Você aplicou corretamente a regra da união para eventos mutuamente exclusivos!<br/><br/><strong>P(${unionLabel}) = ${probSum} = ${expectedNum}/${expectedDen} = ${decimal} = ${porcentagem}%</strong><br/><br/>Como os eventos são mutuamente exclusivos (não compartilham resultados), a probabilidade da união é simplesmente a <strong>soma</strong> das probabilidades individuais.`
+          message: `Você aplicou corretamente a regra da união para eventos mutuamente exclusivos!<br/><br/><strong>P(${unionLabel}) = ${probSum} = ${expectedNum}/${expectedDen} = ${decimal} = ${percentageVal}%</strong><br/><br/>Como os eventos são mutuamente exclusivos (não compartilham resultados), a probabilidade da união é simplesmente a <strong>soma</strong> das probabilidades individuais.`
         });
         setUnionPhase('all_done');
       } else {
         setInfoBoxContent({
           type: 'success',
           title: 'Correto!',
-          message: `<strong>P(${unionLabel}) = ${probSum} = ${expectedNum}/${expectedDen} = ${decimal} = ${porcentagem}%</strong><br/><br/>A regra funciona: para eventos mutuamente exclusivos, a probabilidade da união é a soma das probabilidades individuais.`
+          message: `<strong>P(${unionLabel}) = ${probSum} = ${expectedNum}/${expectedDen} = ${decimal} = ${percentageVal}%</strong><br/><br/>A regra funciona: para eventos mutuamente exclusivos, a probabilidade da união é a soma das probabilidades individuais.`
         });
         setUnionPhase('activity_success');
       }
@@ -8649,7 +8363,7 @@ export const useRouletteHooks = () => {
 
     // Stage 1 - SubStep 7.1: Após confronto, avançar para pergunta de incerteza
     if (stage === 1 && subStep === 7.1) {
-      showUncertaintyQuestion(gameState.frequencies);
+      showUncertaintyQuestion();
       return;
     }
 
@@ -8742,13 +8456,13 @@ export const useRouletteHooks = () => {
     // Stage 2 - SubStep 0.17: Conflito cognitivo "Li" → nova aposta
     if (stage === 2 && subStep === 0.17) {
       // Resetar estado de experimentação e voltar à fase de aposta
-      setExperimentacaoState({
-        corApostada: null,
-        sorteios: [],
-        tentativaAtual: 1,
-        aguardandoConfirmacao: false,
-        corSorteadaInterna: null,
-        corRevelada: false
+      setExperimentationState({
+        wageredColor: null,
+        draws: [],
+        currentAttempt: 1,
+        waitingForConfirmation: false,
+        internalDrawnColor: null,
+        colorRevealed: false
       });
       setDisabledSpinButton(true);
       setGameState(prev => ({ ...prev, subStep: 0.15 }));
@@ -8815,7 +8529,7 @@ export const useRouletteHooks = () => {
           break;
         }
       }
-      const corSorteada = sectors[sectorIndex].colorName;
+      const drawnColor = sectors[sectorIndex].colorName;
 
       let startAngle = 0;
       for (let i = 0; i < sectorIndex; i++) {
@@ -8841,11 +8555,11 @@ export const useRouletteHooks = () => {
         spinDuration: spinDuration
       }));
 
-      setExperimentacaoState(prev => ({
+      setExperimentationState(prev => ({
         ...prev,
-        corSorteadaInterna: corSorteada,
-        corRevelada: false,
-        aguardandoConfirmacao: false
+        internalDrawnColor: drawnColor,
+        colorRevealed: false,
+        waitingForConfirmation: false
       }));
 
       setInstructions(`<p class="ds-body"><strong>Reflexão Conceitual</strong></p>
@@ -8863,13 +8577,13 @@ export const useRouletteHooks = () => {
           ...prev,
           isSpinning: false,
           currentRotation: newTargetAngle,
-          selectedColor: corSorteada,
+          selectedColor: drawnColor,
           subStep: 0.195
         }));
 
-        setExperimentacaoState(prev => ({
+        setExperimentationState(prev => ({
           ...prev,
-          aguardandoConfirmacao: true
+          waitingForConfirmation: true
         }));
 
         setInstructions(`<p class="ds-body"><strong>Reflexão Conceitual</strong></p>
@@ -8887,11 +8601,11 @@ export const useRouletteHooks = () => {
 
     // Stage 2 - SubStep 5.1: Info "soma = 1" → determinar x
     if (stage === 2 && subStep === 5.1) {
-      const equacaoTermos = gameState.s2Ki.map(ki => `${ki}x`).join(' + ');
+      const equationTerms = gameState.s2Ki.map(ki => `${ki}x`).join(' + ');
       setS2XInput({ value: '', disabled: false, error: false, setValue: (val: string) => setS2XInput(prev => ({ ...prev, value: val })) });
       setGameState(prev => ({ ...prev, subStep: 5.2 }));
       setInstructions(`<p class="ds-body"><strong>Determinação de x</strong></p>
-        <p class="ds-body">Resolva a equação <strong>${equacaoTermos} = 1</strong> e determine x.</p>
+        <p class="ds-body">Resolva a equação <strong>${equationTerms} = 1</strong> e determine x.</p>
         <p class="ds-body">Digite na forma de fração (ex: 1/a) ou decimal.</p>`);
       return;
     }
@@ -8922,7 +8636,7 @@ export const useRouletteHooks = () => {
       setInfoBoxContent({
         type: 'concept',
         title: 'Experimento aleatório',
-        message: `Ação que pode ser repetida do mesmo jeito várias vezes, mas cujo resultado não é possível saber com certeza antes de acontecer, mesmo conhecendo todas as possibilidades.<br/><br/><strong>Exemplo:</strong> ${EXEMPLOS_ALEATORIOS[Math.floor(Math.random() * EXEMPLOS_ALEATORIOS.length)]}`
+        message: `Ação que pode ser repetida do mesmo jeito várias vezes, mas cujo resultado não é possível saber com certeza antes de acontecer, mesmo conhecendo todas as possibilidades.<br/><br/><strong>Exemplo:</strong> ${RANDOM_EXAMPLES[Math.floor(Math.random() * RANDOM_EXAMPLES.length)]}`
       });
       return;
     }
@@ -8982,27 +8696,27 @@ export const useRouletteHooks = () => {
     // Após balão de Evento (subStep 3.4) → Balão de Evento Composto (subStep 3.45)
     if (stage === 1 && subStep === 3.4) {
       // Gerar conjuntos para exemplo de evento composto
-      const coresDisponiveis = [...sectors.map(s => s.colorName)];
-      const n = coresDisponiveis.length;
+      const availableColors = [...sectors.map(s => s.colorName)];
+      const n = availableColors.length;
 
       // Função para gerar um subconjunto aleatório com k >= 2 elementos
-      const gerarSubconjunto = (cores: string[]): string[] => {
+      const generateSubset = (colors: string[]): string[] => {
         const kOptions = [];
-        for (let i = 2; i <= cores.length; i++) kOptions.push(i);
+        for (let i = 2; i <= colors.length; i++) kOptions.push(i);
         const k = kOptions[Math.floor(Math.random() * kOptions.length)];
 
-        const resultado: string[] = [];
-        const disponivel = [...cores];
+        const result: string[] = [];
+        const available = [...colors];
         for (let i = 0; i < k; i++) {
-          const idx = Math.floor(Math.random() * disponivel.length);
-          resultado.push(disponivel.splice(idx, 1)[0]);
+          const idx = Math.floor(Math.random() * available.length);
+          result.push(available.splice(idx, 1)[0]);
         }
-        return resultado;
+        return result;
       };
 
       // Gerar A
-      const conjuntoA = gerarSubconjunto(coresDisponiveis);
-      const strA = conjuntoA.join(', ');
+      const setA = generateSubset(availableColors);
+      const strA = setA.join(', ');
 
       // Se o disco tem apenas 2 setores, mostrar apenas o evento A
       // (só existe um único evento composto possível com 2 elementos)
@@ -9019,9 +8733,9 @@ export const useRouletteHooks = () => {
 
       // Gerar B com pelo menos um elemento distinto de A
       // (A e B não podem ser idênticos - devem ter pelo menos uma diferença)
-      let conjuntoB: string[] = [];
-      let tentativas = 0;
-      const saoConjuntosIguais = (a: string[], b: string[]): boolean => {
+      let setB: string[] = [];
+      let attempts = 0;
+      const areSetsEqual = (a: string[], b: string[]): boolean => {
         if (a.length !== b.length) return false;
         const sortedA = [...a].sort();
         const sortedB = [...b].sort();
@@ -9029,24 +8743,24 @@ export const useRouletteHooks = () => {
       };
 
       do {
-        conjuntoB = gerarSubconjunto(coresDisponiveis);
-        tentativas++;
-      } while (saoConjuntosIguais(conjuntoA, conjuntoB) && tentativas < 20);
+        setB = generateSubset(availableColors);
+        attempts++;
+      } while (areSetsEqual(setA, setB) && attempts < 20);
 
       // Se ainda forem iguais após tentativas, forçar diferença
-      if (saoConjuntosIguais(conjuntoA, conjuntoB)) {
+      if (areSetsEqual(setA, setB)) {
         // Adicionar ou remover um elemento para garantir diferença
-        const elementosForaDeA = coresDisponiveis.filter(c => !conjuntoA.includes(c));
-        if (elementosForaDeA.length > 0) {
+        const elementsOutsideA = availableColors.filter(c => !setA.includes(c));
+        if (elementsOutsideA.length > 0) {
           // Substituir um elemento de B por um que não está em A
-          conjuntoB[0] = elementosForaDeA[Math.floor(Math.random() * elementosForaDeA.length)];
-        } else if (conjuntoB.length > 2) {
+          setB[0] = elementsOutsideA[Math.floor(Math.random() * elementsOutsideA.length)];
+        } else if (setB.length > 2) {
           // Se não há elementos fora de A, remover um elemento de B
-          conjuntoB.pop();
+          setB.pop();
         }
       }
 
-      const strB = conjuntoB.join(', ');
+      const strB = setB.join(', ');
 
       setGameState(prev => ({ ...prev, subStep: 3.45 }));
       setShowInfoBox(true);
@@ -9116,17 +8830,17 @@ export const useRouletteHooks = () => {
     // Após balão de evento certo (subStep 5.5) → Balão de Evento Impossível (subStep 5.55)
     if (stage === 1 && subStep === 5.5) {
       // Encontrar uma cor que NÃO está no espaço amostral atual
-      const coresNaRoleta = sectors.map(s => s.colorName);
-      const todasAsCores = ['Vermelho', 'Azul', 'Verde', 'Amarelo', 'Roxo', 'Rosa', 'Laranja', 'Marrom', 'Preto', 'Branco', 'Cinza'];
-      const coresForaDaRoleta = todasAsCores.filter(c => !coresNaRoleta.includes(c));
-      const corImpossivel = coresForaDaRoleta[Math.floor(Math.random() * coresForaDaRoleta.length)];
+      const colorsInRoulette = sectors.map(s => s.colorName);
+      const allColors = ['Vermelho', 'Azul', 'Verde', 'Amarelo', 'Roxo', 'Rosa', 'Laranja', 'Marrom', 'Preto', 'Branco', 'Cinza'];
+      const colorsOutsideRoulette = allColors.filter(c => !colorsInRoulette.includes(c));
+      const impossibleColor = colorsOutsideRoulette[Math.floor(Math.random() * colorsOutsideRoulette.length)];
 
       setGameState(prev => ({ ...prev, subStep: 5.55 }));
       setShowInfoBox(true);
       setInfoBoxContent({
         type: 'concept',
         title: 'Evento impossível',
-        message: `Evento impossível é aquele que não corresponde a nenhum resultado que possa ocorrer em um experimento aleatório.<br/><br/>Isso significa que nenhum resultado do espaço amostral leva à ocorrência desse evento.<br/><br/>No caso do disco, um evento impossível ocorre quando se considera uma cor que não está presente entre os setores do disco.<br/><br/>Por exemplo, após girar aleatoriamente o disco, considere o evento<br/><br/>E = {${corImpossivel}}.`
+        message: `Evento impossível é aquele que não corresponde a nenhum resultado que possa ocorrer em um experimento aleatório.<br/><br/>Isso significa que nenhum resultado do espaço amostral leva à ocorrência desse evento.<br/><br/>No caso do disco, um evento impossível ocorre quando se considera uma cor que não está presente entre os setores do disco.<br/><br/>Por exemplo, após girar aleatoriamente o disco, considere o evento<br/><br/>E = {${impossibleColor}}.`
       });
       return;
     }
@@ -9268,19 +8982,19 @@ export const useRouletteHooks = () => {
     if (stage === 1 && subStep === 6.4) {
       // Gerar evento E dinâmico para o exercício
       const n = sectors.length;
-      const coresDisponiveis = sectors.map(s => s.colorName);
+      const availableColors = sectors.map(s => s.colorName);
 
       // Algoritmo de seleção de k (número de cores no evento E):
       // - k varia de 2 a n
       // - k = n (evento certo) aparece com ~5% de frequência
       // - k de 2 a n-1 tem distribuição uniforme nos 95% restantes
       let k: number;
-      const chanceEventoCerto = 0.05; // 5% de chance de evento certo
+      const chanceCertainEvent = 0.05; // 5% de chance de evento certo
 
       if (n === 2) {
         // Se roleta tem apenas 2 cores, só pode ser k=2
         k = 2;
-      } else if (Math.random() < chanceEventoCerto) {
+      } else if (Math.random() < chanceCertainEvent) {
         // ~5% de chance: evento certo (todas as cores)
         k = n;
       } else {
@@ -9289,31 +9003,31 @@ export const useRouletteHooks = () => {
       }
 
       // Selecionar k cores aleatórias para o evento E
-      const coresEmbaralhadas = [...coresDisponiveis].sort(() => Math.random() - 0.5);
-      const exercicioE = coresEmbaralhadas.slice(0, k);
+      const shuffledColors = [...availableColors].sort(() => Math.random() - 0.5);
+      const exerciseE = shuffledColors.slice(0, k);
 
       // Gerar números aleatórios para os setores (1 a n)
-      const numeros = Array.from({ length: n }, (_, i) => i + 1);
-      const numerosEmbaralhados = numeros.sort(() => Math.random() - 0.5);
+      const nums = Array.from({ length: n }, (_, i) => i + 1);
+      const shuffledNums = nums.sort(() => Math.random() - 0.5);
 
       setGameState(prev => ({
         ...prev,
         subStep: 6.41,
-        exercicioEventoE: exercicioE,
+        exerciseEventE: exerciseE,
         selectedSectors: [],
-        sectorNumbers: numerosEmbaralhados
+        sectorNumbers: shuffledNums
       }));
 
       // Limpar inputs do exercício
-      setExercicioNEInput(prev => ({ ...prev, value: '', error: false }));
-      setExercicioNSInput(prev => ({ ...prev, value: '', error: false }));
-      setExercicioPENumeradorInput(prev => ({ ...prev, value: '', error: false }));
-      setExercicioPEDenominadorInput(prev => ({ ...prev, value: '', error: false }));
+      setExerciseNEInput(prev => ({ ...prev, value: '', error: false }));
+      setExerciseNSInput(prev => ({ ...prev, value: '', error: false }));
+      setExercisePENumeratorInput(prev => ({ ...prev, value: '', error: false }));
+      setExercisePEDenominatorInput(prev => ({ ...prev, value: '', error: false }));
 
-      const coresTexto = exercicioE.join(' ou ');
+      const colorsText = exerciseE.join(' ou ');
       setInstructions(`<p class="ds-body"><strong>Exercício — Aplicação do Modelo Probabilístico</strong></p>
         <p class="ds-body">Clique nos casos favoráveis ao evento</p>
-        <p class="ds-body"><strong>E = ocorre ${coresTexto}</strong></p>`);
+        <p class="ds-body"><strong>E = ocorre ${colorsText}</strong></p>`);
 
       setShowInfoBox(false);
       return;
@@ -9326,26 +9040,26 @@ export const useRouletteHooks = () => {
       const pMin = n;
       const pMax = 12;
       const pTemp = pMin + Math.floor(Math.random() * (pMax - pMin + 1));
-      const numerosTemp = gerarNumerosSetores(n, pTemp);
+      const tempNums = generateSectorNumbers(n, pTemp);
 
       // Gerar primeiro exemplo disjunto com algoritmo anti-clichê
-      const exemplo = gerarExemploDisjunto(sectors, numerosTemp, null);
+      const exampleText = generateDisjointExample(sectors, tempNums, null);
 
       setGameState(prev => ({
         ...prev,
         subStep: 6.55,
-        desafio1SectorNumbers: numerosTemp
+        challenge1SectorNumbers: tempNums
       }));
 
-      setExemplosDisjuntosVistos(1);
-      setLastDisjointMeta(exemplo.meta);
-      setDisjointNeedsNumbers(exemplo.needsNumbers);
+      setDisjointExamplesViewed(1);
+      setLastDisjointMeta(exampleText.meta);
+      setDisjointNeedsNumbers(exampleText.needsNumbers);
 
       setShowInfoBox(true);
       setInfoBoxContent({
         type: 'concept',
         title: 'Eventos Mutuamente Exclusivos',
-        message: `Dois eventos A e B são <strong>mutuamente exclusivos</strong> (ou disjuntos) quando não podem acontecer ao mesmo tempo no mesmo experimento.<br/><br/>Em outras palavras: se A acontece, B não acontece (e vice-versa). Dizemos que eles não têm resultados em comum.<br/><br/>Na notação: <strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> (a interseção é vazia).<br/><br/><hr style="margin: 8px 0;"/><strong>Exemplo no disco:</strong><br/>A = ${exemplo.textoA} → ${exemplo.conjuntoA}<br/>B = ${exemplo.textoB} → ${exemplo.conjuntoB}<br/><br/><strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> (nenhum resultado em comum)`
+        message: `Dois eventos A e B são <strong>mutuamente exclusivos</strong> (ou disjuntos) quando não podem acontecer ao mesmo tempo no mesmo experimento.<br/><br/>Em outras palavras: se A acontece, B não acontece (e vice-versa). Dizemos que eles não têm resultados em comum.<br/><br/>Na notação: <strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> (a interseção é vazia).<br/><br/><hr style="margin: 8px 0;"/><strong>Exemplo no disco:</strong><br/>A = ${exampleText.textA} → ${exampleText.setA}<br/>B = ${exampleText.textB} → ${exampleText.setB}<br/><br/><strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> (nenhum resultado em comum)`
       });
 
       setInstructions(`<p class="ds-body"><strong>Conceito: Eventos Mutuamente Exclusivos</strong></p>
@@ -9417,7 +9131,7 @@ export const useRouletteHooks = () => {
         setShowInfoBox(false);
 
         // Transição para Desafio Dinâmico 1 (subStep 6.6) — reusar restartDesafio1
-        restartDesafio1Ref.current();
+        restartChallenge1Ref.current();
         return;
       }
 
@@ -9432,7 +9146,7 @@ export const useRouletteHooks = () => {
       }));
 
       // Limpar input n(E)
-      setExercicioNEInput(prev => ({ ...prev, value: '', error: false }));
+      setExerciseNEInput(prev => ({ ...prev, value: '', error: false }));
 
       setShowInfoBox(false);
 
@@ -9449,7 +9163,7 @@ export const useRouletteHooks = () => {
       }));
 
       // Limpar input n(S)
-      setExercicioNSInput(prev => ({ ...prev, value: '', error: false }));
+      setExerciseNSInput(prev => ({ ...prev, value: '', error: false }));
 
       setShowInfoBox(false);
 
@@ -9466,8 +9180,8 @@ export const useRouletteHooks = () => {
       }));
 
       // Limpar inputs de P(E)
-      setExercicioPENumeradorInput(prev => ({ ...prev, value: '', error: false }));
-      setExercicioPEDenominadorInput(prev => ({ ...prev, value: '', error: false }));
+      setExercisePENumeratorInput(prev => ({ ...prev, value: '', error: false }));
+      setExercisePEDenominatorInput(prev => ({ ...prev, value: '', error: false }));
 
       setShowInfoBox(false);
 
@@ -9773,42 +9487,6 @@ export const useRouletteHooks = () => {
     });
   }, [gameState]);
 
-  // Função para resetar o jogo (abre menu de reinício)
-  const resetGame = useCallback(() => {
-    setRestartPhase('choosing');
-  }, []);
-
-  // Handlers do fluxo de reinício
-  const handleRestartChoice = useCallback((choice: 'stage1' | 'stage2' | 'stage3' | 'previous' | 'back') => {
-    setRestartPhase(`confirm_${choice}` as typeof restartPhase);
-  }, []);
-
-  const handleRestartCancel = useCallback(() => {
-    setRestartPhase('hidden');
-  }, []);
-
-  // Função para limpar frequências
-  const clearFrequencies = useCallback(() => {
-    updateModal({
-      title: "Limpar Dados",
-      description: "Deseja limpar todos os dados de frequência?",
-      status: "show",
-      confirmCallback: () => {
-        const newFrequencies: { [color: string]: number } = {};
-        gameState.sectors.forEach(s => newFrequencies[s.colorName] = 0);
-
-        setGameState(prev => ({
-          ...prev,
-          frequencies: newFrequencies,
-          totalSpins: 0
-        }));
-
-        playSound("/sounds/clear.mp3");
-        createAlert("Dados Limpos", "Os dados de frequência foram limpos.", "info", 3000);
-      }
-    });
-  }, [updateModal, createAlert, gameState.sectors]);
-
   // Função para próximo passo
   const nextStep = useCallback(() => {
     if (gameState.stage === 1 && gameState.stage2Available) {
@@ -9840,10 +9518,9 @@ export const useRouletteHooks = () => {
     setShowInfoBox(false);
     setDisabledSpinButton(true);
     setDisabledCheckButton(false);
-    setDisabledClearButton(true);
     setDisabledNextButton(true);
     setShowAutoSpinButtons(false);
-    setTentativasNaoOtimas(0);
+    setSuboptimalAttempts(0);
     // Reset treinos
     setTrainingState({
       active: false, currentTraining: 0, phase: 'idle',
@@ -9863,7 +9540,7 @@ export const useRouletteHooks = () => {
     });
     setFracThetaInputs({});
     setConvergenceSim({ currentBlock: 0, running: false, progress: 0 });
-    setS2SpinReflection({ spin1Color: '', spin2Color: '', bet1Color: '', bet2Color: '', resposta1: '', resposta2: '', selectedOption: '', phase: 'betting', betConstraint: 'none' });
+    setS2SpinReflection({ spin1Color: '', spin2Color: '', bet1Color: '', bet2Color: '', answer1: '', answer2: '', selectedOption: '', phase: 'betting', betConstraint: 'none' });
 
     setGameState(prev => ({
       ...prev,
@@ -9967,7 +9644,7 @@ export const useRouletteHooks = () => {
       title: 'Transição para a Etapa 3',
       message: 'Nas etapas anteriores, cada cor aparecia em <strong>apenas um setor</strong> do disco. Na Etapa 1, os setores tinham o mesmo tamanho; na Etapa 2, tamanhos diferentes.<br/><br/>Na próxima etapa, os setores terão o <strong>mesmo tamanho</strong>, mas <strong>algumas cores se repetirão</strong> em mais de um setor. Isso muda as chances de cada cor?'
     });
-  }, [playSound]);
+  }, []);
 
   // Handler: confirmar previsão visual (subStep 0.5 → subStep 1)
   const handleS3ConfirmPrediction = useCallback((predictionColor: string) => {
@@ -9998,29 +9675,6 @@ export const useRouletteHooks = () => {
     }));
   }, [gameState.stage, gameState.subStep, gameState.sectors]);
 
-  // Conjuntos de alternativas para questão diagnóstica (subStep 1.5)
-  // A = corretas (contagem de setores), B = viés visual (agrupamento), I = distratores diversos
-  const S3_DIAG_A = [
-    'Escolhi a cor que aparece em mais setores, pois quanto maior o número de setores dessa cor, maior é a chance de ela ocorrer.',
-    'Escolhi a cor que se repete mais vezes no disco, porque a probabilidade depende da quantidade de casos favoráveis.',
-    'Escolhi a cor com maior número de setores, já que mais ocorrências aumentam a probabilidade de ser sorteada.',
-    'Escolhi a cor que ocupa mais setores no disco, pois mais setores significam maior chance no sorteio.'
-  ];
-  const S3_DIAG_B = [
-    'Escolhi a cor cujos setores estão juntos, pois isso dá a impressão de que ela tem mais chance.',
-    'Escolhi a cor porque seus setores aparecem agrupados, o que faz parecer que ela ocorre com maior frequência.',
-    'Escolhi essa cor porque os setores da mesma cor estão próximos, dando a sensação de maior probabilidade.'
-  ];
-  const S3_DIAG_I = [
-    'Escolhi essa cor porque chamou mais minha atenção no disco.',
-    'Escolhi essa cor porque o setor parecia estar em uma posição favorável para o ponteiro parar.',
-    'Escolhi essa cor porque achei que todos os setores têm a mesma chance de serem sorteados.',
-    'Escolhi essa cor apenas por preferência ou intuição.',
-    'Escolhi aleatoriamente, sem nenhum critério. O disco é imprevisível de qualquer forma.',
-    'Escolhi porque é a cor com menos setores — acredito que cores raras têm mais "sorte".',
-    'Escolhi essa cor porque é minha cor favorita — isso influencia o resultado.'
-  ];
-
   // Handler: confirmar aposta → avançar para questão diagnóstica
   const handleS3ConfirmBet = useCallback(() => {
     if (!s3State.betColor) return;
@@ -10039,15 +9693,15 @@ export const useRouletteHooks = () => {
     const hasTie = maxColors.length > 1;
 
     // Sortear 1 frase de cada conjunto
-    const fraseA = S3_DIAG_A[Math.floor(Math.random() * S3_DIAG_A.length)];
-    const fraseB = S3_DIAG_B[Math.floor(Math.random() * S3_DIAG_B.length)];
-    const fraseI = S3_DIAG_I[Math.floor(Math.random() * S3_DIAG_I.length)];
+    const phraseA = S3_DIAG_A[Math.floor(Math.random() * S3_DIAG_A.length)];
+    const phraseB = S3_DIAG_B[Math.floor(Math.random() * S3_DIAG_B.length)];
+    const phraseI = S3_DIAG_I[Math.floor(Math.random() * S3_DIAG_I.length)];
 
     // Montar 3 opções com tipo identificado, embaralhar posições
-    const opts: { label: string; isCorrect: boolean; tipo: 'A' | 'B' | 'I' }[] = [
-      { label: fraseA, isCorrect: true, tipo: 'A' },
-      { label: fraseB, isCorrect: false, tipo: 'B' },
-      { label: fraseI, isCorrect: false, tipo: 'I' }
+    const opts: { label: string; isCorrect: boolean; kind: 'A' | 'B' | 'I' }[] = [
+      { label: phraseA, isCorrect: true, kind: 'A' },
+      { label: phraseB, isCorrect: false, kind: 'B' },
+      { label: phraseI, isCorrect: false, kind: 'I' }
     ];
     // Fisher-Yates shuffle para embaralhar as 3 posições
     for (let i = opts.length - 1; i > 0; i--) {
@@ -10077,7 +9731,7 @@ export const useRouletteHooks = () => {
     }
     instrHtml += `<p class="ds-body">Selecione a alternativa que melhor justifica sua escolha.</p>`;
     setInstructions(instrHtml);
-  }, [s3State, playSound]);
+  }, [s3State]);
 
   // Handler: finalizar Etapa 3 (institucionalização)
   const handleS3Finalize = useCallback(() => {
@@ -10086,7 +9740,7 @@ export const useRouletteHooks = () => {
     setGameState(prev => ({ ...prev, subStep: 10 }));
     setInstructions(`<p class="ds-body"><strong>Atividade Finalizada!</strong></p>
       <p class="ds-body">Você completou todas as 3 etapas do simulador. Parabéns!</p>`);
-  }, [playSound, createAlert]);
+  }, [createAlert]);
 
   // Handler: avançar para reflexão de ponte com OVA 2 (subStep 11)
   const handleS3GoToReflection = useCallback(() => {
@@ -10102,17 +9756,17 @@ export const useRouletteHooks = () => {
   // Função para reiniciar o exercício dinâmico (treinar novamente)
   const restartExercise = useCallback(() => {
     // Limpar seleções e inputs
-    setExercicioNEInput(prev => ({ ...prev, value: '', error: false }));
-    setExercicioNSInput(prev => ({ ...prev, value: '', error: false }));
-    setExercicioPENumeradorInput(prev => ({ ...prev, value: '', error: false }));
-    setExercicioPEDenominadorInput(prev => ({ ...prev, value: '', error: false }));
+    setExerciseNEInput(prev => ({ ...prev, value: '', error: false }));
+    setExerciseNSInput(prev => ({ ...prev, value: '', error: false }));
+    setExercisePENumeratorInput(prev => ({ ...prev, value: '', error: false }));
+    setExercisePEDenominatorInput(prev => ({ ...prev, value: '', error: false }));
     setShowInfoBox(false);
 
     // Gerar novo evento E diretamente aqui, garantindo cardinalidade diferente do anterior
     setGameState(prev => {
       const n = prev.sectors.length;
-      const coresDisponiveis = prev.sectors.map(s => s.colorName);
-      const cardinalidadeAnterior = prev.exercicioEventoE.length;
+      const availableColors = prev.sectors.map(s => s.colorName);
+      const previousCardinality = prev.exerciseEventE.length;
 
       let k: number;
 
@@ -10122,49 +9776,49 @@ export const useRouletteHooks = () => {
       } else {
         // Para n > 2: escolher uma cardinalidade diferente da anterior
         // Possíveis valores: 1 a n, excluindo a cardinalidade anterior
-        const possiveisK = [];
+        const possibleK = [];
         for (let i = 1; i <= n; i++) {
-          if (i !== cardinalidadeAnterior) {
-            possiveisK.push(i);
+          if (i !== previousCardinality) {
+            possibleK.push(i);
           }
         }
         // Escolher aleatoriamente entre os possíveis valores
-        k = possiveisK[Math.floor(Math.random() * possiveisK.length)];
+        k = possibleK[Math.floor(Math.random() * possibleK.length)];
       }
 
       // Selecionar k cores aleatórias
-      const coresEmbaralhadas = [...coresDisponiveis].sort(() => Math.random() - 0.5);
-      const novoEventoE = coresEmbaralhadas.slice(0, k);
+      const shuffledColors = [...availableColors].sort(() => Math.random() - 0.5);
+      const newEventE = shuffledColors.slice(0, k);
 
       // Gerar novos números aleatórios para os setores
-      const numeros = Array.from({ length: n }, (_, i) => i + 1);
-      const numerosEmbaralhados = numeros.sort(() => Math.random() - 0.5);
+      const nums = Array.from({ length: n }, (_, i) => i + 1);
+      const shuffledNums = nums.sort(() => Math.random() - 0.5);
 
       // Atualizar instruções (singular se apenas uma cor)
-      const coresTexto = novoEventoE.length === 1
-        ? novoEventoE[0]
-        : novoEventoE.join(' ou ');
+      const colorsText = newEventE.length === 1
+        ? newEventE[0]
+        : newEventE.join(' ou ');
       setInstructions(`<p class="ds-body"><strong>Exercício — Aplicação do Modelo Probabilístico</strong></p>
         <p class="ds-body">Clique nos casos favoráveis ao evento</p>
-        <p class="ds-body"><strong>E = ocorre ${coresTexto}</strong></p>`);
+        <p class="ds-body"><strong>E = ocorre ${colorsText}</strong></p>`);
 
       return {
         ...prev,
         subStep: 6.41,
         selectedSectors: [],
-        exercicioEventoE: novoEventoE,
-        sectorNumbers: numerosEmbaralhados
+        exerciseEventE: newEventE,
+        sectorNumbers: shuffledNums
       };
     });
   }, []);
 
   // Função para reiniciar o Desafio Dinâmico 1 (treinar novamente)
-  const restartDesafio1 = useCallback(() => {
+  const restartChallenge1 = useCallback(() => {
     // Limpar seleções e inputs
-    setExercicioNEInput(prev => ({ ...prev, value: '', error: false }));
-    setExercicioNSInput(prev => ({ ...prev, value: '', error: false }));
-    setExercicioPENumeradorInput(prev => ({ ...prev, value: '', error: false }));
-    setExercicioPEDenominadorInput(prev => ({ ...prev, value: '', error: false }));
+    setExerciseNEInput(prev => ({ ...prev, value: '', error: false }));
+    setExerciseNSInput(prev => ({ ...prev, value: '', error: false }));
+    setExercisePENumeratorInput(prev => ({ ...prev, value: '', error: false }));
+    setExercisePEDenominatorInput(prev => ({ ...prev, value: '', error: false }));
     setShowInfoBox(false);
 
     // Gerar novo desafio com conectivo variável
@@ -10174,166 +9828,166 @@ export const useRouletteHooks = () => {
       // Definir p tal que n ≤ p ≤ 12 (para geração de números)
       const pMin = n;
       const pMax = 12;
-      const pNumeros = pMin + Math.floor(Math.random() * (pMax - pMin + 1));
+      const pNums = pMin + Math.floor(Math.random() * (pMax - pMin + 1));
 
       // Sortear conectivo lógico (e / ou)
-      const conectivo: 'e' | 'ou' = Math.random() < 0.5 ? 'e' : 'ou';
+      const connective: 'e' | 'ou' = Math.random() < 0.5 ? 'e' : 'ou';
 
       // Função para verificar se existe caso favorável baseado no conectivo
-      const verificarEventoValido = (
-        numerosSetores: number[],
-        propriedadeY: string,
-        coresX: string[],
-        tipoX: 'inclusao' | 'exclusao',
-        conect: 'e' | 'ou',
-        valorP: number
+      const verifyEventValid = (
+        sectorNums: number[],
+        propertyY: string,
+        colorsX: string[],
+        typeX: 'inclusao' | 'exclusao',
+        connective: 'e' | 'ou',
+        valueP: number
       ): boolean => {
-        let temCasoFavoravel = false;
+        let foundFavorable = false;
         prev.sectors.forEach((sector, index) => {
           // Para tipo 'exclusao', cores em X são as que NÃO estão na lista
-          const corSatisfaz = tipoX === 'inclusao'
-            ? coresX.includes(sector.colorName)
-            : !coresX.includes(sector.colorName);
-          const numeroSatisfaz = verificaPropriedade(numerosSetores[index], propriedadeY, valorP);
+          const colorSatisfies = typeX === 'inclusao'
+            ? colorsX.includes(sector.colorName)
+            : !colorsX.includes(sector.colorName);
+          const numberSatisfies = checkProperty(sectorNums[index], propertyY, valueP);
 
-          if (conect === 'ou') {
-            if (corSatisfaz || numeroSatisfaz) {
-              temCasoFavoravel = true;
+          if (connective === 'ou') {
+            if (colorSatisfies || numberSatisfies) {
+              foundFavorable = true;
             }
           } else {
-            if (corSatisfaz && numeroSatisfaz) {
-              temCasoFavoravel = true;
+            if (colorSatisfies && numberSatisfies) {
+              foundFavorable = true;
             }
           }
         });
-        return temCasoFavoravel;
+        return foundFavorable;
       };
 
       // Função para gerar o desafio garantindo evento não-vazio
-      const gerarDesafioValido = () => {
-        let tentativas = 0;
-        const maxTentativas = 200;
+      const generateValidChallenge = () => {
+        let attempts = 0;
+        const maxAttempts = 200;
 
-        while (tentativas < maxTentativas) {
+        while (attempts < maxAttempts) {
           // Gerar números distintos para os setores
-          const numerosSetores = gerarNumerosSetores(n, pNumeros);
+          const sectorNums = generateSectorNumbers(n, pNums);
 
           // Sortear propriedade Y
-          let propriedadeY = PROPRIEDADES_NUMERICAS[Math.floor(Math.random() * PROPRIEDADES_NUMERICAS.length)];
+          let propertyY = NUMERIC_PROPERTIES[Math.floor(Math.random() * NUMERIC_PROPERTIES.length)];
 
           // Se for "maior que p" ou "menor que p", sortear valor de p (2 a 11)
-          let valorP = 0;
-          if (propriedadeY === 'maior que p' || propriedadeY === 'menor que p') {
+          let valueP = 0;
+          if (propertyY === 'maior que p' || propertyY === 'menor que p') {
             // p ∈ {2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
-            valorP = 2 + Math.floor(Math.random() * 10);
+            valueP = 2 + Math.floor(Math.random() * 10);
 
             // Verificar se existe pelo menos um caso favorável para essa propriedade
-            if (!existeCasoFavoravel(numerosSetores, propriedadeY, valorP)) {
-              tentativas++;
+            if (!hasFavorableCase(sectorNums, propertyY, valueP)) {
+              attempts++;
               continue; // Tentar novamente
             }
 
             // Atualizar texto da propriedade com o valor de p
-            propriedadeY = propriedadeY === 'maior que p' ? `maior que ${valorP}` : `menor que ${valorP}`;
+            propertyY = propertyY === 'maior que p' ? `maior que ${valueP}` : `menor que ${valueP}`;
           } else {
             // Verificar se existe pelo menos um caso favorável para Y
-            if (!existeCasoFavoravel(numerosSetores, propriedadeY)) {
-              tentativas++;
+            if (!hasFavorableCase(sectorNums, propertyY)) {
+              attempts++;
               continue;
             }
           }
 
           // Construção dinâmica de X (evento de cores)
-          const coresDisponiveis = prev.sectors.map(s => s.colorName);
+          const availableColors = prev.sectors.map(s => s.colorName);
           const maxK = Math.min(4, n);
           const k = 1 + Math.floor(Math.random() * maxK);
 
           // Sortear k cores distintas
-          const coresEmbaralhadas = [...coresDisponiveis].sort(() => Math.random() - 0.5);
-          const coresSorteadas = coresEmbaralhadas.slice(0, k);
+          const shuffledColors = [...availableColors].sort(() => Math.random() - 0.5);
+          const drawnColors = shuffledColors.slice(0, k);
 
           // Sortear forma textual de X
           // IMPORTANTE: Quando conectivo é "E", usar apenas formas sem "ou" no texto
-          let coresEfetivas: string[];
-          let tipoX: 'inclusao' | 'exclusao';
-          let eventoXTexto: string;
+          let effectiveColors: string[];
+          let typeX: 'inclusao' | 'exclusao';
+          let eventXText: string;
 
-          if (conectivo === 'e') {
+          if (connective === 'e') {
             // Nova geração via generateIntersectionChallenge — será tratada fora do loop
             // Usar fallback simples aqui (será substituído abaixo)
-            coresEfetivas = [coresSorteadas[0]];
-            tipoX = 'inclusao';
-            eventoXTexto = `a cor ${coresSorteadas[0]}`;
+            effectiveColors = [drawnColors[0]];
+            typeX = 'inclusao';
+            eventXText = `a cor ${drawnColors[0]}`;
           } else {
             // Para conectivo "OU": pode usar qualquer forma (incluindo múltiplas cores)
-            const totalFormas = k + 1; // k formas de inclusão + 1 de exclusão
-            const formaIndex = Math.floor(Math.random() * totalFormas);
+            const totalForms = k + 1; // k formas de inclusão + 1 de exclusão
+            const formIndex = Math.floor(Math.random() * totalForms);
 
-            if (formaIndex < k) {
+            if (formIndex < k) {
               // Formas de inclusão (a cor X, a cor X ou Y, etc.)
-              coresEfetivas = coresSorteadas.slice(0, formaIndex + 1);
-              tipoX = 'inclusao';
-              const formasTextuais = [
-                (cores: string[]) => `a cor ${cores[0]}`,
-                (cores: string[]) => `a cor ${cores[0]} ou a cor ${cores[1]}`,
-                (cores: string[]) => `a cor ${cores[0]} ou a cor ${cores[1]} ou a cor ${cores[2]}`,
-                (cores: string[]) => `a cor ${cores[0]} ou a cor ${cores[1]} ou a cor ${cores[2]} ou a cor ${cores[3]}`
+              effectiveColors = drawnColors.slice(0, formIndex + 1);
+              typeX = 'inclusao';
+              const textualForms = [
+                (colors: string[]) => `a cor ${colors[0]}`,
+                (colors: string[]) => `a cor ${colors[0]} ou a cor ${colors[1]}`,
+                (colors: string[]) => `a cor ${colors[0]} ou a cor ${colors[1]} ou a cor ${colors[2]}`,
+                (colors: string[]) => `a cor ${colors[0]} ou a cor ${colors[1]} ou a cor ${colors[2]} ou a cor ${colors[3]}`
               ];
-              eventoXTexto = formasTextuais[formaIndex](coresEfetivas);
+              eventXText = textualForms[formIndex](effectiveColors);
             } else {
               // Forma de exclusão: "uma cor diferente de cor1"
-              coresEfetivas = [coresSorteadas[0]]; // A cor excluída
-              tipoX = 'exclusao';
-              eventoXTexto = `uma cor diferente de ${coresSorteadas[0]}`;
+              effectiveColors = [drawnColors[0]]; // A cor excluída
+              typeX = 'exclusao';
+              eventXText = `uma cor diferente de ${drawnColors[0]}`;
             }
           }
 
           // Verificar se o evento é válido (não-vazio) para o conectivo escolhido
-          if (verificarEventoValido(numerosSetores, propriedadeY, coresEfetivas, tipoX, conectivo, valorP)) {
-            return { numerosSetores, propriedadeY, coresEfetivas, tipoX, eventoXTexto, valorP };
+          if (verifyEventValid(sectorNums, propertyY, effectiveColors, typeX, connective, valueP)) {
+            return { sectorNums, propertyY, effectiveColors, typeX, eventXText, valueP };
           }
 
-          tentativas++;
+          attempts++;
         }
 
         // Fallback: gerar evento simples que sempre funciona
-        const numerosSetores = gerarNumerosSetores(n, pNumeros);
-        const propriedadeY = 'par';
-        if (!existeCasoFavoravel(numerosSetores, propriedadeY)) {
-          numerosSetores[0] = 2;
+        const sectorNums = generateSectorNumbers(n, pNums);
+        const propertyY = 'par';
+        if (!hasFavorableCase(sectorNums, propertyY)) {
+          sectorNums[0] = 2;
         }
-        const coresEfetivas = [prev.sectors[0].colorName];
-        const tipoX: 'inclusao' | 'exclusao' = 'inclusao';
-        const eventoXTexto = `a cor ${prev.sectors[0].colorName}`;
-        return { numerosSetores, propriedadeY, coresEfetivas, tipoX, eventoXTexto, valorP: 0 };
+        const effectiveColors = [prev.sectors[0].colorName];
+        const typeX: 'inclusao' | 'exclusao' = 'inclusao';
+        const eventXText = `a cor ${prev.sectors[0].colorName}`;
+        return { sectorNums, propertyY, effectiveColors, typeX, eventXText, valueP: 0 };
       };
 
-      const { numerosSetores, propriedadeY, coresEfetivas, tipoX, eventoXTexto, valorP } = gerarDesafioValido();
+      const { sectorNums, propertyY, effectiveColors, typeX, eventXText, valueP } = generateValidChallenge();
 
       // --- Interseção: substituir por gerador controlado ---
-      if (conectivo === 'e') {
+      if (connective === 'e') {
         const interResult = generateIntersectionChallenge(prev.sectors);
         if (interResult) {
-          const tituloDesafio = 'Desafio — Interseção de Eventos';
-          setInstructions(`<p class="ds-body"><strong>${tituloDesafio}</strong></p>
+          const challengeTitle = 'Desafio — Interseção de Eventos';
+          setInstructions(`<p class="ds-body"><strong>${challengeTitle}</strong></p>
             <p class="ds-body">Calcule a probabilidade de, ao girar o disco uma única vez, obter um número <strong>${interResult.description}</strong>.</p>
             <p class="ds-body">Clique nos setores que são casos favoráveis ao evento.</p>`);
 
           return {
             ...prev,
             subStep: 6.6,
-            desafio1P: pNumeros,
-            desafio1SectorNumbers: interResult.values,
-            desafio1PropriedadeY: interResult.description,
-            desafio1ValorP: 0,
-            desafio1EventoXCores: [],
-            desafio1EventoXTexto: '',
-            desafio1EventoXTipo: 'inclusao' as const,
-            desafio1Conectivo: conectivo,
-            desafio1InterProblemType: interResult.problemType,
-            desafio1InterM: interResult.m,
-            desafio1InterP: interResult.p,
-            desafio1InterK: interResult.k,
+            challenge1P: pNums,
+            challenge1SectorNumbers: interResult.values,
+            challenge1PropertyY: interResult.description,
+            challenge1ValueP: 0,
+            challenge1EventXColors: [],
+            challenge1EventXText: '',
+            challenge1EventXType: 'inclusao' as const,
+            challenge1Connective: connective,
+            challenge1InterProblemType: interResult.problemType,
+            challenge1InterM: interResult.m,
+            challenge1InterP: interResult.p,
+            challenge1InterK: interResult.k,
             selectedSectors: []
           };
         }
@@ -10341,33 +9995,33 @@ export const useRouletteHooks = () => {
       }
 
       // --- União ou fallback da interseção: fluxo original ---
-      const tituloDesafio = conectivo === 'ou' ? 'Desafio — União de Eventos' : 'Desafio — Interseção de Eventos';
+      const challengeTitle = connective === 'ou' ? 'Desafio — União de Eventos' : 'Desafio — Interseção de Eventos';
 
       // Atualizar instruções
-      setInstructions(`<p class="ds-body"><strong>${tituloDesafio}</strong></p>
-        <p class="ds-body">Calcule a probabilidade de, ao girar o disco uma única vez, ocorrer <strong>${eventoXTexto}</strong> ${conectivo.toUpperCase()} ocorrer um número <strong>${propriedadeY}</strong>.</p>
+      setInstructions(`<p class="ds-body"><strong>${challengeTitle}</strong></p>
+        <p class="ds-body">Calcule a probabilidade de, ao girar o disco uma única vez, ocorrer <strong>${eventXText}</strong> ${connective.toUpperCase()} ocorrer um número <strong>${propertyY}</strong>.</p>
         <p class="ds-body">Clique nos setores que são casos favoráveis ao evento.</p>`);
 
       return {
         ...prev,
         subStep: 6.6,
-        desafio1P: pNumeros,
-        desafio1SectorNumbers: numerosSetores,
-        desafio1PropriedadeY: propriedadeY,
-        desafio1ValorP: valorP,
-        desafio1EventoXCores: coresEfetivas,
-        desafio1EventoXTexto: eventoXTexto,
-        desafio1EventoXTipo: tipoX,
-        desafio1Conectivo: conectivo,
-        desafio1InterProblemType: null,
-        desafio1InterM: null,
-        desafio1InterP: null,
-        desafio1InterK: null,
+        challenge1P: pNums,
+        challenge1SectorNumbers: sectorNums,
+        challenge1PropertyY: propertyY,
+        challenge1ValueP: valueP,
+        challenge1EventXColors: effectiveColors,
+        challenge1EventXText: eventXText,
+        challenge1EventXType: typeX,
+        challenge1Connective: connective,
+        challenge1InterProblemType: null,
+        challenge1InterM: null,
+        challenge1InterP: null,
+        challenge1InterK: null,
         selectedSectors: []
       };
     });
   }, []);
-  restartDesafio1Ref.current = restartDesafio1;
+  restartChallenge1Ref.current = restartChallenge1;
 
   // ========== HANDLERS EVENTOS COMPLEMENTARES ==========
 
@@ -10396,7 +10050,7 @@ export const useRouletteHooks = () => {
     const { sectors } = gameState;
     const n = sectors.length;
     const pNum = n + Math.floor(Math.random() * (12 - n + 1));
-    const nums = gerarNumerosSetores(n, pNum);
+    const nums = generateSectorNumbers(n, pNum);
 
     const ev = generateComplementaryEvent(sectors, nums, []);
     if (!ev) return;
@@ -10406,10 +10060,10 @@ export const useRouletteHooks = () => {
     setGameState(prev => ({
       ...prev,
       subStep: 6.70,
-      desafio1SectorNumbers: nums,
+      challenge1SectorNumbers: nums,
       compEventA: {
-        textoA: ev.textoA,
-        textoAbar: ev.textoAbar,
+        textA: ev.textA,
+        textAbar: ev.textAbar,
         indicesA: ev.indicesA,
         indicesAbar: ev.indicesAbar,
         needsNumbers: ev.needsNumbers,
@@ -10429,7 +10083,7 @@ export const useRouletteHooks = () => {
     setInfoBoxContent({
       type: 'concept',
       title: 'Eventos Complementares',
-      message: `Dado um evento <strong>A</strong>, o <strong>evento complementar</strong> Ā (lê-se "A barra") contém todos os resultados do espaço amostral que <strong>não</strong> pertencem a A.<br/><br/>Exemplo: seja <strong>A = "${ev.textoA}"</strong>.<br/>Então <strong>Ā = "${ev.textoAbar}"</strong>.<br/><br/>No disco, os setores de <strong style="color:#FFD700">A</strong> estão em dourado e os de <strong style="color:#00E5FF">Ā</strong> estão em ciano.`
+      message: `Dado um evento <strong>A</strong>, o <strong>evento complementar</strong> Ā (lê-se "A barra") contém todos os resultados do espaço amostral que <strong>não</strong> pertencem a A.<br/><br/>Exemplo: seja <strong>A = "${ev.textA}"</strong>.<br/>Então <strong>Ā = "${ev.textAbar}"</strong>.<br/><br/>No disco, os setores de <strong style="color:#FFD700">A</strong> estão em dourado e os de <strong style="color:#00E5FF">Ā</strong> estão em ciano.`
     });
 
     setInstructions(`<p class="ds-body"><strong>Eventos Complementares</strong></p>
@@ -10438,14 +10092,13 @@ export const useRouletteHooks = () => {
 
   // 2. Iniciar exercício interativo de identificação (selecting_A)
   const handleStartCompExercise = useCallback(() => {
-    const { sectors, desafio1SectorNumbers } = gameState;
-    const n = sectors.length;
+    const { sectors, challenge1SectorNumbers } = gameState;
 
-    let ev = generateComplementaryEvent(sectors, desafio1SectorNumbers, compUsedBitmasks);
+    let ev = generateComplementaryEvent(sectors, challenge1SectorNumbers, compUsedBitmasks);
     // Se esgotou bitmasks, limpar e tentar novamente
     if (!ev) {
       setCompUsedBitmasks([]);
-      ev = generateComplementaryEvent(sectors, desafio1SectorNumbers, []);
+      ev = generateComplementaryEvent(sectors, challenge1SectorNumbers, []);
     }
     if (!ev) return;
 
@@ -10455,8 +10108,8 @@ export const useRouletteHooks = () => {
     setGameState(prev => ({
       ...prev,
       compEventA: {
-        textoA: ev.textoA,
-        textoAbar: ev.textoAbar,
+        textA: ev.textA,
+        textAbar: ev.textAbar,
         indicesA: ev.indicesA,
         indicesAbar: ev.indicesAbar,
         needsNumbers: ev.needsNumbers,
@@ -10473,7 +10126,7 @@ export const useRouletteHooks = () => {
     setInfoBoxContent({
       type: 'info',
       title: 'Identifique o evento A',
-      message: `Evento A = "<strong>${ev.textoA}</strong>".<br/>Clique nos setores do disco que pertencem ao evento A e depois confirme.`
+      message: `Evento A = "<strong>${ev.textA}</strong>".<br/>Clique nos setores do disco que pertencem ao evento A e depois confirme.`
     });
     setInstructions(`<p class="ds-body"><strong>Eventos Complementares — Identificação</strong></p>
       <p class="ds-body">Selecione os setores do evento A no disco.</p>`);
@@ -10507,7 +10160,7 @@ export const useRouletteHooks = () => {
       setInfoBoxContent({
         type: 'success',
         title: 'Evento A correto!',
-        message: `Agora identifique o evento complementar <strong>Ā = "${ev.textoAbar}"</strong>.<br/>Clique nos setores que pertencem a Ā e depois confirme.`
+        message: `Agora identifique o evento complementar <strong>Ā = "${ev.textAbar}"</strong>.<br/>Clique nos setores que pertencem a Ā e depois confirme.`
       });
     } else {
       setCompPhase('wrong_A');
@@ -10515,7 +10168,7 @@ export const useRouletteHooks = () => {
       setInfoBoxContent({
         type: 'error',
         title: 'Incorreto',
-        message: `Revise quais setores correspondem ao evento A = "<strong>${ev.textoA}</strong>". Tente novamente.`
+        message: `Revise quais setores correspondem ao evento A = "<strong>${ev.textA}</strong>". Tente novamente.`
       });
     }
   }, [gameState.compEventA, compUserSelectA]);
@@ -10569,7 +10222,7 @@ export const useRouletteHooks = () => {
       setInfoBoxContent({
         type: 'info',
         title: 'Tente novamente',
-        message: `Evento A = "<strong>${ev?.textoA}</strong>".<br/>Clique nos setores que pertencem ao evento A.`
+        message: `Evento A = "<strong>${ev?.textA}</strong>".<br/>Clique nos setores que pertencem ao evento A.`
       });
     } else if (compPhase === 'wrong_Abar') {
       setCompPhase('selecting_Abar');
@@ -10579,13 +10232,13 @@ export const useRouletteHooks = () => {
       setInfoBoxContent({
         type: 'info',
         title: 'Tente novamente',
-        message: `Evento Ā = "<strong>${ev?.textoAbar}</strong>".<br/>Clique nos setores que pertencem ao evento complementar Ā.`
+        message: `Evento Ā = "<strong>${ev?.textAbar}</strong>".<br/>Clique nos setores que pertencem ao evento complementar Ā.`
       });
     }
   }, [compPhase, gameState.compEventA]);
 
   // 7. Ver mais exemplos (após 3 obrigatórios)
-  const handleCompVerMaisExemplos = useCallback(() => {
+  const handleCompSeeMoreExamples = useCallback(() => {
     handleStartCompExercise();
   }, [handleStartCompExercise]);
 
@@ -10594,7 +10247,7 @@ export const useRouletteHooks = () => {
     const { sectors } = gameState;
     const n = sectors.length;
     const pNum = n + Math.floor(Math.random() * (12 - n + 1));
-    const nums = gerarNumerosSetores(n, pNum);
+    const nums = generateSectorNumbers(n, pNum);
 
     // Nos treinos 1 e 2, forçar P(A) ≠ P(Ā) (evitar 50/50)
     const avoidHalf = !guided && compCalcExampleNum < 2;
@@ -10612,10 +10265,10 @@ export const useRouletteHooks = () => {
     setGameState(prev => ({
       ...prev,
       subStep: guided ? 6.85 : 6.90,
-      desafio1SectorNumbers: nums,
+      challenge1SectorNumbers: nums,
       compEventA: {
-        textoA: ev.textoA,
-        textoAbar: ev.textoAbar,
+        textA: ev.textA,
+        textAbar: ev.textAbar,
         indicesA: ev.indicesA,
         indicesAbar: ev.indicesAbar,
         needsNumbers: ev.needsNumbers,
@@ -10645,18 +10298,17 @@ export const useRouletteHooks = () => {
 
     // Tela de enunciado antes do cálculo
     setShowInfoBox(true);
-    const tituloEnunciado = guided ? 'Cálculo Guiado — P(Ā)' : `Treino ${compCalcExampleNum + 1} de 3`;
     setInfoBoxContent({
       type: 'concept',
       title: 'Probabilidade de Eventos Complementares',
-      message: `Ao girar o disco uma única vez, determine a probabilidade de <strong>não</strong> ocorrer o evento A = "<strong>${ev.textoA}</strong>" utilizando o valor da probabilidade de A.`
+      message: `Ao girar o disco uma única vez, determine a probabilidade de <strong>não</strong> ocorrer o evento A = "<strong>${ev.textA}</strong>" utilizando o valor da probabilidade de A.`
     });
     setInstructions(`<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
       <p class="ds-body">Leia o enunciado do problema ao lado.</p>`);
   }, [gameState, compUsedBitmasks, compCalcExampleNum]);
 
   // 9. Transição para Previsão (6.5)
-  const transitionToPrevisao = useCallback(() => {
+  const transitionToPrediction = useCallback(() => {
     const { sectors, targetSectorCount } = gameState;
     const randomColor = sectors[Math.floor(Math.random() * sectors.length)].colorName;
     setGameState(prev => ({
@@ -10679,331 +10331,11 @@ export const useRouletteHooks = () => {
   }, [gameState]);
 
   initCompCalcExampleRef.current = initCompCalcExample;
-  transitionToPrevisaoRef.current = transitionToPrevisao;
+  transitionToPredictionRef.current = transitionToPrediction;
   initComplementaryPhaseRef.current = initComplementaryPhase;
   handleStartCompExerciseRef.current = handleStartCompExercise;
 
   // ========== FIM HANDLERS EVENTOS COMPLEMENTARES ==========
-
-  // Função para entrar em uma fase específica (usada no reinício)
-  const goToPhase = useCallback((phaseIndex: number) => {
-    // Limpeza comum
-    setShowInfoBox(false);
-    setCurrentQuestion(null);
-    setSelectedOption('');
-    setDisabledCheckButton(false);
-    setDisabledSpinButton(true);
-    setShowAutoSpinButtons(false);
-    setDisabledClearButton(true);
-    setDisjointExercisePhase('none');
-    setDisjointUserSelectA([]);
-    setDisjointUserSelectB([]);
-    setDisjointNeedsNumbers(false);
-    setExemplosDisjuntosVistos(0);
-    setUnionPhase('definition1');
-    setUnionActivityNum(1);
-    setUnionCurrentEventIdx(0);
-    setUnionEvents([]);
-    setUnionSelectedSectors([]);
-    setUnionNeedsNumbers(false);
-    resetCompState();
-
-    const { sectors, targetSectorCount, correctAnswer } = gameState;
-
-    switch (phaseIndex) {
-      case 0: // Introdução + Configuração → reinício completo
-        startGame();
-        break;
-
-      case 1: { // Experimento Aleatório (subStep 1)
-        setGameState(prev => ({ ...prev, subStep: 1 }));
-        setExperimentacaoState({
-          corApostada: null,
-          sorteios: [],
-          tentativaAtual: 1,
-          aguardandoConfirmacao: false,
-          corSorteadaInterna: null,
-          corRevelada: false
-        });
-        setCaracteristicasSelecionadas([]);
-        setupExperimentQuestion(correctAnswer);
-        break;
-      }
-
-      case 2: { // Espaço Amostral (subStep 2)
-        setSampleSpaceInput({ value: '', disabled: false, error: false });
-        setSampleSpaceCountInput({ value: '', disabled: false, error: false });
-        setGameState(prev => ({ ...prev, subStep: 2 }));
-        setInstructions(`<p class="ds-body"><strong>Identificação do Espaço Amostral</strong></p>
-          <p class="ds-body">Qual é o espaço amostral desse experimento aleatório?</p>
-          <p class="ds-small">Dica: As cores do disco são: {cor1, cor2,...}</p>`);
-        break;
-      }
-
-      case 3: { // Eventos (subStep 3)
-        setSampleSpaceCountInput({ value: '', disabled: false, error: false });
-        setGameState(prev => ({ ...prev, subStep: 3 }));
-        setInstructions(`<p class="ds-body"><strong>Quantidade de Elementos</strong></p>
-          <p class="ds-body">Quantos elementos possui o espaço amostral desse experimento aleatório?</p>`);
-        break;
-      }
-
-      case 4: { // Equiprobabilidade (subStep 4)
-        setGameState(prev => ({ ...prev, subStep: 4 }));
-        setCurrentQuestion({
-          question: 'Há alguma razão para você acreditar que uma cor tem maior chance de ocorrer do que as outras?',
-          correctAnswer: 'nao'
-        });
-        setInstructions(`<p class="ds-body"><strong>Reflexão sobre Equiprobabilidade</strong></p>
-          <p class="ds-body">Responda a pergunta abaixo.</p>`);
-        break;
-      }
-
-      case 5: { // Classificação + Conceitos (subStep 5)
-        setGameState(prev => ({ ...prev, subStep: 5 }));
-        setCurrentQuestion({
-          question: 'O espaço amostral do problema desso disco é:',
-          options: [
-            { value: 'equiprovavel', label: 'Equiprovável', isCorrect: true },
-            { value: 'nao_equiprovavel', label: 'Não equiprovável', isCorrect: false }
-          ],
-          correctAnswer: 'equiprovavel'
-        });
-        setInstructions(`<p class="ds-body"><strong>Classificação do Espaço Amostral</strong></p>
-          <p class="ds-body">Com base nas informações, classifique o espaço amostral.</p>`);
-        break;
-      }
-
-      case 6: { // Cálculo de Probabilidade (subStep 6)
-        const colors = sectors.map(s => s.colorName);
-        const inputs: { [color: string]: TextInputInterface } = {};
-        colors.forEach(color => {
-          inputs[color] = {
-            value: '',
-            disabled: false,
-            error: false,
-            setValue: (val: string) => {
-              setProbabilityInputs(prev => ({
-                ...prev,
-                [color]: { ...prev[color], value: val }
-              }));
-            }
-          };
-        });
-        setProbabilityInputs(inputs);
-        setGameState(prev => ({ ...prev, subStep: 6 }));
-        setInstructions(`<p class="ds-body"><strong>Probabilidade de Cada Cor</strong></p>
-          <p class="ds-body">Baseando-se em elementos de simetria, atribua as probabilidades de o ponteiro parar em cada cor do disco.</p>
-          <p class="ds-body">Digite na forma de fração (ex: a/b).</p>`);
-        break;
-      }
-
-      case 7: { // Formalização - Teorema de Laplace (subStep 6.3)
-        setGameState(prev => ({ ...prev, subStep: 6.3 }));
-        setShowInfoBox(true);
-        setInfoBoxContent({
-          type: 'concept',
-          title: 'Generalização do Teorema de Laplace',
-          message: `Seja <strong>E</strong> um evento associado a um experimento aleatório.<br/><br/>Denotamos por <strong>n(E)</strong> o número de elementos do evento E, isto é, o número de casos favoráveis à ocorrência do evento.<br/><br/>Considere um espaço amostral equiprovável <strong>S</strong>, isto é, um conjunto de resultados possíveis em que todos os resultados têm a mesma probabilidade de ocorrer.<br/><br/>Denotamos por <strong>n(S)</strong> o número de resultados possíveis do experimento aleatório, ou seja, o número total de elementos do espaço amostral.<br/><br/>Nessas condições, a probabilidade de ocorrência do evento E é dada pela razão entre o número de casos favoráveis e o número total de resultados possíveis.`
-        });
-        setInstructions(`<p class="ds-body"><strong>Conceitos Fundamentais</strong></p>
-          <p class="ds-body">Leia o conteúdo do balão ao lado e clique em <strong>Li.</strong> para continuar.</p>`);
-        break;
-      }
-
-      case 8: { // Exercício dinâmico (subStep 6.41) - reusar restartExercise
-        restartExercise();
-        break;
-      }
-
-      case 9: { // Eventos Mutuamente Exclusivos (subStep 6.55)
-        const n = sectors.length;
-        const pMin = n;
-        const pMax = 12;
-        const pTemp = pMin + Math.floor(Math.random() * (pMax - pMin + 1));
-        const numerosTemp = gerarNumerosSetores(n, pTemp);
-        const exemplo = gerarExemploDisjunto(sectors, numerosTemp, null);
-
-        setGameState(prev => ({
-          ...prev,
-          subStep: 6.55,
-          desafio1SectorNumbers: numerosTemp
-        }));
-        setExemplosDisjuntosVistos(1);
-        setLastDisjointMeta(exemplo.meta);
-        setDisjointNeedsNumbers(exemplo.needsNumbers);
-
-        setShowInfoBox(true);
-        setInfoBoxContent({
-          type: 'concept',
-          title: 'Eventos Mutuamente Exclusivos',
-          message: `Dois eventos A e B são <strong>mutuamente exclusivos</strong> (ou disjuntos) quando não podem acontecer ao mesmo tempo no mesmo experimento.<br/><br/>Em outras palavras: se A acontece, B não acontece (e vice-versa). Dizemos que eles não têm resultados em comum.<br/><br/>Na notação: <strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> (a interseção é vazia).<br/><br/><hr style="margin: 8px 0;"/><strong>Exemplo no disco:</strong><br/>A = ${exemplo.textoA} → ${exemplo.conjuntoA}<br/>B = ${exemplo.textoB} → ${exemplo.conjuntoB}<br/><br/><strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong> (nenhum resultado em comum)`
-        });
-        setInstructions(`<p class="ds-body"><strong>Conceito: Eventos Mutuamente Exclusivos</strong></p>
-          <p class="ds-body">Leia a definição e observe os exemplos no card ao lado.</p>`);
-        break;
-      }
-
-      case 10: { // Probabilidade da União ME (subStep 6.56)
-        setUnionPhase('definition1');
-        setUnionActivityNum(1);
-        setUnionCurrentEventIdx(0);
-        setUnionEvents([]);
-        setUnionSelectedSectors([]);
-        setUnionProbNumInput({ value: '', error: false });
-        setUnionProbDenInput({ value: '', error: false });
-        setUnionFinalNumInput({ value: '', error: false });
-        setUnionFinalDenInput({ value: '', error: false });
-        setGameState(prev => ({ ...prev, subStep: 6.56 }));
-        setShowInfoBox(true);
-        setInfoBoxContent({
-          type: 'concept',
-          title: 'Probabilidade da União de Eventos Mutuamente Exclusivos',
-          message: `Você aprendeu que dois eventos A e B são <strong>mutuamente exclusivos</strong> quando <strong>A ∩ B = <span style="font-size: 1.4em;">∅</span></strong>.<br/><br/>A <strong>união</strong> A ∪ B representa "A <strong>ou</strong> B".<br/><br/>Para eventos mutuamente exclusivos, não é possível que ambos aconteçam ao mesmo tempo — logo, basta <strong>somar</strong> as probabilidades individuais.`
-        });
-        setInstructions(`<p class="ds-body"><strong>Probabilidade da União (Eventos ME)</strong></p>
-          <p class="ds-body">Leia o conteúdo do card ao lado e clique em <strong>Li.</strong> para continuar.</p>`);
-        break;
-      }
-
-      case 11: { // Desafio Dinâmico 1 (subStep 6.6) - reusar restartDesafio1
-        restartDesafio1();
-        break;
-      }
-
-      case 12: { // Eventos Complementares (subStep 6.70)
-        resetCompState();
-        initComplementaryPhaseRef.current();
-        break;
-      }
-
-      case 13: { // Previsão + Giros Manuais (subStep 6.5)
-        const randomColor = sectors[Math.floor(Math.random() * sectors.length)].colorName;
-        setPredictionInput(prev => ({ ...prev, value: '', error: false }));
-        setGameState(prev => ({
-          ...prev,
-          subStep: 6.5,
-          predictionColor: randomColor
-        }));
-        setCurrentQuestion({
-          question: `Se você girar o disco ${targetSectorCount} vezes, quantas vezes você acha que a cor <strong>${randomColor}</strong> vai aparecer?`,
-          correctAnswer: ''
-        });
-        setInstructions(`<p class="ds-body"><strong>Faça uma Previsão</strong></p>
-          <p class="ds-body">Responda a pergunta abaixo com sua previsão.</p>`);
-        break;
-      }
-
-      case 14: { // Frequência Relativa (subStep 8)
-        const ySpins = Math.floor(Math.random() * 8) + 8;
-        setGameState(prev => ({
-          ...prev,
-          subStep: 8,
-          ySpins: ySpins,
-          manualSpinsDone: 0,
-          frequencies: Object.fromEntries(sectors.map(s => [s.colorName, 0])),
-          totalSpins: 0,
-          pendingRegistration: false
-        }));
-        setDisabledSpinButton(false);
-        setInstructions(`<p class="ds-body"><strong>Nova Rodada de Giros</strong></p>
-          <p class="ds-body">Agora você fará <strong>${ySpins}</strong> giros e registrará as frequências.</p>
-          <p class="ds-body">Clique em <strong>Sortear</strong> para começar.</p>
-          <p class="ds-body">Giros realizados: 0/${ySpins}</p>`);
-        break;
-      }
-
-      case 15: { // Análise de Frequência Relativa (subStep 9)
-        const colors2 = sectors.map(s => s.colorName);
-        const rfInputs: { [color: string]: TextInputInterface } = {};
-        colors2.forEach(color => {
-          rfInputs[color] = {
-            value: '',
-            disabled: false,
-            error: false,
-            setValue: (val: string) => {
-              setRelativeFrequencyInputs(prev => ({
-                ...prev,
-                [color]: { ...prev[color], value: val }
-              }));
-            }
-          };
-        });
-        setRelativeFrequencyInputs(rfInputs);
-        setGameState(prev => ({ ...prev, subStep: 9 }));
-        setInstructions(`<p class="ds-body"><strong>Frequência Relativa</strong></p>
-          <p class="ds-body">Calcule a frequência relativa de cada cor (frequência absoluta / total de giros).</p>`);
-        break;
-      }
-
-      case 16: { // Giros Automáticos (subStep 10)
-        setGameState(prev => ({ ...prev, subStep: 10, currentAutoBatchIndex: 0 }));
-        setShowAutoSpinButtons(true);
-        setInstructions(`<p class="ds-body"><strong>Giros Automáticos</strong></p>
-          <p class="ds-body">Agora você realizará giros automáticos para observar a <strong>Lei dos Grandes Números</strong>.</p>
-          <p class="ds-body">Clique nos botões para executar os blocos de giros.</p>`);
-        break;
-      }
-
-      case 17: { // Convergência teórica + interpretação (subStep 12-14)
-        setGameState(prev => ({ ...prev, subStep: 12 }));
-        setInstructions(`<p class="ds-body"><strong>Perguntas Teóricas</strong></p>
-          <p class="ds-body">Responda as perguntas sobre probabilidade teórica.</p>`);
-        break;
-      }
-
-      case 18: { // Consolidação LGN (subStep 15)
-        const n = gameState.targetSectorCount;
-        const params = generateLgnParams(n, gameState.sectors);
-        setLgnN(n);
-        setLgnParams(params);
-        setLgnPhase('problem1');
-        setLgnInput({ value: '', error: false });
-        setGameState(prev => ({ ...prev, subStep: 15 }));
-        setInstructions(`<p class="ds-body"><strong>Problema 1: Disco</strong></p>
-          <p class="ds-body">Leia o enunciado e responda.</p>`);
-        break;
-      }
-
-      case 19: { // Etapa 1 Concluída (subStep 16)
-        setGameState(prev => ({ ...prev, subStep: 16, stage2Available: true }));
-        setDisabledNextButton(false);
-        setInstructions(`<p class="ds-body"><strong>Etapa 1 Concluída!</strong></p>
-          <p class="ds-body">Clique em <strong>Próxima Etapa</strong> para continuar.</p>`);
-        break;
-      }
-
-      default: {
-        startGame();
-        break;
-      }
-    }
-  }, [gameState, startGame, setupExperimentQuestion, restartExercise, restartDesafio1, resetCompState]);
-
-  const handleRestartConfirm = useCallback(() => {
-    if (restartPhase === 'confirm_stage1') {
-      playSound("/sounds/clear.mp3");
-      createAlert("Etapa 1", "Voltando para o início da Etapa 1.", "info", 3000);
-      startStage1();
-    } else if (restartPhase === 'confirm_stage2') {
-      playSound("/sounds/clear.mp3");
-      createAlert("Etapa 2", "Voltando para o início da Etapa 2.", "info", 3000);
-      startStage2();
-    } else if (restartPhase === 'confirm_stage3') {
-      playSound("/sounds/clear.mp3");
-      createAlert("Etapa 3", "Voltando para o início da Etapa 3.", "info", 3000);
-      startStage3();
-    } else if (restartPhase === 'confirm_previous') {
-      const currentPhase = getPhaseIndex(gameState.subStep);
-      const previousPhase = Math.max(0, currentPhase - 1);
-      playSound("/sounds/clear.mp3");
-      createAlert("Fase Reiniciada", "Voltando para a fase anterior.", "info", 3000);
-      goToPhase(previousPhase);
-    } else if (restartPhase === 'confirm_back') {
-      window.history.back();
-    }
-    setRestartPhase('hidden');
-  }, [restartPhase, gameState.subStep, startStage1, startStage2, startStage3, createAlert, goToPhase]);
 
   // Atualizar instruções durante giros manuais
   useEffect(() => {
@@ -11063,7 +10395,7 @@ export const useRouletteHooks = () => {
         createAlert("Correto!", `As frequências relativas ficaram próximas, mas não exatamente iguais a 1/${n} (≈${probPercent}%).`, "success", 3000);
 
         // Gerar alternativas dinâmicas para q3
-        const conjuntoA = [
+        const setA = [
           'Porque o tamanho da amostra ainda não é suficientemente grande para que a frequência relativa se aproxime do valor teórico.',
           'Porque o número de repetições do experimento ainda é pequeno para reduzir as flutuações aleatórias observadas.',
           'Porque a quantidade de ensaios não foi suficiente para que ocorra a estabilização das frequências relativas.',
@@ -11073,7 +10405,7 @@ export const useRouletteHooks = () => {
           'Porque ainda não há repetições suficientes para que a frequência relativa se estabilize em torno do valor esperado.',
           'Porque o total de giros ainda é pequeno para que as proporções observadas reflitam a tendência prevista pela Lei dos Grandes Números.'
         ];
-        const conjuntoE = [
+        const setE = [
           'Porque a frequência relativa só coincidiria com o valor teórico se o número de giros fosse múltiplo de n.',
           'Porque a frequência relativa deveria convergir exatamente ao valor teórico ao final do experimento realizado.',
           'Porque cada experimento concreto possui uma probabilidade real ligeiramente diferente da probabilidade teórica.',
@@ -11088,17 +10420,17 @@ export const useRouletteHooks = () => {
         const replaceN = (s: string) => s.replace(/1\/n/g, `1/${n}`).replace(/(?<![a-zA-ZÀ-ÿ])n(?![a-zA-ZÀ-ÿ])/g, `${n}`);
 
         // 1 alternativa correta do conjunto A
-        const idxA = Math.floor(Math.random() * conjuntoA.length);
-        const correctText = replaceN(conjuntoA[idxA]);
+        const idxA = Math.floor(Math.random() * setA.length);
+        const correctText = replaceN(setA[idxA]);
 
         // 4 distratores do conjunto E (sem repetição)
-        const shuffledE = [...conjuntoE].sort(() => Math.random() - 0.5);
-        const distratores = shuffledE.slice(0, 4).map(t => replaceN(t));
+        const shuffledE = [...setE].sort(() => Math.random() - 0.5);
+        const distractors = shuffledE.slice(0, 4).map(t => replaceN(t));
 
         // Montar e embaralhar 5 alternativas
         const alts = [
           { id: 'correct', text: correctText },
-          ...distratores.map((t, i) => ({ id: `e${i}`, text: t }))
+          ...distractors.map((t, i) => ({ id: `e${i}`, text: t }))
         ].sort(() => Math.random() - 0.5);
 
         setInterpretationQ3({ alternatives: alts, correctId: 'correct' });
@@ -11123,7 +10455,7 @@ export const useRouletteHooks = () => {
       }
       return;
     }
-  }, [gameState.targetSectorCount, interpretationPhase, interpretationSelected, interpretationQ3, playSound, createAlert]);
+  }, [gameState.targetSectorCount, interpretationPhase, interpretationSelected, interpretationQ3, createAlert]);
 
   // Gerador de parâmetros para os problemas LGN
   const generateLgnParams = useCallback((n: number, sectors: { colorName: string }[]) => {
@@ -11138,7 +10470,7 @@ export const useRouletteHooks = () => {
   }, []);
 
   // Handler para "Quero saber!" na nota obrigatória
-  const handleLgnQueroSaber = useCallback(() => {
+  const handleLgnWantToKnow = useCallback(() => {
     setLgnPhase('explanation');
     setInstructions(`<p class="ds-body"><strong>Lei dos Grandes Números</strong></p>
       <p class="ds-body">Leia a explicação abaixo.</p>`);
@@ -11176,7 +10508,7 @@ export const useRouletteHooks = () => {
     setGameState(prev => ({ ...prev, subStep: 15.5 })); // subStep intermediário para o InfoBox
     setInstructions(`<p class="ds-body"><strong>Lei dos Grandes Números</strong></p>
       <p class="ds-body">Leia a formalização do conceito.</p>`);
-  }, [lgnVerbalInput.value, playSound, createAlert]);
+  }, [lgnVerbalInput.value, createAlert]);
 
   // Melhoria 10 — Handlers do dado de 6 faces (descontextualização)
   const handleDiceRoll = useCallback(() => {
@@ -11192,7 +10524,7 @@ export const useRouletteHooks = () => {
       setInstructions(`<p class="ds-body"><strong>Generalização</strong></p>
         <p class="ds-body">O dado caiu na face <strong>${finalFace}</strong>. Agora responda a pergunta.</p>`);
     }, 1300);
-  }, [diceState.rolling, playSound]);
+  }, [diceState.rolling]);
 
   const handleDiceAnswer = useCallback(() => {
     const val = diceInput.value.trim();
@@ -11214,7 +10546,7 @@ export const useRouletteHooks = () => {
       setDiceInput(prev => ({ ...prev, error: true }));
       createAlert("Tente novamente", "Pense: o dado tem 6 faces iguais. Qual a probabilidade de cada face? Use a notação de fração.", "error", 5000);
     }
-  }, [diceInput.value, playSound, createAlert]);
+  }, [diceInput.value, createAlert]);
 
   // Handler para avançar do feedback para fase LGN (subStep 15)
   const handleInterpretationContinue = useCallback(() => {
@@ -11251,11 +10583,11 @@ export const useRouletteHooks = () => {
     theoreticalQuestion1Input,
     theoreticalQuestion2Input,
     predictionInput,
-    casosFavoraveisInput,
-    exercicioNEInput,
-    exercicioNSInput,
-    exercicioPENumeradorInput,
-    exercicioPEDenominadorInput,
+    favorableCasesInput,
+    exerciseNEInput,
+    exerciseNSInput,
+    exercisePENumeratorInput,
+    exercisePEDenominatorInput,
 
     // Data
     getFrequencyData,
@@ -11265,8 +10597,6 @@ export const useRouletteHooks = () => {
     spinRoulette,
     handleSpinEnd,
     checkAnswer,
-    resetGame,
-    clearFrequencies,
     nextStep,
     startAutoSpins,
     registerColor,
@@ -11275,7 +10605,7 @@ export const useRouletteHooks = () => {
     startStage3,
     toggleSectorSelection,
     restartExercise,
-    restartDesafio1,
+    restartChallenge1,
 
     // Info box
     showInfoBox,
@@ -11284,14 +10614,14 @@ export const useRouletteHooks = () => {
     handleInfoBoxConfirm,
 
     // Exemplos vistos (para controle de botões)
-    exemplosVistosDeterministico,
-    exemplosVistosAleatorio,
-    handleVerMaisExemplosDeterministico,
-    handleVerMaisExemplosAleatorio,
+    deterministicExamplesViewed,
+    randomExamplesViewed,
+    handleSeeMoreDeterministicExamples,
+    handleSeeMoreRandomExamples,
 
     // Exemplos de eventos disjuntos
-    exemplosDisjuntosVistos,
-    handleVerMaisExemplosDisjuntos,
+    disjointExamplesViewed,
+    handleSeeMoreDisjointExamples,
     disjointNeedsNumbers,
 
     // Exercício interativo de eventos disjuntos
@@ -11327,24 +10657,18 @@ export const useRouletteHooks = () => {
     handleUnionConfirmFinal,
     handleUnionNextActivity,
 
-    // Fluxo de reinício
-    restartPhase,
-    handleRestartChoice,
-    handleRestartConfirm,
-    handleRestartCancel,
-
     // Características do experimento aleatório (múltipla seleção)
-    caracteristicasSelecionadas,
-    toggleCaracteristica,
-    caracteristicasExperimentoAleatorio: CARACTERISTICAS_EXPERIMENTO_ALEATORIO,
+    selectedCharacteristics,
+    toggleCharacteristic,
+    randomExperimentCharacteristics: RANDOM_EXPERIMENT_CHARACTERISTICS,
 
     // Fase de experimentação (3 tentativas)
-    experimentacaoState,
-    handleApostaExperimentacao,
-    handleConfirmacaoResultado,
-    spinRouletteExperimentacao,
-    handleApostaS2,
-    handleConfirmacaoS2,
+    experimentationState,
+    handleExperimentationBet,
+    handleResultConfirmation,
+    spinRouletteExperimentation,
+    handleS2Bet,
+    handleS2Confirmation,
     spinRouletteS2,
     handleColorPaletteSelect,
     progressiveReadingStep,
@@ -11400,7 +10724,6 @@ export const useRouletteHooks = () => {
     instructions,
     disabledSpinButton,
     disabledCheckButton,
-    disabledClearButton,
     disabledNextButton,
     showAutoSpinButtons,
 
@@ -11427,7 +10750,7 @@ export const useRouletteHooks = () => {
     handleCompConfirmAbar,
     handleCompRetry,
     handleStartCompExercise,
-    handleCompVerMaisExemplos,
+    handleCompSeeMoreExamples,
 
     // Frequência Absoluta (subStep 8.5)
     freqAbsQuestion,
@@ -11455,7 +10778,7 @@ export const useRouletteHooks = () => {
     lgnParams,
     lgnInput, setLgnInput,
     lgnVerbalInput, setLgnVerbalInput,
-    handleLgnQueroSaber,
+    handleLgnWantToKnow,
     handleLgnContinue,
     handleLgnVerbalConfirm,
     diceState, diceInput, setDiceInput,
@@ -11477,7 +10800,7 @@ export const useRouletteHooks = () => {
     fracTraining,
     fracThetaInputs, setFracThetaInputs,
     handleFracTrainingNext,
-    handleFracTrainingMudarFase,
+    handleFracTrainingChangePhase,
 
     // Simulação de Convergência (subStep 8.7 da Etapa 2)
     convergenceSim,
@@ -11493,12 +10816,9 @@ export const useRouletteHooks = () => {
     handleS3Finalize,
     handleS3GoToReflection,
     spinRouletteS3,
-    handleS3FalaciaContinu,
+    handleS3FallacyContinue,
     handleS3NewBetConfirm,
-    handleS3FalaciaFinish,
-
-    // Dev
-    goToPhase,
+    handleS3FallacyFinish,
 
     // Melhoria 12 — Log de desempenho
     downloadLog,

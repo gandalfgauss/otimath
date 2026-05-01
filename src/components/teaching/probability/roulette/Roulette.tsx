@@ -109,6 +109,9 @@ export function Roulette({
         }
       };
     }
+    // currentRotation é lido apenas como ângulo inicial da animação — incluí-lo
+    // dispararia o efeito a cada frame e quebraria o giro.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSpinning, targetAngle, spinDuration, onSpinEnd, useTransition]);
 
   const radius = size / 2;
@@ -237,7 +240,7 @@ export function Roulette({
                     onSectorClick?.(index);
                   }
                 }}
-                style={{ cursor: selectableMode ? 'pointer' : 'default', outline: 'none' }}
+                className={`outline-none ${selectableMode ? 'cursor-pointer' : 'cursor-default'}`}
                 role={selectableMode ? 'button' : undefined}
                 tabIndex={selectableMode ? 0 : undefined}
                 aria-label={selectableMode ? `Setor ${sector.colorName}${sector.number !== undefined ? ` (${sector.number})` : ''} - ${sector.angle}°${isSelected ? ' (selecionado)' : ''}` : undefined}

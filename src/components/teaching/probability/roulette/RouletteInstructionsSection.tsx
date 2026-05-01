@@ -51,9 +51,9 @@ export function RouletteInstructionsSection() {
                 </p>
 
                 <List removeMarker={true}>
-                  <li><RefreshCw className="inline" size={16} /> - <strong>Reiniciar</strong> - Reinicia a atividade atual;</li>
-                  <li><Play className="inline" size={16} /> - <strong>Sortear/Girar</strong> - Gira o disco uma vez ou executa giros automáticos;</li>
-                  <li><X className="inline" size={16} /> - <strong>Limpar</strong> - Limpa os dados da tabela de frequências.</li>
+                  <li><RefreshCw className="inline" size={16} aria-hidden="true" /> - <strong>Reiniciar</strong> - Reinicia a atividade atual;</li>
+                  <li><Play className="inline" size={16} aria-hidden="true" /> - <strong>Sortear/Girar</strong> - Gira o disco uma vez ou executa giros automáticos;</li>
+                  <li><X className="inline" size={16} aria-hidden="true" /> - <strong>Limpar</strong> - Limpa os dados da tabela de frequências.</li>
                 </List>
 
                 <br />
@@ -91,6 +91,7 @@ export function RouletteInstructionsSection() {
             height="600"
             viewBox="0 0 600 600"
             xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
           >
             <g fill="none" stroke="#1a4a9e" strokeWidth="10" opacity={0.04}>
               <circle cx="300" cy="300" r="170" />

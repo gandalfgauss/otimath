@@ -67,12 +67,13 @@ export function RouletteInfoBox({
   children
 }: RouletteInfoBoxProps) {
   const styles = typeStyles[type];
+  const isUrgent = type === 'error' || type === 'warning';
 
   return (
     <div
       className={`${styles.bg} p-macro rounded-md border-l-4 ${styles.border} flex flex-col gap-y-micro`}
-      role="status"
-      aria-live="polite"
+      role={isUrgent ? 'alert' : 'status'}
+      aria-live={isUrgent ? 'assertive' : 'polite'}
       aria-label={styles.roleLabel}
     >
       <div className="flex items-start gap-x-micro">

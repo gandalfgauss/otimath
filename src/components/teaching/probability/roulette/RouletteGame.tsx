@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react";
+import { useMemo } from "react";
 import { Button } from "@/components/global/Button";
 import { RefreshCw, Play, X, ArrowRight, Check, Info, Download } from "lucide-react";
 import { Alerts } from "@/components/global/Alerts";
@@ -14,18 +14,18 @@ import { RouletteQuestion } from "./RouletteQuestion";
 import { RouletteInfoBox } from "./RouletteInfoBox";
 import { useRouletteHooks } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
 
-function gerarTextoNotaOU(n: number) {
-  const letras = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].slice(0, n);
-  const numerais: Record<number, string> = { 2: 'dois', 3: 'três', 4: 'quatro', 5: 'cinco', 6: 'seis', 7: 'sete', 8: 'oito' };
-  const exemplo = letras.join(' ou ');
-  const contagem = numerais[n] || `${n}`;
-  const uniao = letras.join('∪');
-  const leitura = letras.join(' União ');
-  const listaEventos = letras.map(l => `vale quando acontece ${l}`).join(', ');
-  const complemento = n === 2
-    ? `e também vale quando acontecem ${letras[0]} e ${letras[1]} ao mesmo tempo`
-    : `e também vale quando acontecem dois deles ou vários deles, inclusive os ${contagem}, ao mesmo tempo`;
-  return { exemplo, contagem, uniao, leitura, listaEventos, complemento };
+function generateUnionNoteText(n: number) {
+  const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].slice(0, n);
+  const numerals: Record<number, string> = { 2: 'dois', 3: 'três', 4: 'quatro', 5: 'cinco', 6: 'seis', 7: 'sete', 8: 'oito' };
+  const exampleText = letters.join(' ou ');
+  const countText = numerals[n] || `${n}`;
+  const union = letters.join('∪');
+  const reading = letters.join(' União ');
+  const eventsList = letters.map(l => `vale quando acontece ${l}`).join(', ');
+  const complement = n === 2
+    ? `e também vale quando acontecem ${letters[0]} e ${letters[1]} ao mesmo tempo`
+    : `e também vale quando acontecem dois deles ou vários deles, inclusive os ${countText}, ao mesmo tempo`;
+  return { exampleText, countText, union, reading, eventsList, complement };
 }
 
 export function RouletteGame() {
@@ -49,11 +49,11 @@ export function RouletteGame() {
     theoreticalQuestion1Input,
     theoreticalQuestion2Input,
     predictionInput,
-    casosFavoraveisInput,
-    exercicioNEInput,
-    exercicioNSInput,
-    exercicioPENumeradorInput,
-    exercicioPEDenominadorInput,
+    favorableCasesInput,
+    exerciseNEInput,
+    exerciseNSInput,
+    exercisePENumeratorInput,
+    exercisePEDenominatorInput,
 
     // Data
     getFrequencyData,
@@ -63,8 +63,6 @@ export function RouletteGame() {
     spinRoulette,
     handleSpinEnd,
     checkAnswer,
-    resetGame,
-    clearFrequencies,
     nextStep,
     startAutoSpins,
     registerColor,
@@ -73,7 +71,7 @@ export function RouletteGame() {
     startStage3,
     toggleSectorSelection,
     restartExercise,
-    restartDesafio1,
+    restartChallenge1,
 
     // Info box
     showInfoBox,
@@ -82,13 +80,13 @@ export function RouletteGame() {
     handleInfoBoxConfirm,
 
     // Exemplos vistos (para controle de botões)
-    exemplosVistosDeterministico,
-    exemplosVistosAleatorio,
-    handleVerMaisExemplosDeterministico,
-    handleVerMaisExemplosAleatorio,
+    deterministicExamplesViewed,
+    randomExamplesViewed,
+    handleSeeMoreDeterministicExamples,
+    handleSeeMoreRandomExamples,
 
     // Exemplos de eventos disjuntos (subStep 6.55)
-    exemplosDisjuntosVistos,
+    disjointExamplesViewed,
     disjointNeedsNumbers,
 
     // Exercício interativo de eventos disjuntos
@@ -124,25 +122,19 @@ export function RouletteGame() {
     handleUnionConfirmFinal,
     handleUnionNextActivity,
 
-    // Fluxo de reinício
-    restartPhase,
-    handleRestartChoice,
-    handleRestartConfirm,
-    handleRestartCancel,
-
     // Características do experimento aleatório (múltipla seleção)
-    caracteristicasSelecionadas,
-    toggleCaracteristica,
-    caracteristicasExperimentoAleatorio,
+    selectedCharacteristics,
+    toggleCharacteristic,
+    randomExperimentCharacteristics,
 
     // Fase de experimentação (3 tentativas)
-    experimentacaoState,
-    handleApostaExperimentacao,
-    handleConfirmacaoResultado,
-    spinRouletteExperimentacao,
+    experimentationState,
+    handleExperimentationBet,
+    handleResultConfirmation,
+    spinRouletteExperimentation,
     // Investigação inicial Etapa 2
-    handleApostaS2,
-    handleConfirmacaoS2,
+    handleS2Bet,
+    handleS2Confirmation,
     spinRouletteS2,
     handleColorPaletteSelect,
     progressiveReadingStep,
@@ -151,7 +143,6 @@ export function RouletteGame() {
     instructions,
     disabledSpinButton,
     disabledCheckButton,
-    disabledClearButton,
     disabledNextButton,
     showAutoSpinButtons,
 
@@ -178,7 +169,7 @@ export function RouletteGame() {
     handleCompConfirmAbar,
     handleCompRetry,
     handleStartCompExercise,
-    handleCompVerMaisExemplos,
+    handleCompSeeMoreExamples,
 
     // Frequência Absoluta (subStep 8.5)
     freqAbsQuestion,
@@ -206,7 +197,7 @@ export function RouletteGame() {
     lgnParams,
     lgnInput, setLgnInput,
     lgnVerbalInput, setLgnVerbalInput,
-    handleLgnQueroSaber,
+    handleLgnWantToKnow,
     handleLgnContinue,
     handleLgnVerbalConfirm,
     diceState, diceInput, setDiceInput,
@@ -263,7 +254,7 @@ export function RouletteGame() {
     fracTraining,
     fracThetaInputs, setFracThetaInputs,
     handleFracTrainingNext,
-    handleFracTrainingMudarFase,
+    handleFracTrainingChangePhase,
 
     // Simulação de Convergência
     convergenceSim,
@@ -278,9 +269,9 @@ export function RouletteGame() {
     handleS3Finalize,
     handleS3GoToReflection,
     spinRouletteS3,
-    handleS3FalaciaContinu,
+    handleS3FallacyContinue,
     handleS3NewBetConfirm,
-    handleS3FalaciaFinish,
+    handleS3FallacyFinish,
 
     // Log de desempenho
     downloadLog,
@@ -293,13 +284,19 @@ export function RouletteGame() {
   // Verificar se deve mostrar o disco
   const shouldShowRoulette = gameState.sectors.length > 0 && gameState.showDivisions;
 
+  // Lista única de cores presentes no disco (memoizada para evitar recriação por render)
+  const uniqueColorNames = useMemo(
+    () => [...new Set(gameState.sectors.map(s => s.colorName))],
+    [gameState.sectors]
+  );
+
   // Cor para destacar n/n (espaço amostral): escolher uma cor NÃO presente no disco
-  const sampleSpaceColor = (() => {
-    const usedNames = new Set(gameState.sectors.map(s => s.colorName));
+  const sampleSpaceColor = useMemo(() => {
+    const usedNames = new Set(uniqueColorNames);
     const candidates = ['Verde', 'Laranja', 'Ciano', 'Roxo', 'Rosa', 'Vermelho', 'Azul', 'Amarelo', 'Marrom', 'Cinza'];
     const found = candidates.find(c => !usedNames.has(c));
     return found ? ROULETTE_COLORS[found] : '#2ac000';
-  })();
+  }, [uniqueColorNames]);
 
   // Verificar se deve mostrar o botão de sortear
   const shouldShowSpinButton = (gameState.subStep === 7 && gameState.stage !== 2) ||
@@ -370,27 +367,6 @@ export function RouletteGame() {
       <div className="flex gap-x-xs gap-y-xs max-lg:flex-col">
         {/* Left side - Roulette and controls */}
         <div className="flex-1 flex flex-col gap-y-xxs items-center">
-          {/* Control buttons - top */}
-          <div className="flex items-center gap-x-xxxs justify-between w-full max-w-[350px]">
-            <Button
-              style="secondary"
-              size="small"
-              icon={<RefreshCw />}
-              onClick={resetGame}
-            >
-              Reiniciar
-            </Button>
-            <Button
-              style="borderless"
-              size="small"
-              icon={<X />}
-              onClick={clearFrequencies}
-              disabled={disabledClearButton}
-            >
-              Limpar
-            </Button>
-          </div>
-
           {/* Sector slider (Stage 1, subStep 0 only) */}
           {gameState.stage === 1 && gameState.subStep === 0 && (
             <div className="flex flex-col gap-y-micro w-full max-w-[350px] bg-neutral-white p-macro rounded-md">
@@ -402,7 +378,7 @@ export function RouletteGame() {
                 min="1"
                 max="6"
                 value={sliderValue}
-                onChange={(e) => setSliderValue(parseInt(e.target.value))}
+                onChange={(e) => setSliderValue(Number.parseInt(e.target.value, 10))}
                 className="w-full cursor-pointer"
                 aria-labelledby="slider-label-s1"
                 aria-valuenow={sliderValue}
@@ -438,7 +414,7 @@ export function RouletteGame() {
                 min="1"
                 max="6"
                 value={sliderValue}
-                onChange={(e) => setSliderValue(parseInt(e.target.value))}
+                onChange={(e) => setSliderValue(Number.parseInt(e.target.value, 10))}
                 className="w-full cursor-pointer"
                 aria-labelledby="slider-label-s2"
                 aria-valuenow={sliderValue}
@@ -479,10 +455,10 @@ export function RouletteGame() {
             <Roulette
               sectors={
                 // Adicionar números aos setores durante conceito disjunto (6.55), União ME (6.56), Desafio Dinâmico 1 (6.6-6.69) e Eventos Complementares (6.70-6.95)
-                (gameState.subStep === 6.55 || (gameState.subStep >= 6.6 && gameState.subStep <= 6.69) || (gameState.subStep >= 6.70 && gameState.subStep <= 6.95)) && gameState.desafio1SectorNumbers.length > 0
+                (gameState.subStep === 6.55 || (gameState.subStep >= 6.6 && gameState.subStep <= 6.69) || (gameState.subStep >= 6.70 && gameState.subStep <= 6.95)) && gameState.challenge1SectorNumbers.length > 0
                   ? gameState.sectors.map((sector, index) => ({
                       ...sector,
-                      number: gameState.desafio1SectorNumbers[index]
+                      number: gameState.challenge1SectorNumbers[index]
                     }))
                   : (gameState.subStep === 6.56 && unionNeedsNumbers && unionSectorNumbers.length > 0)
                     ? gameState.sectors.map((sector, index) => ({
@@ -536,11 +512,11 @@ export function RouletteGame() {
                   : ((gameState.subStep === 6.87 || gameState.subStep === 6.88 || gameState.subStep === 6.92 || gameState.subStep === 6.93) && (compPhase === 'calc_showBoth' || compPhase === 'calc_chain'))
                     ? (compStepByStep >= 1 && compStepByStep < 2 ? [] : compStepByStep >= 3 ? [] : (gameState.compEventA?.indicesA || []))
                   // Na fase de experimentação, destacar a cor apostada (inclusive durante o giro)
-                  : ((gameState.subStep === 1.1 || gameState.subStep === 1.17 || gameState.isSpinning) && experimentacaoState.corApostada)
-                    ? [gameState.sectors.findIndex(s => s.colorName === experimentacaoState.corApostada)]
+                  : ((gameState.subStep === 1.1 || gameState.subStep === 1.17 || gameState.isSpinning) && experimentationState.wageredColor)
+                    ? [gameState.sectors.findIndex(s => s.colorName === experimentationState.wageredColor)]
                   // Etapa 2: destacar setor apostado na investigação inicial
-                  : (gameState.stage === 2 && (gameState.subStep === 0.15 || gameState.subStep === 0.16 || gameState.subStep === 0.17) && experimentacaoState.corApostada)
-                    ? [gameState.sectors.findIndex(s => s.colorName === experimentacaoState.corApostada)]
+                  : (gameState.stage === 2 && (gameState.subStep === 0.15 || gameState.subStep === 0.16 || gameState.subStep === 0.17) && experimentationState.wageredColor)
+                    ? [gameState.sectors.findIndex(s => s.colorName === experimentationState.wageredColor)]
                   // Etapa 2: destacar menor setor na leitura progressiva (passo de referência)
                   : (gameState.stage === 2 && gameState.subStep === 2.9 && progressiveReadingStep === 5)
                     ? [gameState.s2Angles.indexOf(gameState.s2M)]
@@ -614,9 +590,9 @@ export function RouletteGame() {
                 }
                 // Giros reflexivos: apostar em um setor
                 if (gameState.stage === 2 && gameState.subStep === 6.201 && s2SpinReflection.phase === 'betting') {
-                  const corClicada = gameState.sectors[index]?.colorName;
-                  if (!corClicada) return;
-                  setS2SpinReflection(prev => ({ ...prev, bet1Color: corClicada, phase: 'spinning' }));
+                  const clickedColor = gameState.sectors[index]?.colorName;
+                  if (!clickedColor) return;
+                  setS2SpinReflection(prev => ({ ...prev, bet1Color: clickedColor, phase: 'spinning' }));
                   return;
                 }
                 if (gameState.stage === 2 && gameState.subStep === 6.202 && s2SpinReflection.phase === 'betting') {
@@ -658,23 +634,23 @@ export function RouletteGame() {
                   handleRatioSectorClick(index);
                   return;
                 }
-                const corClicada = gameState.sectors[index]?.colorName;
+                const clickedColor = gameState.sectors[index]?.colorName;
                 // Etapa 2: aposta na investigação inicial
                 if (gameState.stage === 2 && gameState.subStep === 0.15) {
-                  handleApostaS2(corClicada);
+                  handleS2Bet(clickedColor);
                   return;
                 }
                 // Etapa 2: confirmação do resultado na investigação inicial ou retry reflexão
                 if (gameState.stage === 2 && (gameState.subStep === 0.16 || gameState.subStep === 0.195)) {
-                  handleConfirmacaoS2(corClicada);
+                  handleS2Confirmation(clickedColor);
                   return;
                 }
                 if (gameState.subStep === 1.1) {
                   // Fase de aposta
-                  handleApostaExperimentacao(corClicada);
+                  handleExperimentationBet(clickedColor);
                 } else if (gameState.subStep === 1.17) {
                   // Fase de confirmação
-                  handleConfirmacaoResultado(corClicada);
+                  handleResultConfirmation(clickedColor);
                 } else {
                   // Outros modos de seleção
                   toggleSectorSelection(index);
@@ -720,12 +696,12 @@ export function RouletteGame() {
           )}
 
           {/* Botão Sortear para fase de experimentação */}
-          {gameState.subStep === 1.1 && experimentacaoState.corApostada && !gameState.isSpinning && (
+          {gameState.subStep === 1.1 && experimentationState.wageredColor && !gameState.isSpinning && (
             <Button
               style="primary"
               size="medium"
               icon={<Play />}
-              onClick={spinRouletteExperimentacao}
+              onClick={spinRouletteExperimentation}
               disabled={disabledSpinButton || gameState.isSpinning}
             >
               Sortear
@@ -733,12 +709,12 @@ export function RouletteGame() {
           )}
 
           {/* Indicador de cor apostada e sorteada na fase de experimentação */}
-          {((gameState.subStep === 1.1 || gameState.subStep === 1.17 || gameState.isSpinning) && experimentacaoState.corApostada) && (
-            <div className="bg-brand-otimath-lightest p-micro rounded-md border border-brand-otimath-light text-center">
+          {((gameState.subStep === 1.1 || gameState.subStep === 1.17 || gameState.isSpinning) && experimentationState.wageredColor) && (
+            <div className="bg-brand-otimath-lightest p-micro rounded-md border border-brand-otimath-light text-center" role="status" aria-live="polite">
               <p className="ds-small text-brand-otimath-dark">
-                <strong>Aposta:</strong> {experimentacaoState.corApostada}
-                {(gameState.subStep === 1.17 || experimentacaoState.corRevelada) && (
-                  <> | <strong>Sorteada:</strong> {experimentacaoState.corRevelada ? experimentacaoState.corSorteadaInterna : '?'}</>
+                <strong>Aposta:</strong> {experimentationState.wageredColor}
+                {(gameState.subStep === 1.17 || experimentationState.colorRevealed) && (
+                  <> | <strong>Sorteada:</strong> {experimentationState.colorRevealed ? experimentationState.internalDrawnColor : '?'}</>
                 )}
               </p>
             </div>
@@ -749,7 +725,7 @@ export function RouletteGame() {
             <div className="flex flex-col gap-y-micro items-center bg-neutral-white p-macro rounded-md border border-brand-otimath-light">
               <p className="ds-small-bold text-brand-otimath-pure" id="color-reg-label">Registre a cor que saiu:</p>
               <div className="flex flex-wrap gap-micro justify-center" role="group" aria-labelledby="color-reg-label">
-                {[...new Set(gameState.sectors.map(s => s.colorName))].map((colorName) => (
+                {uniqueColorNames.map((colorName) => (
                   <Button
                     key={colorName}
                     style="secondary"
@@ -759,6 +735,7 @@ export function RouletteGame() {
                     <span
                       className="inline-block w-4 h-4 rounded-full mr-micro border border-neutral-medium"
                       style={{ backgroundColor: ROULETTE_COLORS[colorName] }}
+                      aria-hidden="true"
                     ></span>
                     {colorName}
                   </Button>
@@ -805,10 +782,10 @@ export function RouletteGame() {
               message={infoBoxContent.message}
               showConfirmButton={
                 // Esconder botão "Li." até ver 3 exemplos (determinístico, aleatório)
-                gameState.subStep === 0.1 ? exemplosVistosDeterministico >= 3 :
-                gameState.subStep === 0.3 ? exemplosVistosAleatorio >= 3 :
+                gameState.subStep === 0.1 ? deterministicExamplesViewed >= 3 :
+                gameState.subStep === 0.3 ? randomExamplesViewed >= 3 :
                 // Disjuntos: "Li." só aparece após 3 exemplos (1 passivo + 2 interativos) e exercício correto
-                gameState.subStep === 6.55 ? disjointExercisePhase === 'correct' && exemplosDisjuntosVistos >= 3 :
+                gameState.subStep === 6.55 ? disjointExercisePhase === 'correct' && disjointExamplesViewed >= 3 :
                 // União ME: "Li." aparece nas definições e all_done
                 gameState.subStep === 6.56 ? (unionPhase === 'definition1' || unionPhase === 'all_done') :
                 // Eventos Complementares
@@ -832,10 +809,10 @@ export function RouletteGame() {
               }
               secondaryButtonText={
                 // Botão "Ver mais exemplos" para experimento determinístico
-                gameState.subStep === 0.1 && exemplosVistosDeterministico < 3
+                gameState.subStep === 0.1 && deterministicExamplesViewed < 3
                   ? 'Clique para ver mais exemplos!'
                   // Botão "Ver mais exemplos" para experimento aleatório
-                  : gameState.subStep === 0.3 && exemplosVistosAleatorio < 3
+                  : gameState.subStep === 0.3 && randomExamplesViewed < 3
                     ? 'Clique para ver mais exemplos!'
                     // Eventos disjuntos: 1º exemplo passivo, depois exercícios interativos
                     : gameState.subStep === 6.55 && disjointExercisePhase === 'none'
@@ -846,7 +823,7 @@ export function RouletteGame() {
                           ? 'Confirmar evento B ✓'
                           : gameState.subStep === 6.55 && disjointExercisePhase === 'wrong'
                             ? 'Tentar novamente'
-                            : gameState.subStep === 6.55 && disjointExercisePhase === 'correct' && exemplosDisjuntosVistos < 3
+                            : gameState.subStep === 6.55 && disjointExercisePhase === 'correct' && disjointExamplesViewed < 3
                               ? 'Próximo exemplo!'
                               // União ME: botões de ação
                               : gameState.subStep === 6.56 && unionPhase === 'definition2'
@@ -871,11 +848,11 @@ export function RouletteGame() {
               }
               onSecondaryClick={
                 // Ver mais exemplos determinístico
-                gameState.subStep === 0.1 && exemplosVistosDeterministico < 3
-                  ? handleVerMaisExemplosDeterministico
+                gameState.subStep === 0.1 && deterministicExamplesViewed < 3
+                  ? handleSeeMoreDeterministicExamples
                   // Ver mais exemplos aleatório
-                  : gameState.subStep === 0.3 && exemplosVistosAleatorio < 3
-                    ? handleVerMaisExemplosAleatorio
+                  : gameState.subStep === 0.3 && randomExamplesViewed < 3
+                    ? handleSeeMoreRandomExamples
                     // Eventos disjuntos: exercício interativo
                     : gameState.subStep === 6.55 && disjointExercisePhase === 'none'
                       ? handleStartDisjointExercise
@@ -885,7 +862,7 @@ export function RouletteGame() {
                           ? handleDisjointConfirmB
                           : gameState.subStep === 6.55 && disjointExercisePhase === 'wrong'
                             ? handleDisjointRetry
-                            : gameState.subStep === 6.55 && disjointExercisePhase === 'correct' && exemplosDisjuntosVistos < 3
+                            : gameState.subStep === 6.55 && disjointExercisePhase === 'correct' && disjointExamplesViewed < 3
                               ? handleStartDisjointExercise
                               // União ME: ações
                               : gameState.subStep === 6.56 && unionPhase === 'definition2'
@@ -902,12 +879,12 @@ export function RouletteGame() {
                                     : gameState.subStep === 6.70 && compPhase === 'show_both' && compExamplesViewed < 3
                                       ? handleStartCompExercise
                                       : gameState.subStep === 6.70 && compPhase === 'show_both' && compExamplesViewed >= 3
-                                        ? handleCompVerMaisExemplos
+                                        ? handleCompSeeMoreExamples
                                         // Treinar exercício novamente
                                         : gameState.subStep === 6.45 && infoBoxContent.type === 'success'
                                           ? restartExercise
                                           : gameState.subStep === 6.69 && infoBoxContent.type === 'success'
-                                            ? restartDesafio1
+                                            ? restartChallenge1
                                             : undefined
               }
             >
@@ -945,38 +922,38 @@ export function RouletteGame() {
                 <span className="text-neutral-dark">(Marque todas que julgar verdadeiro considerando os exemplos vistos anteriormente)</span>
               </p>
               <div className="flex flex-col gap-y-micro mb-macro">
-                {caracteristicasExperimentoAleatorio.map((caracteristica, index) => (
+                {randomExperimentCharacteristics.map((characteristic, index) => (
                   <label
                     key={index}
                     className={`flex items-start gap-x-micro p-micro rounded-md cursor-pointer transition-colors ${
-                      caracteristicasSelecionadas.includes(index)
+                      selectedCharacteristics.includes(index)
                         ? 'bg-brand-otimath-lightest border border-brand-otimath-pure'
                         : 'bg-neutral-lightest border border-neutral-lighter hover:bg-neutral-lighter'
                     }`}
-                    onClick={() => toggleCaracteristica(index)}
+                    onClick={() => toggleCharacteristic(index)}
                   >
                     <div className={`w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center mt-0.5 ${
-                      caracteristicasSelecionadas.includes(index)
+                      selectedCharacteristics.includes(index)
                         ? 'bg-brand-otimath-pure border-brand-otimath-pure'
                         : 'bg-neutral-white border-neutral-medium'
                     }`}>
-                      {caracteristicasSelecionadas.includes(index) && (
+                      {selectedCharacteristics.includes(index) && (
                         <Check size={14} className="text-neutral-white" />
                       )}
                     </div>
-                    <span className="ds-small text-neutral-darkest">{caracteristica}</span>
+                    <span className="ds-small text-neutral-darkest">{characteristic}</span>
                   </label>
                 ))}
               </div>
               <p className="ds-caption text-neutral-dark mb-micro">
-                Características marcadas: {caracteristicasSelecionadas.length} de {caracteristicasExperimentoAleatorio.length}
+                Características marcadas: {selectedCharacteristics.length} de {randomExperimentCharacteristics.length}
               </p>
               <Button
                 style="primary"
                 size="small"
                 icon={<Check />}
                 onClick={checkAnswer}
-                disabled={caracteristicasSelecionadas.length === 0}
+                disabled={selectedCharacteristics.length === 0}
               >
                 Conferir
               </Button>
@@ -1097,7 +1074,7 @@ export function RouletteGame() {
           )}
 
           {/* SubStep 6.1: Probabilidade do Evento Composto - Casos Favoráveis */}
-          {gameState.stage === 1 && gameState.subStep === 6.1 && gameState.eventoCompostoE.length > 0 && (
+          {gameState.stage === 1 && gameState.subStep === 6.1 && gameState.compositeEventE.length > 0 && (
             <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
               <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
                 Probabilidade do Evento Composto
@@ -1106,7 +1083,7 @@ export function RouletteGame() {
                 Considere o evento composto
               </p>
               <p className="ds-body-bold text-brand-otimath-dark mb-macro text-center">
-                E = &#123;{gameState.eventoCompostoE.join(', ')}&#125;
+                E = &#123;{gameState.compositeEventE.join(', ')}&#125;
               </p>
               <p className="ds-small text-neutral-dark mb-macro">
                 Esse evento é formado por alguns resultados simples do experimento aleatório de girar o disco.
@@ -1116,9 +1093,9 @@ export function RouletteGame() {
                 type="text"
                 inputPrefix="n(E) ="
                 textInput={{
-                  ...casosFavoraveisInput,
+                  ...favorableCasesInput,
                   placeholder: 'Digite um número',
-                  setValue: (val) => casosFavoraveisInput.setValue?.(val)
+                  setValue: (val) => favorableCasesInput.setValue?.(val)
                 }}
                 onCheck={checkAnswer}
                 disabled={disabledCheckButton}
@@ -1127,7 +1104,7 @@ export function RouletteGame() {
           )}
 
           {/* SubStep 6.41: Exercício Dinâmico - Seleção dos setores */}
-          {gameState.stage === 1 && gameState.subStep === 6.41 && gameState.exercicioEventoE.length > 0 && (
+          {gameState.stage === 1 && gameState.subStep === 6.41 && gameState.exerciseEventE.length > 0 && (
             <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
               <h3 className="ds-body-bold text-brand-otimath-pure mb-macro">
                 Exercício — Aplicação do Modelo Probabilístico
@@ -1136,14 +1113,14 @@ export function RouletteGame() {
                 Clique nos setores do disco que correspondem aos casos favoráveis ao evento:
               </p>
               <p className="ds-body-bold text-brand-otimath-dark mb-macro text-center">
-                E = ocorre {gameState.exercicioEventoE.join(' ou ')}
+                E = ocorre {gameState.exerciseEventE.join(' ou ')}
               </p>
-              {gameState.exercicioEventoE.length >= 2 && (() => {
-                const { exemplo, contagem, uniao, leitura, listaEventos, complemento } = gerarTextoNotaOU(gameState.exercicioEventoE.length);
+              {gameState.exerciseEventE.length >= 2 && (() => {
+                const { exampleText, countText, union, reading, eventsList, complement } = generateUnionNoteText(gameState.exerciseEventE.length);
                 return (
                   <div className="mb-macro p-micro rounded-md bg-[#EEF2FF] border-l-4 border-[#6366F1]">
                     <p className="ds-small text-neutral-darkest">
-                      <strong>Nota (OU – sentido matemático):</strong> Quando o enunciado diz &quot;{exemplo}&quot;, isso quer dizer &quot;pelo menos um dos {contagem}&quot;. Então, {listaEventos} {complemento}. {exemplo} significa <strong>{uniao}</strong> ({leitura}).
+                      <strong>Nota (OU – sentido matemático):</strong> Quando o enunciado diz &quot;{exampleText}&quot;, isso quer dizer &quot;pelo menos um dos {countText}&quot;. Então, {eventsList} {complement}. {exampleText} significa <strong>{union}</strong> ({reading}).
                     </p>
                   </div>
                 );
@@ -1176,16 +1153,16 @@ export function RouletteGame() {
                 Exercício — Aplicação do Modelo Probabilístico
               </h3>
               <p className="ds-small text-neutral-dark mb-macro">
-                Evento: <strong>E = &#123;{gameState.exercicioEventoE.join(', ')}&#125;</strong>
+                Evento: <strong>E = &#123;{gameState.exerciseEventE.join(', ')}&#125;</strong>
               </p>
               <RouletteQuestion
                 question="Digite o número de casos favoráveis ao evento E."
                 type="text"
                 inputPrefix="n(E) ="
                 textInput={{
-                  ...exercicioNEInput,
+                  ...exerciseNEInput,
                   placeholder: 'Digite um número',
-                  setValue: (val) => exercicioNEInput.setValue?.(val)
+                  setValue: (val) => exerciseNEInput.setValue?.(val)
                 }}
                 onCheck={checkAnswer}
                 disabled={disabledCheckButton}
@@ -1200,19 +1177,19 @@ export function RouletteGame() {
                 Exercício — Aplicação do Modelo Probabilístico
               </h3>
               <p className="ds-small text-neutral-dark mb-macro">
-                Evento: <strong>E = &#123;{gameState.exercicioEventoE.join(', ')}&#125;</strong>
+                Evento: <strong>E = &#123;{gameState.exerciseEventE.join(', ')}&#125;</strong>
               </p>
               <p className="ds-small text-neutral-dark mb-macro">
-                n(E) = {gameState.exercicioEventoE.length}
+                n(E) = {gameState.exerciseEventE.length}
               </p>
               <RouletteQuestion
                 question="Digite o número de resultados possíveis do experimento aleatório (número de elementos do espaço amostral)."
                 type="text"
                 inputPrefix="n(S) ="
                 textInput={{
-                  ...exercicioNSInput,
+                  ...exerciseNSInput,
                   placeholder: 'Digite um número',
-                  setValue: (val) => exercicioNSInput.setValue?.(val)
+                  setValue: (val) => exerciseNSInput.setValue?.(val)
                 }}
                 onCheck={checkAnswer}
                 disabled={disabledCheckButton}
@@ -1227,10 +1204,10 @@ export function RouletteGame() {
                 Exercício — Aplicação do Modelo Probabilístico
               </h3>
               <p className="ds-small text-neutral-dark mb-macro">
-                Evento: <strong>E = &#123;{gameState.exercicioEventoE.join(', ')}&#125;</strong>
+                Evento: <strong>E = &#123;{gameState.exerciseEventE.join(', ')}&#125;</strong>
               </p>
               <p className="ds-small text-neutral-dark mb-micro">
-                n(E) = {gameState.exercicioEventoE.length}
+                n(E) = {gameState.exerciseEventE.length}
               </p>
               <p className="ds-small text-neutral-dark mb-macro">
                 n(S) = {gameState.sectors.length}
@@ -1243,21 +1220,21 @@ export function RouletteGame() {
                 <div className="flex flex-col items-center">
                   <input
                     type="text"
-                    value={exercicioPENumeradorInput.value}
-                    onChange={(e) => exercicioPENumeradorInput.setValue?.(e.target.value)}
+                    value={exercisePENumeratorInput.value}
+                    onChange={(e) => exercisePENumeratorInput.setValue?.(e.target.value)}
                     placeholder="?"
                     className={`w-16 text-center bg-transparent outline-none ds-body ${
-                      exercicioPENumeradorInput.error ? 'text-feedback-negative' : ''
+                      exercisePENumeratorInput.error ? 'text-feedback-negative' : ''
                     }`}
                   />
-                  <div className={`w-16 h-0.5 ${exercicioPENumeradorInput.error || exercicioPEDenominadorInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                  <div className={`w-16 h-0.5 ${exercisePENumeratorInput.error || exercisePEDenominatorInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
                   <input
                     type="text"
-                    value={exercicioPEDenominadorInput.value}
-                    onChange={(e) => exercicioPEDenominadorInput.setValue?.(e.target.value)}
+                    value={exercisePEDenominatorInput.value}
+                    onChange={(e) => exercisePEDenominatorInput.setValue?.(e.target.value)}
                     placeholder="?"
                     className={`w-16 text-center bg-transparent outline-none ds-body ${
-                      exercicioPEDenominadorInput.error ? 'text-feedback-negative' : ''
+                      exercisePEDenominatorInput.error ? 'text-feedback-negative' : ''
                     }`}
                   />
                 </div>
@@ -1267,7 +1244,7 @@ export function RouletteGame() {
                 size="small"
                 icon={<Check />}
                 onClick={checkAnswer}
-                disabled={!exercicioPENumeradorInput.value || !exercicioPEDenominadorInput.value}
+                disabled={!exercisePENumeratorInput.value || !exercisePEDenominatorInput.value}
               >
                 Conferir
               </Button>
@@ -1425,21 +1402,21 @@ export function RouletteGame() {
           {gameState.stage === 1 && gameState.subStep === 6.6 && (
             <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
               <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
-                {gameState.desafio1Conectivo === 'ou' ? 'Desafio — União de Eventos' : 'Desafio — Interseção de Eventos'}
+                {gameState.challenge1Connective === 'ou' ? 'Desafio — União de Eventos' : 'Desafio — Interseção de Eventos'}
               </h3>
               <p className="ds-body-bold text-brand-otimath-dark mb-macro">
-                {gameState.desafio1InterProblemType !== null
-                  ? <>Calcule a probabilidade de, ao girar o disco uma única vez, obter um número <strong>{gameState.desafio1PropriedadeY}</strong>.</>
-                  : <>Calcule a probabilidade de, ao girar o disco uma única vez, ocorrer {gameState.desafio1EventoXTexto} {gameState.desafio1Conectivo.toUpperCase()} ocorrer um número {gameState.desafio1PropriedadeY}.</>
+                {gameState.challenge1InterProblemType !== null
+                  ? <>Calcule a probabilidade de, ao girar o disco uma única vez, obter um número <strong>{gameState.challenge1PropertyY}</strong>.</>
+                  : <>Calcule a probabilidade de, ao girar o disco uma única vez, ocorrer {gameState.challenge1EventXText} {gameState.challenge1Connective.toUpperCase()} ocorrer um número {gameState.challenge1PropertyY}.</>
                 }
               </p>
-              {gameState.desafio1Conectivo === 'ou' ? (() => {
-                const n = gameState.desafio1EventoXTexto.split(' ou ').length + 1;
-                const { exemplo, contagem, uniao, leitura, listaEventos, complemento } = gerarTextoNotaOU(n);
+              {gameState.challenge1Connective === 'ou' ? (() => {
+                const n = gameState.challenge1EventXText.split(' ou ').length + 1;
+                const { exampleText, countText, union, reading, eventsList, complement } = generateUnionNoteText(n);
                 return (
                   <div className="mb-macro p-micro rounded-md bg-[#EEF2FF] border-l-4 border-[#6366F1]">
                     <p className="ds-small text-neutral-darkest">
-                      <strong>Nota (OU – sentido matemático):</strong> Quando o enunciado diz &quot;{exemplo}&quot;, isso quer dizer &quot;pelo menos um dos {contagem}&quot;. Então, {listaEventos} {complemento}. {exemplo} significa <strong>{uniao}</strong> ({leitura}).
+                      <strong>Nota (OU – sentido matemático):</strong> Quando o enunciado diz &quot;{exampleText}&quot;, isso quer dizer &quot;pelo menos um dos {countText}&quot;. Então, {eventsList} {complement}. {exampleText} significa <strong>{union}</strong> ({reading}).
                     </p>
                   </div>
                 );
@@ -1475,7 +1452,7 @@ export function RouletteGame() {
                 Desafio — Contagem de Casos
               </h3>
               <p className="ds-small text-brand-otimath-dark mb-macro">
-                <strong>E = &#123;{gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.desafio1SectorNumbers[i]})`).join(', ')}&#125;</strong>
+                <strong>E = &#123;{gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.challenge1SectorNumbers[i]})`).join(', ')}&#125;</strong>
               </p>
               <p className="ds-small text-neutral-dark mb-macro">
                 Digite o número de casos favoráveis ao evento.
@@ -1484,11 +1461,11 @@ export function RouletteGame() {
                 <span className="ds-body-bold text-brand-otimath-dark">n(E) =</span>
                 <input
                   type="text"
-                  value={exercicioNEInput.value}
-                  onChange={(e) => exercicioNEInput.setValue?.(e.target.value)}
+                  value={exerciseNEInput.value}
+                  onChange={(e) => exerciseNEInput.setValue?.(e.target.value)}
                   placeholder="?"
                   className={`w-20 text-center border-b-2 bg-transparent outline-none ds-body ${
-                    exercicioNEInput.error ? 'border-feedback-negative' : 'border-brand-otimath-dark'
+                    exerciseNEInput.error ? 'border-feedback-negative' : 'border-brand-otimath-dark'
                   }`}
                 />
               </div>
@@ -1497,7 +1474,7 @@ export function RouletteGame() {
                 size="small"
                 icon={<Check />}
                 onClick={checkAnswer}
-                disabled={!exercicioNEInput.value}
+                disabled={!exerciseNEInput.value}
               >
                 Conferir
               </Button>
@@ -1511,7 +1488,7 @@ export function RouletteGame() {
                 Desafio — Casos Possíveis
               </h3>
               <p className="ds-small text-brand-otimath-dark mb-macro">
-                <strong>E = &#123;{gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.desafio1SectorNumbers[i]})`).join(', ')}&#125;</strong>
+                <strong>E = &#123;{gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.challenge1SectorNumbers[i]})`).join(', ')}&#125;</strong>
               </p>
               <p className="ds-small text-neutral-dark mb-macro">
                 Digite o número de resultados possíveis do experimento.
@@ -1520,11 +1497,11 @@ export function RouletteGame() {
                 <span className="ds-body-bold text-brand-otimath-dark">n(S) =</span>
                 <input
                   type="text"
-                  value={exercicioNSInput.value}
-                  onChange={(e) => exercicioNSInput.setValue?.(e.target.value)}
+                  value={exerciseNSInput.value}
+                  onChange={(e) => exerciseNSInput.setValue?.(e.target.value)}
                   placeholder="?"
                   className={`w-20 text-center border-b-2 bg-transparent outline-none ds-body ${
-                    exercicioNSInput.error ? 'border-feedback-negative' : 'border-brand-otimath-dark'
+                    exerciseNSInput.error ? 'border-feedback-negative' : 'border-brand-otimath-dark'
                   }`}
                 />
               </div>
@@ -1533,7 +1510,7 @@ export function RouletteGame() {
                 size="small"
                 icon={<Check />}
                 onClick={checkAnswer}
-                disabled={!exercicioNSInput.value}
+                disabled={!exerciseNSInput.value}
               >
                 Conferir
               </Button>
@@ -1547,7 +1524,7 @@ export function RouletteGame() {
                 Desafio — Probabilidade
               </h3>
               <p className="ds-small text-brand-otimath-dark mb-macro">
-                <strong>E = &#123;{gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.desafio1SectorNumbers[i]})`).join(', ')}&#125;</strong>
+                <strong>E = &#123;{gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.challenge1SectorNumbers[i]})`).join(', ')}&#125;</strong>
               </p>
               <p className="ds-small text-neutral-dark mb-macro">
                 Agora calcule a probabilidade.
@@ -1557,21 +1534,21 @@ export function RouletteGame() {
                 <div className="flex flex-col items-center py-2">
                   <input
                     type="text"
-                    value={exercicioPENumeradorInput.value}
-                    onChange={(e) => exercicioPENumeradorInput.setValue?.(e.target.value)}
+                    value={exercisePENumeratorInput.value}
+                    onChange={(e) => exercisePENumeratorInput.setValue?.(e.target.value)}
                     placeholder="?"
                     className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${
-                      exercicioPENumeradorInput.error ? 'text-feedback-negative' : ''
+                      exercisePENumeratorInput.error ? 'text-feedback-negative' : ''
                     }`}
                   />
-                  <div className={`w-16 h-0.5 my-1 ${exercicioPENumeradorInput.error || exercicioPEDenominadorInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                  <div className={`w-16 h-0.5 my-1 ${exercisePENumeratorInput.error || exercisePEDenominatorInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
                   <input
                     type="text"
-                    value={exercicioPEDenominadorInput.value}
-                    onChange={(e) => exercicioPEDenominadorInput.setValue?.(e.target.value)}
+                    value={exercisePEDenominatorInput.value}
+                    onChange={(e) => exercisePEDenominatorInput.setValue?.(e.target.value)}
                     placeholder="?"
                     className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${
-                      exercicioPEDenominadorInput.error ? 'text-feedback-negative' : ''
+                      exercisePEDenominatorInput.error ? 'text-feedback-negative' : ''
                     }`}
                   />
                 </div>
@@ -1581,7 +1558,7 @@ export function RouletteGame() {
                 size="small"
                 icon={<Check />}
                 onClick={checkAnswer}
-                disabled={!exercicioPENumeradorInput.value || !exercicioPEDenominadorInput.value}
+                disabled={!exercisePENumeratorInput.value || !exercisePEDenominatorInput.value}
               >
                 Conferir
               </Button>
@@ -1610,7 +1587,7 @@ export function RouletteGame() {
                     Primeiro calcularemos P(A)
                   </p>
                   <p className="ds-small text-brand-otimath-dark">
-                    Evento A = &quot;<strong>{gameState.compEventA?.textoA}</strong>&quot;
+                    Evento A = &quot;<strong>{gameState.compEventA?.textA}</strong>&quot;
                   </p>
                 </div>
                 {/* Botão Conferir – pulsa quando há setores selecionados */}
@@ -1635,7 +1612,7 @@ export function RouletteGame() {
                   Girando um disco ao acaso, qual a probabilidade de ocorrer o:
                 </p>
                 <p className="ds-small text-brand-otimath-dark mb-macro">
-                  <strong>A = &quot;{gameState.compEventA?.textoA}&quot;</strong>
+                  <strong>A = &quot;{gameState.compEventA?.textA}&quot;</strong>
                 </p>
                 <p className="ds-small text-brand-otimath-dark mb-macro">
                   Primeiro, selecione os setores de A no disco.
@@ -1654,7 +1631,7 @@ export function RouletteGame() {
                 {`Treino ${compCalcExampleNum} de 3`}
               </h3>
               <p className="ds-small text-brand-otimath-dark mb-macro">
-                <strong>A = &quot;{gameState.compEventA?.textoA}&quot;</strong>
+                <strong>A = &quot;{gameState.compEventA?.textA}&quot;</strong>
               </p>
               <p className="ds-small text-neutral-dark mb-macro">
                 Informe a probabilidade de A como fração.
@@ -1694,7 +1671,7 @@ export function RouletteGame() {
                 {compIsGuided ? 'Cálculo Guiado — P(Ā)' : `Treino ${compCalcExampleNum} de 3`}
               </h3>
               <p className="ds-small text-brand-otimath-dark mb-macro">
-                <strong>A = &quot;{gameState.compEventA?.textoA}&quot;</strong>
+                <strong>A = &quot;{gameState.compEventA?.textA}&quot;</strong>
               </p>
               <p className="ds-small text-neutral-dark mb-macro">
                 Marque no disco o evento complementar <strong>Ā</strong> e clique em Conferir.
@@ -1751,13 +1728,13 @@ export function RouletteGame() {
                 </h3>
                 {compIsGuided ? (
                   <div className="ds-small text-brand-otimath-dark mb-macro">
-                    <p><strong>A = &quot;{ev?.textoA}&quot;</strong></p>
+                    <p><strong>A = &quot;{ev?.textA}&quot;</strong></p>
                     <p>Ā = complementar de A</p>
                   </div>
                 ) : (
                   <div className="ds-small text-brand-otimath-dark mb-macro">
-                    <p><strong>A = &quot;{ev?.textoA}&quot;</strong></p>
-                    <p><strong>Ā = &quot;{ev?.textoAbar}&quot;</strong></p>
+                    <p><strong>A = &quot;{ev?.textA}&quot;</strong></p>
+                    <p><strong>Ā = &quot;{ev?.textAbar}&quot;</strong></p>
                   </div>
                 )}
 
@@ -2251,7 +2228,7 @@ export function RouletteGame() {
           {/* ===================== ETAPA 2 — PROBABILIDADE NÃO EQUIPROVÁVEL ===================== */}
 
           {/* Stage 2 — SubStep 0.15: Botão Sortear (investigação aposta) */}
-          {gameState.stage === 2 && gameState.subStep === 0.15 && experimentacaoState.corApostada && !gameState.isSpinning && (
+          {gameState.stage === 2 && gameState.subStep === 0.15 && experimentationState.wageredColor && !gameState.isSpinning && (
             <Button
               style="primary"
               size="medium"
@@ -2264,12 +2241,12 @@ export function RouletteGame() {
           )}
 
           {/* Stage 2 — SubSteps 0.15/0.16/0.17: Indicador Aposta / Resultado */}
-          {gameState.stage === 2 && (gameState.subStep === 0.15 || gameState.subStep === 0.16 || gameState.subStep === 0.17) && experimentacaoState.corApostada && (
+          {gameState.stage === 2 && (gameState.subStep === 0.15 || gameState.subStep === 0.16 || gameState.subStep === 0.17) && experimentationState.wageredColor && (
             <div className="bg-brand-otimath-lightest p-micro rounded-md border border-brand-otimath-light text-center">
               <p className="ds-small text-brand-otimath-dark">
-                <strong>Aposta:</strong> {experimentacaoState.corApostada}
+                <strong>Aposta:</strong> {experimentationState.wageredColor}
                 {(gameState.subStep === 0.16 || gameState.subStep === 0.17) && (
-                  <> | <strong>Sorteada:</strong> {experimentacaoState.corRevelada ? experimentacaoState.corSorteadaInterna : '?'}</>
+                  <> | <strong>Sorteada:</strong> {experimentationState.colorRevealed ? experimentationState.internalDrawnColor : '?'}</>
                 )}
               </p>
             </div>
@@ -2284,21 +2261,21 @@ export function RouletteGame() {
                   <span className="ds-caption text-neutral-dark">Aposta</span>
                   <span
                     className="inline-block w-8 h-8 rounded-full border-2 border-neutral-dark"
-                    style={{ backgroundColor: ROULETTE_COLORS[experimentacaoState.corApostada || ''] }}
+                    style={{ backgroundColor: ROULETTE_COLORS[experimentationState.wageredColor || ''] }}
                   />
-                  <span className="ds-small-bold">{experimentacaoState.corApostada}</span>
+                  <span className="ds-small-bold">{experimentationState.wageredColor}</span>
                 </div>
                 <div className="flex flex-col items-center gap-y-nano">
                   <span className="ds-caption text-neutral-dark">Resultado</span>
                   <span
                     className="inline-block w-8 h-8 rounded-full border-2 border-neutral-dark"
-                    style={{ backgroundColor: ROULETTE_COLORS[experimentacaoState.corSorteadaInterna || ''] }}
+                    style={{ backgroundColor: ROULETTE_COLORS[experimentationState.internalDrawnColor || ''] }}
                   />
-                  <span className="ds-small-bold">{experimentacaoState.corSorteadaInterna}</span>
+                  <span className="ds-small-bold">{experimentationState.internalDrawnColor}</span>
                 </div>
               </div>
               <p className="ds-body text-center mb-macro">
-                {experimentacaoState.corApostada === experimentacaoState.corSorteadaInterna
+                {experimentationState.wageredColor === experimentationState.internalDrawnColor
                   ? 'Você ganhou a aposta!'
                   : 'Você não ganhou desta vez.'}
               </p>
@@ -2416,9 +2393,9 @@ export function RouletteGame() {
               <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
                 <p className="ds-body text-neutral-darkest mb-macro">
                   A probabilidade de ocorrer um setor de Cor{' '}
-                  <span className="ds-body-bold" style={{ color: ROULETTE_COLORS[s2RandomColors.corX] || '#333' }}>{s2RandomColors.corX}</span>
+                  <span className="ds-body-bold" style={{ color: ROULETTE_COLORS[s2RandomColors.colorX] || '#333' }}>{s2RandomColors.colorX}</span>
                   {' '}ou Cor{' '}
-                  <span className="ds-body-bold" style={{ color: ROULETTE_COLORS[s2RandomColors.corY] || '#333' }}>{s2RandomColors.corY}</span>
+                  <span className="ds-body-bold" style={{ color: ROULETTE_COLORS[s2RandomColors.colorY] || '#333' }}>{s2RandomColors.colorY}</span>
                   {' '}é {2}/{gameState.s2K}?
                 </p>
                 <div className="flex flex-col gap-y-micro">
@@ -3290,7 +3267,7 @@ export function RouletteGame() {
                   <div className="p-micro rounded-sm bg-neutral-lightest border border-neutral-lighter">
                     <p className="ds-small-bold text-neutral-darkest">Tentativa 1:</p>
                     <p className="ds-small text-neutral-dark">
-                      {s2SpinReflection.resposta1 === 'maior_setor'
+                      {s2SpinReflection.answer1 === 'maior_setor'
                         ? '→ Considerou o tamanho do setor.'
                         : '→ Não considerou o tamanho do setor.'}
                     </p>
@@ -3298,7 +3275,7 @@ export function RouletteGame() {
                   <div className="p-micro rounded-sm bg-neutral-lightest border border-neutral-lighter">
                     <p className="ds-small-bold text-neutral-darkest">Tentativa 2:</p>
                     <p className="ds-small text-neutral-dark">
-                      {s2SpinReflection.resposta2 === 'maior_setor'
+                      {s2SpinReflection.answer2 === 'maior_setor'
                         ? '→ Considerou o tamanho do setor.'
                         : '→ Não considerou o tamanho do setor.'}
                     </p>
@@ -3568,7 +3545,7 @@ export function RouletteGame() {
                   </div>
                   <div className="flex gap-x-macro justify-center flex-wrap">
                     {fracTraining.completedCount >= 2 && (
-                      <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleFracTrainingMudarFase}>
+                      <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleFracTrainingChangePhase}>
                         Mudar de fase
                       </Button>
                     )}
@@ -3774,7 +3751,7 @@ export function RouletteGame() {
             <div className="flex flex-col gap-y-micro items-center bg-neutral-white p-macro rounded-md border border-brand-otimath-light">
               <p className="ds-small-bold text-brand-otimath-pure">Registre a cor que saiu:</p>
               <div className="flex flex-wrap gap-micro justify-center">
-                {[...new Set(gameState.sectors.map(s => s.colorName))].map((colorName) => (
+                {uniqueColorNames.map((colorName) => (
                   <Button
                     key={colorName}
                     style="secondary"
@@ -3784,6 +3761,7 @@ export function RouletteGame() {
                     <span
                       className="inline-block w-4 h-4 rounded-full mr-micro border border-neutral-medium"
                       style={{ backgroundColor: ROULETTE_COLORS[colorName] }}
+                      aria-hidden="true"
                     ></span>
                     {colorName}
                   </Button>
@@ -4134,14 +4112,17 @@ export function RouletteGame() {
                   const isCorrect = inp.status === 'correct';
                   return (
                     <div key={color} className="flex items-center gap-x-micro flex-wrap">
-                      <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter shrink-0" style={{ backgroundColor: ROULETTE_COLORS[color] }} />
+                      <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter shrink-0" style={{ backgroundColor: ROULETTE_COLORS[color] }} aria-hidden="true" />
                       <span className="ds-small-bold w-[80px]">{color}</span>
-                      <span className="ds-small text-neutral-dark">P =</span>
+                      <span className="ds-small text-neutral-dark" aria-hidden="true">P =</span>
                       <div className="flex items-center gap-x-nano">
                         <input
                           type="text"
                           inputMode="numeric"
                           placeholder="a"
+                          aria-label={`Numerador da probabilidade da cor ${color}`}
+                          aria-invalid={inp.errorNum}
+                          aria-describedby={inp.errorMsg && !isCorrect ? `s3-prob-err-${color}` : undefined}
                           className={`w-[42px] p-nano rounded-sm border-hairline ds-small text-center ${
                             isCorrect
                               ? 'border-feedback-success-medium bg-feedback-success-lightest text-feedback-success-darkest'
@@ -4162,11 +4143,14 @@ export function RouletteGame() {
                           }}
                           disabled={isCorrect}
                         />
-                        <span className="ds-body-bold text-neutral-dark">/</span>
+                        <span className="ds-body-bold text-neutral-dark" aria-hidden="true">/</span>
                         <input
                           type="text"
                           inputMode="numeric"
                           placeholder="b"
+                          aria-label={`Denominador da probabilidade da cor ${color}`}
+                          aria-invalid={inp.errorDen}
+                          aria-describedby={inp.errorMsg && !isCorrect ? `s3-prob-err-${color}` : undefined}
                           className={`w-[42px] p-nano rounded-sm border-hairline ds-small text-center ${
                             isCorrect
                               ? 'border-feedback-success-medium bg-feedback-success-lightest text-feedback-success-darkest'
@@ -4203,7 +4187,7 @@ export function RouletteGame() {
                         return null;
                       })()}
                       {inp.errorMsg && !isCorrect && (
-                        <span className="ds-caption text-feedback-error-dark">{inp.errorMsg}</span>
+                        <span id={`s3-prob-err-${color}`} className="ds-caption text-feedback-error-dark" role="alert">{inp.errorMsg}</span>
                       )}
                     </div>
                   );
@@ -4339,7 +4323,7 @@ export function RouletteGame() {
                   style="secondary"
                   size="small"
                   icon={<ArrowRight />}
-                  onClick={handleS3FalaciaContinu}
+                  onClick={handleS3FallacyContinue}
                   disabled={s3State.spinCount < 5}
                 >
                   Continuar
@@ -4469,7 +4453,7 @@ export function RouletteGame() {
                   style="primary"
                   size="small"
                   icon={<ArrowRight />}
-                  onClick={handleS3FalaciaFinish}
+                  onClick={handleS3FallacyFinish}
                 >
                   Continuar
                 </Button>
@@ -4485,8 +4469,8 @@ export function RouletteGame() {
             const sfcCount = s3State.colorCounts[sfc] || 0;
             const pred = s3State.predictionColor;
             const bet = s3State.betColor;
-            const predAcertou = pred === mfc;
-            const betAcertou = bet === mfc;
+            const predictionMatched = pred === mfc;
+            const betWon = bet === mfc;
 
             return (
               <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
@@ -4494,7 +4478,7 @@ export function RouletteGame() {
                 <div className="flex flex-col gap-y-micro ds-small text-neutral-dark">
                   <p>
                     <strong>Sua previsão visual:</strong> Ao observar o disco, você indicou que <strong>{pred === 'iguais' ? 'todas as cores pareciam ocupar o mesmo espaço' : `a cor ${pred} parecia ocupar mais espaço`}</strong>.
-                    {predAcertou
+                    {predictionMatched
                       ? ` De fato, ${mfc} é a cor com mais setores (${mfcCount} de ${s3State.n}).`
                       : pred === 'iguais'
                         ? ` Porém, ${mfc} possui ${mfcCount} setores e ${sfc} possui ${sfcCount} — as cores não ocupam o mesmo espaço. Isso é o viés perceptual.`
@@ -4503,7 +4487,7 @@ export function RouletteGame() {
                   </p>
                   <p>
                     <strong>Sua aposta:</strong> Você apostou na cor <strong>{bet}</strong>.
-                    {betAcertou
+                    {betWon
                       ? ` Boa escolha! ${bet} é de fato a cor mais provável, com P(${bet}) = ${mfcCount}/${s3State.n}.`
                       : ` A cor mais provável era ${mfc}, com P(${mfc}) = ${mfcCount}/${s3State.n}. A aparência visual pode ter influenciado sua escolha.`
                     }
@@ -4577,14 +4561,13 @@ export function RouletteGame() {
                 <p className="ds-body mb-micro">
                   Será que todas essas somas têm a mesma chance de ocorrer? Se cada face isolada é equiprovável... as somas também seriam?
                 </p>
-                <p className="ds-body text-brand-otimath-dark" style={{ fontStyle: 'italic' }}>
+                <p className="ds-body text-brand-otimath-dark italic">
                   Pense nisso. A resposta pode te surpreender.
                 </p>
               </div>
               <a
                 href="/ensino/probabilidade/dois-dados"
-                className="ds-body-bold inline-block bg-brand-otimath-pure text-neutral-white rounded-md no-underline"
-                style={{ padding: '12px 24px', textDecoration: 'none' }}
+                className="ds-body-bold inline-block bg-brand-otimath-pure text-neutral-white rounded-md no-underline py-macro px-xxs"
               >
                 Ir para o OVA: Probabilidade com Dois Dados →
               </a>
@@ -4741,7 +4724,7 @@ export function RouletteGame() {
                     Você sabe por que o número real de pacientes curados pode ser diferente desse valor?
                   </p>
                   <div className="mt-nano flex justify-end">
-                    <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleLgnQueroSaber}>
+                    <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleLgnWantToKnow}>
                       Quero saber!
                     </Button>
                   </div>
@@ -4983,72 +4966,6 @@ export function RouletteGame() {
       {/* Alerts and Modal */}
       <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts} />
       <Modal modal={modal} updateModal={updateModal} />
-
-      {/* Dialog de Reinício */}
-      {restartPhase !== 'hidden' && (
-        <div
-          className="w-full h-full fixed bg-opacity-modal flex items-center justify-center z-11 top-0 left-0"
-          onClick={handleRestartCancel}
-        >
-          <dialog
-            className="w-[500px] h-fit max-w-[calc(100%-32px)] flex flex-col left-[50%] -translate-x-[50%]
-              rounded-md solid border-hairline border-neutral-lightest bg-neutral-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {restartPhase === 'choosing' ? (
-              <>
-                <div className="p-xxxs flex justify-between">
-                  <h3 className="ds-body-large-bold text-brand-otimath-pure">Reiniciar Atividade</h3>
-                  <Button style="neutral" size="medium" icon={<X />} onClick={handleRestartCancel} ariaLabel="Fechar" />
-                </div>
-                <div className="pt-micro pb-micro pl-xxxs pr-xxxs border-t-hairline border-neutral-lightest">
-                  <p className="ds-body">Como deseja reiniciar?</p>
-                </div>
-                <div className="p-xxxs flex flex-col gap-xxs">
-                  <Button style="secondary" size="small" onClick={() => handleRestartChoice('stage1')}>
-                    Voltar para o início da Etapa 1
-                  </Button>
-                  <Button style="secondary" size="small" onClick={() => handleRestartChoice('stage2')}>
-                    Voltar para o início da Etapa 2
-                  </Button>
-                  <Button style="secondary" size="small" onClick={() => handleRestartChoice('stage3')}>
-                    Voltar para o início da Etapa 3
-                  </Button>
-                  <Button style="secondary" size="small" onClick={() => handleRestartChoice('previous')}>
-                    Voltar para a fase anterior
-                  </Button>
-                  <Button style="secondary" size="small" onClick={() => handleRestartChoice('back')}>
-                    Voltar para a tela anterior
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="p-xxxs">
-                  <h3 className="ds-body-large-bold text-brand-otimath-pure">Tem certeza?</h3>
-                </div>
-                <div className="pt-micro pb-micro pl-xxxs pr-xxxs border-t-hairline border-neutral-lightest">
-                  <p className="ds-body">
-                    {restartPhase === 'confirm_stage1'
-                      ? 'Você voltará para o início da Etapa 1. O progresso atual será perdido.'
-                      : restartPhase === 'confirm_stage2'
-                        ? 'Você voltará para o início da Etapa 2. O progresso atual será perdido.'
-                        : restartPhase === 'confirm_stage3'
-                          ? 'Você voltará para o início da Etapa 3. O progresso atual será perdido.'
-                          : restartPhase === 'confirm_previous'
-                            ? 'Você voltará para a fase anterior e terá de refazê-la.'
-                            : 'Você sairá desta atividade e voltará para a tela anterior.'}
-                  </p>
-                </div>
-                <div className="p-xxxs flex justify-end gap-xxs">
-                  <Button style="secondary" size="small" onClick={handleRestartCancel}>Cancelar</Button>
-                  <Button style="primary" size="small" onClick={handleRestartConfirm}>Confirmar</Button>
-                </div>
-              </>
-            )}
-          </dialog>
-        </div>
-      )}
 
     </div>
   );

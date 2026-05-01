@@ -58,10 +58,9 @@ export function RouletteChart({
         {/* Chart area */}
         <div className="flex">
           {/* Y-axis label */}
-          <div className="flex flex-col items-center justify-center mr-micro" style={{ width: 20 }} aria-hidden="true">
+          <div className="flex flex-col items-center justify-center mr-micro w-5" aria-hidden="true">
             <span
-              className="ds-caption text-neutral-dark whitespace-nowrap"
-              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+              className="ds-caption text-neutral-dark whitespace-nowrap [writing-mode:vertical-rl] rotate-180"
             >
               Frequência Relativa (%)
             </span>
