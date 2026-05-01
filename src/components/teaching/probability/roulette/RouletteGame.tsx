@@ -12,7 +12,7 @@ import { RouletteTable } from "./RouletteTable";
 import { RouletteChart } from "./RouletteChart";
 import { RouletteQuestion } from "./RouletteQuestion";
 import { RouletteInfoBox } from "./RouletteInfoBox";
-import { useRouletteHooks, getPhaseIndex } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
+import { useRouletteHooks } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
 
 function gerarTextoNotaOU(n: number) {
   const letras = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].slice(0, n);
@@ -282,9 +282,6 @@ export function RouletteGame() {
     handleS3NewBetConfirm,
     handleS3FalaciaFinish,
 
-    // Dev
-    goToPhase,
-
     // Log de desempenho
     downloadLog,
     getLogSummary
@@ -292,9 +289,6 @@ export function RouletteGame() {
 
   const frequencyData = getFrequencyData();
   const chartData = getChartData();
-
-  const [devOpen, setDevOpen] = useState(false);
-  const [devKey, setDevKey] = useState('');
 
   // Verificar se deve mostrar o disco
   const shouldShowRoulette = gameState.sectors.length > 0 && gameState.showDivisions;
@@ -5056,65 +5050,6 @@ export function RouletteGame() {
         </div>
       )}
 
-      {/* Hidden dev trigger */}
-      <div
-        onClick={() => setDevOpen(true)}
-        style={{ position: 'fixed', bottom: 10, right: 10, width: 20, height: 20, zIndex: 9998, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eee', borderRadius: '50%', border: '1px solid #ccc' }}
-      >
-        <span style={{ fontSize: 9, color: '#aaa', lineHeight: 1 }}>·</span>
-      </div>
-      {devOpen && (
-        <div style={{ position: 'fixed', bottom: 8, right: 8, zIndex: 9999, background: '#fff', border: '1px solid #ccc', borderRadius: 4, padding: 6, display: 'flex', gap: 4, alignItems: 'center' }}>
-          <input
-            value={devKey}
-            onChange={e => setDevKey(e.target.value)}
-            style={{ width: 38, fontSize: 12, border: '1px solid #ddd', borderRadius: 2, padding: '1px 3px' }}
-            autoFocus
-          />
-          {devKey === 'w' && (
-            <button
-              onClick={() => {
-                const next = getPhaseIndex(gameState.subStep) + 1;
-                goToPhase(next);
-                setDevKey('');
-                setDevOpen(false);
-              }}
-              style={{ fontSize: 11, padding: '1px 5px', cursor: 'pointer' }}
-            >ok</button>
-          )}
-          {devKey === 'e1' && (
-            <button
-              onClick={() => {
-                startStage1();
-                setDevKey('');
-                setDevOpen(false);
-              }}
-              style={{ fontSize: 11, padding: '1px 5px', cursor: 'pointer' }}
-            >ok</button>
-          )}
-          {devKey === 'e2' && (
-            <button
-              onClick={() => {
-                startStage2();
-                setDevKey('');
-                setDevOpen(false);
-              }}
-              style={{ fontSize: 11, padding: '1px 5px', cursor: 'pointer' }}
-            >ok</button>
-          )}
-          {devKey === 'e3' && (
-            <button
-              onClick={() => {
-                startStage3();
-                setDevKey('');
-                setDevOpen(false);
-              }}
-              style={{ fontSize: 11, padding: '1px 5px', cursor: 'pointer' }}
-            >ok</button>
-          )}
-          <button onClick={() => { setDevOpen(false); setDevKey(''); }} style={{ fontSize: 10, cursor: 'pointer', color: '#999' }}>x</button>
-        </div>
-      )}
     </div>
   );
 }
