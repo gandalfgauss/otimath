@@ -1,3 +1,0 @@
-p(n1     R)
---- RECORDSEPARATOR ---
-p(R)

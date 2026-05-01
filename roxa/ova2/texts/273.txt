@@ -1,3 +1,0 @@
-p(número 1 E roxa)
---- RECORDSEPARATOR ---
-p(roxa)

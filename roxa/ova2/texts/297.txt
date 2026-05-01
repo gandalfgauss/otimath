@@ -1,3 +1,0 @@
-número de casos favoráveis
---- RECORDSEPARATOR ---
-número de casos possíveis

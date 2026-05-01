@@ -1,3 +1,0 @@
-2) Jogar uma moeda. O Espaço Amostral desse experimento seria:
---- RECORDSEPARATOR ---
-S={cara,coroa}             número de possibilidades        n(S)=2

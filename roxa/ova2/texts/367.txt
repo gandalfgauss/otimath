@@ -1,3 +1,0 @@
-Número de elementos de E 
---- RECORDSEPARATOR ---
-Número de elementos de S  

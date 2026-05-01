@@ -1,5 +1,0 @@
-E a probabilidade da segunda sequência P2:
---- RECORDSEPARATOR ---
-Assim, a probabilidade será dada pela soma das probabilidades das duas 
---- RECORDSEPARATOR ---
-sequência:  P = P1 + P2 = 10,41% + 10,41% = 20,42%

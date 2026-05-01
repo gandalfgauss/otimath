@@ -1,7 +1,0 @@
-Kawano
---- RECORDSEPARATOR ---
-Programmer
---- RECORDSEPARATOR ---
-Modeller
---- RECORDSEPARATOR ---
-Audio Engineer

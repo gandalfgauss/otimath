@@ -1,3 +1,0 @@
-Ao lançar uma moeda, o evento tirar cara seria:
---- RECORDSEPARATOR ---
-E = {cara}, n(E) = 1 possibilidade.
