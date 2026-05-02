@@ -55,10 +55,11 @@ export function RouletteChart({
       <p className="sr-only">{chartDescription}</p>
 
       <div className="flex flex-col gap-y-micro">
-        {/* Chart area */}
+        {/* Chart area: Y-axis fixo à esquerda + área de barras com scroll
+            horizontal no mobile (min-width baseada em quantidade de barras). */}
         <div className="flex">
-          {/* Y-axis label */}
-          <div className="flex flex-col items-center justify-center mr-micro w-5" aria-hidden="true">
+          {/* Y-axis label (fixo) */}
+          <div className="flex flex-col items-center justify-center mr-micro w-5 flex-shrink-0" aria-hidden="true">
             <span
               className="ds-caption text-neutral-dark whitespace-nowrap [writing-mode:vertical-rl] rotate-180"
             >
@@ -66,8 +67,8 @@ export function RouletteChart({
             </span>
           </div>
 
-          {/* Y-axis values */}
-          <div className="flex flex-col justify-between text-right pr-micro" style={{ height: chartHeight, width: 35 }} aria-hidden="true">
+          {/* Y-axis values (fixo) */}
+          <div className="flex flex-col justify-between text-right pr-micro flex-shrink-0" style={{ height: chartHeight, width: 35 }} aria-hidden="true">
             <span className="ds-caption text-neutral-dark">100</span>
             <span className="ds-caption text-neutral-dark">75</span>
             <span className="ds-caption text-neutral-dark">50</span>
@@ -75,112 +76,115 @@ export function RouletteChart({
             <span className="ds-caption text-neutral-dark">0</span>
           </div>
 
-          {/* Bars container */}
-          <div
-            className="flex-1 border-l border-b border-neutral-light relative"
-            style={{ height: chartHeight }}
-            aria-hidden="true"
-          >
-            {/* Grid lines */}
-            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-              {[0, 1, 2, 3, 4].map(i => (
-                <div key={i} className="border-t border-neutral-lighter w-full" />
-              ))}
-            </div>
-
-            {/* Theoretical probability line (1/n) - linha vermelha pontilhada (equiprovável) */}
-            {showTheoreticalProbability && !hasPerBarProbability && (
-              <div
-                className="absolute left-0 right-0 border-t-2 border-dashed border-feedback-error-dark pointer-events-none"
-                style={{
-                  bottom: (theoreticalProbabilityPercent / maxValue) * chartHeight,
-                  zIndex: 10
-                }}
-              />
-            )}
-
-            {/* Bars */}
+          {/* Wrapper com scroll horizontal — agrupa barras + rótulos do eixo X
+              para rolarem juntos. min-width garante barras legíveis com 4+ setores. */}
+          <div className="flex-1 overflow-x-auto">
             <div
-              className="absolute bottom-0 left-0 right-0 flex justify-around items-end px-micro"
-              style={{ height: chartHeight }}
+              className="flex flex-col"
+              style={{ minWidth: Math.max(data.length * (barWidth + 8), 200) }}
             >
-              {data.map((item, index) => {
-                const colorHex = ROULETTE_COLORS[item.colorName] || '#6c6c6c';
-                // Converter frequência relativa para porcentagem
-                const relativeFrequencyPercent = item.relativeFrequency * 100;
-                // Calcular altura em pixels (proporcional a 100%)
-                const barHeightPx = Math.max((relativeFrequencyPercent / maxValue) * chartHeight, 2);
+              {/* Bars container */}
+              <div
+                className="border-l border-b border-neutral-light relative"
+                style={{ height: chartHeight }}
+                aria-hidden="true"
+              >
+                {/* Grid lines */}
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                  {[0, 1, 2, 3, 4].map(i => (
+                    <div key={i} className="border-t border-neutral-lighter w-full" />
+                  ))}
+                </div>
 
-                // Probabilidade teórica individual (para não-equiprovável)
-                const itemTheoPercent = item.theoreticalProbability !== undefined
-                  ? item.theoreticalProbability * 100
-                  : theoreticalProbabilityPercent;
-
-                return (
+                {/* Theoretical probability line (1/n) — linha vermelha (equiprovável) */}
+                {showTheoreticalProbability && !hasPerBarProbability && (
                   <div
-                    key={index}
-                    className="flex flex-col items-center relative"
-                    style={{ width: barWidth }}
-                  >
-                    {/* Per-bar theoretical probability marker (não-equiprovável) */}
-                    {hasPerBarProbability && (
+                    className="absolute left-0 right-0 border-t-2 border-dashed border-feedback-error-dark pointer-events-none"
+                    style={{
+                      bottom: (theoreticalProbabilityPercent / maxValue) * chartHeight,
+                      zIndex: 10
+                    }}
+                  />
+                )}
+
+                {/* Bars */}
+                <div
+                  className="absolute bottom-0 left-0 right-0 flex justify-around items-end px-micro"
+                  style={{ height: chartHeight }}
+                >
+                  {data.map((item, index) => {
+                    const colorHex = ROULETTE_COLORS[item.colorName] || '#6c6c6c';
+                    const relativeFrequencyPercent = item.relativeFrequency * 100;
+                    const barHeightPx = Math.max((relativeFrequencyPercent / maxValue) * chartHeight, 2);
+                    const itemTheoPercent = item.theoreticalProbability !== undefined
+                      ? item.theoreticalProbability * 100
+                      : theoreticalProbabilityPercent;
+
+                    return (
                       <div
-                        className="absolute pointer-events-none"
-                        style={{
-                          bottom: (itemTheoPercent / maxValue) * chartHeight,
-                          width: barWidth,
-                          zIndex: 10
-                        }}
+                        key={index}
+                        className="flex flex-col items-center relative flex-shrink-0"
+                        style={{ width: barWidth }}
                       >
-                        <div className="border-t-2 border-dashed border-feedback-error-dark w-full" />
-                      </div>
-                    )}
-                    {/* Frequency bar */}
-                    <div
-                      className="rounded-t-sm transition-all duration-300 ease-out relative"
-                      style={{
-                        backgroundColor: colorHex,
-                        height: barHeightPx,
-                        width: barWidth - 4
-                      }}
-                    >
-                      {/* Valor da frequência relativa em % no topo da barra */}
-                      {relativeFrequencyPercent > 0 && (
-                        <span
-                          className="ds-caption text-neutral-dark absolute left-1/2 -translate-x-1/2 font-bold whitespace-nowrap"
-                          style={{ top: -16, fontSize: '10px' }}
+                        {hasPerBarProbability && (
+                          <div
+                            className="absolute pointer-events-none"
+                            style={{
+                              bottom: (itemTheoPercent / maxValue) * chartHeight,
+                              width: barWidth,
+                              zIndex: 10
+                            }}
+                          >
+                            <div className="border-t-2 border-dashed border-feedback-error-dark w-full" />
+                          </div>
+                        )}
+                        <div
+                          className="rounded-t-sm transition-all duration-300 ease-out relative"
+                          style={{
+                            backgroundColor: colorHex,
+                            height: barHeightPx,
+                            width: barWidth - 4
+                          }}
                         >
-                          {relativeFrequencyPercent.toFixed(1)}%
-                        </span>
-                      )}
+                          {relativeFrequencyPercent > 0 && (
+                            <span
+                              className="ds-caption text-neutral-dark absolute left-1/2 -translate-x-1/2 font-bold whitespace-nowrap"
+                              style={{ top: -16, fontSize: '10px' }}
+                            >
+                              {relativeFrequencyPercent.toFixed(1)}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* X-axis labels — agora dentro do wrapper com scroll, alinham
+                  com as barras automaticamente. */}
+              <div className="flex justify-around mt-micro" aria-hidden="true">
+                {data.map((item, index) => {
+                  const colorHex = ROULETTE_COLORS[item.colorName] || '#6c6c6c';
+                  return (
+                    <div
+                      key={index}
+                      className="flex flex-col items-center gap-y-nano flex-shrink-0"
+                      style={{ width: barWidth }}
+                    >
+                      <div
+                        className="w-[16px] h-[16px] rounded-sm border border-neutral-dark"
+                        style={{ backgroundColor: colorHex }}
+                      />
+                      <span className="ds-caption text-neutral-dark text-center">
+                        {item.colorName.substring(0, 3)}
+                      </span>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* X-axis labels */}
-        <div className="flex justify-around" style={{ marginLeft: 55 }} aria-hidden="true">
-          {data.map((item, index) => {
-            const colorHex = ROULETTE_COLORS[item.colorName] || '#6c6c6c';
-            return (
-              <div
-                key={index}
-                className="flex flex-col items-center gap-y-nano"
-                style={{ width: barWidth }}
-              >
-                <div
-                  className="w-[16px] h-[16px] rounded-sm border border-neutral-dark"
-                  style={{ backgroundColor: colorHex }}
-                />
-                <span className="ds-caption text-neutral-dark text-center">
-                  {item.colorName.substring(0, 3)}
-                </span>
-              </div>
-            );
-          })}
         </div>
 
         {/* Legend */}

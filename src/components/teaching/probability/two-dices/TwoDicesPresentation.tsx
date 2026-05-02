@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { Button } from '@/components/global/Button';
 import { Grid } from '@/components/global/Grid';
 import { GridItem } from '@/components/global/GridItem';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { playSound } from '@/hooks/global/useSound';
 import type { DiceSceneHandle } from './DiceScene';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
@@ -177,12 +177,28 @@ function Fraction({ num, den }: { num: string; den: string }) {
   );
 }
 
-// ═══════ Componente principal ═══════
-interface TwoDicesPresentationProps {
-  children: ReactNode;
+// Sinaliza onFinished após o mount — evita setState em componente pai
+// durante o render do filho (anti-padrão React).
+function FinishedSignal({ onFinished }: { onFinished: () => void }) {
+  useEffect(() => { onFinished(); }, [onFinished]);
+  return null;
 }
 
-export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
+// ═══════ Componente principal ═══════
+interface TwoDicesPresentationProps {
+  children?: ReactNode;
+  /** Callback opcional disparado quando a apresentação termina (após Cena 7).
+   *  Quando definido, é executado em vez de revelar `children` — útil para
+   *  compor o OVA dentro de uma sequência didática que controla o que vem
+   *  depois externamente. */
+  onFinished?: () => void;
+  /** Modo de desenvolvimento — quando true, renderiza uma barrinha
+   *  interna de navegação entre as 7 cenas. Usado pelo painel de DEV
+   *  da sequência didática. */
+  devMode?: boolean;
+}
+
+export function TwoDicesPresentation({ children, onFinished, devMode = false }: TwoDicesPresentationProps) {
   const [done, setDone] = useState(false);
   const [scene, setScene] = useState(1);
   const [transitioning, setTransitioning] = useState(false);
@@ -523,8 +539,14 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
     if (scene < 5) goToScene(scene + 1);
   };
 
-  // Se apresentação finalizada, mostrar o OVA
-  if (done) return <>{children}</>;
+  // Se apresentação finalizada: dispara onFinished (se fornecido) ou
+  // revela children no lugar das cenas. Em fluxos compostos (sequência
+  // didática), onFinished é usado para passar o controle ao orquestrador
+  // sem renderizar nada local.
+  if (done) {
+    if (onFinished) return <FinishedSignal onFinished={onFinished} />;
+    return <>{children}</>;
+  }
 
   // Cenas 1–3 exibem o dado 3D
   const showDice = (scene >= 1 && scene <= 3) || scene === 5;
@@ -532,6 +554,16 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
   // ═══════ Renderização das Cenas ═══════
   return (
     <main className="bg-brand-otimath-lightest">
+      {devMode && (
+        <TwoDicesDevNav
+          scene={scene}
+          setScene={setScene}
+          scene3Step={scene3Step}
+          setScene3Step={setScene3Step}
+          scene4Step={scene4Step}
+          setScene4Step={setScene4Step}
+        />
+      )}
       <Grid id="apresentacao-dado" paddings="pt-xl">
         <GridItem cols="col-[1_/_13]">
           <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && (scene7ExperimentPhase === 'complementaryEvents' || scene7ExperimentPhase === 'unionTheory' || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5' || scene7ExperimentPhase === 'unionExercise6' || scene7ExperimentPhase === 'twoDicesGameFree') ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
@@ -1227,5 +1259,95 @@ export function TwoDicesPresentation({ children }: TwoDicesPresentationProps) {
       </Grid>
 
     </main>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Barra de DEV interna do Dois Dados — uso restrito ao painel de DEV da
+// sequência didática. Navegação por (cena, scene3Step, scene4Step) com
+// snapshot do estado a cada mudança natural — voltar restaura snapshot,
+// avançar restaura snapshot futuro ou herda o estado atual.
+// ─────────────────────────────────────────────────────────────────
+type TwoDicesSnapshot = { scene: number; scene3Step: number; scene4Step: number };
+
+function TwoDicesDevNav({
+  scene, setScene, scene3Step, setScene3Step, scene4Step, setScene4Step,
+}: {
+  scene: number;
+  setScene: (n: number) => void;
+  scene3Step: number;
+  setScene3Step: (n: number) => void;
+  scene4Step: number;
+  setScene4Step: (n: number) => void;
+}) {
+  const TOTAL = 7;
+  // Lista plana de "ceninhas" navegáveis: cena base + variações por step
+  // dentro das cenas que têm sub-passos visíveis (3 e 4).
+  const phases: { label: string; apply: () => void; snapshot: TwoDicesSnapshot }[] = [
+    { label: '1', apply: () => setScene(1), snapshot: { scene: 1, scene3Step: 0, scene4Step: 0 } },
+    { label: '2', apply: () => setScene(2), snapshot: { scene: 2, scene3Step: 0, scene4Step: 0 } },
+    ...[0, 1, 2, 3, 4, 5, 6].map(s => ({
+      label: `3.${s}`,
+      apply: () => { setScene(3); setScene3Step(s); },
+      snapshot: { scene: 3, scene3Step: s, scene4Step: 0 },
+    })),
+    ...[0, 1, 2].map(s => ({
+      label: `4.${s}`,
+      apply: () => { setScene(4); setScene4Step(s); },
+      snapshot: { scene: 4, scene3Step: 0, scene4Step: s },
+    })),
+    { label: '5', apply: () => setScene(5), snapshot: { scene: 5, scene3Step: 0, scene4Step: 0 } },
+    { label: '6', apply: () => setScene(6), snapshot: { scene: 6, scene3Step: 0, scene4Step: 0 } },
+    { label: '7', apply: () => setScene(7), snapshot: { scene: 7, scene3Step: 0, scene4Step: 0 } },
+  ];
+  const total = phases.length;
+
+  const matchesIdx = (s: TwoDicesSnapshot) =>
+    phases.findIndex(p =>
+      p.snapshot.scene === s.scene &&
+      (s.scene === 3 ? p.snapshot.scene3Step === s.scene3Step : true) &&
+      (s.scene === 4 ? p.snapshot.scene4Step === s.scene4Step : true)
+    );
+
+  const currentSnapshot: TwoDicesSnapshot = { scene, scene3Step, scene4Step };
+  const currentIdx = matchesIdx(currentSnapshot);
+
+  const goPrev = () => { if (currentIdx > 0) phases[currentIdx - 1].apply(); };
+  const goNext = () => { if (currentIdx >= 0 && currentIdx < total - 1) phases[currentIdx + 1].apply(); };
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-quarck gap-y-quarck p-quarck bg-feedback-warning-lightest border-b border-feedback-warning-light text-neutral-darkest">
+      <span className="ds-caption font-bold">DEV — Dois Dados:</span>
+      <button
+        onClick={goPrev}
+        disabled={currentIdx <= 0}
+        aria-label="Ceninha anterior"
+        className="flex items-center justify-center w-6 h-6 rounded-sm border border-neutral-light bg-neutral-white cursor-pointer hover:bg-neutral-lightest disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <ChevronLeft size={14} aria-hidden="true" />
+      </button>
+      <span className="ds-caption">
+        {currentIdx >= 0 ? `Cena ${currentIdx + 1} de ${total}` : `? de ${total}`} · <strong>{phases[Math.max(currentIdx, 0)].label}</strong>
+      </span>
+      <button
+        onClick={goNext}
+        disabled={currentIdx < 0 || currentIdx >= total - 1}
+        aria-label="Próxima ceninha"
+        className="flex items-center justify-center w-6 h-6 rounded-sm border border-neutral-light bg-neutral-white cursor-pointer hover:bg-neutral-lightest disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <ChevronRight size={14} aria-hidden="true" />
+      </button>
+      <div className="flex flex-wrap gap-x-quarck gap-y-quarck">
+        {phases.map((p, i) => (
+          <button
+            key={p.label}
+            onClick={p.apply}
+            className={`min-w-6 h-6 px-quarck rounded-sm border ds-caption cursor-pointer ${i === currentIdx ? 'bg-brand-otimath-pure text-neutral-white border-brand-otimath-pure' : 'bg-neutral-white border-neutral-light hover:bg-neutral-lightest'}`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

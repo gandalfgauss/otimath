@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { HeroBanner } from "@/components/global/HeroBanner";
 import { TextBlock } from "@/components/global/TextBlock";
 import { Applications } from "@/components/teaching/probability/Applications";
+import { DidacticSequence } from "@/components/teaching/probability/DidacticSequence";
 import { Button } from "@/components/global/Button";
 import heroBannerProbabilityImage from '@/images/teaching/probability/probabilityBanner.webp';
 
@@ -68,6 +69,7 @@ export default function Probability() {
         }
         image={heroBannerProbabilityImage}
       />
+      <DidacticSequence />
       <Applications />
     </main>
   );

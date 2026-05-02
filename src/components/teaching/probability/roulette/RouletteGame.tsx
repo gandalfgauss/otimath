@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/global/Button";
-import { RefreshCw, Play, X, ArrowRight, Check, Info, Download } from "lucide-react";
+import { RefreshCw, Play, X, ArrowRight, Check, Info, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { Alerts } from "@/components/global/Alerts";
 import { Modal } from "@/components/global/Modal";
 import { TextBlock } from "@/components/global/TextBlock";
@@ -12,7 +12,7 @@ import { RouletteTable } from "./RouletteTable";
 import { RouletteChart } from "./RouletteChart";
 import { RouletteQuestion } from "./RouletteQuestion";
 import { RouletteInfoBox } from "./RouletteInfoBox";
-import { useRouletteHooks } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
+import { useRouletteHooks, ROULETTE_STAGE_PHASES } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
 
 function generateUnionNoteText(n: number) {
   const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].slice(0, n);
@@ -28,7 +28,19 @@ function generateUnionNoteText(n: number) {
   return { exampleText, countText, union, reading, eventsList, complement };
 }
 
-export function RouletteGame() {
+interface RouletteGameProps {
+  /** Callback opcional disparado quando o aluno conclui a Etapa 3 e clica
+   *  em "Continuar" no card-ponte para o próximo OVA. Quando definido,
+   *  substitui o link estático para `/ensino/probabilidade/dois-dados` —
+   *  útil para compor o OVA dentro de uma sequência didática mais ampla. */
+  onFinished?: () => void;
+  /** Modo de desenvolvimento — quando true, renderiza uma barrinha
+   *  interna de navegação (próxima/anterior subStep + jump direto) usada
+   *  pelo painel de DEV da sequência didática. */
+  devMode?: boolean;
+}
+
+export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteGameProps> = {}) {
   const {
     // Game state
     gameState,
@@ -69,6 +81,10 @@ export function RouletteGame() {
     startStage1,
     startStage2,
     startStage3,
+    devSimulateAdvance,
+    getDevSnapshot,
+    applyDevSnapshot,
+    getDevCenaId,
     toggleSectorSelection,
     restartExercise,
     restartChallenge1,
@@ -310,6 +326,20 @@ export function RouletteGame() {
 
   return (
     <div className="flex flex-col gap-y-xxs">
+      {devMode && (
+        <RouletteDevNav
+          stage={gameState.stage}
+          cenaId={getDevCenaId()}
+          onSimulateAdvance={devSimulateAdvance}
+          getDevSnapshot={getDevSnapshot}
+          applyDevSnapshot={applyDevSnapshot}
+          onStartStage={(n) => {
+            if (n === 1) startStage1();
+            else if (n === 2) startStage2();
+            else startStage3();
+          }}
+        />
+      )}
       {/* Stage indicator */}
       <div className="flex justify-center gap-x-macro mb-macro" role="tablist" aria-label="Etapas do disco">
         {[1, 2, 3].map((stageNum) => {
@@ -364,7 +394,7 @@ export function RouletteGame() {
         )}
       </div>
 
-      <div className="flex gap-x-xs gap-y-xs max-lg:flex-col">
+      <div className="flex gap-x-xs gap-y-xs max-lg:flex-col max-lg:items-center">
         {/* Left side - Roulette and controls */}
         <div className="flex-1 flex flex-col gap-y-xxs items-center">
           {/* Sector slider (Stage 1, subStep 0 only) */}
@@ -511,8 +541,9 @@ export function RouletteGame() {
                     ? (gameState.compEventA?.indicesA || [])
                   : ((gameState.subStep === 6.87 || gameState.subStep === 6.88 || gameState.subStep === 6.92 || gameState.subStep === 6.93) && (compPhase === 'calc_showBoth' || compPhase === 'calc_chain'))
                     ? (compStepByStep >= 1 && compStepByStep < 2 ? [] : compStepByStep >= 3 ? [] : (gameState.compEventA?.indicesA || []))
-                  // Na fase de experimentação, destacar a cor apostada (inclusive durante o giro)
-                  : ((gameState.subStep === 1.1 || gameState.subStep === 1.17 || gameState.isSpinning) && experimentationState.wageredColor)
+                  // Na fase de experimentação, destacar a cor apostada (inclusive durante o giro).
+                  // Restrito aos subSteps da experimentação para não vazar para giros automáticos posteriores.
+                  : (gameState.stage === 1 && (gameState.subStep === 1.1 || gameState.subStep === 1.17) && experimentationState.wageredColor)
                     ? [gameState.sectors.findIndex(s => s.colorName === experimentationState.wageredColor)]
                   // Etapa 2: destacar setor apostado na investigação inicial
                   : (gameState.stage === 2 && (gameState.subStep === 0.15 || gameState.subStep === 0.16 || gameState.subStep === 0.17) && experimentationState.wageredColor)
@@ -708,8 +739,10 @@ export function RouletteGame() {
             </Button>
           )}
 
-          {/* Indicador de cor apostada e sorteada na fase de experimentação */}
-          {((gameState.subStep === 1.1 || gameState.subStep === 1.17 || gameState.isSpinning) && experimentationState.wageredColor) && (
+          {/* Indicador de cor apostada e sorteada na fase de experimentação.
+              Restrito aos subSteps da experimentação (stage 1) para não aparecer
+              durante os giros automáticos posteriores (50/100/150/200). */}
+          {(gameState.stage === 1 && (gameState.subStep === 1.1 || gameState.subStep === 1.17) && experimentationState.wageredColor) && (
             <div className="bg-brand-otimath-lightest p-micro rounded-md border border-brand-otimath-light text-center" role="status" aria-live="polite">
               <p className="ds-small text-brand-otimath-dark">
                 <strong>Aposta:</strong> {experimentationState.wageredColor}
@@ -753,7 +786,7 @@ export function RouletteGame() {
                   style={index <= gameState.currentAutoBatchIndex ? 'primary' : 'secondary'}
                   size="small"
                   onClick={() => startAutoSpins(batch)}
-                  disabled={index < gameState.currentAutoBatchIndex || gameState.isAutoSpinning}
+                  disabled={index !== gameState.currentAutoBatchIndex || gameState.isAutoSpinning}
                 >
                   {batch} giros
                 </Button>
@@ -773,7 +806,7 @@ export function RouletteGame() {
         </div>
 
         {/* Right side - Questions, Tables, Charts */}
-        <div className="flex-1 flex flex-col gap-y-xxs max-w-[500px]" role="region" aria-label="Atividades e perguntas">
+        <div className="flex-1 flex flex-col gap-y-xxs max-w-[500px] w-full max-lg:items-stretch max-lg:mx-auto" role="region" aria-label="Atividades e perguntas">
           {/* Info box */}
           {showInfoBox && (
             <RouletteInfoBox
@@ -1224,17 +1257,17 @@ export function RouletteGame() {
                     onChange={(e) => exercisePENumeratorInput.setValue?.(e.target.value)}
                     placeholder="?"
                     className={`w-16 text-center bg-transparent outline-none ds-body ${
-                      exercisePENumeratorInput.error ? 'text-feedback-negative' : ''
+                      exercisePENumeratorInput.error ? 'text-feedback-error-dark' : ''
                     }`}
                   />
-                  <div className={`w-16 h-0.5 ${exercisePENumeratorInput.error || exercisePEDenominatorInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                  <div className={`w-16 h-0.5 ${exercisePENumeratorInput.error || exercisePEDenominatorInput.error ? 'bg-feedback-error-dark' : 'bg-brand-otimath-dark'}`}></div>
                   <input
                     type="text"
                     value={exercisePEDenominatorInput.value}
                     onChange={(e) => exercisePEDenominatorInput.setValue?.(e.target.value)}
                     placeholder="?"
                     className={`w-16 text-center bg-transparent outline-none ds-body ${
-                      exercisePEDenominatorInput.error ? 'text-feedback-negative' : ''
+                      exercisePEDenominatorInput.error ? 'text-feedback-error-dark' : ''
                     }`}
                   />
                 </div>
@@ -1318,17 +1351,17 @@ export function RouletteGame() {
                         onChange={(e) => setUnionProbNumInput(prev => ({ ...prev, value: e.target.value }))}
                         placeholder="?"
                         className={`w-16 text-center bg-transparent outline-none ds-body ${
-                          unionProbNumInput.error ? 'text-feedback-negative' : ''
+                          unionProbNumInput.error ? 'text-feedback-error-dark' : ''
                         }`}
                       />
-                      <div className={`w-16 h-0.5 ${unionProbNumInput.error || unionProbDenInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                      <div className={`w-16 h-0.5 ${unionProbNumInput.error || unionProbDenInput.error ? 'bg-feedback-error-dark' : 'bg-brand-otimath-dark'}`}></div>
                       <input
                         type="text"
                         value={unionProbDenInput.value}
                         onChange={(e) => setUnionProbDenInput(prev => ({ ...prev, value: e.target.value }))}
                         placeholder="?"
                         className={`w-16 text-center bg-transparent outline-none ds-body ${
-                          unionProbDenInput.error ? 'text-feedback-negative' : ''
+                          unionProbDenInput.error ? 'text-feedback-error-dark' : ''
                         }`}
                       />
                     </div>
@@ -1369,17 +1402,17 @@ export function RouletteGame() {
                         onChange={(e) => setUnionFinalNumInput(prev => ({ ...prev, value: e.target.value }))}
                         placeholder="?"
                         className={`w-16 text-center bg-transparent outline-none ds-body ${
-                          unionFinalNumInput.error ? 'text-feedback-negative' : ''
+                          unionFinalNumInput.error ? 'text-feedback-error-dark' : ''
                         }`}
                       />
-                      <div className={`w-16 h-0.5 ${unionFinalNumInput.error || unionFinalDenInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                      <div className={`w-16 h-0.5 ${unionFinalNumInput.error || unionFinalDenInput.error ? 'bg-feedback-error-dark' : 'bg-brand-otimath-dark'}`}></div>
                       <input
                         type="text"
                         value={unionFinalDenInput.value}
                         onChange={(e) => setUnionFinalDenInput(prev => ({ ...prev, value: e.target.value }))}
                         placeholder="?"
                         className={`w-16 text-center bg-transparent outline-none ds-body ${
-                          unionFinalDenInput.error ? 'text-feedback-negative' : ''
+                          unionFinalDenInput.error ? 'text-feedback-error-dark' : ''
                         }`}
                       />
                     </div>
@@ -1465,7 +1498,7 @@ export function RouletteGame() {
                   onChange={(e) => exerciseNEInput.setValue?.(e.target.value)}
                   placeholder="?"
                   className={`w-20 text-center border-b-2 bg-transparent outline-none ds-body ${
-                    exerciseNEInput.error ? 'border-feedback-negative' : 'border-brand-otimath-dark'
+                    exerciseNEInput.error ? 'border-feedback-error-dark' : 'border-brand-otimath-dark'
                   }`}
                 />
               </div>
@@ -1501,7 +1534,7 @@ export function RouletteGame() {
                   onChange={(e) => exerciseNSInput.setValue?.(e.target.value)}
                   placeholder="?"
                   className={`w-20 text-center border-b-2 bg-transparent outline-none ds-body ${
-                    exerciseNSInput.error ? 'border-feedback-negative' : 'border-brand-otimath-dark'
+                    exerciseNSInput.error ? 'border-feedback-error-dark' : 'border-brand-otimath-dark'
                   }`}
                 />
               </div>
@@ -1538,17 +1571,17 @@ export function RouletteGame() {
                     onChange={(e) => exercisePENumeratorInput.setValue?.(e.target.value)}
                     placeholder="?"
                     className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${
-                      exercisePENumeratorInput.error ? 'text-feedback-negative' : ''
+                      exercisePENumeratorInput.error ? 'text-feedback-error-dark' : ''
                     }`}
                   />
-                  <div className={`w-16 h-0.5 my-1 ${exercisePENumeratorInput.error || exercisePEDenominatorInput.error ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                  <div className={`w-16 h-0.5 my-1 ${exercisePENumeratorInput.error || exercisePEDenominatorInput.error ? 'bg-feedback-error-dark' : 'bg-brand-otimath-dark'}`}></div>
                   <input
                     type="text"
                     value={exercisePEDenominatorInput.value}
                     onChange={(e) => exercisePEDenominatorInput.setValue?.(e.target.value)}
                     placeholder="?"
                     className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${
-                      exercisePEDenominatorInput.error ? 'text-feedback-negative' : ''
+                      exercisePEDenominatorInput.error ? 'text-feedback-error-dark' : ''
                     }`}
                   />
                 </div>
@@ -1645,16 +1678,16 @@ export function RouletteGame() {
                     value={compPaInput.num}
                     onChange={(e) => setCompPaInput(prev => ({ ...prev, num: e.target.value, errNum: false }))}
                     placeholder="?"
-                    className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${compPaInput.errNum ? 'text-feedback-negative' : ''}`}
+                    className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${compPaInput.errNum ? 'text-feedback-error-dark' : ''}`}
                   />
-                  <div className={`w-16 h-0.5 my-1 ${compPaInput.errNum || compPaInput.errDen ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                  <div className={`w-16 h-0.5 my-1 ${compPaInput.errNum || compPaInput.errDen ? 'bg-feedback-error-dark' : 'bg-brand-otimath-dark'}`}></div>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={compPaInput.den}
                     onChange={(e) => setCompPaInput(prev => ({ ...prev, den: e.target.value, errDen: false }))}
                     placeholder="?"
-                    className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${compPaInput.errDen ? 'text-feedback-negative' : ''}`}
+                    className={`w-16 h-8 text-center bg-transparent outline-none ds-body ${compPaInput.errDen ? 'text-feedback-error-dark' : ''}`}
                   />
                 </div>
               </div>
@@ -1776,14 +1809,14 @@ export function RouletteGame() {
                       {step < 4 ? (
                         <button
                           onClick={() => setCompStepByStep(prev => prev + 1)}
-                          className="w-full py-3 rounded-md bg-brand-otimath-pure text-neutral-white ds-body-bold hover:opacity-90 active:opacity-80 transition-opacity"
+                          className="w-full py-3 rounded-md bg-brand-otimath-pure text-neutral-white ds-body-bold cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity"
                         >
                           Próximo passo
                         </button>
                       ) : step === 4 ? (
                         <button
                           onClick={() => setCompStepByStep(5)}
-                          className="w-full py-3 rounded-md bg-feedback-success-dark text-neutral-white ds-body-bold hover:opacity-90 active:opacity-80 transition-opacity"
+                          className="w-full py-3 rounded-md bg-feedback-success-dark text-neutral-white ds-body-bold cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity"
                         >
                           Concluir
                         </button>
@@ -1791,15 +1824,15 @@ export function RouletteGame() {
                       {step === 5 && (
                         <button
                           onClick={() => setCompStepByStep(0)}
-                          className="w-full py-3 rounded-md bg-brand-otimath-pure text-neutral-white ds-body-bold hover:opacity-90 active:opacity-80 transition-opacity"
+                          className="w-full py-3 rounded-md bg-brand-otimath-pure text-neutral-white ds-body-bold cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity"
                         >
                           Tentar sozinho
                         </button>
                       )}
-                      {step >= 1 && step < 5 && (
+                      {step >= 2 && step < 5 && (
                         <button
                           onClick={() => setCompStepByStep(prev => Math.max(prev - 1, 1))}
-                          className="w-full py-2 rounded-md border border-neutral-light text-neutral-dark ds-small hover:bg-neutral-lightest active:opacity-80 transition-all"
+                          className="w-full py-2 rounded-md border border-neutral-light text-neutral-dark ds-small cursor-pointer hover:bg-neutral-lightest active:opacity-80 transition-all"
                         >
                           Voltar
                         </button>
@@ -1824,16 +1857,16 @@ export function RouletteGame() {
                           value={ci.n1}
                           onChange={(e) => setCompChainInputs(prev => ({ ...prev, n1: e.target.value, errN1: false }))}
                           placeholder="?"
-                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errN1 ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small ${ci.errN1 ? 'text-feedback-error-dark' : ''}`}
                         />
-                        <div className={`w-10 h-0.5 my-0.5 ${ci.errN1 || ci.errD1 ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                        <div className={`w-10 h-0.5 my-0.5 ${ci.errN1 || ci.errD1 ? 'bg-feedback-error-dark' : 'bg-brand-otimath-dark'}`}></div>
                         <input
                           type="text"
                           inputMode="numeric"
                           value={ci.d1}
                           onChange={(e) => setCompChainInputs(prev => ({ ...prev, d1: e.target.value, errD1: false }))}
                           placeholder="?"
-                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errD1 ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small ${ci.errD1 ? 'text-feedback-error-dark' : ''}`}
                         />
                       </div>
                       <span className="ds-small-bold text-brand-otimath-dark">−</span>
@@ -1845,16 +1878,16 @@ export function RouletteGame() {
                           value={ci.n2}
                           onChange={(e) => setCompChainInputs(prev => ({ ...prev, n2: e.target.value, errN2: false }))}
                           placeholder="?"
-                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errN2 ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small ${ci.errN2 ? 'text-feedback-error-dark' : ''}`}
                         />
-                        <div className={`w-10 h-0.5 my-0.5 ${ci.errN2 || ci.errD2 ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                        <div className={`w-10 h-0.5 my-0.5 ${ci.errN2 || ci.errD2 ? 'bg-feedback-error-dark' : 'bg-brand-otimath-dark'}`}></div>
                         <input
                           type="text"
                           inputMode="numeric"
                           value={ci.d2}
                           onChange={(e) => setCompChainInputs(prev => ({ ...prev, d2: e.target.value, errD2: false }))}
                           placeholder="?"
-                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errD2 ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small ${ci.errD2 ? 'text-feedback-error-dark' : ''}`}
                         />
                       </div>
                       <span className="ds-small-bold text-brand-otimath-dark">=</span>
@@ -1871,16 +1904,16 @@ export function RouletteGame() {
                           value={ci.finalNum}
                           onChange={(e) => setCompChainInputs(prev => ({ ...prev, finalNum: e.target.value, errFinalNum: false }))}
                           placeholder="?"
-                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errFinalNum ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small ${ci.errFinalNum ? 'text-feedback-error-dark' : ''}`}
                         />
-                        <div className={`w-10 h-0.5 my-0.5 ${ci.errFinalNum || ci.errFinalDen ? 'bg-feedback-negative' : 'bg-brand-otimath-dark'}`}></div>
+                        <div className={`w-10 h-0.5 my-0.5 ${ci.errFinalNum || ci.errFinalDen ? 'bg-feedback-error-dark' : 'bg-brand-otimath-dark'}`}></div>
                         <input
                           type="text"
                           inputMode="numeric"
                           value={ci.finalDen}
                           onChange={(e) => setCompChainInputs(prev => ({ ...prev, finalDen: e.target.value, errFinalDen: false }))}
                           placeholder="?"
-                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small border-b ${ci.errFinalDen ? 'border-feedback-negative text-feedback-negative' : 'border-neutral-light'}`}
+                          className={`w-10 h-7 text-center bg-transparent outline-none ds-small ${ci.errFinalDen ? 'text-feedback-error-dark' : ''}`}
                         />
                       </div>
                       {/* Decimal e percentual auto-calculados */}
@@ -1901,7 +1934,7 @@ export function RouletteGame() {
                       {compIsGuided && (
                         <button
                           onClick={() => setCompStepByStep(1)}
-                          className="flex-1 py-2 rounded-md border-2 border-brand-otimath-pure text-brand-otimath-pure ds-small-bold hover:bg-brand-otimath-pure hover:text-neutral-white active:opacity-80 transition-all"
+                          className="flex-1 py-2 rounded-md border-2 border-brand-otimath-pure text-brand-otimath-pure ds-small-bold cursor-pointer hover:bg-brand-otimath-pure hover:text-neutral-white active:opacity-80 transition-all"
                         >
                           Ver passo a passo
                         </button>
@@ -4565,12 +4598,23 @@ export function RouletteGame() {
                   Pense nisso. A resposta pode te surpreender.
                 </p>
               </div>
-              <a
-                href="/ensino/probabilidade/dois-dados"
-                className="ds-body-bold inline-block bg-brand-otimath-pure text-neutral-white rounded-md no-underline py-macro px-xxs"
-              >
-                Ir para o OVA: Probabilidade com Dois Dados →
-              </a>
+              {onFinished ? (
+                <Button
+                  style="primary"
+                  size="medium"
+                  icon={<ArrowRight />}
+                  onClick={onFinished}
+                >
+                  Avançar para o próximo OVA
+                </Button>
+              ) : (
+                <a
+                  href="/ensino/probabilidade/dois-dados"
+                  className="ds-body-bold inline-block bg-brand-otimath-pure text-neutral-white rounded-md no-underline py-macro px-xxs"
+                >
+                  Ir para o OVA: Probabilidade com Dois Dados →
+                </a>
+              )}
             </div>
           )}
 
@@ -4967,6 +5011,116 @@ export function RouletteGame() {
       <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts} />
       <Modal modal={modal} updateModal={updateModal} />
 
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Barra de DEV interna do disco — uso restrito ao painel de DEV da
+// sequência didática. Histórico de snapshots COMPLETOS (incluindo
+// InfoBox, instruções, inputs, fase de experimentação, etc.) capturado
+// via getDevSnapshot. Voltar restaura snapshot via applyDevSnapshot;
+// avançar restaura snapshot futuro ou simula o usuário acertando a
+// cena via onSimulateAdvance — ambos preservam todas as dependências.
+// ─────────────────────────────────────────────────────────────────
+// Snapshot opaco — passamos round-trip entre getDevSnapshot e applyDevSnapshot
+// sem precisar duplicar o tipo aqui (que tem 20+ campos).
+type DevSnapshotOpaque = ReturnType<ReturnType<typeof useRouletteHooks>['getDevSnapshot']>;
+
+function RouletteDevNav({
+  stage, cenaId, onSimulateAdvance, getDevSnapshot, applyDevSnapshot, onStartStage,
+}: {
+  stage: number;
+  cenaId: string;
+  onSimulateAdvance: () => void;
+  getDevSnapshot: () => DevSnapshotOpaque;
+  applyDevSnapshot: (snap: DevSnapshotOpaque) => void;
+  onStartStage: (n: 1 | 2 | 3) => void;
+}) {
+  const historyRef = useRef<DevSnapshotOpaque[]>([]);
+  const cursorRef = useRef<number>(-1);
+  const restoringRef = useRef<boolean>(false);
+  const [, force] = useState(0);
+
+  // Snapshot automático em cada mudança natural de cena (subStep + sub-fase
+  // como compPhase, unionPhase, freqRelConceptPhase, etc.). Ignora mudanças
+  // disparadas por DEV (restoring) — essas só movem o cursor.
+  useEffect(() => {
+    if (restoringRef.current) {
+      restoringRef.current = false;
+      return;
+    }
+    const snap = getDevSnapshot();
+    const cursor = cursorRef.current;
+    historyRef.current = historyRef.current.slice(0, cursor + 1);
+    historyRef.current.push(snap);
+    cursorRef.current = historyRef.current.length - 1;
+    force(c => c + 1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cenaId]);
+
+  const goPrev = () => {
+    if (cursorRef.current > 0) {
+      cursorRef.current -= 1;
+      restoringRef.current = true;
+      // applyDevSnapshot dispara várias setStates que React baterá num
+      // único re-render; o useEffect acima detecta restoringRef e não
+      // empilha snapshot novo.
+      applyDevSnapshot(historyRef.current[cursorRef.current]);
+      force(c => c + 1);
+    }
+  };
+
+  const goNext = () => {
+    if (cursorRef.current < historyRef.current.length - 1) {
+      cursorRef.current += 1;
+      restoringRef.current = true;
+      applyDevSnapshot(historyRef.current[cursorRef.current]);
+      force(c => c + 1);
+      return;
+    }
+    // Sem snapshot futuro — simula resposta correta para construir a próxima cena.
+    onSimulateAdvance();
+  };
+
+  // Posição = índice no histórico de cenas visitadas (cresce a cada
+  // mudança natural de sub-cena via cenaId). É a contagem REAL do
+  // que o usuário viu — não tenta prever total porque cenas dinâmicas
+  // (3 exemplos no comp, etc.) tornam isso impreciso.
+  const positionLabel = `Cena ${cursorRef.current + 1}`;
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-quarck gap-y-quarck p-quarck rounded-md bg-feedback-warning-lightest border border-feedback-warning-light text-neutral-darkest">
+      <span className="ds-caption font-bold">DEV — Disco:</span>
+      <div className="flex gap-x-quarck">
+        {[1, 2, 3].map(n => (
+          <button
+            key={n}
+            onClick={() => onStartStage(n as 1 | 2 | 3)}
+            className={`px-quarck py-quarck rounded-sm border ds-caption cursor-pointer ${stage === n ? 'bg-brand-otimath-pure text-neutral-white border-brand-otimath-pure' : 'bg-neutral-white border-neutral-light hover:bg-neutral-lightest'}`}
+          >
+            E{n}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={goPrev}
+        disabled={cursorRef.current <= 0}
+        aria-label="Cena anterior"
+        className="flex items-center justify-center w-6 h-6 rounded-sm border border-neutral-light bg-neutral-white cursor-pointer hover:bg-neutral-lightest disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <ChevronLeft size={14} aria-hidden="true" />
+      </button>
+      <span className="ds-caption">
+        {positionLabel} de {historyRef.current.length}
+      </span>
+      <button
+        onClick={goNext}
+        aria-label="Próxima cena (simula resposta correta)"
+        className="flex items-center justify-center w-6 h-6 rounded-sm border border-neutral-light bg-neutral-white cursor-pointer hover:bg-neutral-lightest"
+      >
+        <ChevronRight size={14} aria-hidden="true" />
+      </button>
     </div>
   );
 }

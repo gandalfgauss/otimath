@@ -214,6 +214,44 @@ const RANDOM_EXPERIMENT_CHARACTERISTICS = [
   'É possível associar uma "chance" numérica aos resultados ou a conjuntos de resultados.'
 ];
 
+// ─────────────────────────────────────────────────────────────────
+// Lista ordenada de subSteps por etapa — usada exclusivamente pelo
+// painel de DEV da Sequência Didática para navegar livremente entre
+// "ceninhas" do disco. Cada entrada DEVE corresponder a um subStep que
+// efetivamente renderiza UI (verificado contra os blocos `if (stage === N
+// && subStep === X)` no checkAnswer + JSX guards no RouletteGame). Não
+// inclui subSteps puramente intermediários (sem renderização própria),
+// pois eles deixariam a tela em branco.
+// ─────────────────────────────────────────────────────────────────
+export const ROULETTE_STAGE_PHASES: Record<number, number[]> = {
+  1: [
+    0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6,
+    1, 1.1, 1.17, 1.25, 1.5,
+    2, 3, 3.4, 3.45, 3.5, 3.6,
+    4, 4.5, 5, 5.5, 5.55, 5.7, 5.75, 5.8, 5.9,
+    6, 6.1, 6.2, 6.3, 6.35, 6.36, 6.37, 6.38, 6.4,
+    6.41, 6.42, 6.43, 6.44, 6.45,
+    6.55, 6.56, 6.6, 6.65, 6.66, 6.67, 6.68, 6.69, 6.70,
+    6.80, 6.85, 6.86, 6.87, 6.88, 6.90, 6.91, 6.92, 6.93,
+    6.5,
+    7, 7.1, 7.5, 7.6,
+    8, 8.5, 8.6,
+    9, 9.5,
+    10, 11, 11.5, 11.6,
+    12, 13, 14,
+    15, 15.5, 15.6, 15.7, 16,
+  ],
+  2: [
+    0, 0.15, 0.16, 0.17, 0.18, 0.185, 0.19, 0.191,
+    2, 2.1, 2.2, 2.3, 2.4, 2.9,
+    3, 4, 5, 5.1, 5.2,
+    6, 6.101, 6.201, 6.202, 6.204,
+    7, 8, 9.1, 9.2, 9.3,
+    11, 12,
+  ],
+  3: [0.5, 1.5, 1.75, 2, 3, 4, 5, 6, 7, 8, 8.2, 8.4],
+};
+
 // Função auxiliar para verificar se um número é primo
 function isPrime(num: number): boolean {
   if (num < 2) return false;
@@ -293,8 +331,18 @@ function checkProperty(num: number, property: string, valueP?: number): boolean 
       return valueP !== undefined && num > valueP;
     case 'menor que p':
       return valueP !== undefined && num < valueP;
-    default:
+    default: {
+      // Suporta o formato "mutado" `maior que N` / `menor que N` salvo em
+      // challenge1PropertyY pelo restartChallenge1 (que substitui o `p`
+      // canônico pelo valor sorteado para fins de exibição). Sem isso a
+      // validação em 6.66/6.67/6.68 sempre retorna false para a condição
+      // numérica e a resposta correta do aluno é rejeitada.
+      const matchMaior = property.match(/^maior que (\d+)$/);
+      if (matchMaior) return num > parseInt(matchMaior[1], 10);
+      const matchMenor = property.match(/^menor que (\d+)$/);
+      if (matchMenor) return num < parseInt(matchMenor[1], 10);
       return false;
+    }
   }
 }
 
@@ -3137,7 +3185,7 @@ function generateS2ConceptOptions(): { options: { value: string; label: string }
 // ========== FIM HELPERS ETAPA 2 ==========
 
 // Interface para o estado do jogo
-interface GameState {
+export interface GameState {
   stage: number;
   subStep: number;
   targetSectorCount: number;
@@ -3476,7 +3524,11 @@ export const useRouletteHooks = () => {
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setPredictionInput(prev => ({ ...prev, value: val.slice(0, 35) }))
+    type: 'natural-number',
+    setValue: (val: string) => setPredictionInput(prev => ({
+      ...prev,
+      value: val.replace(/\D/g, '').slice(0, 5),
+    })),
   });
 
   const [favorableCasesInput, setFavorableCasesInput] = useState<TextInputInterface>({
@@ -3771,6 +3823,7 @@ export const useRouletteHooks = () => {
   // Estados para a fase de experimentação (3 tentativas antes da questão)
   const [experimentationState, setExperimentationState] = useState<{
     wageredColor: string | null;
+    wagers: string[];   // cor apostada em cada tentativa (1 por rodada)
     draws: string[];
     currentAttempt: number;
     waitingForConfirmation: boolean;
@@ -3778,6 +3831,7 @@ export const useRouletteHooks = () => {
     colorRevealed: boolean; // True quando o usuário confirmou corretamente
   }>({
     wageredColor: null,
+    wagers: [],
     draws: [],
     currentAttempt: 1,
     waitingForConfirmation: false,
@@ -3799,6 +3853,16 @@ export const useRouletteHooks = () => {
   // Hooks globais
   const { alerts, createAlert: _createAlert, updateAlert, deleteAlerts } = useAlerts();
   const { modal, updateModal } = useModal();
+
+  // Trava síncrona da aposta na fase de experimentação. Evita race condition
+  // entre o clique no disco e o setGameState (assíncrono) que muda subStep/
+  // isSpinning. Setada ao clicar "Sortear"; liberada ao iniciar nova tentativa.
+  const experimentBetLockedRef = useRef(false);
+
+  // Trava síncrona da confirmação do resultado. Evita que cliques rápidos
+  // consecutivos no setor correto disparem múltiplas vezes a transição de
+  // tentativa (que só zera waitingForConfirmation após 1.5s no setTimeout).
+  const resultConfirmationLockedRef = useRef(false);
 
   // Melhoria 12 — Wrapper de createAlert que loga tentativas automaticamente
   const gameStateRef = useRef<{ stage: number; subStep: number }>({ stage: 1, subStep: 0 });
@@ -4210,6 +4274,12 @@ export const useRouletteHooks = () => {
     });
   };
 
+  // Ref para invocar checkAnswer fora da sua própria dependência circular
+  // (usado pelo devSimulateAdvance, declarado mais abaixo).
+  const checkAnswerRef = useRef<(() => void) | null>(null);
+  // Ref para invocar handleInterpretationContinue (declarado após devSimulateAdvance).
+  const handleInterpretationContinueRef = useRef<(() => void) | null>(null);
+
   // Função para verificar resposta
   const checkAnswer = useCallback(() => {
     goToTopOfChallenge();
@@ -4356,7 +4426,7 @@ export const useRouletteHooks = () => {
         });
 
         setInstructions(`<p class="ds-body"><strong>Conceitos Fundamentais</strong></p>
-          <p class="ds-body">Leia o conteúdo do balão ao lado e clique em <strong>Li.</strong> para continuar.</p>`);
+          <p class="ds-body">Leia o conteúdo do balão ao lado e clique no <strong>Botão</strong> para continuar.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
         createAlert("Erro!", `O número correto é ${targetSectorCount}. Tente novamente.`, "error", 4000);
@@ -4371,8 +4441,10 @@ export const useRouletteHooks = () => {
         createAlert("Parabéns!", "Você identificou corretamente o experimento aleatório!", "success", 3000);
 
         // Ir para a fase de experimentação (3 tentativas antes da questão)
+        experimentBetLockedRef.current = false;
         setExperimentationState({
           wageredColor: null,
+          wagers: [],
           draws: [],
           currentAttempt: 1,
           waitingForConfirmation: false,
@@ -4404,6 +4476,10 @@ export const useRouletteHooks = () => {
       if (allChecked) {
         playSound("/sounds/correct.mp3");
         createAlert("Parabéns!", "Você identificou corretamente todas as características do experimento aleatório!", "success", 3000);
+
+        // Limpa o resumo da experimentação (tabela das 3 tentativas) — agora
+        // o foco passa a ser o balão conceitual de Espaço Amostral.
+        setInstructions('');
 
         // Mostrar balão conceitual do espaço amostral
         setShowInfoBox(true);
@@ -5354,21 +5430,26 @@ export const useRouletteHooks = () => {
       const errs = { errN1: false, errD1: false, errN2: false, errD2: false, errFinalNum: false, errFinalDen: false };
       const msgs: string[] = [];
 
-      // Validate line 1: n/n − m/n
-      if (n1 !== n) { errs.errN1 = true; hasError = true; }
-      if (d1 !== n) { errs.errD1 = true; hasError = true; }
-      if (n2 !== m) { errs.errN2 = true; hasError = true; }
-      if (d2 !== n) { errs.errD2 = true; hasError = true; }
-      // Validate line 2: (n−m)/n
-      if (fn !== n - m) { errs.errFinalNum = true; hasError = true; }
-      if (fd !== n) { errs.errFinalDen = true; hasError = true; }
+      // Aceita frações equivalentes via produto cruzado: a/b == p/q ⇔ a*q == b*p.
+      // Cada slot tem um alvo (1 = n/n, P(A) = m/n, P(Ā) = (n-m)/n) e qualquer
+      // forma equivalente — incluindo reduzida — é considerada correta.
+      const isEqualFraction = (an: number, ad: number, tn: number, td: number) =>
+        Number.isInteger(an) && Number.isInteger(ad) && ad !== 0 && an * td === ad * tn;
+
+      const frac1Ok = isEqualFraction(n1, d1, n, n); // representa 1
+      const frac2Ok = isEqualFraction(n2, d2, m, n); // representa P(A)
+      const fracFOk = isEqualFraction(fn, fd, n - m, n); // representa P(Ā)
+
+      if (!frac1Ok) { errs.errN1 = true; errs.errD1 = true; hasError = true; }
+      if (!frac2Ok) { errs.errN2 = true; errs.errD2 = true; hasError = true; }
+      if (!fracFOk) { errs.errFinalNum = true; errs.errFinalDen = true; hasError = true; }
 
       if (hasError) {
         playSound("/sounds/incorrect.mp3");
         setCompChainInputs(prev => ({ ...prev, ...errs }));
-        if (errs.errN1 || errs.errD1) msgs.push('A primeira fração deve representar o número 1 como n/n.');
-        if (errs.errN2 || errs.errD2) msgs.push('A segunda fração deve representar P(A) = m/n.');
-        if (errs.errFinalNum || errs.errFinalDen) msgs.push('A fração final deve ser o resultado da subtração.');
+        if (!frac1Ok) msgs.push('A primeira fração deve representar o número 1 (qualquer forma equivalente, ex.: n/n).');
+        if (!frac2Ok) msgs.push('A segunda fração deve representar P(A) (qualquer forma equivalente a m/n).');
+        if (!fracFOk) msgs.push('A fração final deve representar P(Ā) (qualquer forma equivalente ao resultado da subtração).');
         createAlert("Incorreto", msgs.join(' '), "error", 5000);
         return;
       }
@@ -5468,6 +5549,7 @@ export const useRouletteHooks = () => {
         // Setup fase de aposta (investigação inicial)
         setExperimentationState({
           wageredColor: null,
+          wagers: [],
           draws: [],
           currentAttempt: 1,
           waitingForConfirmation: false,
@@ -6945,10 +7027,16 @@ export const useRouletteHooks = () => {
 
   // Função para fazer aposta na fase de experimentação (clique no disco)
   const handleExperimentationBet = useCallback((clickedColor: string) => {
-    const { subStep } = gameState;
+    const { subStep, isSpinning } = gameState;
 
-    // Só permite aposta no subStep 1.1 (fase de aposta)
-    if (subStep !== 1.1) return;
+    // Trava síncrona: depois que o aluno clicou em "Sortear", nenhum clique
+    // no disco pode mais alterar a aposta — vale mesmo durante a janela de
+    // 300ms entre o fim visual do giro e a transição de estado para 1.17.
+    if (experimentBetLockedRef.current) return;
+
+    // Só permite aposta no subStep 1.1 (fase de aposta) e quando o disco
+    // NÃO está girando — após o aluno mandar sortear, a aposta fica travada.
+    if (subStep !== 1.1 || isSpinning) return;
 
     playSound("/sounds/click.mp3");
     logBet(gameState.stage, gameState.subStep, clickedColor);
@@ -6973,10 +7061,13 @@ export const useRouletteHooks = () => {
 
     // Só permite confirmação no subStep 1.17 (aguardando confirmação)
     if (subStep !== 1.17 || !experimentationState.waitingForConfirmation) return;
+    // Bloqueia cliques múltiplos durante a janela de 1.5s do setTimeout abaixo.
+    if (resultConfirmationLockedRef.current) return;
 
     const correctColor = experimentationState.internalDrawnColor;
 
     if (clickedColor === correctColor) {
+      resultConfirmationLockedRef.current = true;
       // Acertou a confirmação - revelar a cor sorteada
       playSound("/sounds/correct.mp3");
       createAlert("✅ Cor confirmada!", "", "success", 2000);
@@ -6988,16 +7079,22 @@ export const useRouletteHooks = () => {
       }));
 
       const newDraws = [...experimentationState.draws, correctColor!];
+      const newWagers = [...experimentationState.wagers, experimentationState.wageredColor!];
       const wonBet = experimentationState.wageredColor === correctColor;
       const currentAttempt = experimentationState.currentAttempt;
 
       // Aguardar 1.5s para o usuário ver a cor revelada antes de prosseguir
       setTimeout(() => {
+        // Libera o lock de confirmação para a próxima rodada (ou fim).
+        resultConfirmationLockedRef.current = false;
         if (currentAttempt < 3) {
-          // Ainda há mais tentativas
+          // Ainda há mais tentativas — libera o lock para o aluno
+          // poder apostar de novo na próxima rodada.
+          experimentBetLockedRef.current = false;
           setExperimentationState(prev => ({
             ...prev,
             draws: newDraws,
+            wagers: newWagers,
             currentAttempt: prev.currentAttempt + 1,
             waitingForConfirmation: false,
             internalDrawnColor: null,
@@ -7018,8 +7115,11 @@ export const useRouletteHooks = () => {
           setExperimentationState(prev => ({
             ...prev,
             draws: newDraws,
+            wagers: newWagers,
             waitingForConfirmation: false,
-            colorRevealed: false
+            colorRevealed: false,
+            wageredColor: null,
+            internalDrawnColor: null
           }));
 
           // Mostrar resumo e ir para a questão das características
@@ -7029,10 +7129,32 @@ export const useRouletteHooks = () => {
 
           setInstructions(`<p class="ds-body"><strong>Experimentação Concluída!</strong></p>
             <p class="ds-body"><strong>Resumo das 3 tentativas:</strong></p>
-            <p class="ds-small">Cor apostada: ${experimentationState.wageredColor}</p>
-            <p class="ds-small">1ª cor sorteada: ${newDraws[0]}</p>
-            <p class="ds-small">2ª cor sorteada: ${newDraws[1]}</p>
-            <p class="ds-small">3ª cor sorteada: ${newDraws[2]}</p>`);
+            <table class="border-collapse mt-micro ds-small">
+              <thead>
+                <tr class="bg-brand-otimath-pure text-neutral-white">
+                  <th class="py-quarck px-micro border border-brand-otimath-dark text-center">Tentativa</th>
+                  <th class="py-quarck px-micro border border-brand-otimath-dark text-center">Apostou</th>
+                  <th class="py-quarck px-micro border border-brand-otimath-dark text-center">Sorteada</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="py-quarck px-micro border border-neutral-lighter text-center"><strong>1ª</strong></td>
+                  <td class="py-quarck px-micro border border-neutral-lighter text-center">${newWagers[0]}</td>
+                  <td class="py-quarck px-micro border border-neutral-lighter text-center">${newDraws[0]}</td>
+                </tr>
+                <tr class="bg-neutral-lightest">
+                  <td class="py-quarck px-micro border border-neutral-lighter text-center"><strong>2ª</strong></td>
+                  <td class="py-quarck px-micro border border-neutral-lighter text-center">${newWagers[1]}</td>
+                  <td class="py-quarck px-micro border border-neutral-lighter text-center">${newDraws[1]}</td>
+                </tr>
+                <tr>
+                  <td class="py-quarck px-micro border border-neutral-lighter text-center"><strong>3ª</strong></td>
+                  <td class="py-quarck px-micro border border-neutral-lighter text-center">${newWagers[2]}</td>
+                  <td class="py-quarck px-micro border border-neutral-lighter text-center">${newDraws[2]}</td>
+                </tr>
+              </tbody>
+            </table>`);
 
           playSound("/sounds/challengeFinished.mp3");
           createAlert("Experimentação concluída!", "Agora responda à questão sobre as características do experimento aleatório.", "success", 4000);
@@ -7051,6 +7173,11 @@ export const useRouletteHooks = () => {
 
     // Só permite giro no subStep 1.1 com aposta feita
     if (subStep !== 1.1 || isSpinning || !experimentationState.wageredColor) return;
+
+    // Trava a aposta SINCRONAMENTE — qualquer clique no disco a partir daqui
+    // (incluindo durante o giro e na janela curta antes da transição para
+    // o subStep 1.17) será rejeitado por handleExperimentationBet.
+    experimentBetLockedRef.current = true;
 
     // Sortear um ÍNDICE de setor aleatório (não apenas a cor, para evitar bug com cores repetidas)
     const sectorIndex = Math.floor(Math.random() * sectors.length);
@@ -8096,7 +8223,11 @@ export const useRouletteHooks = () => {
 
   // Confirmar seleção do evento A → passar para B
   const handleDisjointConfirmA = useCallback(() => {
-    if (disjointUserSelectA.length === 0) return;
+    if (disjointUserSelectA.length === 0) {
+      playSound("/sounds/incorrect.mp3");
+      createAlert("Selecione ao menos um setor", `Clique nos setores do disco que pertencem ao evento A (${disjointExerciseTextA}) antes de confirmar.`, "error", 4000);
+      return;
+    }
     setDisjointExercisePhase('selecting_B');
 
     setInfoBoxContent({
@@ -8107,11 +8238,15 @@ export const useRouletteHooks = () => {
 
     setInstructions(`<p class="ds-body"><strong>Exercício: Eventos Mutuamente Exclusivos</strong></p>
       <p class="ds-body">Agora clique nos setores que pertencem ao <strong>evento B</strong> (${disjointExerciseTextB}).</p>`);
-  }, [disjointUserSelectA, disjointExerciseTextA, disjointExerciseTextB]);
+  }, [disjointUserSelectA, disjointExerciseTextA, disjointExerciseTextB, createAlert]);
 
   // Confirmar seleção do evento B → validar
   const handleDisjointConfirmB = useCallback(() => {
-    if (disjointUserSelectB.length === 0) return;
+    if (disjointUserSelectB.length === 0) {
+      playSound("/sounds/incorrect.mp3");
+      createAlert("Selecione ao menos um setor", `Clique nos setores do disco que pertencem ao evento B (${disjointExerciseTextB}) antes de confirmar.`, "error", 4000);
+      return;
+    }
 
     const sortedUserA = [...disjointUserSelectA].sort((a, b) => a - b);
     const sortedUserB = [...disjointUserSelectB].sort((a, b) => a - b);
@@ -8138,6 +8273,7 @@ export const useRouletteHooks = () => {
         : !correctA
           ? 'Os setores selecionados para o evento A estão incorretos.'
           : 'Os setores selecionados para o evento B estão incorretos.';
+      createAlert("Resposta incorreta", errorText, "error", 4000);
       setInfoBoxContent({
         type: 'error',
         title: 'Tente novamente',
@@ -8146,7 +8282,7 @@ export const useRouletteHooks = () => {
       setInstructions(`<p class="ds-body"><strong>Resposta incorreta</strong></p>
         <p class="ds-body">Tente novamente. Clique em "Tentar novamente" para recomeçar.</p>`);
     }
-  }, [disjointUserSelectA, disjointUserSelectB, disjointCorrectA, disjointCorrectB, disjointExerciseTextA, disjointExerciseTextB]);
+  }, [disjointUserSelectA, disjointUserSelectB, disjointCorrectA, disjointCorrectB, disjointExerciseTextA, disjointExerciseTextB, createAlert]);
 
   // Tentar novamente o exercício de disjuntos (mesmos eventos, limpar seleções)
   const handleDisjointRetry = useCallback(() => {
@@ -8466,6 +8602,7 @@ export const useRouletteHooks = () => {
       // Resetar estado de experimentação e voltar à fase de aposta
       setExperimentationState({
         wageredColor: null,
+        wagers: [],
         draws: [],
         currentAttempt: 1,
         waitingForConfirmation: false,
@@ -9424,7 +9561,13 @@ export const useRouletteHooks = () => {
       setGameState(prev => {
         const newFrequencies = { ...prev.frequencies };
         newFrequencies[randomColor] = (newFrequencies[randomColor] || 0) + 1;
-        const newTargetAngle = prev.currentRotation + (extraRotations * 360) + (360 - targetSectorAngle);
+        // Calcula a rotação final desejada (mod 360) que coloca o setor no topo
+        // e soma o delta a partir da rotação atual — sem isso, ao acumular giros
+        // a roleta pára visualmente em uma cor diferente da `selectedColor`.
+        const desiredFinalRotation = (360 - targetSectorAngle + 360) % 360;
+        const currentMod360 = ((prev.currentRotation || 0) % 360 + 360) % 360;
+        const deltaToTarget = (desiredFinalRotation - currentMod360 + 360) % 360;
+        const newTargetAngle = (prev.currentRotation || 0) + extraRotations * 360 + deltaToTarget;
 
         return {
           ...prev,
@@ -10566,6 +10709,1033 @@ export const useRouletteHooks = () => {
     }
   }, [diceInput.value, createAlert]);
 
+  // ─────────────────────────────────────────────────────────────────
+  // SNAPSHOT DEV — captura/restaura todo o estado relevante para que o
+  // botão "voltar" do painel de DEV consiga restaurar fielmente uma
+  // cena anterior (incluindo InfoBox, instruções, inputs, fase de
+  // experimentação, etc.). Sem isso, restaurar só o `gameState` deixa
+  // estado dependente "vazado" das cenas posteriores.
+  // ─────────────────────────────────────────────────────────────────
+  // ID único da cena atual: usado pelo painel DEV para contar e detectar
+  // transições de sub-cenas (compPhase, unionPhase, freqRelConceptPhase,
+  // interpretationPhase, lgnPhase, disjointExercisePhase) que NÃO mudam
+  // o subStep. Sem isso, avançar de "intro → selecting_A" dentro de 6.70
+  // não dispararia novo snapshot/contador.
+  const getDevCenaId = useCallback((): string => {
+    const { subStep } = gameState;
+    const parts: string[] = [`s${subStep}`];
+    if (subStep === 6.55) parts.push(`disj=${disjointExercisePhase}`);
+    if (subStep === 6.56) parts.push(`uni=${unionPhase}`);
+    if (subStep === 6.70) parts.push(`comp=${compPhase}`, `ex=${compExamplesViewed}`);
+    if (subStep >= 6.85 && subStep <= 6.93) parts.push(`comp=${compPhase}`);
+    if (subStep === 0.1) parts.push(`detEx=${deterministicExamplesViewed}`);
+    if (subStep === 0.3) parts.push(`randEx=${randomExamplesViewed}`);
+    if (subStep === 8.6) parts.push(`freqRel=${freqRelConceptPhase}`);
+    if (subStep === 14) parts.push(`interp=${interpretationPhase}`);
+    if (subStep === 15) parts.push(`lgn=${lgnPhase}`);
+    if (showInfoBox) parts.push(`info=${infoBoxContent.title || ''}`);
+    return parts.join('|');
+  }, [gameState, disjointExercisePhase, unionPhase, compPhase, compExamplesViewed, deterministicExamplesViewed, randomExamplesViewed, freqRelConceptPhase, interpretationPhase, lgnPhase, showInfoBox, infoBoxContent]);
+
+  const getDevSnapshot = useCallback(() => ({
+    gameState,
+    showInfoBox,
+    infoBoxContent,
+    instructions,
+    experimentationState,
+    selectedOption,
+    sliderValue,
+    selectedCharacteristics,
+    sampleSpaceInput,
+    sampleSpaceCountInput,
+    probabilityInputs,
+    theoreticalQuestion1Input,
+    theoreticalQuestion2Input,
+    favorableCasesInput,
+    predictionInput,
+    exerciseNEInput,
+    exerciseNSInput,
+    exercisePENumeratorInput,
+    exercisePEDenominatorInput,
+    disabledSpinButton,
+    disabledCheckButton,
+    disabledNextButton,
+    showAutoSpinButtons,
+    // Comp/Desafio/Frequências/Convergência/Interpretação/LGN
+    compPhase,
+    compUserSelectAbar,
+    compChainInputs,
+    compPaInput,
+    freqAbsInput,
+    freqRelInput,
+    convergenceInputs,
+    interpretationPhase,
+    interpretationSelected,
+    interpretationQ3,
+    lgnPhase,
+    lgnParams,
+    lgnInput,
+  }), [
+    gameState, showInfoBox, infoBoxContent, instructions, experimentationState,
+    selectedOption, sliderValue, selectedCharacteristics,
+    sampleSpaceInput, sampleSpaceCountInput, probabilityInputs,
+    theoreticalQuestion1Input, theoreticalQuestion2Input, favorableCasesInput,
+    predictionInput, exerciseNEInput, exerciseNSInput,
+    exercisePENumeratorInput, exercisePEDenominatorInput,
+    disabledSpinButton, disabledCheckButton, disabledNextButton, showAutoSpinButtons,
+    compPhase, compUserSelectAbar, compChainInputs, compPaInput,
+    freqAbsInput, freqRelInput, convergenceInputs,
+    interpretationPhase, interpretationSelected, interpretationQ3,
+    lgnPhase, lgnParams, lgnInput,
+  ]);
+  type DevSnapshot = ReturnType<typeof getDevSnapshot>;
+
+  const applyDevSnapshot = useCallback((snap: DevSnapshot) => {
+    setGameState(snap.gameState);
+    setShowInfoBox(snap.showInfoBox);
+    setInfoBoxContent(snap.infoBoxContent);
+    setInstructions(snap.instructions);
+    setExperimentationState(snap.experimentationState);
+    setSelectedOption(snap.selectedOption);
+    setSliderValue(snap.sliderValue);
+    setSelectedCharacteristics(snap.selectedCharacteristics);
+    setSampleSpaceInput(snap.sampleSpaceInput);
+    setSampleSpaceCountInput(snap.sampleSpaceCountInput);
+    setProbabilityInputs(snap.probabilityInputs);
+    setTheoreticalQuestion1Input(snap.theoreticalQuestion1Input);
+    setTheoreticalQuestion2Input(snap.theoreticalQuestion2Input);
+    setFavorableCasesInput(snap.favorableCasesInput);
+    setPredictionInput(snap.predictionInput);
+    setExerciseNEInput(snap.exerciseNEInput);
+    setExerciseNSInput(snap.exerciseNSInput);
+    setExercisePENumeratorInput(snap.exercisePENumeratorInput);
+    setExercisePEDenominatorInput(snap.exercisePEDenominatorInput);
+    setDisabledSpinButton(snap.disabledSpinButton);
+    setDisabledCheckButton(snap.disabledCheckButton);
+    setDisabledNextButton(snap.disabledNextButton);
+    setShowAutoSpinButtons(snap.showAutoSpinButtons);
+    setCompPhase(snap.compPhase);
+    setCompUserSelectAbar(snap.compUserSelectAbar);
+    setCompChainInputs(snap.compChainInputs);
+    setCompPaInput(snap.compPaInput);
+    setFreqAbsInput(snap.freqAbsInput);
+    setFreqRelInput(snap.freqRelInput);
+    setConvergenceInputs(snap.convergenceInputs);
+    setInterpretationPhase(snap.interpretationPhase);
+    setInterpretationSelected(snap.interpretationSelected);
+    setInterpretationQ3(snap.interpretationQ3);
+    setLgnPhase(snap.lgnPhase);
+    setLgnParams(snap.lgnParams);
+    setLgnInput(snap.lgnInput);
+    // Libera locks síncronos para evitar travamentos pós-restore.
+    experimentBetLockedRef.current = false;
+    resultConfirmationLockedRef.current = false;
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────
+  // SIMULADOR DE AVANÇO — uso restrito ao painel de DEV da sequência
+  // didática. Examina o estado atual e dispara a ação que um aluno
+  // tomaria para acertar a cena, fazendo a transição natural com todas
+  // as dependências (sectors, eventos, balões, etc.) configuradas.
+  //
+  // Cobre os principais subSteps do disco; para subSteps não cobertos,
+  // faz fallback para incremento simples do subStep (estado herdado).
+  // ─────────────────────────────────────────────────────────────────
+  // Atualiza o ref para apontar sempre para a versão mais recente do checkAnswer.
+  checkAnswerRef.current = checkAnswer;
+
+  const devSimulateAdvance = useCallback(() => {
+    const { stage, subStep, sectors, targetSectorCount } = gameState;
+
+    // ── 6.70 — Cena complexa multi-fase. Cada compPhase é uma "ceninha"
+    //    distinta com seu próprio botão de saída. Tratamos ANTES do check
+    //    genérico de showInfoBox para garantir transições determinísticas
+    //    entre as fases (intro → selecting_A → selecting_Abar → show_both
+    //    → repetir 3x → 6.80). ──
+    if (stage === 1 && subStep === 6.70) {
+      const ev = gameState.compEventA;
+      if (!ev) {
+        initComplementaryPhaseRef.current?.();
+        return;
+      }
+      if (compPhase === 'intro') {
+        // Botão "Agora é sua vez!" → handleStartCompExercise
+        handleStartCompExerciseRef.current?.();
+        return;
+      }
+      if (compPhase === 'selecting_A' || compPhase === 'wrong_A') {
+        playSound("/sounds/correct.mp3");
+        createAlert("Evento A correto!", `A = "${ev.textA}"`, "success", 2500);
+        setCompUserSelectA([...ev.indicesA]);
+        setCompPhase('selecting_Abar');
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: 'success',
+          title: 'Evento A correto!',
+          message: `Agora identifique o evento complementar <strong>Ā = "${ev.textAbar}"</strong>.<br/>Clique nos setores que pertencem a Ā e depois confirme.`,
+        });
+        return;
+      }
+      if (compPhase === 'selecting_Abar' || compPhase === 'wrong_Abar') {
+        playSound("/sounds/correct.mp3");
+        const total = compExamplesViewed + 1;
+        createAlert(total < 3 ? "Muito bem!" : "Excelente!", "A e Ā identificados.", "success", 2500);
+        setCompUserSelectAbar([...ev.indicesAbar]);
+        setCompPhase('show_both');
+        setCompExamplesViewed(prev => prev + 1);
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: 'success',
+          title: total < 3 ? 'Muito bem!' : 'Excelente!',
+          message: total < 3
+            ? `Você identificou corretamente A e Ā. Observe: os setores dourados são A e os cianos são Ā. Juntos, cobrem todo o disco!`
+            : `Você identificou corretamente A e Ā. Observe: A (dourado) e Ā (ciano) cobrem todo o disco, sem sobreposição. Isso é a essência dos eventos complementares!`,
+        });
+        return;
+      }
+      if (compPhase === 'show_both') {
+        if (compExamplesViewed >= 3) {
+          playSound("/sounds/nextChallenge.mp3");
+          createAlert("Próximo passo!", "Vamos formalizar os eventos complementares.", "info", 2500);
+          setGameState(prev => ({ ...prev, subStep: 6.80 }));
+          setCompPhase('formalize1');
+          setShowInfoBox(true);
+          setInfoBoxContent({
+            type: 'concept',
+            title: 'Formalização — Passo 1',
+            message: `Como os eventos <span style="white-space:nowrap">A e Ā</span> (complementar de A) cobrem todo o espaço amostral sem sobreposição, temos:<br/><br/><strong>P(A ∪ Ā) = P(S)</strong><br/><br/>A probabilidade de A ou Ā ocorrer é a probabilidade do espaço amostral inteiro.`,
+          });
+        } else {
+          handleStartCompExerciseRef.current?.();
+        }
+        return;
+      }
+    }
+
+    // ── 6.85/6.90 — Cálculo de complementares (guiado/independente).
+    //    Cada compPhase é uma sub-cena. Tratamos antes do showInfoBox check
+    //    para garantir transições determinísticas. ──
+    if (stage === 1 && (subStep === 6.85 || subStep === 6.90)) {
+      const ev = gameState.compEventA;
+      if (!ev) {
+        initCompCalcExampleRef.current?.(subStep === 6.85);
+        return;
+      }
+      const guided = subStep === 6.85;
+      if (compPhase === 'calc_enunciado') {
+        playSound("/sounds/nextChallenge.mp3");
+        setCompPhase('calc_selectA');
+        setShowInfoBox(false);
+        setInstructions(guided
+          ? `<p class="ds-body"><strong>Cálculo da Probabilidade de Eventos Complementares</strong></p>
+             <p class="ds-body">Selecione os setores do evento A no disco e clique em Conferir.</p>`
+          : `<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
+             <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 3.</p>`);
+        return;
+      }
+      if (compPhase === 'calc_selectA') {
+        playSound("/sounds/correct.mp3");
+        createAlert("Evento A correto!", `A = "${ev.textA}"`, "success", 2500);
+        if (guided) {
+          setGameState(prev => ({ ...prev, selectedSectors: [...ev.indicesA], subStep: 6.86 }));
+          setCompPhase('calc_selectAbar');
+          setCompUserSelectAbar([]);
+          setShowInfoBox(true);
+          setInfoBoxContent({
+            type: 'success',
+            title: 'Evento A correto!',
+            message: `Agora marque no disco o evento complementar de A (<strong>Ā</strong>).`,
+          });
+        } else {
+          setGameState(prev => ({ ...prev, selectedSectors: [...ev.indicesA] }));
+          setCompPhase('calc_pa');
+          setCompPaInput({ num: '', den: '', errNum: false, errDen: false });
+          setShowInfoBox(true);
+          setInfoBoxContent({
+            type: 'success',
+            title: 'Evento A correto!',
+            message: `Agora informe a probabilidade de A como fração.`,
+          });
+        }
+        return;
+      }
+      if (compPhase === 'calc_pa') {
+        playSound("/sounds/correct.mp3");
+        const m = ev.indicesA.length;
+        const n = sectors.length;
+        createAlert("P(A) correto!", `P(A) = ${m}/${n}`, "success", 2500);
+        setCompPaInput({ num: String(m), den: String(n), errNum: false, errDen: false });
+        setGameState(prev => ({ ...prev, subStep: 6.91 }));
+        setCompPhase('calc_selectAbar');
+        setCompUserSelectAbar([]);
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: 'success',
+          title: 'P(A) correto!',
+          message: `Agora marque no disco o evento complementar de A (<strong>Ā</strong>).`,
+        });
+        return;
+      }
+    }
+    if (stage === 1 && (subStep === 6.86 || subStep === 6.91)) {
+      const ev = gameState.compEventA;
+      if (!ev) return;
+      if (compPhase === 'calc_selectAbar') {
+        playSound("/sounds/correct.mp3");
+        createAlert("Muito bem!", `Ā = "${ev.textAbar}"`, "success", 2500);
+        const guided = subStep === 6.86;
+        setCompUserSelectAbar([...ev.indicesAbar]);
+        setCompPhase('calc_showBoth');
+        setGameState(prev => ({ ...prev, subStep: guided ? 6.87 : 6.92 }));
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: 'success',
+          title: 'Muito bem!',
+          message: `Observe que <strong style="color:#FFD700">A</strong> (dourado) e <strong style="color:#00E5FF">Ā</strong> (ciano) não possuem setores em comum e juntos formam todo o espaço amostral.`,
+        });
+        return;
+      }
+    }
+    if (stage === 1 && (subStep === 6.87 || subStep === 6.92)) {
+      // Botão "Veja!" → avança para calc_chain (6.88/6.93)
+      if (compPhase === 'calc_showBoth') {
+        const guided = subStep === 6.87;
+        setCompPhase('calc_chain');
+        setGameState(prev => ({ ...prev, subStep: guided ? 6.88 : 6.93 }));
+        setCompChainInputs({
+          n1: '', d1: '', n2: '', d2: '',
+          finalNum: '', finalDen: '',
+          errN1: false, errD1: false, errN2: false, errD2: false,
+          errFinalNum: false, errFinalDen: false,
+        });
+        setCompChainResult(null);
+        setShowInfoBox(false);
+        setInstructions(guided
+          ? `<p class="ds-body"><strong>Cálculo da probabilidade do complementar a partir de P(A)</strong></p>
+             <p class="ds-body">Preencha as frações para calcular P(Ā) = 1 − P(A).</p>`
+          : `<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
+             <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 3.</p>`);
+        return;
+      }
+    }
+    if (stage === 1 && (subStep === 6.88 || subStep === 6.93)) {
+      // Cadeia P(Ā) = 1 - P(A) = n/n - m/n = (n-m)/n
+      if (compPhase === 'calc_chain') {
+        const ev = gameState.compEventA;
+        if (!ev) return;
+        const m = ev.indicesA.length;
+        const n = sectors.length;
+        setCompChainInputs({
+          n1: String(n), d1: String(n),
+          n2: String(m), d2: String(n),
+          finalNum: String(n - m), finalDen: String(n),
+          errN1: false, errD1: false, errN2: false, errD2: false,
+          errFinalNum: false, errFinalDen: false,
+        });
+        setTimeout(() => checkAnswerRef.current?.(), 50);
+        return;
+      }
+    }
+
+    // ── 0.1 (Experimento determinístico) e 0.3 (Experimento aleatório) —
+    //    cada balão tem botão "Clique para ver mais exemplos!" enquanto não
+    //    foram vistos 3 exemplos; depois disso o botão muda para "Li." e
+    //    avança ao próximo conceito. Cada visualização de exemplo é uma
+    //    sub-cena distinta no contador. ──
+    if (stage === 1 && subStep === 0.1) {
+      if (deterministicExamplesViewed < 3) {
+        handleSeeMoreDeterministicExamples();
+        return;
+      }
+      handleInfoBoxConfirm();
+      return;
+    }
+    if (stage === 1 && subStep === 0.3) {
+      if (randomExamplesViewed < 3) {
+        handleSeeMoreRandomExamples();
+        return;
+      }
+      handleInfoBoxConfirm();
+      return;
+    }
+
+    // 1) InfoBox aberto → confirmar (avança balões/conceitos automaticamente)
+    if (showInfoBox) {
+      handleInfoBoxConfirm();
+      return;
+    }
+
+    // 2) Pré-preenche o input correto e dispara checkAnswer no próximo tick.
+    //    O setTimeout garante que o setState do input já foi flushado pelo
+    //    React antes do checkAnswer ler o valor.
+    const fillThenCheck = (fill: () => void) => {
+      fill();
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+    };
+
+    // ── STAGE 1 ──
+    if (stage === 1 && subStep === 0) {
+      fillThenCheck(() => setSliderValue(targetSectorCount));
+      return;
+    }
+    if (stage === 1 && subStep === 1) {
+      fillThenCheck(() => setSelectedOption('correct'));
+      return;
+    }
+    // Experimentação (1.1 = aposta, 1.17 = confirmação): a fase tem 3
+    // tentativas com aposta + giro + confirmação. Em DEV simulamos os 3
+    // sorteios animando rapidamente o disco e ao final exibimos a tabela
+    // resumo, idêntica à do fluxo natural.
+    if (stage === 1 && (subStep === 1.1 || subStep === 1.17)) {
+      const colors = sectors.map(s => s.colorName);
+      const pickRandom = () => colors[Math.floor(Math.random() * colors.length)];
+      const draws = [pickRandom(), pickRandom(), pickRandom()];
+      const wagers = [pickRandom(), pickRandom(), pickRandom()];
+      const freqs: { [color: string]: number } = {};
+      colors.forEach(c => { freqs[c] = 0; });
+      draws.forEach(c => { freqs[c] = (freqs[c] || 0) + 1; });
+      experimentBetLockedRef.current = false;
+      resultConfirmationLockedRef.current = false;
+      setExperimentationState({
+        wageredColor: null,
+        wagers,
+        draws,
+        currentAttempt: 3,
+        waitingForConfirmation: false,
+        internalDrawnColor: null,
+        colorRevealed: false,
+      });
+      setSelectedCharacteristics([]);
+
+      // Rotação visual de "3 giros consolidados" (uma volta extra para
+      // sinalizar movimento) — não é a animação completa, mas dá feedback.
+      setGameState(prev => ({
+        ...prev,
+        subStep: 1.25,
+        frequencies: freqs,
+        totalSpins: 3,
+        isSpinning: true,
+        spinDuration: 800,
+        targetAngle: (prev.currentRotation || 0) + 360 * 3,
+        currentRotation: (prev.currentRotation || 0) + 360 * 3,
+      }));
+
+      // Após o pequeno giro, finaliza isSpinning para liberar próximas ações.
+      setTimeout(() => {
+        setGameState(prev => ({ ...prev, isSpinning: false }));
+      }, 850);
+
+      // Tabela resumo idêntica à exibida pelo fluxo natural ao concluir as
+      // 3 tentativas (handleResultConfirmation, line ~7113).
+      setInstructions(`<p class="ds-body"><strong>Experimentação Concluída!</strong></p>
+        <p class="ds-body"><strong>Resumo das 3 tentativas:</strong></p>
+        <table class="border-collapse mt-micro ds-small">
+          <thead>
+            <tr class="bg-brand-otimath-pure text-neutral-white">
+              <th class="py-quarck px-micro border border-brand-otimath-dark text-center">Tentativa</th>
+              <th class="py-quarck px-micro border border-brand-otimath-dark text-center">Apostou</th>
+              <th class="py-quarck px-micro border border-brand-otimath-dark text-center">Sorteada</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="py-quarck px-micro border border-neutral-lighter text-center"><strong>1ª</strong></td>
+              <td class="py-quarck px-micro border border-neutral-lighter text-center">${wagers[0]}</td>
+              <td class="py-quarck px-micro border border-neutral-lighter text-center">${draws[0]}</td>
+            </tr>
+            <tr class="bg-neutral-lightest">
+              <td class="py-quarck px-micro border border-neutral-lighter text-center"><strong>2ª</strong></td>
+              <td class="py-quarck px-micro border border-neutral-lighter text-center">${wagers[1]}</td>
+              <td class="py-quarck px-micro border border-neutral-lighter text-center">${draws[1]}</td>
+            </tr>
+            <tr>
+              <td class="py-quarck px-micro border border-neutral-lighter text-center"><strong>3ª</strong></td>
+              <td class="py-quarck px-micro border border-neutral-lighter text-center">${wagers[2]}</td>
+              <td class="py-quarck px-micro border border-neutral-lighter text-center">${draws[2]}</td>
+            </tr>
+          </tbody>
+        </table>`);
+
+      setDisabledSpinButton(true);
+      playSound("/sounds/challengeFinished.mp3");
+      createAlert("Experimentação concluída!", "3 tentativas registradas. Veja a tabela resumo nas instruções.", "success", 3000);
+      return;
+    }
+    if (stage === 1 && subStep === 1.25) {
+      // Marca todas as 7 características (indices 0-6) como corretas e confere
+      setSelectedCharacteristics(RANDOM_EXPERIMENT_CHARACTERISTICS.map((_, i) => i));
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+    if (stage === 1 && subStep === 2) {
+      // validateSampleSpace exige formato exato "S = {cor1, cor2, ...}"
+      const colors = sectors.map(s => s.colorName).join(', ');
+      fillThenCheck(() => setSampleSpaceInput(prev => ({ ...prev, value: `S = {${colors}}` })));
+      return;
+    }
+    if (stage === 1 && subStep === 3) {
+      fillThenCheck(() => setSampleSpaceCountInput(prev => ({ ...prev, value: String(targetSectorCount) })));
+      return;
+    }
+    if (stage === 1 && subStep === 4) {
+      fillThenCheck(() => setSelectedOption('nao'));
+      return;
+    }
+    if (stage === 1 && subStep === 5) {
+      fillThenCheck(() => setSelectedOption('equiprovavel'));
+      return;
+    }
+    if (stage === 1 && subStep === 7.5) {
+      // Pergunta de incerteza: opção correta é 'incerteza'
+      fillThenCheck(() => setSelectedOption('incerteza'));
+      return;
+    }
+    if (stage === 1 && subStep === 5.7) {
+      fillThenCheck(() => setTheoreticalQuestion1Input(prev => ({ ...prev, value: '1' })));
+      return;
+    }
+    if (stage === 1 && subStep === 6) {
+      // Preenche cada cor com 1/n
+      const expectedProb = `1/${targetSectorCount}`;
+      const newInputs: typeof probabilityInputs = {};
+      sectors.forEach(s => {
+        const existing = probabilityInputs[s.colorName];
+        newInputs[s.colorName] = existing
+          ? { ...existing, value: expectedProb, error: false }
+          : { value: expectedProb, disabled: false, error: false };
+      });
+      setProbabilityInputs(newInputs);
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+    if (stage === 1 && subStep === 6.1) {
+      // n(E) = compositeEventE.length
+      fillThenCheck(() => setFavorableCasesInput(prev => ({ ...prev, value: String(gameState.compositeEventE.length) })));
+      return;
+    }
+    if (stage === 1 && subStep === 6.41) {
+      // Seleciona os setores correspondentes ao exerciseEventE no disco
+      const correctIndices = sectors
+        .map((s, i) => gameState.exerciseEventE.includes(s.colorName) ? i : -1)
+        .filter(i => i !== -1);
+      setGameState(prev => ({ ...prev, selectedSectors: correctIndices }));
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+    if (stage === 1 && subStep === 6.42) {
+      fillThenCheck(() => setExerciseNEInput(prev => ({ ...prev, value: String(gameState.exerciseEventE.length) })));
+      return;
+    }
+    if (stage === 1 && subStep === 6.43) {
+      fillThenCheck(() => setExerciseNSInput(prev => ({ ...prev, value: String(sectors.length) })));
+      return;
+    }
+    if (stage === 1 && subStep === 6.44) {
+      // P(E) = n(E)/n(S)
+      const num = String(gameState.exerciseEventE.length);
+      const den = String(sectors.length);
+      setExercisePENumeratorInput(prev => ({ ...prev, value: num }));
+      setExercisePEDenominatorInput(prev => ({ ...prev, value: den }));
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+    if (stage === 1 && subStep === 6.5) {
+      // Previsão livre — qualquer número não vazio é aceito
+      fillThenCheck(() => setPredictionInput(prev => ({ ...prev, value: '1' })));
+      return;
+    }
+
+    // ── Atividades de União (6.56) — DEV pula direto para o Desafio
+    //    Dinâmico 1 (6.6) chamando restartChallenge1, que configura todo
+    //    o estado challenge1* (PropertyY, EventXColors, Connective, etc.).
+    //    Sem isso, ao chegar em 6.66 o nE recalculado dá 0 e a validação
+    //    rejeita a resposta correta do aluno.
+    if (stage === 1 && subStep === 6.56) {
+      restartChallenge1Ref.current?.();
+      return;
+    }
+    // ── Desafio Dinâmico 1 (6.6) — calcula os setores corretos
+    //    usando o mesmo algoritmo do checkAnswer e simula a seleção. ──
+    if (stage === 1 && subStep === 6.6) {
+      // Garante que challenge1 está configurado; senão configura agora.
+      if (!gameState.challenge1PropertyY) {
+        restartChallenge1Ref.current?.();
+        return;
+      }
+      const {
+        challenge1SectorNumbers, challenge1PropertyY, challenge1EventXColors,
+        challenge1Connective, challenge1EventXType, challenge1ValueP,
+        challenge1InterProblemType, challenge1InterM, challenge1InterP, challenge1InterK,
+      } = gameState;
+      let correctSectors: number[];
+      if (challenge1InterProblemType !== null) {
+        correctSectors = Array.from(
+          solveIntersectionSet(challenge1InterProblemType, challenge1SectorNumbers, challenge1InterM, challenge1InterP, challenge1InterK)
+        );
+      } else {
+        correctSectors = [];
+        sectors.forEach((sector, idx) => {
+          const colorOk = challenge1EventXType === 'exclusao'
+            ? !challenge1EventXColors.includes(sector.colorName)
+            : challenge1EventXColors.includes(sector.colorName);
+          const numOk = checkProperty(challenge1SectorNumbers[idx], challenge1PropertyY, challenge1ValueP);
+          if (challenge1Connective === 'ou' ? (colorOk || numOk) : (colorOk && numOk)) {
+            correctSectors.push(idx);
+          }
+        });
+      }
+      setGameState(prev => ({ ...prev, selectedSectors: correctSectors }));
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+
+    // ── Eventos Complementares: setup automático ao DEV chegar nessas cenas ──
+    // Se o DEV pulou direto para 6.69/6.70/6.80/6.85+/6.90+ sem passar pelo
+    // fluxo natural, compEventA pode estar null e compPhase indefinido.
+    // Aqui inicializamos o comp* state e/ou ajustamos compPhase para que
+    // os painéis JSX renderizem corretamente.
+    if (stage === 1 && (subStep === 6.69 || subStep === 6.70 || subStep === 6.80 ||
+                         subStep === 6.85 || subStep === 6.86 || subStep === 6.87 || subStep === 6.88 ||
+                         subStep === 6.90 || subStep === 6.91 || subStep === 6.92 || subStep === 6.93)) {
+      // Se compEventA ainda não foi gerado, inicializa toda a fase complementar.
+      // Isso já leva ao subStep 6.70 com balão de intro.
+      if (!gameState.compEventA) {
+        initComplementaryPhaseRef.current?.();
+        return;
+      }
+    }
+
+    // ── 6.70 — Eventos Complementares (Parte 1): cicla por intro →
+    //    selecting_A → selecting_Abar → show_both por exemplo, repete 3x.
+    //    Cada DEV next avança UM passo do mini-fluxo interno. ──
+    if (stage === 1 && subStep === 6.70) {
+      const ev = gameState.compEventA;
+      if (!ev) {
+        initComplementaryPhaseRef.current?.();
+        return;
+      }
+      if (compPhase === 'intro') {
+        // Avança para selecting_A (mostra balão "Identifique o evento A")
+        handleStartCompExerciseRef.current?.();
+        return;
+      }
+      if (compPhase === 'selecting_A' || compPhase === 'wrong_A') {
+        // Preenche seleção correta de A e confirma
+        setCompUserSelectA([...ev.indicesA]);
+        setTimeout(() => handleCompConfirmA(), 50);
+        return;
+      }
+      if (compPhase === 'selecting_Abar' || compPhase === 'wrong_Abar') {
+        // Preenche seleção correta de Ā e confirma
+        setCompUserSelectAbar([...ev.indicesAbar]);
+        setTimeout(() => handleCompConfirmAbar(), 50);
+        return;
+      }
+      if (compPhase === 'show_both') {
+        if (compExamplesViewed >= 3) {
+          // Já viu 3+ exemplos → avança para formalização (6.80)
+          handleInfoBoxConfirm();
+          return;
+        }
+        // Próximo exemplo
+        handleStartCompExerciseRef.current?.();
+        return;
+      }
+    }
+
+    // ── Eventos Complementares — cálculo guiado (6.85/6.86/6.87/6.88) e
+    //    independente (6.90/6.91/6.92/6.93) ──
+    if (stage === 1 && (subStep === 6.85 || subStep === 6.90)) {
+      const ev = gameState.compEventA;
+      if (!ev) return;
+      // Se compPhase ainda não está em calc_selectA (DEV pulou direto), ajusta.
+      if (compPhase !== 'calc_selectA') {
+        setCompPhase('calc_selectA');
+        setGameState(prev => ({ ...prev, selectedSectors: [] }));
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: 'concept',
+          title: 'Marque o evento A',
+          message: `Marque no disco os setores que pertencem ao evento <strong>A = "${ev.textA}"</strong>.`,
+        });
+        return;
+      }
+      setGameState(prev => ({ ...prev, selectedSectors: [...ev.indicesA] }));
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+    if (stage === 1 && subStep === 6.90 && compPhase === 'calc_pa') {
+      const ev = gameState.compEventA;
+      if (!ev) return;
+      const m = ev.indicesA.length;
+      const n = sectors.length;
+      setCompPaInput({ num: String(m), den: String(n), errNum: false, errDen: false });
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+    if (stage === 1 && (subStep === 6.86 || subStep === 6.91)) {
+      const ev = gameState.compEventA;
+      if (!ev) return;
+      if (compPhase !== 'calc_selectAbar') {
+        setCompPhase('calc_selectAbar');
+        setCompUserSelectAbar([]);
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: 'concept',
+          title: 'Marque o evento Ā',
+          message: `Marque no disco os setores que pertencem ao complementar <strong>Ā = "${ev.textAbar}"</strong>.`,
+        });
+        return;
+      }
+      setCompUserSelectAbar([...ev.indicesAbar]);
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+    // ── 6.80 — formalize1/2/3/4: balão sequencial. Se compPhase ainda não
+    //    está em formalize, inicializa formalize1 + balão. Senão, usa
+    //    handleInfoBoxConfirm via showInfoBox check do topo. ──
+    if (stage === 1 && subStep === 6.80) {
+      const ev = gameState.compEventA;
+      if (!ev) return;
+      if (!compPhase.startsWith('formalize')) {
+        setCompPhase('formalize1');
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: 'concept',
+          title: 'Formalização — Passo 1',
+          message: `Como os eventos <span style="white-space:nowrap">A e Ā</span> (complementar de A) cobrem todo o espaço amostral sem sobreposição, temos:<br/><br/><strong>P(A ∪ Ā) = P(S)</strong><br/><br/>A probabilidade de A ou Ā ocorrer é a probabilidade do espaço amostral inteiro.`,
+        });
+        return;
+      }
+    }
+    if (stage === 1 && (subStep === 6.87 || subStep === 6.92)) {
+      // 6.87/6.92 são apenas balões intermediários (showBoth) — confirma
+      handleInfoBoxConfirm();
+      return;
+    }
+    if (stage === 1 && (subStep === 6.88 || subStep === 6.93)) {
+      // Cadeia P(Ā) = 1 - P(A) = n/n - m/n = (n-m)/n
+      const ev = gameState.compEventA;
+      if (!ev) return;
+      const m = ev.indicesA.length;
+      const n = sectors.length;
+      setCompChainInputs({
+        n1: String(n), d1: String(n),
+        n2: String(m), d2: String(n),
+        finalNum: String(n - m), finalDen: String(n),
+        errN1: false, errD1: false, errN2: false, errD2: false,
+        errFinalNum: false, errFinalDen: false,
+      });
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+
+    // ── Desafio Dinâmico 1 (6.6, 6.66, 6.67, 6.68) — usa challenge1* state ──
+    if (stage === 1 && subStep === 6.66) {
+      // Mesma lógica de 6.42 mas com expected vindo de gameState (já calculado pelo handler natural)
+      // O handler de 6.66 espera exerciseNEInput igual ao número de setores favoráveis.
+      // Como recálculo seria tedioso, deixamos o handler nativo validar com o valor que ele espera:
+      // estratégia simplificada — preencher com selectedSectors.length (configurado em 6.6).
+      fillThenCheck(() => setExerciseNEInput(prev => ({ ...prev, value: String(gameState.selectedSectors.length) })));
+      return;
+    }
+    if (stage === 1 && subStep === 6.67) {
+      fillThenCheck(() => setExerciseNSInput(prev => ({ ...prev, value: String(sectors.length) })));
+      return;
+    }
+    if (stage === 1 && subStep === 6.68) {
+      const num = String(gameState.selectedSectors.length);
+      const den = String(sectors.length);
+      setExercisePENumeratorInput(prev => ({ ...prev, value: num }));
+      setExercisePEDenominatorInput(prev => ({ ...prev, value: den }));
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+
+    // ── Frequência absoluta (8.5) e relativa (9.5) ──
+    if (stage === 1 && subStep === 8.5 && freqAbsQuestion) {
+      const expected = gameState.frequencies[freqAbsQuestion.color] || 0;
+      setFreqAbsInput({ value: String(expected), error: false });
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+    if (stage === 1 && subStep === 9.5 && freqRelQuestion) {
+      const absFreq = gameState.frequencies[freqRelQuestion.color] || 0;
+      const expectedPercent = (absFreq / gameState.ySpins) * 100;
+      setFreqRelInput({ value: expectedPercent.toFixed(2).replace('.', ',') + '%', error: false });
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+
+    // ── Convergência (11), questões teóricas (12, 13) ──
+    if (stage === 1 && subStep === 11) {
+      const expected = `1/${targetSectorCount}`;
+      // Garante que convergenceInputs.convergence existe (com setValue válido).
+      const existing = convergenceInputs.convergence;
+      setConvergenceInputs({
+        convergence: existing
+          ? { ...existing, value: expected, error: false }
+          : {
+              value: expected, disabled: false, error: false,
+              setValue: (v: string) => setConvergenceInputs(prev => ({
+                ...prev, convergence: { ...prev.convergence, value: v },
+              })),
+            },
+      });
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+    if (stage === 1 && subStep === 12) {
+      // theoreticalK pode não ter sido setado se DEV pulou — usar fallback.
+      const k = gameState.theoreticalK || targetSectorCount;
+      if (!gameState.theoreticalK) {
+        setGameState(prev => ({ ...prev, theoreticalK: k }));
+      }
+      fillThenCheck(() => setTheoreticalQuestion1Input(prev => ({ ...prev, value: `1/${k}` })));
+      return;
+    }
+    if (stage === 1 && subStep === 13) {
+      const k = gameState.theoreticalK || targetSectorCount;
+      fillThenCheck(() => setTheoreticalQuestion2Input(prev => ({ ...prev, value: `1/${k}` })));
+      return;
+    }
+
+    // ── Interpretação (14) — q1/q2/q3 com handleInterpretationCheck ──
+    if (stage === 1 && subStep === 14) {
+      // Se interpretationPhase ainda não foi inicializado (DEV pulou), inicia em q1.
+      if (interpretationPhase === 'done') {
+        setInterpretationPhase('q1');
+        setInterpretationSelected('');
+        return;
+      }
+      if (interpretationPhase === 'q1' || interpretationPhase === 'q2') {
+        setInterpretationSelected('nao');
+        setTimeout(() => handleInterpretationCheck(), 50);
+        return;
+      }
+      if (interpretationPhase === 'q3' && interpretationQ3) {
+        setInterpretationSelected(interpretationQ3.correctId);
+        setTimeout(() => handleInterpretationCheck(), 50);
+        return;
+      }
+      if (interpretationPhase === 'feedback') {
+        handleInterpretationContinueRef.current?.();
+        return;
+      }
+    }
+
+    // ── LGN (15) — fluxo de 5 fases: problem1 → problem2 → note →
+    //    explanation → verbal. Cada DEV next executa a transição que o
+    //    botão correspondente da OVA faria. ──
+    if (stage === 1 && subStep === 15) {
+      if (!lgnParams) {
+        handleInterpretationContinueRef.current?.();
+        return;
+      }
+      if (lgnPhase === 'problem1' || lgnPhase === 'problem2') {
+        const expected = lgnPhase === 'problem1' ? lgnParams.answer1 : lgnParams.answer2;
+        fillThenCheck(() => setLgnInput({ value: String(expected), error: false }));
+        return;
+      }
+      if (lgnPhase === 'note') {
+        // Botão "Quero saber!" → handleLgnWantToKnow
+        handleLgnWantToKnow();
+        return;
+      }
+      if (lgnPhase === 'explanation') {
+        // Botão "Continuar" → handleLgnContinue (vai para fase verbal)
+        handleLgnContinue();
+        return;
+      }
+      if (lgnPhase === 'verbal') {
+        // Preenche resposta dummy + dispara handleLgnVerbalConfirm
+        // (que valida 10+ chars e avança para subStep 15.5).
+        setLgnVerbalInput({
+          value: 'Porque cada repetição é independente e a frequência só se aproxima da probabilidade teórica em muitas repetições.',
+          error: false,
+        });
+        setTimeout(() => handleLgnVerbalConfirm(), 50);
+        return;
+      }
+    }
+
+    // ── Giros manuais (7) e novos giros (8): pula com frequências
+    //    sintetizadas (distribuição equiprovável) para a tabela aparecer. ──
+    if (stage === 1 && subStep === 7) {
+      const total = gameState.manualSpinsRequired || sectors.length;
+      const freqs: { [color: string]: number } = {};
+      const per = Math.floor(total / sectors.length);
+      let rem = total - per * sectors.length;
+      sectors.forEach(s => {
+        freqs[s.colorName] = per + (rem > 0 ? 1 : 0);
+        if (rem > 0) rem--;
+      });
+      setGameState(prev => ({
+        ...prev,
+        subStep: 7.1,
+        manualSpinsDone: total,
+        frequencies: freqs,
+        totalSpins: (prev.totalSpins || 0) + total,
+      }));
+      setShowInfoBox(true);
+      setInfoBoxContent({
+        type: 'concept',
+        title: 'Resultados dos Giros',
+        message: `Você completou os ${total} giros manuais. Compare com sua previsão e siga para a próxima etapa.`,
+      });
+      playSound("/sounds/challengeFinished.mp3");
+      return;
+    }
+    if (stage === 1 && subStep === 8) {
+      const total = gameState.ySpins || 10;
+      const freqs: { [color: string]: number } = { ...gameState.frequencies };
+      const per = Math.floor(total / sectors.length);
+      let rem = total - per * sectors.length;
+      sectors.forEach(s => {
+        freqs[s.colorName] = (freqs[s.colorName] || 0) + per + (rem > 0 ? 1 : 0);
+        if (rem > 0) rem--;
+      });
+      // Configura freqAbsQuestion para que o painel de 8.5 renderize.
+      const colorsArr = sectors.map(s => s.colorName);
+      const randomColor = colorsArr[Math.floor(Math.random() * colorsArr.length)];
+      setFreqAbsQuestion({ color: randomColor });
+      setFreqAbsInput({ value: '', error: false });
+      setGameState(prev => ({
+        ...prev,
+        subStep: 8.5,
+        manualSpinsDone: total,
+        frequencies: freqs,
+        totalSpins: (prev.totalSpins || 0) + total,
+      }));
+      setInstructions(`<p class="ds-body"><strong>Frequência Absoluta</strong></p>
+        <p class="ds-body">Leia o conceito abaixo e responda a pergunta.</p>`);
+      playSound("/sounds/challengeFinished.mp3");
+      createAlert("Giros concluídos!", `${total} giros registrados na tabela.`, "success", 2500);
+      return;
+    }
+    // ── 8.6 (conceito frequência relativa) → 9 com inputs por cor configurados.
+    if (stage === 1 && subStep === 8.6) {
+      const inputs: { [color: string]: TextInputInterface } = {};
+      sectors.forEach(s => {
+        inputs[s.colorName] = {
+          value: '', disabled: false, error: false,
+          setValue: (val: string) => setRelativeFrequencyInputs(prev => ({
+            ...prev, [s.colorName]: { ...prev[s.colorName], value: val },
+          })),
+        };
+      });
+      setRelativeFrequencyInputs(inputs);
+      setGameState(prev => ({ ...prev, subStep: 9 }));
+      setShowInfoBox(false);
+      setInstructions(`<p class="ds-body"><strong>Frequências Relativas: Comparando Proporções Observadas</strong></p>
+        <p class="ds-body">Calcule a frequência relativa de cada cor (frequência absoluta / total de giros).</p>
+        <p class="ds-body">Digite na forma de fração (ex: 3/${gameState.ySpins || 10}).</p>`);
+      playSound("/sounds/nextChallenge.mp3");
+      return;
+    }
+    // ── 9 (frequências relativas por cor) — preenche cada input com freq/ySpins.
+    if (stage === 1 && subStep === 9) {
+      const ySpins = gameState.ySpins || Math.max(gameState.totalSpins || 1, 1);
+      const filled: { [color: string]: TextInputInterface } = {};
+      sectors.forEach(s => {
+        const f = gameState.frequencies[s.colorName] || 0;
+        const existing = relativeFrequencyInputs[s.colorName];
+        filled[s.colorName] = existing
+          ? { ...existing, value: `${f}/${ySpins}`, error: false }
+          : { value: `${f}/${ySpins}`, disabled: false, error: false };
+      });
+      setRelativeFrequencyInputs(filled);
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+      return;
+    }
+    // ── 16 (Etapa 1 concluída) — apenas garante que o botão "Próxima Etapa"
+    //    está habilitado e dispara o som de conclusão se não foi disparado. ──
+    if (stage === 1 && subStep === 16) {
+      setDisabledNextButton(false);
+      setGameState(prev => ({ ...prev, stage2Available: true }));
+      return;
+    }
+    // ── Auto-spins (subStep 10 — 50/100/150/200): popula frequencies com
+    //    500 giros equiprováveis (50+100+150+200) e avança para a pergunta
+    //    de convergência (subStep 11). ──
+    if (stage === 1 && subStep === 10) {
+      const total = (gameState.autoSpinBatches || [50, 100, 150, 200]).reduce((s, v) => s + v, 0);
+      const freqs: { [color: string]: number } = { ...gameState.frequencies };
+      const per = Math.floor(total / sectors.length);
+      let rem = total - per * sectors.length;
+      sectors.forEach(s => {
+        freqs[s.colorName] = (freqs[s.colorName] || 0) + per + (rem > 0 ? 1 : 0);
+        if (rem > 0) rem--;
+      });
+      setGameState(prev => ({
+        ...prev,
+        subStep: 11,
+        frequencies: freqs,
+        totalSpins: (prev.totalSpins || 0) + total,
+        currentAutoBatchIndex: (gameState.autoSpinBatches || []).length,
+      }));
+      setShowAutoSpinButtons(false);
+      playSound("/sounds/challengeFinished.mp3");
+      createAlert("Convergência observada!", `${total} giros automáticos concluídos.`, "success", 3000);
+      return;
+    }
+
+    // ── Fallback genérico: bumpa subStep no array da etapa atual,
+    //    herdando o resto do gameState. Se subStep atual não está no array
+    //    (cena dinâmica fora do mapa), salta para o próximo subStep MAIOR
+    //    do array — evita travamento quando o aluno chega a um estado não
+    //    pré-mapeado (ex.: subSteps internos do treino comp/union/lgn). ──
+    const phases = ROULETTE_STAGE_PHASES[stage] ?? [];
+    const idx = phases.indexOf(subStep);
+    if (idx >= 0 && idx < phases.length - 1) {
+      setGameState(prev => ({ ...prev, subStep: phases[idx + 1] }));
+      return;
+    }
+    if (idx === -1) {
+      // subStep atual desconhecido — encontra próximo MAIOR no array.
+      const nextHigher = phases.find(p => p > subStep);
+      if (nextHigher !== undefined) {
+        setGameState(prev => ({ ...prev, subStep: nextHigher }));
+        return;
+      }
+    }
+    // Final do array da etapa atual — equivale a chegar à tela de "Próxima
+    // Etapa" da OVA. Configura o estado pós-conclusão e habilita o botão.
+    if (stage === 1) {
+      setGameState(prev => ({ ...prev, subStep: 16, stage2Available: true }));
+      setDisabledNextButton(false);
+      setInstructions(`<p class="ds-body"><strong>Etapa 1 Concluída!</strong></p>
+        <p class="ds-body">Você aprendeu sobre probabilidade equiprovável e a Lei dos Grandes Números.</p>
+        <p class="ds-body">Clique em <strong>Próxima Etapa</strong> para continuar.</p>`);
+      return;
+    }
+    if (stage === 2) {
+      setGameState(prev => ({ ...prev, stage3Available: true }));
+      setDisabledNextButton(false);
+      return;
+    }
+  }, [
+    showInfoBox, handleInfoBoxConfirm, gameState,
+    setSliderValue, setSelectedOption, setSampleSpaceInput, setSampleSpaceCountInput,
+    setTheoreticalQuestion1Input, setTheoreticalQuestion2Input,
+    probabilityInputs, setProbabilityInputs,
+    setFavorableCasesInput, setExerciseNEInput, setExerciseNSInput,
+    setExercisePENumeratorInput, setExercisePEDenominatorInput, setPredictionInput,
+    compPhase, setCompPhase, setCompPaInput, setCompUserSelectA, setCompUserSelectAbar, setCompChainInputs,
+    compExamplesViewed, setCompExamplesViewed,
+    deterministicExamplesViewed, randomExamplesViewed,
+    handleSeeMoreDeterministicExamples, handleSeeMoreRandomExamples,
+    compCalcExampleNum, setCompChainResult, setInstructions,
+    handleCompConfirmA, handleCompConfirmAbar,
+    freqAbsQuestion, setFreqAbsQuestion, setFreqAbsInput, freqRelQuestion, setFreqRelInput,
+    relativeFrequencyInputs, setRelativeFrequencyInputs,
+    convergenceInputs, setConvergenceInputs,
+    interpretationPhase, interpretationQ3, setInterpretationPhase, setInterpretationSelected, handleInterpretationCheck,
+    lgnPhase, lgnParams, setLgnInput, setLgnVerbalInput,
+    handleLgnWantToKnow, handleLgnContinue, handleLgnVerbalConfirm,
+    setShowInfoBox, setInfoBoxContent,
+  ]);
+
   // Handler para avançar do feedback para fase LGN (subStep 15)
   const handleInterpretationContinue = useCallback(() => {
     setInterpretationPhase('done');
@@ -10579,6 +11749,9 @@ export const useRouletteHooks = () => {
     setInstructions(`<p class="ds-body"><strong>Problema 1: Disco</strong></p>
       <p class="ds-body">Leia o enunciado e responda.</p>`);
   }, [gameState.targetSectorCount, gameState.sectors, generateLgnParams]);
+
+  // Atualiza o ref usado pelo devSimulateAdvance.
+  handleInterpretationContinueRef.current = handleInterpretationContinue;
 
   return {
     // Game state
@@ -10621,6 +11794,13 @@ export const useRouletteHooks = () => {
     startStage1,
     startStage2,
     startStage3,
+    // Acesso direto ao state machine — uso restrito ao painel de DEV
+    // da sequência didática para navegação manual entre ceninhas.
+    setGameState,
+    devSimulateAdvance,
+    getDevSnapshot,
+    applyDevSnapshot,
+    getDevCenaId,
     toggleSectorSelection,
     restartExercise,
     restartChallenge1,
