@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HeroBanner } from "@/components/global/HeroBanner";
+import { OvaCredits } from "@/components/global/OvaCredits";
 import { TextBlock } from "@/components/global/TextBlock";
 import { Button } from "@/components/global/Button";
 import { Grid } from "@/components/global/Grid";
@@ -113,6 +114,8 @@ export default function DidacticSequencePage() {
         ))}
       </div>
 
+      <OvaCredits/>
+      
       <DevPanel
         devMode={devMode}
         setDevMode={setDevMode}

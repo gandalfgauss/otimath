@@ -10725,17 +10725,19 @@ export const useRouletteHooks = () => {
     const { subStep } = gameState;
     const parts: string[] = [`s${subStep}`];
     if (subStep === 6.55) parts.push(`disj=${disjointExercisePhase}`);
-    if (subStep === 6.56) parts.push(`uni=${unionPhase}`);
+    if (subStep === 6.56) parts.push(`uni=${unionPhase}`, `act=${unionActivityNum}`, `evIdx=${unionCurrentEventIdx}`);
     if (subStep === 6.70) parts.push(`comp=${compPhase}`, `ex=${compExamplesViewed}`);
     if (subStep >= 6.85 && subStep <= 6.93) parts.push(`comp=${compPhase}`);
     if (subStep === 0.1) parts.push(`detEx=${deterministicExamplesViewed}`);
     if (subStep === 0.3) parts.push(`randEx=${randomExamplesViewed}`);
+    if (subStep === 6.55) parts.push(`disjEx=${disjointExamplesViewed}`);
     if (subStep === 8.6) parts.push(`freqRel=${freqRelConceptPhase}`);
     if (subStep === 14) parts.push(`interp=${interpretationPhase}`);
     if (subStep === 15) parts.push(`lgn=${lgnPhase}`);
+    if (subStep === 15.6) parts.push(`dice=${diceState.rolled ? 'rolled' : 'pre'}`, `ans=${diceState.answered ? 'y' : 'n'}`);
     if (showInfoBox) parts.push(`info=${infoBoxContent.title || ''}`);
     return parts.join('|');
-  }, [gameState, disjointExercisePhase, unionPhase, compPhase, compExamplesViewed, deterministicExamplesViewed, randomExamplesViewed, freqRelConceptPhase, interpretationPhase, lgnPhase, showInfoBox, infoBoxContent]);
+  }, [gameState, disjointExercisePhase, disjointExamplesViewed, unionPhase, unionActivityNum, unionCurrentEventIdx, compPhase, compExamplesViewed, deterministicExamplesViewed, randomExamplesViewed, freqRelConceptPhase, interpretationPhase, lgnPhase, diceState, showInfoBox, infoBoxContent]);
 
   const getDevSnapshot = useCallback(() => ({
     gameState,
@@ -11037,6 +11039,81 @@ export const useRouletteHooks = () => {
       }
     }
 
+    // ── 15.6 — Generalização: Dado de 6 Faces. Três sub-cenas distintas:
+    //    1) !rolled → cena com dado parado + botão "Lançar o dado"
+    //    2) rolled && !answered → cena com pergunta "Se lançasse 10.000 vezes..." + input
+    //    3) answered → balão "Generalização" + transição para 15.7
+    //    Inline as transições para evitar closure stale (handleDiceAnswer
+    //    capturava diceInput='' ao usar setTimeout). ──
+    if (stage === 1 && subStep === 15.6) {
+      if (!diceState.rolled) {
+        // Cena 1 → Cena 2: rola o dado (sem esperar animação CSS de 1.3s)
+        // e mostra o exercício "Se você lançasse esse dado 10.000 vezes...".
+        const finalFace = Math.floor(Math.random() * 6) + 1;
+        setDiceState({ face: finalFace, rolling: false, rolled: true, answered: false });
+        setDiceInput({ value: '', error: false });
+        playSound("/sounds/correct.mp3");
+        createAlert("Dado lançado!", `O dado caiu na face ${finalFace}.`, "info", 2500);
+        setInstructions(`<p class="ds-body"><strong>Generalização</strong></p>
+          <p class="ds-body">O dado caiu na face <strong>${finalFace}</strong>. Agora responda a pergunta.</p>`);
+        return;
+      }
+      if (diceState.rolled && !diceState.answered) {
+        // Cena 2 → Cena 3: preenche '1/6' (visualmente) + inline o success
+        // path do handleDiceAnswer (avança para 15.7 com balão).
+        setDiceInput({ value: '1/6', error: false });
+        playSound("/sounds/correct.mp3");
+        setDiceState(prev => ({ ...prev, answered: true }));
+        setGameState(prev => ({ ...prev, subStep: 15.7 }));
+        setShowInfoBox(true);
+        setInfoBoxContent({
+          type: 'success',
+          title: 'Generalização',
+          message: 'A Lei dos Grandes Números não se limita ao disco colorido. Para <strong>qualquer</strong> experimento aleatório com resultados equiprováveis, a frequência relativa se aproxima da probabilidade teórica quando o número de repetições é grande.<br/><br/>O dado tem 6 faces iguais, então cada face tem probabilidade <strong>1/6</strong>. Após 10.000 lançamentos, a frequência relativa de cada face se aproximaria desse valor.',
+        });
+        setInstructions(`<p class="ds-body"><strong>Generalização</strong></p>
+          <p class="ds-body">Leia a conclusão.</p>`);
+        return;
+      }
+    }
+
+    // ── 6.55 — Eventos Mutuamente Exclusivos (exercício disjoint).
+    //    Cena multi-fase: balão conceitual → "Sua vez!" selecting_A →
+    //    selecting_B → correct (× 3 exemplos) → "Li." avança para 6.56. ──
+    if (stage === 1 && subStep === 6.55) {
+      if (disjointExercisePhase === 'none') {
+        // Botão "Agora é sua vez!" → handleStartDisjointExercise
+        handleStartDisjointExercise();
+        return;
+      }
+      if (disjointExercisePhase === 'selecting_A') {
+        // Marca seleção correta de A e confere
+        setDisjointUserSelectA([...disjointCorrectA]);
+        setTimeout(() => handleDisjointConfirmA(), 50);
+        return;
+      }
+      if (disjointExercisePhase === 'selecting_B') {
+        setDisjointUserSelectB([...disjointCorrectB]);
+        setTimeout(() => handleDisjointConfirmB(), 50);
+        return;
+      }
+      if (disjointExercisePhase === 'wrong') {
+        // Botão "Tentar novamente" → reseta para selecting_A
+        handleDisjointRetry();
+        return;
+      }
+      if (disjointExercisePhase === 'correct') {
+        if (disjointExamplesViewed < 3) {
+          // Botão "Próximo exemplo!" → handleStartDisjointExercise
+          handleStartDisjointExercise();
+          return;
+        }
+        // Botão "Li." → handleInfoBoxConfirm avança para 6.56
+        handleInfoBoxConfirm();
+        return;
+      }
+    }
+
     // ── 0.1 (Experimento determinístico) e 0.3 (Experimento aleatório) —
     //    cada balão tem botão "Clique para ver mais exemplos!" enquanto não
     //    foram vistos 3 exemplos; depois disso o botão muda para "Li." e
@@ -11109,11 +11186,12 @@ export const useRouletteHooks = () => {
 
       // Rotação visual de "3 giros consolidados" (uma volta extra para
       // sinalizar movimento) — não é a animação completa, mas dá feedback.
+      // NÃO seta totalSpins (no fluxo natural a experimentação não incrementa
+      // o contador) — só popula frequencies para qualquer painel reativo.
       setGameState(prev => ({
         ...prev,
         subStep: 1.25,
         frequencies: freqs,
-        totalSpins: 3,
         isSpinning: true,
         spinDuration: 800,
         targetAngle: (prev.currentRotation || 0) + 360 * 3,
@@ -11245,14 +11323,48 @@ export const useRouletteHooks = () => {
       return;
     }
 
-    // ── Atividades de União (6.56) — DEV pula direto para o Desafio
-    //    Dinâmico 1 (6.6) chamando restartChallenge1, que configura todo
-    //    o estado challenge1* (PropertyY, EventXColors, Connective, etc.).
-    //    Sem isso, ao chegar em 6.66 o nE recalculado dá 0 e a validação
-    //    rejeita a resposta correta do aluno.
+    // ── 6.56 — Atividades de Probabilidade da União: cena multi-fase com
+    //    ciclo "selecting → filling_prob" por evento, depois "final_calc"
+    //    do P(A∪B...), seguido de "activity_success" (próxima atividade) ou
+    //    "all_done" (avança para Desafio Dinâmico 1 via handleInfoBoxConfirm). ──
     if (stage === 1 && subStep === 6.56) {
-      restartChallenge1Ref.current?.();
-      return;
+      if (unionPhase === 'definition1' || unionPhase === 'definition2') {
+        // Balão conceitual → "Li." avança para próxima definição ou inicia atividade 1.
+        handleInfoBoxConfirm();
+        return;
+      }
+      const currentEvent = unionEvents[unionCurrentEventIdx];
+      if (unionPhase === 'selecting' && currentEvent) {
+        // Botão "Conferir" simulado: marca setores corretos do evento atual.
+        setUnionSelectedSectors([...currentEvent.sectorIndices]);
+        setTimeout(() => handleUnionConfirmSelection(), 50);
+        return;
+      }
+      if (unionPhase === 'filling_prob' && currentEvent) {
+        // Preenche P(evento) = sectorIndices.length / sectors.length.
+        setUnionProbNumInput({ value: String(currentEvent.sectorIndices.length), error: false });
+        setUnionProbDenInput({ value: String(gameState.sectors.length), error: false });
+        setTimeout(() => handleUnionConfirmProb(), 50);
+        return;
+      }
+      if (unionPhase === 'final_calc') {
+        // P(A∪B∪...) = sum(eventos.probNumerator) / sectors.length
+        const sumNum = unionEvents.reduce((s, e) => s + e.probNumerator, 0);
+        setUnionFinalNumInput({ value: String(sumNum), error: false });
+        setUnionFinalDenInput({ value: String(gameState.sectors.length), error: false });
+        setTimeout(() => handleUnionConfirmFinal(), 50);
+        return;
+      }
+      if (unionPhase === 'activity_success') {
+        // Botão "Próxima atividade!" → handleUnionNextActivity
+        handleUnionNextActivity();
+        return;
+      }
+      if (unionPhase === 'all_done') {
+        // Botão "Li." → handleInfoBoxConfirm avança para 6.6 via restartChallenge1
+        handleInfoBoxConfirm();
+        return;
+      }
     }
     // ── Desafio Dinâmico 1 (6.6) — calcula os setores corretos
     //    usando o mesmo algoritmo do checkAnswer e simula a seleção. ──
@@ -11500,22 +11612,68 @@ export const useRouletteHooks = () => {
       return;
     }
 
-    // ── Interpretação (14) — q1/q2/q3 com handleInterpretationCheck ──
+    // ── Interpretação (14) — q1/q2/q3. Inline as transições do success path
+    //    para evitar problema de closure stale (setInterpretationSelected
+    //    + setTimeout(handleInterpretationCheck) lia o valor antigo). ──
     if (stage === 1 && subStep === 14) {
-      // Se interpretationPhase ainda não foi inicializado (DEV pulou), inicia em q1.
+      const n = gameState.targetSectorCount;
+      const probPercent = ((1 / n) * 100).toFixed(1).replace('.', ',');
+
       if (interpretationPhase === 'done') {
         setInterpretationPhase('q1');
         setInterpretationSelected('');
         return;
       }
-      if (interpretationPhase === 'q1' || interpretationPhase === 'q2') {
+      if (interpretationPhase === 'q1') {
+        // Marca 'nao' (visualmente) e avança para q2 — inline do success path.
         setInterpretationSelected('nao');
-        setTimeout(() => handleInterpretationCheck(), 50);
+        playSound("/sounds/correct.mp3");
+        createAlert("Correto!", "De fato, as frequências relativas variaram entre os setores.", "success", 3000);
+        setTimeout(() => {
+          setInterpretationPhase('q2');
+          setInterpretationSelected('');
+        }, 80);
+        return;
+      }
+      if (interpretationPhase === 'q2') {
+        setInterpretationSelected('nao');
+        playSound("/sounds/correct.mp3");
+        createAlert("Correto!", `As frequências relativas ficaram próximas, mas não exatamente iguais a 1/${n} (≈${probPercent}%).`, "success", 3000);
+        // Setup das alternativas de q3 — replica handleInterpretationCheck.
+        const setA = [
+          'Porque o tamanho da amostra ainda não é suficientemente grande para que a frequência relativa se aproxime do valor teórico.',
+          'Porque o número de repetições do experimento ainda é pequeno para reduzir as flutuações aleatórias observadas.',
+          'Porque a quantidade de ensaios não foi suficiente para que ocorra a estabilização das frequências relativas.',
+          'Porque o experimento ainda não atingiu um número de tentativas capaz de evidenciar a convergência para a probabilidade teórica (1/n).',
+        ];
+        const setE = [
+          'Porque a frequência relativa só coincidiria com o valor teórico se o número de giros fosse múltiplo de n.',
+          'Porque a frequência relativa deveria convergir exatamente ao valor teórico ao final do experimento realizado.',
+          'Porque cada experimento concreto possui uma probabilidade real ligeiramente diferente da probabilidade teórica.',
+          'Porque a probabilidade teórica funciona apenas como referência aproximada e não como limite do comportamento observado.',
+        ];
+        const replaceN = (s: string) => s.replace(/1\/n/g, `1/${n}`).replace(/(?<![a-zA-ZÀ-ÿ])n(?![a-zA-ZÀ-ÿ])/g, `${n}`);
+        const correctText = replaceN(setA[Math.floor(Math.random() * setA.length)]);
+        const distractors = [...setE].sort(() => Math.random() - 0.5).slice(0, 4).map(t => replaceN(t));
+        const alts = [
+          { id: 'correct', text: correctText },
+          ...distractors.map((t, i) => ({ id: `e${i}`, text: t })),
+        ].sort(() => Math.random() - 0.5);
+        setTimeout(() => {
+          setInterpretationQ3({ alternatives: alts, correctId: 'correct' });
+          setInterpretationPhase('q3');
+          setInterpretationSelected('');
+        }, 80);
         return;
       }
       if (interpretationPhase === 'q3' && interpretationQ3) {
         setInterpretationSelected(interpretationQ3.correctId);
-        setTimeout(() => handleInterpretationCheck(), 50);
+        playSound("/sounds/correct.mp3");
+        createAlert("Correto!", "Diferenças em relação ao valor teórico são esperadas devido à variabilidade amostral quando o número de repetições ainda é limitado.", "success", 4000);
+        setTimeout(() => {
+          setInterpretationPhase('feedback');
+          setInterpretationSelected('');
+        }, 80);
         return;
       }
       if (interpretationPhase === 'feedback') {
@@ -11559,10 +11717,13 @@ export const useRouletteHooks = () => {
       }
     }
 
-    // ── Giros manuais (7) e novos giros (8): pula com frequências
-    //    sintetizadas (distribuição equiprovável) para a tabela aparecer. ──
+    // ── Giros manuais (7) — RESETA frequencies e totalSpins (que vinham
+    //    da fase de experimentação) e popula com distribuição equiprovável.
+    //    Ao final, abre o balão "Confronto: Previsão × Resultado" idêntico
+    //    ao do fluxo natural (handleSpinEnd quando completa todos os giros). ──
     if (stage === 1 && subStep === 7) {
       const total = gameState.manualSpinsRequired || sectors.length;
+      // Reset + distribuição equiprovável dos giros
       const freqs: { [color: string]: number } = {};
       const per = Math.floor(total / sectors.length);
       let rem = total - per * sectors.length;
@@ -11570,19 +11731,28 @@ export const useRouletteHooks = () => {
         freqs[s.colorName] = per + (rem > 0 ? 1 : 0);
         if (rem > 0) rem--;
       });
+      const predColor = gameState.predictionColor;
+      const predVal = gameState.predictionValue;
+      const observedCount = freqs[predColor] || 0;
+      const match = parseInt(predVal, 10) === observedCount;
       setGameState(prev => ({
         ...prev,
         subStep: 7.1,
         manualSpinsDone: total,
         frequencies: freqs,
-        totalSpins: (prev.totalSpins || 0) + total,
+        totalSpins: total, // RESET — não acumula com experimentação
       }));
       setShowInfoBox(true);
       setInfoBoxContent({
-        type: 'concept',
-        title: 'Resultados dos Giros',
-        message: `Você completou os ${total} giros manuais. Compare com sua previsão e siga para a próxima etapa.`,
+        type: match ? 'success' : 'info',
+        title: 'Confronto: Previsão × Resultado',
+        message: `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${total} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
+          ? 'Sua previsão coincidiu com o resultado! Mas isso <strong>sempre</strong> aconteceria se repetíssemos o experimento?'
+          : 'Sua previsão não coincidiu com o resultado. Isso acontece porque cada giro é um <strong>experimento aleatório</strong> — não é possível prever com certeza o resultado.'}`,
       });
+      setInstructions(`<p class="ds-body"><strong>Confronto: Previsão × Resultado</strong></p>
+        <p class="ds-body">Compare sua previsão com o que realmente aconteceu.</p>`);
+      setDisabledSpinButton(true);
       playSound("/sounds/challengeFinished.mp3");
       return;
     }
@@ -11613,24 +11783,17 @@ export const useRouletteHooks = () => {
       createAlert("Giros concluídos!", `${total} giros registrados na tabela.`, "success", 2500);
       return;
     }
-    // ── 8.6 (conceito frequência relativa) → 9 com inputs por cor configurados.
+    // ── 8.6 (conceito frequência relativa) — duas sub-cenas:
+    //    'definition' (botão "Li.") → 'example' (botão "Continuar") → subStep 9.
     if (stage === 1 && subStep === 8.6) {
-      const inputs: { [color: string]: TextInputInterface } = {};
-      sectors.forEach(s => {
-        inputs[s.colorName] = {
-          value: '', disabled: false, error: false,
-          setValue: (val: string) => setRelativeFrequencyInputs(prev => ({
-            ...prev, [s.colorName]: { ...prev[s.colorName], value: val },
-          })),
-        };
-      });
-      setRelativeFrequencyInputs(inputs);
-      setGameState(prev => ({ ...prev, subStep: 9 }));
-      setShowInfoBox(false);
-      setInstructions(`<p class="ds-body"><strong>Frequências Relativas: Comparando Proporções Observadas</strong></p>
-        <p class="ds-body">Calcule a frequência relativa de cada cor (frequência absoluta / total de giros).</p>
-        <p class="ds-body">Digite na forma de fração (ex: 3/${gameState.ySpins || 10}).</p>`);
-      playSound("/sounds/nextChallenge.mp3");
+      if (freqRelConceptPhase === 'definition') {
+        // Botão "Li." → handleFreqRelConceptLi → fase 'example' (mostra o
+        // exemplo "Se uma cor apareceu 3 vezes em 11 giros, então 3/11 = 0,273 ≈ 27,3%").
+        handleFreqRelConceptLi();
+        return;
+      }
+      // 'example' → botão "Continuar" → handleFreqRelConceptContinue → subStep 9.
+      handleFreqRelConceptContinue();
       return;
     }
     // ── 9 (frequências relativas por cor) — preenche cada input com freq/ySpins.
@@ -11656,8 +11819,10 @@ export const useRouletteHooks = () => {
       return;
     }
     // ── Auto-spins (subStep 10 — 50/100/150/200): popula frequencies com
-    //    500 giros equiprováveis (50+100+150+200) e avança para a pergunta
-    //    de convergência (subStep 11). ──
+    //    500 giros equiprováveis (50+100+150+200) e avança para subStep 11
+    //    com a pergunta "Convergência das Frequências Relativas" devidamente
+    //    configurada (input de convergência + instruções), igual ao fluxo
+    //    natural em startAutoSpins quando o último batch completa. ──
     if (stage === 1 && subStep === 10) {
       const total = (gameState.autoSpinBatches || [50, 100, 150, 200]).reduce((s, v) => s + v, 0);
       const freqs: { [color: string]: number } = { ...gameState.frequencies };
@@ -11667,6 +11832,19 @@ export const useRouletteHooks = () => {
         freqs[s.colorName] = (freqs[s.colorName] || 0) + per + (rem > 0 ? 1 : 0);
         if (rem > 0) rem--;
       });
+      // Configura convergenceInputs com setValue válido — mesmo formato do
+      // fluxo natural (line ~9527 em startAutoSpins).
+      setConvergenceInputs({
+        convergence: {
+          value: '',
+          disabled: false,
+          error: false,
+          setValue: (val: string) => setConvergenceInputs(prev => ({
+            ...prev,
+            convergence: { ...prev.convergence, value: val },
+          })),
+        },
+      });
       setGameState(prev => ({
         ...prev,
         subStep: 11,
@@ -11675,6 +11853,8 @@ export const useRouletteHooks = () => {
         currentAutoBatchIndex: (gameState.autoSpinBatches || []).length,
       }));
       setShowAutoSpinButtons(false);
+      setInstructions(`<p class="ds-body"><strong>Convergência das Frequências Relativas</strong></p>
+        <p class="ds-body">Observe o histograma e responda a pergunta abaixo.</p>`);
       playSound("/sounds/challengeFinished.mp3");
       createAlert("Convergência observada!", `${total} giros automáticos concluídos.`, "success", 3000);
       return;
@@ -11725,14 +11905,24 @@ export const useRouletteHooks = () => {
     compExamplesViewed, setCompExamplesViewed,
     deterministicExamplesViewed, randomExamplesViewed,
     handleSeeMoreDeterministicExamples, handleSeeMoreRandomExamples,
+    disjointExercisePhase, disjointExamplesViewed,
+    disjointCorrectA, disjointCorrectB,
+    setDisjointUserSelectA, setDisjointUserSelectB,
+    handleStartDisjointExercise, handleDisjointConfirmA, handleDisjointConfirmB, handleDisjointRetry,
+    unionPhase, unionEvents, unionCurrentEventIdx,
+    setUnionSelectedSectors, setUnionProbNumInput, setUnionProbDenInput,
+    setUnionFinalNumInput, setUnionFinalDenInput,
+    handleUnionConfirmSelection, handleUnionConfirmProb, handleUnionConfirmFinal, handleUnionNextActivity,
     compCalcExampleNum, setCompChainResult, setInstructions,
     handleCompConfirmA, handleCompConfirmAbar,
     freqAbsQuestion, setFreqAbsQuestion, setFreqAbsInput, freqRelQuestion, setFreqRelInput,
     relativeFrequencyInputs, setRelativeFrequencyInputs,
+    freqRelConceptPhase, handleFreqRelConceptLi, handleFreqRelConceptContinue,
     convergenceInputs, setConvergenceInputs,
-    interpretationPhase, interpretationQ3, setInterpretationPhase, setInterpretationSelected, handleInterpretationCheck,
+    interpretationPhase, interpretationQ3, setInterpretationPhase, setInterpretationSelected, setInterpretationQ3, handleInterpretationCheck,
     lgnPhase, lgnParams, setLgnInput, setLgnVerbalInput,
     handleLgnWantToKnow, handleLgnContinue, handleLgnVerbalConfirm,
+    diceState, setDiceState, setDiceInput, handleDiceAnswer,
     setShowInfoBox, setInfoBoxContent,
   ]);
 
