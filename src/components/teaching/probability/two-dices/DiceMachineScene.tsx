@@ -46,8 +46,6 @@ const MOUTH_X = PIVOT_X - CH;
 const CONTACT_EPS = 0.006;
 // centro do dado 1 quando empurrado até a boca do copo
 const D1_PT = MOUTH_X + DHS * 0.60;
-// dado 2 encostado no dado 1 (face a face, sem penetração)
-const D2_PT = D1_PT + DHS * 2 + CONTACT_EPS;
 const PX_R = -3.90;
 // anteparo encosta na face traseira do dado 1:
 // face direita do anteparo (pushX + PWD/2) = face esquerda do dado 1 (d1.x - DHS)
@@ -1372,7 +1370,7 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       rebuildDieTextures,
       audio: (() => { const a = new IbereAudio(); a.preload(); return a; })(),
       // Áudio mecânico da máquina (/public/sounds/maquina.mp3)
-      maquinaAudio: (() => {
+      machineAudio: (() => {
         if (typeof Audio === 'undefined') return null;
         try {
           const el = new Audio('/sounds/maquina.mp3');
@@ -1918,8 +1916,8 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         const sy2 = DHS * 2.2 + Math.abs(Math.cos(st * PI * 6.2)) * DHS * 1.85;
         const sz2 = Math.sin(st * PI * 9.8) * DHS * 0.58 + Math.cos(st * PI * 4.9) * DHS * 0.14;
 
-        let w1s = cupL2W(sx1, sy1, sz1, cY, cRZ);
-        let w2s = cupL2W(sx2, sy2, sz2, cY, cRZ);
+        const w1s = cupL2W(sx1, sy1, sz1, cY, cRZ);
+        const w2s = cupL2W(sx2, sy2, sz2, cY, cRZ);
 
         // Separação pós-procedural: impede penetração visual dentro do copo
         separateDicePositions(w1s, w2s);
@@ -1929,8 +1927,8 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       } else if (state.cur === 'TILT_S') {
         const ly1 = lerp(DHS * 1.1, CH * 0.62, pe);
         const ly2 = lerp(DHS * 2.8, CH * 0.75, pe);
-        let w1t = cupL2W(DHS * 0.20, ly1, 0, cY, cRZ);
-        let w2t = cupL2W(-DHS * 0.25, ly2, 0, cY, cRZ);
+        const w1t = cupL2W(DHS * 0.20, ly1, 0, cY, cRZ);
+        const w2t = cupL2W(-DHS * 0.25, ly2, 0, cY, cRZ);
 
         // Separação pós-procedural para TILT_S
         separateDicePositions(w1t, w2t);
@@ -2090,9 +2088,9 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         playSound('/sounds/nextChallenge.mp3');
         state.audio.start();
         // Inicia som mecânico da máquina
-        if (state.maquinaAudio) {
-          try { state.maquinaAudio.currentTime = 0; } catch { /* noop */ }
-          const p = state.maquinaAudio.play();
+        if (state.machineAudio) {
+          try { state.machineAudio.currentTime = 0; } catch { /* noop */ }
+          const p = state.machineAudio.play();
           if (p && typeof (p as Promise<void>).catch === 'function') {
             (p as Promise<void>).catch(() => { /* autoplay bloqueado */ });
           }
@@ -2108,8 +2106,8 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       }
       if (s === 'ZOOM') {
         // Para o som mecânico da máquina
-        if (state.maquinaAudio) {
-          try { state.maquinaAudio.pause(); state.maquinaAudio.currentTime = 0; } catch { /* noop */ }
+        if (state.machineAudio) {
+          try { state.machineAudio.pause(); state.machineAudio.currentTime = 0; } catch { /* noop */ }
         }
         [state.p1, state.p2].forEach(d => {
           d.vy = 0; d.vx = 0; d.vz = 0;
@@ -2151,9 +2149,15 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     let readyFired = false;
     const animate = (ts: number) => {
       state.animId = requestAnimationFrame(animate);
-      if (lastTs === null) lastTs = ts;
-      // Sinaliza pronto após o primeiro frame ser pintado
+      // Sinaliza pronto após o primeiro frame ser pintado (mesmo se o canvas
+      // estiver oculto durante o pré-init, para o pai esconder o skeleton).
       if (!readyFired) { readyFired = true; requestAnimationFrame(() => onReady?.()); }
+      // Otimização: se o canvas está oculto (display:none em algum ancestral),
+      // pula render e física para liberar CPU/GPU. offsetParent === null é
+      // verificação O(1) e cobre o caso do componente montado mas escondido
+      // (pré-init de WebGL durante outras cenas, switch entre cenas no Ex7).
+      if (renderer.domElement.offsetParent === null) { lastTs = null; return; }
+      if (lastTs === null) lastTs = ts;
       const dt = Math.min((ts - lastTs) * 0.001, 0.05);
       lastTs = ts;
       if (state.running && state.cur !== 'IDLE' && state.cur !== 'RESULT') {
@@ -2181,9 +2185,9 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       cancelAnimationFrame(compileId);
       ro.disconnect();
       // Libera o player do áudio do Iberê
-      try { state.audio.dispose(); } catch (e) { /* noop */ }
+      try { state.audio.dispose(); } catch { /* noop */ }
       // Libera áudio da máquina
-      try { if (state.maquinaAudio) { state.maquinaAudio.pause(); state.maquinaAudio.src = ''; } } catch { /* noop */ }
+      try { if (state.machineAudio) { state.machineAudio.pause(); state.machineAudio.src = ''; } } catch { /* noop */ }
       // dispose das texturas dos dados
       Object.values(bTex).forEach(t => t.dispose());
       Object.values(gTex).forEach(t => t.dispose());
@@ -2192,11 +2196,11 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
       });
       // dispose das geometrias e materiais coletados
-      state.disposables.forEach(d => { try { d.dispose(); } catch (e) { /* noop */ } });
+      state.disposables.forEach(d => { try { d.dispose(); } catch { /* noop */ } });
       // varredura genérica de meshes para liberar geos restantes
       scene.traverse(obj => {
         const mesh = obj as THREE.Mesh;
-        if (mesh.geometry) { try { mesh.geometry.dispose(); } catch (e) { /* noop */ } }
+        if (mesh.geometry) { try { mesh.geometry.dispose(); } catch { /* noop */ } }
       });
       renderer.dispose();
       if (container.contains(renderer.domElement)) {
@@ -2257,6 +2261,8 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
   return (
     <div
       ref={containerRef}
+      role="img"
+      aria-label="Cena 3D interativa de uma máquina automática de lançamento de dois dados."
       className="w-full rounded-lg overflow-hidden"
       style={{
         aspectRatio,

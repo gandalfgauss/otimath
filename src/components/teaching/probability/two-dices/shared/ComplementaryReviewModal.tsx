@@ -102,7 +102,7 @@ export function ComplementaryReviewModal({ open, onClose }: ComplementaryReviewM
           <Button
             style="neutral"
             size="medium"
-            icon={<X />}
+            icon={<X aria-hidden="true" />}
             onClick={onClose}
             ariaLabel="Fechar revisão"
           />
@@ -228,7 +228,7 @@ export function ComplementaryReviewModal({ open, onClose }: ComplementaryReviewM
              (RouletteGame.tsx, fase definition). Ao clicar, fecha o
              modal e devolve o foco ao enunciado da atividade. */}
         <div className="p-xxs border-t border-neutral-lightest flex justify-end">
-          <Button style="primary" size="small" icon={<Check />} onClick={onClose}>
+          <Button style="primary" size="small" icon={<Check aria-hidden="true" />} onClick={onClose}>
             Li!
           </Button>
         </div>

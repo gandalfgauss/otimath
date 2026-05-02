@@ -852,12 +852,12 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
               🎯 Aplicar a fórmula da união
             </p>
-            <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mb-micro text-justify">
               Agora você vai aplicar tudo o que descobriu na fase teórica em um problema
               completo. O exercício tem <strong>4 perguntas</strong> encadeadas — em cada
               uma você calcula uma probabilidade que será usada na próxima.
             </p>
-            <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mb-micro text-justify">
               A sequência é:
             </p>
             <ul className="ds-body text-neutral-black mb-micro" style={{ paddingLeft: 24, listStyle: 'disc', lineHeight: 1.7 }}>
@@ -865,7 +865,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               <li>Calcular <strong>P(A)</strong>, <strong>P(B)</strong> e <strong>P(A ∩ B)</strong></li>
               <li>Aplicar a fórmula: <strong>P(A ∪ B) = P(A) + P(B) − P(A ∩ B)</strong></li>
             </ul>
-            <p className="ds-small text-neutral-dark mb-micro" style={{ textAlign: 'justify', fontStyle: 'italic' }}>
+            <p className="ds-small text-neutral-dark mb-micro text-justify italic">
               Sugestão: sempre que for calcular, consulte os <em>n</em>s congelados acima
               do painel — a memória externa é uma ferramenta matemática legítima.
             </p>
@@ -945,17 +945,17 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                   <HistoryChip label="P(A∩B)" num={correctSets.nI} den={36} color={EVENT_COLORS['A∩B']} />
                 )}
                 {step === 'markB' && (
-                  <span className="ds-small text-neutral-dark" style={{ fontStyle: 'italic' }}>
+                  <span className="ds-small text-neutral-dark italic">
                     Marcações de A congeladas na tabela.
                   </span>
                 )}
                 {step === 'markI' && (
-                  <span className="ds-small text-neutral-dark" style={{ fontStyle: 'italic' }}>
+                  <span className="ds-small text-neutral-dark italic">
                     Marcações de A e B congeladas na tabela.
                   </span>
                 )}
                 {step === 'calcPA' && (
-                  <span className="ds-small text-neutral-dark" style={{ fontStyle: 'italic' }}>
+                  <span className="ds-small text-neutral-dark italic">
                     Tabela totalmente marcada e congelada. Agora calcule as probabilidades.
                   </span>
                 )}
@@ -975,14 +975,14 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['A'] }}>
               Passo 1 — Marcar o evento A
             </p>
-            <p className="ds-body text-neutral-black text-center mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black text-center mt-nano text-justify">
               Marque na tabela <strong>todas as células</strong> em que ocorre o evento A
               (<em>{currentPair.eventA.description}</em>).
             </p>
             {feedbackMessage(feedbackA, correctSets.nA, marksCountByStep)}
             <p
-              className="ds-small text-center text-neutral-dark mt-nano"
-              style={{ fontStyle: 'italic' }}
+              className="ds-small text-center text-neutral-dark mt-nano italic"
+             
             >
               Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
             </p>
@@ -1009,7 +1009,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['B'] }}>
               Passo 2 — Marcar o evento B
             </p>
-            <p className="ds-body text-neutral-black text-center mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black text-center mt-nano text-justify">
               Agora marque as células em que ocorre o evento B
               (<em>{currentPair.eventB.description}</em>). As marcações de A ficam
               congeladas em azul — células em que A e B ocorrem <strong>juntos</strong> terão os
@@ -1017,8 +1017,8 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             </p>
             {feedbackMessage(feedbackB, correctSets.nB, marksCountByStep)}
             <p
-              className="ds-small text-center text-neutral-dark mt-nano"
-              style={{ fontStyle: 'italic' }}
+              className="ds-small text-center text-neutral-dark mt-nano italic"
+             
             >
               Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
             </p>
@@ -1044,7 +1044,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
           >
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['A∩B'] }}>
               Passo 3 — Marcar os casos favoráveis ao evento:{' '}
-              <em style={{ fontStyle: 'italic' }}>
+              <em className="italic">
                 {currentPair.eventA.description.toLowerCase()}
                 {' e '}
                 {extractSumPredicate(currentPair.eventB.description).toLowerCase()}
@@ -1061,8 +1061,8 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               </p>
             )}
             <p
-              className="ds-small text-center text-neutral-dark mt-nano"
-              style={{ fontStyle: 'italic' }}
+              className="ds-small text-center text-neutral-dark mt-nano italic"
+             
             >
               Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
             </p>
@@ -1089,7 +1089,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['A'] }}>
               Passo 4 — Calcular P(A)
             </p>
-            <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-nano text-justify">
               Qual é a probabilidade de ocorrer o evento A?
             </p>
             <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
@@ -1136,7 +1136,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['B'] }}>
               Passo 5 — Calcular P(B)
             </p>
-            <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-nano text-justify">
               Qual é a probabilidade de ocorrer o evento B?
             </p>
             <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
@@ -1182,14 +1182,14 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
           >
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['A∩B'] }}>
               Passo 6 — Calcule a probabilidade de ocorrer{' '}
-              <em style={{ fontStyle: 'italic' }}>
+              <em className="italic">
                 {currentPair.eventA.description.toLowerCase()}
                 {' e '}
                 {extractSumPredicate(currentPair.eventB.description).toLowerCase()}
               </em>
               .
             </p>
-            <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-nano text-justify">
               Antes de calcular, escolha dentro dos parênteses qual evento você vai usar.
             </p>
 
@@ -1276,7 +1276,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
           >
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['A∪B'] }}>
               Passo 7 — Calcule a probabilidade de ocorrer{' '}
-              <em style={{ fontStyle: 'italic' }}>
+              <em className="italic">
                 {currentPair.eventA.description.toLowerCase()}
                 {' ou '}
                 {extractSumPredicate(currentPair.eventB.description).toLowerCase()}
@@ -1386,7 +1386,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                       <p className="ds-body-bold" style={{ color: 'var(--color-brand-otimath-dark)' }}>
                         P(X ∪ Y) = P(X) + P(Y) − P(X ∩ Y)
                       </p>
-                      <p className="ds-small text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+                      <p className="ds-small text-neutral-dark mt-nano italic">
                         Fórmula geral da probabilidade da união de dois eventos.
                       </p>
                     </div>
@@ -1409,7 +1409,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                   >
                     Este problema está desafiador
                   </p>
-                  <p className="ds-small text-neutral-dark mt-nano" style={{ textAlign: 'justify' }}>
+                  <p className="ds-small text-neutral-dark mt-nano text-justify">
                     Que tal recomeçar o exercício com um novo par de eventos? Você refará
                     os passos desde a marcação para praticar a análise do problema inteiro.
                   </p>
@@ -1445,7 +1445,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
 
             {isFormulaCorrect && (
               <>
-                <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+                <p className="ds-body text-neutral-black mt-micro text-justify">
                   Substitua cada probabilidade pela fração correspondente e some:
                 </p>
 
@@ -1492,7 +1492,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                     onEnter={validatePAUB}
                   />
                 </div>
-                <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+                <p className="ds-small text-center text-neutral-dark mt-nano italic">
                   Some as frações — qualquer fração equivalente é aceita.
                 </p>
                 {pAUBError && (
@@ -1538,14 +1538,14 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               </div>
             </div>
 
-            <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-micro text-justify">
               Você aplicou a fórmula geral <strong>P(A ∪ B) = P(A) + P(B) − P(A ∩ B)</strong>{' '}
               em um problema completo, com marcação explícita dos três eventos, cálculo
               independente de cada probabilidade e substituição na fórmula.
             </p>
 
             {round === 0 && (
-              <p className="ds-small text-neutral-dark mt-micro" style={{ textAlign: 'justify', fontStyle: 'italic' }}>
+              <p className="ds-small text-neutral-dark mt-micro text-justify italic">
                 Se quiser, pode praticar novamente com um novo par de eventos (até 3 rodadas).
               </p>
             )}

@@ -107,6 +107,7 @@ interface SingleShotStep {
 const EVENT_DEFINITIONS = [
   { description: 'Soma maior que 8',                         validation: (g: number, b: number) => g + b > 8 },
   { description: 'Menor face igual a 5',                     validation: (g: number, b: number) => Math.min(g, b) === 5 },
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   { description: 'Face par no dado verde',                   validation: (g: number, _b: number) => g % 2 === 0 },
   { description: 'Soma igual a 6',                           validation: (g: number, b: number) => g + b === 6 },
   { description: 'Produto das faces maior que 15',           validation: (g: number, b: number) => g * b > 15 },

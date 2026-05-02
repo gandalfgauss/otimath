@@ -57,7 +57,7 @@ function DiceFaceIcon({ face, size, color = 'blue' }: {
       gap,
     }}>
       {pips.map((pip, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div key={i} className="flex items-center justify-center">
           {pip ? <div style={{ width: pipSize, height: pipSize, borderRadius: '50%', background: '#fff' }} /> : null}
         </div>
       ))}
@@ -107,9 +107,6 @@ interface SampleSpaceTreeProps {
 const GREEN_COLOR = '#1a5c2e';
 const BLUE_COLOR = 'var(--color-brand-otimath-pure)';
 const BRANCH_COLOR = '#8b1a1a'; // vermelho escuro
-
-// Ordem das fases para navegação do botão voltar
-const PHASE_ORDER: Phase[] = ['select1', 'select2', 'animate', 'count', 'multiply', 'total', 'pairs'];
 
 export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpaceTreeProps>) {
   const [phase, setPhase] = useState<Phase>('select1');
@@ -324,25 +321,6 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
     setPhase('pairs');
   }, [totalAnswer]);
 
-  // ─── Botão voltar (bolinha vermelha) ───
-  const goBack = useCallback(() => {
-    const idx = PHASE_ORDER.indexOf(phase);
-    if (idx <= 0) return;
-    const prev = PHASE_ORDER[idx - 1];
-    // Reset do estado relevante ao voltar
-    if (prev === 'select1' || prev === 'select2') {
-      setSelectedFaces(new Set());
-      setSelectError('');
-    }
-    if (prev === 'animate') {
-      animCancelled.current = true;
-      setAnimBranch(0);
-      setAnimBlues([]);
-    }
-    setPhase(prev);
-    playSound('/sounds/clear.mp3');
-  }, [phase]);
-
   // ─── Scroll ao mudar de fase ───
   useEffect(() => {
     if (['count', 'multiply', 'total', 'pairs', 'select2'].includes(phase)) {
@@ -374,39 +352,6 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
     boxShadow: '0 4px 16px rgba(36, 80, 190, 0.10)',
   };
 
-  // Bolinha vermelha para voltar fases — posição relativa ao card
-  // ─── Bolinha verde para voltar (canto superior direito do card) ───
-  const canGoBack = PHASE_ORDER.indexOf(phase) > 0 && phase !== 'animate';
-  const navButtons = canGoBack ? (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-      <button
-        type="button"
-        onClick={goBack}
-        aria-label="Voltar para a fase anterior"
-        title="Voltar uma fase"
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #4ade80, #16a34a)',
-          border: '3px solid #15803d',
-          cursor: 'pointer',
-          boxShadow: '0 4px 14px rgba(22, 101, 52, 0.50), inset 0 1px 2px rgba(255,255,255,0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'transform 0.15s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-      </button>
-    </div>
-  ) : null;
-
   return (
     <div className="w-full" style={{ maxWidth: 660, margin: '0 auto', position: 'relative' }}>
       {/* Keyframes */}
@@ -418,20 +363,19 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
       {/* ═══════ FASE 1 e 2: SELEÇÃO (verde=1 e verde=2) ═══════ */}
       {(phase === 'select1' || phase === 'select2') && (
         <div ref={cardRef} className="rounded-lg p-xxs" style={cardStyle}>
-          {phase === 'select2' && navButtons}
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Construindo o espaço amostral
           </p>
 
           {phase === 'select1' && (
-            <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mb-macro text-justify">
               Você observou a máquina e registrou pares. Mas <strong>quantos pares diferentes
               podem sair</strong> no lançamento de dois dados? Vamos descobrir juntos,
               um resultado de cada vez.
             </p>
           )}
           {phase === 'select2' && (
-            <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mb-macro text-justify">
               Muito bem! Agora vamos verificar para o <strong>segundo resultado</strong> do dado verde.
               Será que as possibilidades do dado azul mudam?
             </p>
@@ -574,11 +518,10 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
       {/* ═══════ FASE 4: QUANTOS PARES? ═══════ */}
       {phase === 'count' && (
         <div ref={cardRef} className="rounded-lg p-xxs" style={cardStyle}>
-          {navButtons}
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Percebendo o padrão
           </p>
-          <p className="ds-body text-neutral-black text-center mb-macro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black text-center mb-macro text-justify">
             Você viu que, para <strong>cada resultado do primeiro dado</strong>, o segundo
             dado pode mostrar faces diferentes. Cada ramo gera um conjunto de pares ordenados.
           </p>
@@ -619,11 +562,10 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
       {/* ═══════ FASE 5: MULTIPLICAÇÃO ═══════ */}
       {phase === 'multiply' && (
         <div ref={cardRef} className="rounded-lg p-xxs" style={cardStyle}>
-          {navButtons}
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Generalizando
           </p>
-          <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mb-macro text-justify">
             Complete a operação para calcular o <strong>total de pares ordenados possíveis</strong> no
             experimento aleatório: lançar dois dados e anotar as pintas nas faces voltadas para cima.
           </p>
@@ -674,7 +616,6 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
       {/* ═══════ FASE 6: TOTAL ═══════ */}
       {phase === 'total' && (
         <div ref={cardRef} className="rounded-lg p-xxs" style={cardStyle}>
-          {navButtons}
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Conclusão
           </p>
@@ -711,7 +652,6 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
       {/* ═══════ FASE 7: VISUALIZAÇÃO DOS 36 PARES ═══════ */}
       {phase === 'pairs' && (
         <div ref={cardRef} className="rounded-lg p-xxs" style={cardStyle}>
-          {navButtons}
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Os 36 pares ordenados
           </p>

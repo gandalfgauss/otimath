@@ -306,6 +306,7 @@ export function ContingencyTable({
                 disabled={locked}
                 placeholder="?"
                 aria-label={`Total de torcedores do ${data.team1.name}: ${HELP_PER_TOTAL.t1}`}
+                aria-invalid={validation.t1 === false}
                 style={inputBaseStyle('t1', true)}
               />
             </td>
@@ -326,6 +327,7 @@ export function ContingencyTable({
                 disabled={locked}
                 placeholder="?"
                 aria-label={`Total de torcedores do ${data.team2.name}: ${HELP_PER_TOTAL.t2}`}
+                aria-invalid={validation.t2 === false}
                 style={inputBaseStyle('t2', true)}
               />
             </td>
@@ -355,6 +357,7 @@ export function ContingencyTable({
                 disabled={locked}
                 placeholder="?"
                 aria-label={`Total de torcedores do sexo masculino: ${HELP_PER_TOTAL.th}`}
+                aria-invalid={validation.th === false}
                 style={inputBaseStyle('th', true)}
               />
             </td>
@@ -367,6 +370,7 @@ export function ContingencyTable({
                 disabled={locked}
                 placeholder="?"
                 aria-label={`Total de torcedores do sexo feminino: ${HELP_PER_TOTAL.tm}`}
+                aria-invalid={validation.tm === false}
                 style={inputBaseStyle('tm', true)}
               />
             </td>
@@ -379,6 +383,7 @@ export function ContingencyTable({
                 disabled={locked}
                 placeholder="?"
                 aria-label={`Total geral de torcedores entrevistados: ${HELP_PER_TOTAL.tg}`}
+                aria-invalid={validation.tg === false}
                 style={{
                   ...inputBaseStyle('tg', true),
                   fontSize: 'clamp(1.15rem, 2.6vw, 1.5rem)',

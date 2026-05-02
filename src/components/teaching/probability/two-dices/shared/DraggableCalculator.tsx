@@ -301,7 +301,6 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
   // No mínimo (184): header=22, display=24, sobram ~135 px → 5 linhas × 27 px.
   const headerH = Math.max(22, Math.min(40, Math.round(size.h * 0.10)));
   const displayH = Math.max(24, Math.min(56, Math.round(size.h * 0.13)));
-  const headerFontPx = Math.max(9, Math.min(14, Math.round(size.h * 0.045)));
   const displayFontPx = Math.max(13, Math.min(28, Math.round(size.h * 0.075)));
   const buttonFontPx = Math.max(10, Math.min(20, Math.round(size.h * 0.06)));
 
@@ -484,7 +483,7 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
       >
         <svg
           width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"
-          style={{ display: 'block' }}
+          className="block"
         >
           {/* 3 tracinhos diagonais paralelos sobre a metade triangular */}
           <path d="M22 6 L6 22" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />

@@ -85,7 +85,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
           Qual caminho será mais rápido?
         </p>
         <div className="flex flex-col gap-micro">
-          <label className="flex items-center gap-micro cursor-pointer" style={{ padding: 8 }}>
+          <label className="flex items-center gap-micro cursor-pointer p-micro">
             <input
               type="radio"
               name="comp-strategy"
@@ -97,7 +97,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
               Marcar diretamente os casos favoráveis ao evento <strong>A</strong>.
             </span>
           </label>
-          <label className="flex items-center gap-micro cursor-pointer" style={{ padding: 8 }}>
+          <label className="flex items-center gap-micro cursor-pointer p-micro">
             <input
               type="radio"
               name="comp-strategy"
@@ -146,7 +146,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
           Com o que você observou, você mantém ou muda sua escolha?
         </p>
         <div className="flex flex-col gap-micro">
-          <label className="flex items-center gap-micro cursor-pointer" style={{ padding: 8 }}>
+          <label className="flex items-center gap-micro cursor-pointer p-micro">
             <input
               type="radio"
               name="comp-review"
@@ -156,7 +156,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
             />
             <span className="ds-body">Mantenho minha escolha.</span>
           </label>
-          <label className="flex items-center gap-micro cursor-pointer" style={{ padding: 8 }}>
+          <label className="flex items-center gap-micro cursor-pointer p-micro">
             <input
               type="radio"
               name="comp-review"
@@ -508,7 +508,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
               )}
             </div>
             {h.formStep === 5 && !h.formStep5Validated && (
-              <p className="ds-caption text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+              <p className="ds-caption text-neutral-dark mt-nano italic">
                 Escreva na forma irredutível: numerador e denominador sem divisores comuns.
               </p>
             )}
@@ -554,17 +554,17 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
     return (
       <div className="flex gap-xxxs items-center justify-center flex-wrap">
         {hasNext && (
-          <Button style="primary" size="small" icon={<ArrowRight />} onClick={h.goToNextStepOnClick}>
+          <Button style="primary" size="small" icon={<ArrowRight aria-hidden="true" />} onClick={h.goToNextStepOnClick}>
             Próximo Desafio
           </Button>
         )}
         {hasTrain && (
-          <Button style="secondary" size="small" icon={<Repeat2 />} onClick={h.trainAgainOnClick}>
+          <Button style="secondary" size="small" icon={<Repeat2 aria-hidden="true" />} onClick={h.trainAgainOnClick}>
             Treinar novamente
           </Button>
         )}
         {hasContinue && (
-          <Button style="primary" size="small" icon={<ArrowRight />} onClick={h.continueOnClick}>
+          <Button style="primary" size="small" icon={<ArrowRight aria-hidden="true" />} onClick={h.continueOnClick}>
             Continuar
           </Button>
         )}
@@ -603,7 +603,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
         <Button
           style="secondary"
           size="small"
-          icon={<BookOpen />}
+          icon={<BookOpen aria-hidden="true" />}
           onClick={() => setReviewOpen(true)}
         >
           Revisão
@@ -630,7 +630,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
               <Button
                 style="secondary"
                 size="small"
-                icon={<RefreshCw />}
+                icon={<RefreshCw aria-hidden="true" />}
                 onClick={h.resetGameOnClick}
               >
                 Novo
@@ -638,7 +638,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
               <Button
                 style="borderless"
                 size="extra-small"
-                icon={<X />}
+                icon={<X aria-hidden="true" />}
                 onClick={h.dicesChecksClearOnClick}
                 disabled={h.disabledClearButton}
               >
@@ -665,7 +665,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
                 <Button
                   style="secondary"
                   size="small"
-                  icon={h.subPhase === 'strategyReview' && h.confrontMessage ? <ArrowRight /> : <Check />}
+                  icon={h.subPhase === 'strategyReview' && h.confrontMessage ? <ArrowRight aria-hidden="true" /> : <Check aria-hidden="true" />}
                   onClick={h.checkOnClick}
                   disabled={h.disabledCheckButton}
                 >
@@ -698,7 +698,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
             <Button
               style="primary"
               size="small"
-              icon={<ArrowRight />}
+              icon={<ArrowRight aria-hidden="true" />}
               onClick={h.checkOnClick}
             >
               {checkButtonLabel}

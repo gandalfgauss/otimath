@@ -205,6 +205,7 @@ function NumberBox({
       onChange={e => setValue(e.target.value)}
       onKeyDown={e => { if (e.key === 'Enter' && onEnter) onEnter(); }}
       placeholder="?" aria-label={ariaLabel ?? 'Valor'}
+      aria-invalid={!!error}
       style={{
         border: `2px solid ${border}`, borderRadius: 6, padding: '4px',
         width, textAlign: 'center', outline: 'none', fontWeight: 700,
@@ -231,6 +232,7 @@ function TextBox({
       onKeyDown={e => { if (e.key === 'Enter' && onEnter) onEnter(); }}
       placeholder={placeholder}
       aria-label={ariaLabel ?? 'Expressão'}
+      aria-invalid={!!error}
       style={{
         border: `2px solid ${border}`, borderRadius: 6, padding: '6px 10px',
         width, textAlign: 'center', outline: 'none', fontWeight: 700,
@@ -856,7 +858,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       if (!arr) return null;
       const idx = Math.min(hintsUsed - 1, arr.length - 1);
       return idx >= 0 ? arr[idx] : null;
-    }, [showHint, step, hintsUsed, data]);
+    }, [showHint, step, hintsUsed, data, vennVar]);
 
     // ═══════════════════════════════════════════════════════════════
     // RENDER
@@ -974,12 +976,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
             <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
               🎯 Probabilidade em contexto social
             </p>
-            <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mb-micro text-justify">
               Este exercício sai do contexto dos dois dados. Você vai aplicar a fórmula da
               probabilidade da união em um problema com torcedores em um bar — testando
               sua capacidade de <strong>transferir</strong> o raciocínio aprendido.
             </p>
-            <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mb-micro text-justify">
               Você poderá escolher entre <strong>três estratégias</strong> de resolução.
             </p>
             <div className="flex justify-center mt-macro">
@@ -1093,7 +1095,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
                 Etapa 2 — Substitua pelos valores do problema
               </p>
-              <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+              <p className="ds-small text-center text-neutral-dark mt-nano italic">
                 n(A ∪ B) = n(A) + n(B) − n(A ∩ B)
               </p>
               <div className="flex items-center justify-center flex-wrap gap-x-nano mt-micro" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
@@ -1124,7 +1126,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
                 Etapa 3 — Isole n(A ∩ B) e calcule
               </p>
-              <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+              <p className="ds-small text-center text-neutral-dark mt-nano italic">
                 Da equação {data.c} = {data.b} + {data.d} − n(A ∩ B), obtemos n(A ∩ B) = b + d − c.
               </p>
               <div className="flex items-center justify-center flex-wrap gap-x-nano mt-micro" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
@@ -1147,7 +1149,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
                 Etapa 4 — Calcule n({data.targetLabel})
               </p>
-              <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mt-nano text-justify">
                 Você já encontrou <strong>n(A ∩ B) = {data.e}</strong>. Agora relacione
                 esse valor com os dados do enunciado para obter o que a pergunta realmente
                 pede.
@@ -1176,7 +1178,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
                 Etapa {(data.invertA || data.invertB) ? '5' : '4'} — Aplique Laplace para obter P({data.targetLabel})
               </p>
-              <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+              <p className="ds-small text-center text-neutral-dark mt-nano italic">
                 P(E) = n(E) / n(S), com n(S) = {data.S}.
               </p>
               <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
@@ -1214,7 +1216,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
                 Etapa 1 — Modele o diagrama de Venn com expressões
               </p>
-              <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+              <p className="ds-small text-center text-neutral-dark mt-nano italic">
                 Chame n(A ∩ B) de uma variável (por exemplo, x). Em cada região,
                 escreva a expressão correspondente: n(A − B) = n(A) − x e
                 n(B − A) = n(B) − x.
@@ -1264,7 +1266,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
                 {/* ── Sub-passo A: n(A ∪ B) ───────────────────────── */}
                 <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
-                  <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                  <p className="ds-body text-neutral-black text-justify">
                     Quantas pessoas <em>{data.descA}</em> ou <em>{data.descB}</em>?
                   </p>
                   <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
@@ -1286,7 +1288,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
                 {/* ── Sub-passo B: equação com 3 placeholders ─────── */}
                 <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
-                  <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                  <p className="ds-body text-neutral-black text-justify">
                     Observando o diagrama acima, escreva a equação que permite calcular n(A ∪ B):
                   </p>
                   <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
@@ -1316,7 +1318,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
                 {/* ── Sub-passo B.2: substituir valor de n(A∪B) e simplificar ── */}
                 <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
-                  <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                  <p className="ds-body text-neutral-black text-justify">
                     Substitua n(A ∪ B) pelo valor e escreva o lado direito da equação
                     (pode ser a soma direta ou já simplificada algebricamente):
                   </p>
@@ -1353,7 +1355,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
                 {/* ── Sub-passo C: resolução (opcional) ───────────── */}
                 <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
-                  <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                  <p className="ds-body text-neutral-black text-justify">
                     Resolva a equação acima para encontrar o valor de <strong>{vennVar}</strong>.
                     <span className="ds-caption text-neutral-dark" style={{ fontStyle: 'italic', marginLeft: 8 }}>
                       (opcional — pode ser deixado em branco se preferir ir direto ao valor)
@@ -1379,7 +1381,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
                 {/* ── Sub-passo D: valor numérico final ──────────── */}
                 <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-brand-otimath-lightest)', border: '1px solid var(--color-brand-otimath-light)' }}>
-                  <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                  <p className="ds-body text-neutral-black text-justify">
                     Portanto, o valor da cardinalidade da interseção é:
                   </p>
                   <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
@@ -1443,7 +1445,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 className="mt-micro p-micro rounded-md"
                 style={{ background: 'var(--color-neutral-lightest)' }}
               >
-                <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+                <p className="ds-body text-neutral-black text-justify">
                   Quantos resultados são possíveis para o experimento aleatório de
                   sortear uma pessoa no bar e verificar o sexo e para qual time torce?
                 </p>
@@ -1477,7 +1479,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 showW={data.hasOthers}
                 locked
               />
-              <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+              <p className="ds-small text-center text-neutral-dark mt-nano italic">
                 Identifique no diagrama acima a região que representa {data.targetLabel} e
                 aplique P(E) = n(E)/S.
               </p>
@@ -1585,7 +1587,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               </div>
 
               {/* Transição para o isolamento */}
-              <p className="ds-small text-center text-neutral-dark mt-micro" style={{ fontStyle: 'italic' }}>
+              <p className="ds-small text-center text-neutral-dark mt-micro italic">
                 Agora isole P(A ∩ B): passe P(A) e P(B) para o outro lado e deixe P(A ∩ B)
                 sozinho. Some as frações no numerador comum e calcule o resultado.
               </p>
@@ -1643,7 +1645,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 </div>
               </div>
 
-              <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mt-micro text-justify">
                 Agora relacione P(A ∩ B) com os dados do enunciado para calcular
                 P({data.targetLabel}).
               </p>
@@ -1732,13 +1734,13 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               </div>
             </div>
             {completedPaths.size < 3 && (
-              <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mt-micro text-justify">
                 Você resolveu o problema por uma estratégia. Que tal tentar resolver pelo
                 mesmo problema usando outra abordagem?
               </p>
             )}
             {completedPaths.size === 3 && (
-              <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mt-micro text-justify">
                 Você explorou as três estratégias e encontrou o mesmo resultado —
                 confirmando que a matemática é consistente qualquer que seja o caminho.
               </p>

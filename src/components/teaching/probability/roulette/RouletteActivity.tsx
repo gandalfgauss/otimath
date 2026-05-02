@@ -1,8 +1,7 @@
 import { HeroBanner } from "@/components/global/HeroBanner";
+import { OvaCredits } from "@/components/global/OvaCredits";
 import { TextBlock } from "@/components/global/TextBlock";
-import { RouletteInstructionsSection } from "@/components/teaching/probability/roulette/RouletteInstructionsSection";
 import { RouletteSection } from "@/components/teaching/probability/roulette/RouletteSection";
-import { RouletteCredits } from "./RouletteCredits";
 import heroBannerImage from '@/images/teaching/probability/roulette/rouletteBanner.webp';
 
 export default function RouletteActivity() {
@@ -25,9 +24,8 @@ export default function RouletteActivity() {
         }
         image={heroBannerImage}
       />
-      <RouletteInstructionsSection />
       <RouletteSection />
-      <RouletteCredits />
+      <OvaCredits />
     </main>
   );
 }

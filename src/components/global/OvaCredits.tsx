@@ -1,7 +1,15 @@
 import { Grid } from "@/components/global/Grid";
 import { GridItem } from '@/components/global/GridItem';
 
-export function RouletteCredits() {
+/**
+ * Bloco de créditos compartilhado entre os OVAs (Objetos Virtuais de
+ * Aprendizagem) do projeto. Renderiza idealizador, orientador e
+ * suporte tecnológico em três cards uniformes.
+ *
+ * Pode ser usado em qualquer Activity de OVA: Disco/Roleta, Dois Dados,
+ * Árvore, etc.
+ */
+export function OvaCredits() {
   return (
       <Grid
         paddings={`pt-xs pb-xs`}

@@ -532,6 +532,10 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     // Loop de animação
     const animate = () => {
       state.animId = requestAnimationFrame(animate);
+      // Otimização: pula render se canvas oculto (display:none em ancestral) —
+      // evita gastar CPU/GPU quando o dado 3D está montado mas escondido (Cena 4
+      // ou outras cenas que não exibem o dado).
+      if (renderer.domElement.offsetParent === null) return;
       const dt = Math.min(clock.getDelta(), 0.05);
       const s = internals.current;
       if (!s) return;
@@ -642,6 +646,8 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     const DRAG_THRESHOLD = 5; // px mínimo para considerar drag
     const ROTATION_SPEED = 0.012; // radianos por pixel — fluido em qualquer direção
 
+    const el = renderer.domElement;
+
     const onPointerDown = (e: PointerEvent) => {
       const s = internals.current;
       if (!s || s.mode !== 'betting') return;
@@ -651,8 +657,11 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       s.pointerStartY = e.clientY;
       s.pointerLastX = e.clientX;
       s.pointerLastY = e.clientY;
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      // Captura no próprio canvas (mais confiável em iOS Safari do que e.target).
+      try { el.setPointerCapture(e.pointerId); } catch { /* navegador antigo */ }
       el.style.cursor = 'grabbing';
+      // Necessário em alguns mobile browsers para impedir scroll/zoom default.
+      if (e.cancelable) e.preventDefault();
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -677,13 +686,18 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       }
       s.pointerLastX = e.clientX;
       s.pointerLastY = e.clientY;
+      if (e.cancelable) e.preventDefault();
     };
 
-    const onPointerUp = (e: PointerEvent) => {
+    const onPointerUp = (e?: PointerEvent) => {
       const s = internals.current;
       if (!s || s.mode !== 'betting') { if (s) s.pointerDown = false; return; }
+      if (!s.pointerDown) return;
       s.pointerDown = false;
       el.style.cursor = s.mode === 'betting' ? 'grab' : 'default';
+      if (e) {
+        try { el.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+      }
       // Se não arrastou: click → detectar face frontal
       if (!s.pointerMoved) {
         const camDir = s.camera.position.clone().sub(s.die.position).normalize();
@@ -698,12 +712,28 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       }
     };
 
-    const el = renderer.domElement;
+    const onPointerCancel = (e: PointerEvent) => {
+      // Mobile dispara pointercancel ao interromper o gesto (alerta, swipe).
+      // Limpa estado sem disparar click acidental.
+      const s = internals.current;
+      if (!s) return;
+      s.pointerDown = false;
+      s.pointerMoved = true; // evita ser tratado como click
+      try { el.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+      el.style.cursor = s.mode === 'betting' ? 'grab' : 'default';
+    };
+
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
     el.addEventListener('pointerup', onPointerUp);
-    el.addEventListener('pointerleave', onPointerUp);
-    el.style.touchAction = 'none'; // previne scroll no touch
+    el.addEventListener('pointercancel', onPointerCancel);
+    // touchAction: 'none' previne scroll/zoom enquanto arrasta o dado;
+    // garantido pela CSS classe `touch-none` no container, e reforçado aqui.
+    el.style.touchAction = 'none';
+    // WebKit < 13 (iPhone antigo): impedir o gesto de "callout" do toque longo.
+    el.style.webkitUserSelect = 'none';
+    el.style.userSelect = 'none';
+    (el.style as CSSStyleDeclaration & { webkitTouchCallout?: string }).webkitTouchCallout = 'none';
 
     return () => {
       cancelAnimationFrame(state.animId);
@@ -711,12 +741,15 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', onPointerUp);
-      el.removeEventListener('pointerleave', onPointerUp);
+      el.removeEventListener('pointercancel', onPointerCancel);
       renderer.dispose();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
     };
+    // initialColor é capturado apenas no mount — mudanças via prop devem
+    // usar a API pública (setColor), não recriar a cena Three.js do zero.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── API pública ──
@@ -846,7 +879,9 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
   return (
     <div
       ref={containerRef}
-      className="w-full rounded-lg overflow-hidden"
+      role="img"
+      aria-label="Cena 3D interativa de um dado de seis faces sobre uma mesa de madeira."
+      className="w-full rounded-lg overflow-hidden touch-none select-none"
       style={{
         aspectRatio,
         maxWidth: 520,

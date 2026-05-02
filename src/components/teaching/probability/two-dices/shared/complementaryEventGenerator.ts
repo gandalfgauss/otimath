@@ -35,7 +35,6 @@ import {
   Event,
   AtomicEvent,
   ComplementaryEventData,
-  DICE_FACES,
   computeCardinality,
   materializeSet,
   invertEvent,

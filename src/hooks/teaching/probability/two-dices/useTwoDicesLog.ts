@@ -159,7 +159,7 @@ export function logSpinResult(phase: string, step: string, result: string | numb
 export function logStudyMenuOpened(
   phase: string,
   step: string,
-  initialVerbeteId?: string,
+  initialGlossaryEntryId?: string,
   triggerStepKind?: string,
 ): void {
   logEntry({
@@ -167,7 +167,7 @@ export function logStudyMenuOpened(
     phase,
     step,
     data: {
-      initialVerbeteId: initialVerbeteId ?? null,
+      initialGlossaryEntryId: initialGlossaryEntryId ?? null,
       triggerStepKind: triggerStepKind ?? null,
     },
   });
@@ -411,15 +411,15 @@ export function getPhasePerformance(): PhasePerformance[] {
  * Agrega quantas vezes cada verbete foi consultado (estrutura
  * usada pela Tela de Fechamento — terceiro componente reflexivo).
  */
-export function getVerbeteConsultations(): Array<{ verbeteId: string; count: number }> {
+export function getGlossaryConsultations(): Array<{ glossaryEntryId: string; count: number }> {
   const log = getLog();
   const counts: Record<string, number> = {};
   for (const e of log.entries) {
     if (e.type !== 'study_menu_opened') continue;
-    const id = String(e.data.initialVerbeteId ?? 'desconhecido');
+    const id = String(e.data.initialGlossaryEntryId ?? 'desconhecido');
     counts[id] = (counts[id] ?? 0) + 1;
   }
   return Object.entries(counts)
-    .map(([verbeteId, count]) => ({ verbeteId, count }))
+    .map(([glossaryEntryId, count]) => ({ glossaryEntryId, count }))
     .sort((a, b) => b.count - a.count);
 }

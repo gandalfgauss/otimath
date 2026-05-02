@@ -564,7 +564,7 @@ export function VennLaboratory({
           step={step}
           eventADescription={eventADescription}
           eventBDescription={eventBDescription}
-          nA={nA} nB={nB} nI={nI}
+          nA={nA} nB={nB}
         />
       </div>
 
@@ -1092,35 +1092,35 @@ function RegionHighlight({
 // Componente: instruções por sub-etapa
 // ═══════════════════════════════════════════════════════════════
 function StepInstruction({
-  step, eventADescription, eventBDescription, nA, nB, nI,
+  step, eventADescription, eventBDescription, nA, nB,
 }: {
   step: VennSubStep; eventADescription: string; eventBDescription: string;
-  nA: number; nB: number; nI: number;
+  nA: number; nB: number;
 }) {
   if (step === 'intro') {
     return (
       <>
-        <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black text-justify">
           Neste laboratório, você irá construir e analisar dois eventos no lançamento de dois dados:
         </p>
         <ul className="mt-nano mb-micro" style={{ paddingLeft: '1.5rem', listStyle: 'disc' }}>
-          <li className="ds-body text-neutral-black" style={{ marginBottom: 4 }}>
+          <li className="ds-body text-neutral-black mb-quarck">
             <strong>Evento A:</strong> {toLowercaseArticle(eventADescription)}
           </li>
           <li className="ds-body text-neutral-black">
             <strong>Evento B:</strong> {toLowercaseArticle(eventBDescription)}
           </li>
         </ul>
-        <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black text-justify">
           A partir desses eventos, observe:
         </p>
         <ul className="mt-nano mb-micro" style={{ paddingLeft: '1.5rem', listStyle: 'disc' }}>
-          <li className="ds-body text-neutral-black" style={{ marginBottom: 4 }}>quais resultados pertencem ao evento A;</li>
-          <li className="ds-body text-neutral-black" style={{ marginBottom: 4 }}>quais pertencem ao evento B;</li>
-          <li className="ds-body text-neutral-black" style={{ marginBottom: 4 }}>quais resultados pertencem aos <strong>dois eventos ao mesmo tempo</strong> (interseção);</li>
+          <li className="ds-body text-neutral-black mb-quarck">quais resultados pertencem ao evento A;</li>
+          <li className="ds-body text-neutral-black mb-quarck">quais pertencem ao evento B;</li>
+          <li className="ds-body text-neutral-black mb-quarck">quais resultados pertencem aos <strong>dois eventos ao mesmo tempo</strong> (interseção);</li>
           <li className="ds-body text-neutral-black">e quais pertencem a <strong>pelo menos um dos eventos</strong> (união).</li>
         </ul>
-        <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black text-justify">
           Ao final, você deverá identificar uma <strong>relação entre as quantidades</strong>:
         </p>
         <p className="ds-body-bold text-center mt-micro" style={{ color: 'var(--color-brand-otimath-dark)', fontSize: '1.1rem' }}>
@@ -1133,13 +1133,13 @@ function StepInstruction({
   if (step === 'createIntersection') {
     return (
       <>
-        <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black text-justify">
           Temos dois conjuntos A e B representados por diagramas. Eles estão separados — nenhum elemento em comum.
         </p>
-        <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify', fontStyle: 'italic' }}>
+        <p className="ds-body text-neutral-black mt-nano text-justify italic">
           Como você deveria dispor os diagramas A e B para que seja possível representar também <strong>A ∩ B</strong>, ou seja, os elementos que ocorrem em A e em B <strong>ao mesmo tempo</strong>?
         </p>
-        <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black mt-nano text-justify">
           Aproxime os diagramas abaixo até que isso seja possível.
         </p>
       </>
@@ -1148,7 +1148,7 @@ function StepInstruction({
 
   if (step === 'clickIntersection') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         <strong>Clique na região</strong> que representa <strong>A ∩ B</strong> — onde os elementos pertencem a A e a B ao mesmo tempo.
       </p>
     );
@@ -1156,7 +1156,7 @@ function StepInstruction({
 
   if (step === 'fillIntersection') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Agora clique no valor <strong>n(A ∩ B)</strong> no topo da tela e, em seguida, clique na região correspondente no diagrama para depositá-lo.
       </p>
     );
@@ -1164,7 +1164,7 @@ function StepInstruction({
 
   if (step === 'identifyAMinusB') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Sabendo que <strong>n(A) = {nA}</strong>, em quantos pares ocorre A e <strong>não</strong> ocorre B?<br />
         <strong>Clique na região em que ocorre A − B</strong> (A menos B): casos em que ocorre A e não ocorre B.
       </p>
@@ -1173,7 +1173,7 @@ function StepInstruction({
 
   if (step === 'fillAMinusB') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Qual operação dá <strong>n(A − B)</strong>?
       </p>
     );
@@ -1181,7 +1181,7 @@ function StepInstruction({
 
   if (step === 'identifyBMinusA') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Analogamente: sabendo que <strong>n(B) = {nB}</strong>, em quantos pares ocorre B e <strong>não</strong> ocorre A?<br />
         <strong>Clique na região em que ocorre B − A</strong> (B menos A): casos em que ocorre B e não ocorre A.
       </p>
@@ -1190,7 +1190,7 @@ function StepInstruction({
 
   if (step === 'fillBMinusA') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Qual operação dá <strong>n(B − A)</strong>?
       </p>
     );
@@ -1199,10 +1199,10 @@ function StepInstruction({
   if (step === 'markUnion') {
     return (
       <>
-        <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black text-justify">
           A <strong>união</strong> de A e B, escrita <strong>A ∪ B</strong>, é o conjunto dos pares que pertencem a <strong>pelo menos um</strong> dos conjuntos — ou seja, pertencem a A, a B, ou a ambos.
         </p>
-        <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black mt-nano text-justify">
           <strong>Clique em todas as regiões</strong> que fazem parte de A ∪ B e depois em <em>Confirmar seleção</em>.
         </p>
       </>
@@ -1211,7 +1211,7 @@ function StepInstruction({
 
   if (step === 'unionCount') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Então, quantos casos são favoráveis ao evento <strong>A ou B</strong>? Escreva em forma de operação somando os valores das regiões do diagrama.
       </p>
     );
@@ -1219,7 +1219,7 @@ function StepInstruction({
 
   if (step === 'countAFromDiagram') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Observando apenas o que está no diagrama, escreva a operação que calcule <strong>n(A)</strong>.
       </p>
     );
@@ -1227,7 +1227,7 @@ function StepInstruction({
 
   if (step === 'countBFromDiagram') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Analogamente, como você calcularia <strong>n(B)</strong> observando o diagrama?
       </p>
     );
@@ -1235,7 +1235,7 @@ function StepInstruction({
 
   if (step === 'sumAB') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Agora, para escrever <strong>n(A) + n(B)</strong>, clique nas expressões que você acabou de construir — primeiro a de n(A) e depois a de n(B).
       </p>
     );
@@ -1244,10 +1244,10 @@ function StepInstruction({
   if (step === 'doubleCountQuestion') {
     return (
       <>
-        <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black text-justify">
           Imagine que você contou cada caso favorável de A e em seguida cada caso favorável a B.
         </p>
-        <p className="ds-body-bold text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+        <p className="ds-body-bold text-neutral-black mt-nano text-justify">
           Qual região você contou <em>duas vezes</em>?
         </p>
       </>
@@ -1256,7 +1256,7 @@ function StepInstruction({
 
   if (step === 'numericConclusion') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Como a região <strong>A ∩ B</strong> foi contada <strong>duas vezes</strong> ao somar n(A) + n(B), precisamos <strong>subtrair n(A ∩ B)</strong> uma vez para obter n(A ∪ B).
       </p>
     );
@@ -1264,7 +1264,7 @@ function StepInstruction({
 
   if (step === 'placeExpressions') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Clique em uma das expressões acima para armá-la e, em seguida, clique na <strong>região correspondente</strong> do diagrama. Repita para as três expressões e depois clique em <em>Confirmar</em>.
       </p>
     );
@@ -1272,7 +1272,7 @@ function StepInstruction({
 
   if (step === 'writeUnionFormula') {
     return (
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Note pelo diagrama que <strong>n(A ∪ B)</strong> é a soma das três regiões internas. Clique em cada região para preencher os três espaços acima.
       </p>
     );
@@ -1280,7 +1280,7 @@ function StepInstruction({
 
   if (step === 'conclusion') {
     return (
-      <p className="ds-body text-neutral-black text-center" style={{ fontStyle: 'italic' }}>
+      <p className="ds-body text-neutral-black text-center italic">
         Observando as três regiões internas e suas cardinalidades, podemos construir a relação:
       </p>
     );
@@ -1649,7 +1649,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
     const filled = formulaSlots.filter(s => s !== '').length;
     return (
       <div className="flex flex-col items-center gap-y-nano mt-micro">
-        <p className="ds-small text-neutral-dark" style={{ fontStyle: 'italic' }}>
+        <p className="ds-small text-neutral-dark italic">
           Regiões preenchidas: {filled}/3
         </p>
       </div>
@@ -1709,7 +1709,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
           <p className="ds-body-bold text-center mt-nano text-neutral-black">
             n(A ∪ B) = {aMinusB} + {nI} + {bMinusA} = <strong>{nU}</strong>
           </p>
-          <p className="ds-small text-center text-neutral-dark mt-micro" style={{ fontStyle: 'italic' }}>
+          <p className="ds-small text-center text-neutral-dark mt-micro italic">
             Ao subtrair n(A ∩ B) = {nI}, cancelamos o {nI} que aparecia duas vezes na soma n(A) + n(B).
           </p>
         </div>
@@ -1747,7 +1747,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
           <p className="ds-body-bold mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
             Sabemos que:
           </p>
-          <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black text-justify">
             <strong>(i)</strong>&nbsp; n(A ∪ B) ={' '}
             <strong style={{ color: '#1e40af' }}>n(A − B)</strong>
             {' '}+ n(A ∩ B) +{' '}
@@ -1755,21 +1755,21 @@ function StepControls(props: Readonly<StepControlsProps>) {
           </p>
 
           {conclusionPhase >= 1 && (
-            <p className="ds-body text-neutral-black mt-nano venn-fade-in" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-nano venn-fade-in text-justify">
               <strong>(ii)</strong>&nbsp;{' '}
               <span style={{ color: '#1e40af' }}>n(A − B) = n(A) − n(A ∩ B)</span>
             </p>
           )}
 
           {conclusionPhase >= 2 && (
-            <p className="ds-body text-neutral-black mt-nano venn-fade-in" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-nano venn-fade-in text-justify">
               <strong>(iii)</strong>&nbsp;{' '}
               <span style={{ color: '#166534' }}>n(B − A) = n(B) − n(A ∩ B)</span>
             </p>
           )}
 
           {conclusionPhase >= 3 && (
-            <p className="ds-body text-neutral-black mt-micro venn-fade-in" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-micro venn-fade-in text-justify">
               Substituindo as expressões de <strong>(ii)</strong> e <strong>(iii)</strong> em <strong>(i)</strong>, temos:
             </p>
           )}
@@ -1784,7 +1784,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
           )}
 
           {conclusionPhase >= 5 && (
-            <p className="ds-body text-neutral-black mt-micro venn-fade-in" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-micro venn-fade-in text-justify">
               Daí concluímos que:
             </p>
           )}
@@ -1799,7 +1799,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
           )}
 
           {conclusionPhase >= 7 && (
-            <p className="ds-small text-center text-neutral-dark mt-micro venn-fade-in" style={{ fontStyle: 'italic' }}>
+            <p className="ds-small text-center text-neutral-dark mt-micro venn-fade-in italic">
               Substituindo os valores do problema em ambos os membros da identidade (i):
             </p>
           )}
@@ -1881,10 +1881,10 @@ function CardinalityPanel({
   };
   return (
     <div
-      className="flex justify-center items-center flex-wrap mb-micro"
-      style={{ gap: 8 }}
+      className="flex justify-center items-center flex-wrap mb-micro gap-micro"
+     
     >
-      <span className="ds-body-bold text-neutral-black" style={{ marginRight: 2 }}>Dados:</span>
+      <span className="ds-body-bold text-neutral-black mr-nano">Dados:</span>
       {chip('n(A)', nA, COLOR_A)}
       {chip('n(B)', nB, COLOR_B)}
       {chip('n(A ∩ B)', nI, COLOR_I, 'nI')}
@@ -1920,7 +1920,7 @@ function RegionLegend({
   }
   if (items.length === 0) return null;
   return (
-    <div className="flex flex-col items-center mt-nano mb-nano" style={{ gap: 4 }}>
+    <div className="flex flex-col items-center mt-nano mb-nano gap-quarck">
       {items.map(it => (
         <p key={it.label} className="ds-small text-neutral-black text-center">
           <strong style={{ color: it.color }}>{it.label}</strong>: {it.description}
@@ -1952,10 +1952,10 @@ function ExpressionChipsRow({
   const used = new Set(Object.values(placedExpressions));
   return (
     <div
-      className="flex justify-center items-center flex-wrap mb-micro"
-      style={{ gap: 8 }}
+      className="flex justify-center items-center flex-wrap mb-micro gap-micro"
+     
     >
-      <span className="ds-body-bold text-neutral-black" style={{ marginRight: 2 }}>Expressões:</span>
+      <span className="ds-body-bold text-neutral-black mr-nano">Expressões:</span>
       {expressions.map(e => {
         const isUsed = used.has(e.id);
         const isArmed = armed === e.id;

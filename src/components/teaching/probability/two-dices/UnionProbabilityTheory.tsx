@@ -293,7 +293,7 @@ const CATEGORY_FALLBACK: EventCategory[] = [
   'central_overlap', 'strong_overlap', 'small_intersection', 'inclusion',
 ];
 
-function selectPairForRound(round: number, _usedIds: Set<string>): EventPair {
+function selectPairForRound(round: number): EventPair {
   const idx = Math.max(0, Math.min(round, CATEGORIES_BY_ROUND.length - 1));
   for (const cat of CATEGORIES_BY_ROUND[idx]) {
     const pair = tryGeneratePair(cat);
@@ -459,7 +459,7 @@ function DieFace({ face, size, color }: { face: number; size: number; color: 'gr
       }}
     >
       {pips.map((p, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div key={i} className="flex items-center justify-center">
           {p ? <div style={{ width: pipSize, height: pipSize, borderRadius: '50%', background: '#fff' }} /> : null}
         </div>
       ))}
@@ -557,8 +557,8 @@ function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: MarkingTab
                         return (
                           <div
                             key={ro.label}
-                            className="flex items-center gap-x-nano"
-                            style={{ userSelect: 'none', cursor: 'not-allowed' }}
+                            className="flex items-center gap-x-nano cursor-not-allowed select-none"
+                           
                             title={`${ro.label} já validado — marcação congelada`}
                           >
                             <FrozenCheckbox checked={roChecked} color={roColor} label={`${ro.label} em (${r},${c})`} />
@@ -574,8 +574,8 @@ function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: MarkingTab
                       {/* Checkbox do evento ativo (se houver) */}
                       {eventLabel && (
                         <label
-                          className="flex items-center gap-x-nano"
-                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          className="flex items-center gap-x-nano cursor-pointer select-none"
+                         
                         >
                           <input
                             type="checkbox"
@@ -673,7 +673,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());
   // Gera o par inicial da rodada 0 via gerador algorítmico (lazy init para
   // não reexecutar o gerador em cada re-render).
-  const [currentPair, setCurrentPair] = useState<EventPair>(() => selectPairForRound(0, new Set()));
+  const [currentPair, setCurrentPair] = useState<EventPair>(() => selectPairForRound(0));
 
   const [marksA, setMarksA] = useState<MarkMatrix>(createEmptyMatrix);
   const [marksB, setMarksB] = useState<MarkMatrix>(createEmptyMatrix);
@@ -759,7 +759,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, []);
 
   const resetForNewRound = useCallback((newRound: number) => {
-    const pair = selectPairForRound(newRound, usedPairIds);
+    const pair = selectPairForRound(newRound);
     setUsedPairIds(prev => new Set(prev).add(pair.id));
     setCurrentPair(pair);
     setRound(newRound);
@@ -783,7 +783,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     setInstitutionalAnswer(''); setInstitutionalError(false);
     setCameFromPredict(false);
     setPredictReviewedEnum(false);
-  }, [usedPairIds]);
+  }, []);
 
   // Registra o ID do par inicial (gerado no lazy init do currentPair).
   // Com o gerador algorítmico cada ID é único (timestamp+random), mas mantemos
@@ -1171,21 +1171,21 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               <p className="ds-caption-bold text-brand-otimath-dark mb-nano" style={{ fontSize: '0.82rem' }}>
                 O problema que vamos resolver
               </p>
-              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black text-justify">
                 No lançamento simultâneo de dois dados equilibrados, qual a probabilidade de que
                 a <strong>soma dos resultados</strong> seja um número{' '}
                 <strong style={{ color: EVENT_COLORS['A'] }}>{formatForProblem(predA)}</strong>{' '}
                 <strong>ou</strong>{' '}
                 <strong style={{ color: EVENT_COLORS['B'] }}>{formatForProblem(predB)}</strong>?
               </p>
-              <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mt-nano text-justify">
                 Chame de <strong style={{ color: EVENT_COLORS['A'] }}>A</strong> o evento{' '}
                 &quot;ocorre soma {predA}&quot; e de{' '}
                 <strong style={{ color: EVENT_COLORS['B'] }}>B</strong> o evento{' '}
                 &quot;ocorre soma {predB}&quot;.
               </p>
               {example && (
-                <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+                <p className="ds-body text-neutral-black mt-nano text-justify">
                   <strong>Observe:</strong> alguns resultados satisfazem <strong>os dois
                   eventos ao mesmo tempo</strong>. Por exemplo, se sair o par{' '}
                   <strong>({example.r}, {example.c})</strong>, a soma é{' '}
@@ -1200,7 +1200,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             </div>
 
             {/* Ancoragem no Disco */}
-            <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black text-justify">
               No OVA do <strong>Disco Probabilístico</strong>, você aprendeu que{' '}
               <strong style={{ whiteSpace: 'nowrap' }}>P(A ∪ B) = P(A) + P(B)</strong> — mas{' '}
               <strong>apenas</strong> quando A e B são <strong>mutuamente exclusivos</strong>{' '}
@@ -1208,7 +1208,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               ainda funciona aqui?
             </p>
 
-            <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-micro text-justify">
               Vamos descobrir juntos a <strong>fórmula geral</strong>, construindo-a passo a passo
               na tabela 6×6 dos dois dados.
             </p>
@@ -1230,7 +1230,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Marque na tabela <strong>todos os pares</strong> que satisfazem o evento A.
           </p>
           <MarkingTable marks={marksA} onToggle={toggleA} eventLabel="A" />
-          <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+          <p className="ds-small text-center text-neutral-dark mt-nano italic">
             Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
           </p>
           <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
@@ -1308,7 +1308,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-body-bold text-neutral-black text-center">
             Agora marque na tabela <strong>todos os pares</strong> que satisfazem o evento B.
           </p>
-          <p className="ds-small text-neutral-dark text-center" style={{ fontStyle: 'italic' }}>
+          <p className="ds-small text-neutral-dark text-center italic">
             As marcações do evento A aparecem congeladas em cada célula.
           </p>
           <MarkingTable
@@ -1317,7 +1317,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             eventLabel="B"
             readOnlyMarks={[{ label: 'A', matrix: marksA }]}
           />
-          <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+          <p className="ds-small text-center text-neutral-dark mt-nano italic">
             Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
           </p>
           <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
@@ -1396,11 +1396,11 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Interseção: A ∩ B
           </p>
-          <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black text-justify">
             A <strong>interseção</strong> de A e B, escrita <strong>A ∩ B</strong>, é o conjunto
             dos pares que pertencem a <strong>A e B ao mesmo tempo</strong>.
           </p>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mt-micro text-justify">
             No próximo passo, você vai marcar na tabela os pares de A ∩ B. Observe que esses pares
             você <strong>já tinha marcado antes</strong>: uma vez em A e outra vez em B.
           </p>
@@ -1422,7 +1422,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-body-bold text-neutral-black text-center">
             Marque <strong>A ∩ B</strong>: pares que satisfazem A <strong>e</strong> B ao mesmo tempo.
           </p>
-          <p className="ds-small text-neutral-dark text-center" style={{ fontStyle: 'italic' }}>
+          <p className="ds-small text-neutral-dark text-center italic">
             Observe: esses pares você já tinha marcado antes — em A e em B.
           </p>
           <MarkingTable
@@ -1434,7 +1434,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               { label: 'B', matrix: marksB },
             ]}
           />
-          <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+          <p className="ds-small text-center text-neutral-dark mt-nano italic">
             Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
           </p>
           <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
@@ -1518,7 +1518,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Observe os 3 conjuntos
           </p>
-          <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mb-micro text-justify">
             Os pares destacados em <strong style={{ color: EVENT_COLORS['A∩B'] }}>dourado</strong>{' '}
             dentro de A e dentro de B são exatamente os elementos de <strong>A ∩ B</strong> —
             eles pertencem aos dois conjuntos ao mesmo tempo.
@@ -1606,7 +1606,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             </p>
           </div>
 
-          <p className="ds-small text-neutral-dark mt-micro" style={{ textAlign: 'justify', fontStyle: 'italic' }}>
+          <p className="ds-small text-neutral-dark mt-micro text-justify italic">
             Note que cada par dourado aparece <strong>duas vezes</strong>: uma em A e outra em B.
             Essa observação será importante nos próximos passos.
           </p>
@@ -1648,7 +1648,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <p className="ds-body-bold text-neutral-black">n(B) = {correctSets.nB}</p>
             <p className="ds-body-bold text-neutral-black">n(A ∩ B) = {correctSets.nI}</p>
           </div>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mt-micro text-justify">
             Agora vamos ver o que acontece com a <strong>união</strong> dos dois conjuntos.
           </p>
           <div className="flex justify-center mt-macro">
@@ -1665,12 +1665,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             União: A ∪ B
           </p>
-          <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black text-justify">
             A <strong>união</strong> de A e B, escrita <strong>A ∪ B</strong>, é o conjunto dos
             pares que pertencem a <strong>pelo menos um</strong> dos conjuntos — ou seja, pertencem
             a A, a B, ou a ambos.
           </p>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mt-micro text-justify">
             No próximo passo, você vai marcar na tabela todos os pares de A ∪ B.
           </p>
           <div className="flex justify-center mt-macro">
@@ -1701,7 +1701,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               { label: 'A∩B', matrix: marksIntersection },
             ]}
           />
-          <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+          <p className="ds-small text-center text-neutral-dark mt-nano italic">
             Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
           </p>
           <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
@@ -1784,7 +1784,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Antes de continuar, faça uma previsão
           </p>
-          <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mb-micro text-justify">
             Você contou <strong>n(A) = {correctSets.nA}</strong>, <strong>n(B) = {correctSets.nB}</strong>{' '}
             e <strong>n(A ∪ B) = {correctSets.nU}</strong>. Sem calcular, o que você acha?
           </p>
@@ -1943,7 +1943,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             A fórmula da cardinalidade da união
           </p>
           <ValuesRecallPanel nA={correctSets.nA} nB={correctSets.nB} nI={correctSets.nI} nU={correctSets.nU} />
-          <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black text-justify">
             Ao somar n(A) + n(B), os pares que pertencem a A ∩ B foram contados <strong>duas vezes</strong>.
             Para obter a contagem correta da união, precisamos subtrair n(A ∩ B):
           </p>
@@ -1982,22 +1982,22 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-heading-extra text-feedback-success-dark text-center mb-micro">
             ✓ Você calculou P(A ∪ B) diretamente por Laplace
           </p>
-          <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black text-justify">
             Aplicando o <strong>Teorema de Laplace</strong> ao conjunto A ∪ B que você
             contou na tabela, obtivemos a probabilidade da união.
           </p>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mt-micro text-justify">
             <strong>Mas há outra rota.</strong> No OVA do <strong>Disco Probabilístico</strong>,
             você aprendeu que, para eventos <strong>mutuamente exclusivos</strong> (A ∩ B = ∅):
           </p>
           <p className="ds-body-bold text-center mt-micro" style={{ color: 'var(--color-brand-otimath-pure)', fontSize: '1.05rem' }}>
             P(A ∪ B) = P(A) + P(B)
           </p>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mt-micro text-justify">
             Porém, no nosso problema A ∩ B <strong>não é vazio</strong>. Será que essa
             fórmula do Disco <strong>ainda funciona</strong> aqui?
           </p>
-          <p className="ds-body-bold text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body-bold text-neutral-black mt-micro text-justify">
             Vamos investigar: se somarmos n(A) + n(B), será que chegamos em n(A ∪ B)?
           </p>
           <div className="flex justify-center mt-macro">
@@ -2034,14 +2034,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Agora calcule as demais probabilidades
           </p>
-          <p className="ds-body text-neutral-black mb-nano" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mb-nano text-justify">
             No lançamento simultâneo de dois dados honestos, calcule a probabilidade de ocorrer os eventos:
           </p>
           <ul className="mb-micro" style={{ paddingLeft: '1.5rem', listStyle: 'disc' }}>
-            <li className="ds-body text-neutral-black" style={{ marginBottom: 4 }}>
+            <li className="ds-body text-neutral-black mb-quarck">
               <strong style={{ color: EVENT_COLORS['A'] }}>Evento A</strong>: {formatForProblem(predA)}
             </li>
-            <li className="ds-body text-neutral-black" style={{ marginBottom: 4 }}>
+            <li className="ds-body text-neutral-black mb-quarck">
               <strong style={{ color: EVENT_COLORS['B'] }}>Evento B</strong>: {formatForProblem(predB)}
             </li>
             <li className="ds-body text-neutral-black">
@@ -2049,7 +2049,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             </li>
           </ul>
           <ValuesRecallPanel nA={correctSets.nA} nB={correctSets.nB} nI={correctSets.nI} nU={correctSets.nU} />
-          <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mb-micro text-justify">
             Aplique P(X) = n(X) / n(S) para cada evento:
           </p>
           <div className="flex flex-col gap-y-micro">
@@ -2135,7 +2135,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Qual fórmula você construiu?
           </p>
-          <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mb-micro text-justify">
             Escolha a fórmula geral da <strong>probabilidade da união de dois eventos</strong>:
           </p>
           <div className="flex flex-col gap-y-nano">
@@ -2198,12 +2198,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
             </p>
           </div>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mt-micro text-justify">
             Essa é a fórmula <strong>geral</strong> — funciona para quaisquer dois eventos A e B,
             sejam eles mutuamente exclusivos ou não.
           </p>
           {round === 0 && (
-            <p className="ds-small text-neutral-dark mt-micro" style={{ textAlign: 'justify', fontStyle: 'italic' }}>
+            <p className="ds-small text-neutral-dark mt-micro text-justify italic">
               Se quiser, pode estudar novamente com um novo par de eventos (até 3 rodadas).
             </p>
           )}
@@ -2308,7 +2308,7 @@ function StackedBarComparison({ nA, nB, nI, nU }: { nA: number; nB: number; nI: 
         que foi contada <strong>duas vezes</strong> em n(A) + n(B).
       </p>
       {/* Valor calculado (silenciado TS) */}
-      <span style={{ display: 'none' }}>{iPctOfTotal}</span>
+      <span className="hidden">{iPctOfTotal}</span>
     </div>
   );
 }
@@ -2511,7 +2511,7 @@ function ProbTransferScreen({
         <p className="ds-caption-bold text-brand-otimath-dark mb-nano" style={{ fontSize: '0.82rem' }}>
           Problema
         </p>
-        <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black text-justify">
           No lançamento simultâneo de dois dados equilibrados, qual a probabilidade de que{' '}
           a <strong>soma dos resultados dos dois dados</strong> seja{' '}
           <strong style={{ color: EVENT_COLORS['A'] }}>{extractSumPredicate(eventADescription)}</strong>{' '}
@@ -2734,7 +2734,7 @@ function ProbTransferScreen({
             <p className="ds-caption-bold text-center mb-nano" style={{ color: EVENT_COLORS['A∪B'], fontSize: '0.82rem' }}>
               A probabilidade em 3 formas equivalentes
             </p>
-            <div className="flex items-center justify-center gap-x-micro flex-wrap" style={{ gap: 12 }}>
+            <div className="flex items-center justify-center gap-x-micro flex-wrap gap-macro">
               {/* Fração */}
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>Fração:</span>
@@ -3166,7 +3166,7 @@ function ProbFormulaApplyScreen({
         Valores calculados para a substituição
       </p>
 
-      <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black mb-micro text-justify">
         Você já calculou as quatro probabilidades necessárias nas fases anteriores:
       </p>
 
@@ -3197,7 +3197,7 @@ function ProbFormulaApplyScreen({
         </div>
       </div>
 
-      <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+      <p className="ds-body text-neutral-black text-justify">
         Agora vamos <strong>verificar</strong> se a fórmula que acabamos de deduzir dá o mesmo
         resultado. Lembre-se:
       </p>
@@ -3304,7 +3304,7 @@ function ProbFormulaVerifyScreen({
         <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
           Generalização do caso que você já conhecia
         </p>
-        <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black text-justify">
           Essa fórmula <strong>generaliza</strong> a que você aprendeu no OVA do{' '}
           <strong>Disco Probabilístico</strong>. Quando A e B são <strong>mutuamente exclusivos</strong>,
           temos A ∩ B = ∅, logo P(A ∩ B) = 0 e resta:
@@ -3312,7 +3312,7 @@ function ProbFormulaVerifyScreen({
         <p className="ds-body-bold text-center mt-nano" style={{ color: 'var(--color-brand-otimath-pure)', fontSize: '1.05rem' }}>
           P(A ∪ B) = P(A) + P(B) − 0 = P(A) + P(B)
         </p>
-        <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+        <p className="ds-body text-neutral-black mt-nano text-justify">
           A fórmula geral <strong>contém</strong> o caso particular: quando a interseção é vazia,
           ela se reduz à fórmula do Disco.
         </p>

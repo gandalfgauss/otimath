@@ -77,6 +77,7 @@ function VennInput({
       value={value}
       onChange={readOnly ? undefined : (e => setValue?.(e.target.value))}
       aria-label={ariaLabel}
+      aria-invalid={!!error}
       readOnly={readOnly}
       style={{
         border: `2px solid ${border}`,

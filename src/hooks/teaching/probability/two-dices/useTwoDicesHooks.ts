@@ -261,6 +261,9 @@ export const useTwoDicesHooks = () => {
 
   useEffect(() => {
     startGame();
+    // Inicialização única no mount; startGame é redefinido a cada render
+    // mas só queremos disparar uma vez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const disabledCheckboxesState = (eventsCheckboxesActual=eventsCheckboxes) => {

@@ -35,6 +35,7 @@ export function DieFace({ face, size, color }: { face: number; size: number; col
   const bg = color === 'green' ? '#1a5c2e' : 'var(--color-brand-otimath-dark)';
   return (
     <div
+      role="img"
       aria-label={`Dado ${color === 'green' ? 'verde' : 'azul'} face ${face}`}
       style={{
         width: size, height: size,
@@ -48,7 +49,7 @@ export function DieFace({ face, size, color }: { face: number; size: number; col
       }}
     >
       {pips.map((p, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div key={i} className="flex items-center justify-center">
           {p ? <div style={{ width: pipSize, height: pipSize, borderRadius: '50%', background: '#fff' }} /> : null}
         </div>
       ))}
@@ -172,8 +173,8 @@ export function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks, blink
                       })}
                       {eventLabel && (
                         <label
-                          className="flex items-center gap-x-nano"
-                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          className="flex items-center gap-x-nano cursor-pointer select-none"
+                         
                         >
                           <input
                             type="checkbox"

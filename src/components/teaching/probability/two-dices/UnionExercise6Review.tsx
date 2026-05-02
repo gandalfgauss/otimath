@@ -41,9 +41,9 @@ import {
 } from './shared/exercise6Challenges';
 import {
   getFeedbackMessage,
-  getSuggestedVerbetes,
+  getSuggestedEntries,
   type Ex6StepKind,
-  type VerbeteId,
+  type GlossaryEntryId,
 } from './shared/studyMenuContent';
 import type { SingleShotStepKind } from '@/hooks/teaching/probability/two-dices/useTwoDicesSingleShotHooks';
 import { playSound } from '@/hooks/global/useSound';
@@ -182,9 +182,9 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       return null;
     }, [step, session]);
 
-    const suggestedVerbeteIds: readonly VerbeteId[] = useMemo(() => {
+    const suggestedGlossaryEntryIds: readonly GlossaryEntryId[] = useMemo(() => {
       if (!lastErrorStep || !currentRound) return [];
-      return getSuggestedVerbetes(lastErrorStep as Ex6StepKind, currentRound.operation);
+      return getSuggestedEntries(lastErrorStep as Ex6StepKind, currentRound.operation);
     }, [lastErrorStep, currentRound]);
 
     const feedbackMessage: string | null = useMemo(() => {
@@ -192,7 +192,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       return getFeedbackMessage(lastErrorStep as Ex6StepKind, currentRound.operation);
     }, [lastErrorStep, currentRound]);
 
-    const initialVerbeteId: VerbeteId | undefined = suggestedVerbeteIds[0];
+    const initialGlossaryEntryId: GlossaryEntryId | undefined = suggestedGlossaryEntryIds[0];
 
     /* ──────────────────────────────────────────────────────────────
        RENDERIZAÇÃO
@@ -203,9 +203,9 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
         <Button
           style="secondary"
           size="extra-small"
-          icon={<BookOpen />}
+          icon={<BookOpen aria-hidden="true" />}
           onClick={() => {
-            logStudyMenuOpened('unionExercise6', step, initialVerbeteId, lastErrorStep ?? undefined);
+            logStudyMenuOpened('unionExercise6', step, initialGlossaryEntryId, lastErrorStep ?? undefined);
             setStudyMenuOpen(true);
           }}
           ariaLabel="Abrir Menu de Revisão"
@@ -313,7 +313,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
             />
             <div className="flex gap-x-micro flex-wrap justify-center">
               <Button style="borderless" size="small" onClick={() => {
-                logStudyMenuOpened('unionExercise6', step, initialVerbeteId);
+                logStudyMenuOpened('unionExercise6', step, initialGlossaryEntryId);
                 setStudyMenuOpen(true);
               }}>
                 Revisar conceitos
@@ -339,8 +339,8 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
         <StudyMenu
           open={studyMenuOpen}
           onClose={() => setStudyMenuOpen(false)}
-          suggestedVerbeteIds={suggestedVerbeteIds}
-          initialVerbeteId={initialVerbeteId}
+          suggestedGlossaryEntryIds={suggestedGlossaryEntryIds}
+          initialGlossaryEntryId={initialGlossaryEntryId}
         />
       </div>
     );

@@ -20,68 +20,68 @@
      <StudyMenu
        open={open}
        onClose={() => setOpen(false)}
-       suggestedVerbeteIds={['cardinalidade-uniao']}  // destacados com badge
-       initialVerbeteId="uniao"                         // verbete pré-selecionado
+       suggestedGlossaryEntryIds={['cardinalidade-uniao']}  // destacados com badge
+       initialGlossaryEntryId="uniao"                         // verbete pré-selecionado
      />
    ═══════════════════════════════════════════════════════════════════ */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/global/Button';
-import { VERBETES, type Verbete, type VerbeteId } from './studyMenuContent';
+import { GLOSSARY_ENTRIES, type GlossaryEntry, type GlossaryEntryId } from './studyMenuContent';
 
 interface StudyMenuProps {
   open: boolean;
   onClose: () => void;
-  suggestedVerbeteIds?: readonly VerbeteId[];
-  initialVerbeteId?: VerbeteId;
+  suggestedGlossaryEntryIds?: readonly GlossaryEntryId[];
+  initialGlossaryEntryId?: GlossaryEntryId;
 }
 
-const GROUP_ORDER: ReadonlyArray<{ key: Verbete['grupo']; titulo: string }> = [
-  { key: 'operacoes',         titulo: 'Operações entre eventos' },
-  { key: 'eventos-especiais', titulo: 'Eventos especiais' },
-  { key: 'probabilidade',     titulo: 'Probabilidade' },
+const GROUP_ORDER: ReadonlyArray<{ key: GlossaryEntry['group']; title: string }> = [
+  { key: 'operacoes',         title: 'Operações entre eventos' },
+  { key: 'eventos-especiais', title: 'Eventos especiais' },
+  { key: 'probabilidade',     title: 'Probabilidade' },
 ];
 
 export function StudyMenu({
   open,
   onClose,
-  suggestedVerbeteIds = [],
-  initialVerbeteId,
+  suggestedGlossaryEntryIds = [],
+  initialGlossaryEntryId,
 }: StudyMenuProps) {
-  const [activeId, setActiveId] = useState<VerbeteId>(
-    initialVerbeteId ?? VERBETES[0].id,
+  const [activeId, setActiveId] = useState<GlossaryEntryId>(
+    initialGlossaryEntryId ?? GLOSSARY_ENTRIES[0].id,
   );
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
-  const verbetesByGroup = useMemo(() => {
-    const groups: Record<Verbete['grupo'], Verbete[]> = {
+  const entriesByGroup = useMemo(() => {
+    const groups: Record<GlossaryEntry['group'], GlossaryEntry[]> = {
       'operacoes': [],
       'eventos-especiais': [],
       'probabilidade': [],
     };
-    VERBETES.forEach((v) => groups[v.grupo].push(v));
+    GLOSSARY_ENTRIES.forEach((v) => groups[v.group].push(v));
     return groups;
   }, []);
 
-  const activeVerbete = useMemo(
-    () => VERBETES.find((v) => v.id === activeId) ?? VERBETES[0],
+  const activeEntry = useMemo(
+    () => GLOSSARY_ENTRIES.find((v) => v.id === activeId) ?? GLOSSARY_ENTRIES[0],
     [activeId],
   );
 
   const suggestedSet = useMemo(
-    () => new Set<VerbeteId>(suggestedVerbeteIds),
-    [suggestedVerbeteIds],
+    () => new Set<GlossaryEntryId>(suggestedGlossaryEntryIds),
+    [suggestedGlossaryEntryIds],
   );
 
-  // Re-sincroniza o verbete ativo quando o menu abre com novo initialVerbeteId
+  // Re-sincroniza o verbete ativo quando o menu abre com novo initialGlossaryEntryId
   useEffect(() => {
-    if (open && initialVerbeteId) {
-      setActiveId(initialVerbeteId);
+    if (open && initialGlossaryEntryId) {
+      setActiveId(initialGlossaryEntryId);
     }
-  }, [open, initialVerbeteId]);
+  }, [open, initialGlossaryEntryId]);
 
   // Esc fecha o menu; foco gerenciado
   useEffect(() => {
@@ -151,10 +151,10 @@ export function StudyMenu({
             {GROUP_ORDER.map((g) => (
               <div key={g.key} className="mb-micro">
                 <h3 className="ds-caption-bold text-neutral-dark uppercase mb-quarck">
-                  {g.titulo}
+                  {g.title}
                 </h3>
                 <ul className="flex flex-col gap-y-quarck">
-                  {verbetesByGroup[g.key].map((v) => {
+                  {entriesByGroup[g.key].map((v) => {
                     const isActive = v.id === activeId;
                     const isSuggested = suggestedSet.has(v.id);
                     return (
@@ -169,7 +169,7 @@ export function StudyMenu({
                           }`}
                         >
                           <span className="flex items-start justify-between gap-x-quarck">
-                            <span className="flex-1">{v.titulo}</span>
+                            <span className="flex-1">{v.title}</span>
                             {isSuggested && (
                               <span
                                 className="ds-caption-bold text-feedback-warning-darkest bg-feedback-warning-lighter rounded-sm px-quarck"
@@ -197,11 +197,11 @@ export function StudyMenu({
           >
             <header className="mb-xxs">
               <p className="ds-caption-bold text-neutral-dark uppercase mb-quarck">
-                {activeVerbete.grupoTitulo}
+                {activeEntry.groupTitle}
               </p>
               <h3 className="ds-heading-large text-brand-otimath-darker">
-                {activeVerbete.titulo}
-                {suggestedSet.has(activeVerbete.id) && (
+                {activeEntry.title}
+                {suggestedSet.has(activeEntry.id) && (
                   <span className="ds-caption-bold text-feedback-warning-darkest bg-feedback-warning-lighter rounded-sm px-quarck ml-micro align-middle">
                     ★ Sugerido para esta tarefa
                   </span>
@@ -212,35 +212,35 @@ export function StudyMenu({
             <section className="mb-xxs">
               <h4 className="ds-body-bold text-neutral-darkest mb-quarck">Definição formal</h4>
               <p className="ds-body text-neutral-darkest whitespace-pre-line">
-                {activeVerbete.definicaoFormal}
+                {activeEntry.formalDefinition}
               </p>
             </section>
 
             <section className="mb-xxs">
               <h4 className="ds-body-bold text-neutral-darkest mb-quarck">Em palavras</h4>
-              <p className="ds-body text-neutral-darkest">{activeVerbete.definicaoNatural}</p>
+              <p className="ds-body text-neutral-darkest">{activeEntry.naturalDefinition}</p>
             </section>
 
             <section className="mb-xxs">
               <h4 className="ds-body-bold text-neutral-darkest mb-quarck">Exemplo no contexto</h4>
-              <p className="ds-body text-neutral-darkest mb-quarck">{activeVerbete.exemploContexto}</p>
+              <p className="ds-body text-neutral-darkest mb-quarck">{activeEntry.exampleContext}</p>
               <pre className="ds-small bg-neutral-lightest p-micro rounded-sm whitespace-pre-wrap text-neutral-darkest">
-                {activeVerbete.exemploCalculo}
+                {activeEntry.exampleCalculation}
               </pre>
             </section>
 
             <section className="mb-xxs">
               <h4 className="ds-body-bold text-neutral-darkest mb-quarck">Para que serve</h4>
-              <p className="ds-body text-neutral-darkest">{activeVerbete.paraQueServe}</p>
+              <p className="ds-body text-neutral-darkest">{activeEntry.useCase}</p>
             </section>
 
             <section className="mb-xxs p-micro rounded-sm border-thin border-feedback-warning-darkest bg-feedback-warning-lighter">
               <h4 className="ds-body-bold text-feedback-warning-darkest mb-quarck">⚠ Atenção</h4>
-              <p className="ds-body text-feedback-warning-darkest">{activeVerbete.atencao}</p>
+              <p className="ds-body text-feedback-warning-darkest">{activeEntry.attention}</p>
             </section>
 
             <footer className="border-t-hairline border-neutral-lightest pt-micro">
-              <p className="ds-caption text-neutral-dark italic">{activeVerbete.referencia}</p>
+              <p className="ds-caption text-neutral-dark italic">{activeEntry.reference}</p>
             </footer>
           </article>
         </div>

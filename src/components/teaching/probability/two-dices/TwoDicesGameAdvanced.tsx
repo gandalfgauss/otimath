@@ -29,11 +29,11 @@ import { TwoDicesTable } from './TwoDicesTable';
 import { TwoDicesFormulation } from './TwoDicesFormulation';
 import { StudyMenu } from './shared/StudyMenu';
 import {
-  getSuggestedVerbetesAdvanced,
+  getSuggestedEntriesAdvanced,
   getFeedbackMessageAdvanced,
   type Ex8AdvancedStepKind,
   type AdvancedOperation,
-  type VerbeteId,
+  type GlossaryEntryId,
 } from './shared/studyMenuContent';
 import {
   useTwoDicesGameAdvancedHooks,
@@ -129,9 +129,9 @@ export function TwoDicesGameAdvanced({
     return 'Union';
   }, [activeEvents]);
 
-  const suggestedVerbeteIds: readonly VerbeteId[] = useMemo(() => {
+  const suggestedGlossaryEntryIds: readonly GlossaryEntryId[] = useMemo(() => {
     if (!lastErrorStep) return [];
-    return getSuggestedVerbetesAdvanced(
+    return getSuggestedEntriesAdvanced(
       lastErrorStep as Ex8AdvancedStepKind,
       inferredOperation,
     );
@@ -145,7 +145,7 @@ export function TwoDicesGameAdvanced({
     );
   }, [lastErrorStep, inferredOperation]);
 
-  const initialVerbeteId: VerbeteId | undefined = suggestedVerbeteIds[0];
+  const initialGlossaryEntryId: GlossaryEntryId | undefined = suggestedGlossaryEntryIds[0];
 
   return (
     <div className="flex flex-col gap-y-xxs">
@@ -167,16 +167,16 @@ export function TwoDicesGameAdvanced({
       <div className="flex gap-x-xs gap-y-xs max-lg:flex-col-reverse">
         <div className="w-full flex flex-col gap-y-xxs max-lg:items-center max-sm:item-start">
           <div className="flex items-center gap-x-xxxs justify-between w-full max-w-[747px] flex-wrap">
-            <Button style="secondary" size="small" icon={<RefreshCw />} onClick={resetGameOnClick}>
+            <Button style="secondary" size="small" icon={<RefreshCw aria-hidden="true" />} onClick={resetGameOnClick}>
               Novo
             </Button>
             <div className="flex items-center gap-x-xxxs flex-wrap">
               <Button
                 style="secondary"
                 size="extra-small"
-                icon={<BookOpen />}
+                icon={<BookOpen aria-hidden="true" />}
                 onClick={() => {
-                  logStudyMenuOpened('unionExercise8', currentStepKind ?? '', initialVerbeteId, lastErrorStep ?? undefined);
+                  logStudyMenuOpened('unionExercise8', currentStepKind ?? '', initialGlossaryEntryId, lastErrorStep ?? undefined);
                   setStudyMenuOpen(true);
                 }}
                 ariaLabel="Abrir Menu de Revisão"
@@ -188,7 +188,7 @@ export function TwoDicesGameAdvanced({
                 <Button
                   style="borderless"
                   size="extra-small"
-                  icon={<CheckSquare />}
+                  icon={<CheckSquare aria-hidden="true" />}
                   onClick={markAllOnClick}
                   disabled={disabledMarkAllButton}
                   ariaLabel="Marcar todos os casos do evento da sub-fase atual."
@@ -199,7 +199,7 @@ export function TwoDicesGameAdvanced({
               <Button
                 style="borderless"
                 size="extra-small"
-                icon={<X />}
+                icon={<X aria-hidden="true" />}
                 onClick={dicesChecksClearOnClick}
                 disabled={disabledClearButton}
               >
@@ -219,7 +219,7 @@ export function TwoDicesGameAdvanced({
             <Button
               style="secondary"
               size="small"
-              icon={<Check />}
+              icon={<Check aria-hidden="true" />}
               onClick={checkOnClick}
               disabled={disabledCheckButton}
             >
@@ -228,7 +228,7 @@ export function TwoDicesGameAdvanced({
             <Button
               style="primary"
               size="small"
-              icon={<ArrowRight />}
+              icon={<ArrowRight aria-hidden="true" />}
               onClick={goToNextStepOnClick}
               disabled={disabledNextStepButton}
             >
@@ -249,8 +249,8 @@ export function TwoDicesGameAdvanced({
       <StudyMenu
         open={studyMenuOpen}
         onClose={() => setStudyMenuOpen(false)}
-        suggestedVerbeteIds={suggestedVerbeteIds}
-        initialVerbeteId={initialVerbeteId}
+        suggestedGlossaryEntryIds={suggestedGlossaryEntryIds}
+        initialGlossaryEntryId={initialGlossaryEntryId}
       />
     </div>
   );

@@ -60,21 +60,21 @@ const CAR_COLORS: Record<number, { body: string; detail: string; number: string 
 // ═══════ Componente SVG do carrinho de corrida estilo-brinquedo ═══════
 // Corpo arredondado estilo Hot Wheels, para-brisa fumê, rodas pretas com
 // centro cromado, número grande estampado na lateral. Cores vibrantes.
-function CarrinhoIcon({ numero, width = 72, highlighted = false }: {
-  numero: number;
+function CarIcon({ carNumber, width = 72, highlighted = false }: {
+  carNumber: number;
   width?: number;
   highlighted?: boolean;
 }) {
-  const colors = CAR_COLORS[numero] ?? CAR_COLORS[2];
+  const colors = CAR_COLORS[carNumber] ?? CAR_COLORS[2];
   const height = Math.floor(width * 0.5);
-  const isImpossible = numero === 1 || numero === 13;
+  const isImpossible = carNumber === 1 || carNumber === 13;
   return (
     <svg
       viewBox="0 0 120 60"
       width={width}
       height={height}
       role="img"
-      aria-label={`Carrinho número ${numero}${isImpossible ? ' (soma impossível)' : ''}`}
+      aria-label={`Carrinho número ${carNumber}${isImpossible ? ' (soma impossível)' : ''}`}
       style={{
         filter: highlighted ? 'drop-shadow(0 0 6px #fbbf24) drop-shadow(0 0 10px #fbbf24)' : 'none',
         opacity: isImpossible ? 0.7 : 1,
@@ -82,7 +82,7 @@ function CarrinhoIcon({ numero, width = 72, highlighted = false }: {
       }}
     >
       <defs>
-        <linearGradient id={`body-${numero}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={`body-${carNumber}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={colors.body} stopOpacity="1" />
           <stop offset="50%" stopColor={colors.body} stopOpacity="1" />
           <stop offset="100%" stopColor="#000000" stopOpacity="0.35" />
@@ -93,7 +93,7 @@ function CarrinhoIcon({ numero, width = 72, highlighted = false }: {
       {/* Corpo do carrinho — silhueta arredondada estilo brinquedo */}
       <path
         d="M 10 42 Q 10 32 22 28 L 38 26 Q 46 16 60 16 Q 74 16 82 26 L 98 28 Q 110 32 110 42 L 110 46 Q 110 50 104 50 L 16 50 Q 10 50 10 46 Z"
-        fill={`url(#body-${numero})`}
+        fill={`url(#body-${carNumber})`}
         stroke="#000"
         strokeWidth="1.2"
         strokeLinejoin="round"
@@ -120,7 +120,7 @@ function CarrinhoIcon({ numero, width = 72, highlighted = false }: {
         paintOrder="stroke"
         style={{ fontFamily: 'system-ui, sans-serif' }}
       >
-        {numero}
+        {carNumber}
       </text>
       {/* Roda traseira */}
       <circle cx="28" cy="50" r="7" fill="#1a1a1a" stroke="#000" strokeWidth="0.8" />
@@ -153,7 +153,7 @@ function DiceFaceIcon({ face, size, color = 'blue' }: { face: number; size: numb
       gap,
     }}>
       {pips.map((pip, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div key={i} className="flex items-center justify-center">
           {pip ? <div style={{ width: pipSize, height: pipSize, borderRadius: '50%', background: '#fff' }} /> : null}
         </div>
       ))}
@@ -335,33 +335,6 @@ type Phase =
 
 const TOTAL_ROUNDS = 3;
 
-// ══════════════════════════════════════════════════════════════════════════
-// █ DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS █
-// Ordem das fases do TwoDicesExperiment, exportada para a barra dev
-// que vive no TwoDicesPresentation (cenas 1–6 + fases do Experiment).
-// ══════════════════════════════════════════════════════════════════════════
-export const DEV_PHASE_ORDER: Phase[] = [
-  'intro', 'tree', 'ready', 'rolling', 'landed',
-  'pickPair', 'pickConfirm', 'markTable', 'feedback',
-  'sumInput', 'sumMarkTable', 'sumComplete',
-  'sumAlienIntro', 'sumPredictMax', 'sumPredictMin', 'sumImpossible', 'sumReveal',
-  'probPair', 'probPairReveal', 'probSumTable', 'probSumReveal',
-  'pairQuestion', 'pairExplain', 'colorQuestion', 'colorExplain',
-  'complementaryEvents',
-  'unionTheory',
-  'unionExercises', 'unionExercise2', 'unionExercise3', 'unionExercise4', 'unionExercise5',
-  'unionExercise6',
-  'twoDicesGameFree',
-  'unionExercise8',
-  'raceBet', 'raceRunning', 'raceFinished',
-  'closing',
-  'finished',
-];
-export type { Phase as DevExperimentPhase };
-// ══════════════════════════════════════════════════════════════════════════
-// █ FIM DEV ONLY █
-// ══════════════════════════════════════════════════════════════════════════
-
 // ═══════ Componente Principal ═══════
 interface TwoDicesExperimentProps {
   diceSceneRef: React.RefObject<TwoDiceSceneHandle | null>;
@@ -374,26 +347,14 @@ interface TwoDicesExperimentProps {
   /** Notifica o pai quando a fase interna muda — usado para alargar o
    *  container na fase unionTheory (tabela 6×6 precisa >800px). */
   onPhaseChange?: (phase: Phase) => void;
-  /** Fase inicial (atalho dev — pula direto para uma fase específica) */
-  initialPhase?: Phase;
-  /** Ref dev para navegar pelas fases internas do UnionProbabilityTheory */
+  /** Refs externos para navegação progressiva dentro de cada subcomponente */
   unionTheoryRef?: React.RefObject<UnionTheoryHandle | null>;
-  /** Ref dev para navegar pelos passos do UnionExercise1 */
   unionExercise1Ref?: React.RefObject<UnionExercise1Handle | null>;
-  /** Ref dev para navegar pelos passos do UnionExercise2 */
   unionExercise2Ref?: React.RefObject<UnionExercise2Handle | null>;
-  /** Ref dev para navegar pelos passos do UnionExercise3 */
   unionExercise3Ref?: React.RefObject<UnionExercise3Handle | null>;
-  /** Ref dev para navegar pelos passos do UnionExercise4 */
   unionExercise4Ref?: React.RefObject<UnionExercise4Handle | null>;
-  /** Ref dev para navegar pelos passos do UnionExercise5 */
   unionExercise5Ref?: React.RefObject<UnionExercise5Handle | null>;
-  /** Ref dev para navegar pelos passos do UnionExercise6Review */
   unionExercise6Ref?: React.RefObject<UnionExercise6Handle | null>;
-  /** DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS.
-   *  Ref que recebe a função setPhase para controle externo via barra dev
-   *  no TwoDicesPresentation. Null quando o componente desmonta. */
-  devSetPhaseRef?: React.MutableRefObject<((p: Phase) => void) | null>;
 }
 
 export function TwoDicesExperiment({
@@ -401,7 +362,6 @@ export function TwoDicesExperiment({
   diceContainerRef,
   diceMachineRef,
   diceMachineContainerRef,
-  initialPhase,
   unionTheoryRef,
   unionExercise1Ref,
   unionExercise2Ref,
@@ -413,36 +373,12 @@ export function TwoDicesExperiment({
   onHideAllDice,
   onFinished,
   onPhaseChange,
-  devSetPhaseRef,
 }: Readonly<TwoDicesExperimentProps>) {
-  const [phase, setPhase] = useState<Phase>(initialPhase ?? 'intro');
+  const [phase, setPhase] = useState<Phase>('intro');
 
-  // DEV ONLY — REMOVER ANTES DE APLICAR AOS ALUNOS.
-  // Registra setPhase no ref externo para a barra dev no TwoDicesPresentation.
-  useEffect(() => {
-    if (!devSetPhaseRef) return;
-    devSetPhaseRef.current = setPhase;
-    return () => { devSetPhaseRef.current = null; };
-  }, [devSetPhaseRef]);
   const [round, setRound] = useState(0);
   const [greenResult, setGreenResult] = useState(0);
   const [blueResult, setBlueResult] = useState(0);
-
-  // DEV ONLY — inicialização defensiva para pulos via barra dev.
-  // Se o aluno (dev) saltou para uma fase que depende de greenResult/blueResult
-  // sem ter passado por 'landed', popula valores aleatórios válidos (1..6).
-  // No fluxo normal, esses valores já estão setados antes de chegar nessas fases.
-  useEffect(() => {
-    const needsDiceResult: Phase[] = [
-      'pickConfirm', 'markTable', 'feedback',
-      'sumInput', 'sumMarkTable', 'sumComplete',
-      'sumAlienIntro', 'sumPredictMax', 'sumPredictMin', 'sumImpossible', 'sumReveal',
-    ];
-    if (needsDiceResult.includes(phase) && (greenResult === 0 || blueResult === 0)) {
-      setGreenResult(1 + Math.floor(Math.random() * 6));
-      setBlueResult(1 + Math.floor(Math.random() * 6));
-    }
-  }, [phase, greenResult, blueResult]);
 
   // Quando o aluno navega de volta de um exercício/fase para o anterior, a
   // fase anterior precisa ser re-montada no estado 'done' (final), não no
@@ -945,10 +881,10 @@ export function TwoDicesExperiment({
       poolHigh.splice(idx, 1);
     }
     // Completa com (4 - k) possíveis distintos de {2..12}
-    const numPossiveis = 4 - k;
+    const numPossible = 4 - k;
     const poolLow = Array.from({ length: 11 }, (_, i) => i + 2);
     const chosenLow: number[] = [];
-    for (let i = 0; i < numPossiveis; i++) {
+    for (let i = 0; i < numPossible; i++) {
       const idx = Math.floor(Math.random() * poolLow.length);
       chosenLow.push(poolLow[idx]);
       poolLow.splice(idx, 1);
@@ -1514,12 +1450,12 @@ export function TwoDicesExperiment({
     const showHighlight = phase === 'feedback' || phase === 'finished';
 
     return (
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[calc(100vh-120px)] snap-both snap-mandatory scroll-p-[40px] rounded-md shadow-level-1 bg-background-otimath max-w-full">
         <style>{blinkStyle}</style>
-        <table className="border-collapse mx-auto" style={{ minWidth: 320 }}>
+        <table className="border-collapse mx-auto bg-background-otimath" style={{ minWidth: 320 }}>
           <thead>
             <tr>
-              <th className="p-micro" style={{ width: 40 }} />
+              <th className="p-micro sticky top-0 left-0 z-30 bg-background-otimath" style={{ width: 40 }} />
               {[1, 2, 3, 4, 5, 6].map(c => {
                 const pairA = blinkPairs[0];
                 const pairB = blinkPairs[1];
@@ -1537,7 +1473,7 @@ export function TwoDicesExperiment({
                   ? `Dado azul face ${c}, pertencente ao segundo par destacado`
                   : `Dado azul face ${c}`;
                 return (
-                  <th key={c} scope="col" className="p-micro text-center">
+                  <th key={c} scope="col" className="p-micro text-center sticky top-0 z-20 bg-background-otimath snap-start">
                     <div
                       data-halo={halo}
                       aria-label={ariaLabel}
@@ -1574,7 +1510,7 @@ export function TwoDicesExperiment({
                 : `Dado verde face ${r}`;
               return (
               <tr key={r}>
-                <th scope="row" className="p-micro text-center">
+                <th scope="row" className="p-micro text-center sticky left-0 z-10 bg-background-otimath">
                   <div
                     data-halo={rowHalo}
                     aria-label={rowAriaLabel}
@@ -1670,7 +1606,7 @@ export function TwoDicesExperiment({
                     <td
                       key={c}
                       data-halo={cellHalo}
-                      className="border border-neutral-lighter p-micro text-center"
+                      className="border border-neutral-lighter p-micro text-center snap-start"
                       style={{
                         background: bg,
                         cursor: cellClickable ? 'pointer' : 'default',
@@ -1849,7 +1785,7 @@ export function TwoDicesExperiment({
         <Button
           style="borderless"
           size="extra-small"
-          icon={<History />}
+          icon={<History aria-hidden="true" />}
           onClick={() => setProgressOverlayOpen(true)}
           ariaLabel="Abrir painel: Onde você está no OVA"
         >
@@ -1883,11 +1819,11 @@ export function TwoDicesExperiment({
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Quantos pares podem sair?
           </p>
-          <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mb-micro text-justify">
             Você observou a máquina, registrou pares, somou e fez uma previsão. Mas{' '}
             <strong>quantos pares diferentes podem sair</strong> no lançamento de dois dados?
           </p>
-          <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mb-macro text-justify">
             Vamos descobrir juntos, construindo as possibilidades <strong>um resultado de cada vez</strong>.
           </p>
           <div className="flex justify-center">
@@ -1937,7 +1873,7 @@ export function TwoDicesExperiment({
           {phase === 'ready' && (
             <>
               {round === 0 && (
-                <p className="ds-body text-neutral-black text-center mb-micro" style={{ textAlign: 'justify' }}>
+                <p className="ds-body text-neutral-black text-center mb-micro text-justify">
                   Agora vamos organizar os 36 pares numa <strong>tabela 6×6</strong>.
                   A cada lançamento, leia o resultado dos dados{' '}
                   <strong style={{ color: '#1a5c2e' }}>verde</strong> (linhas) e{' '}
@@ -2296,14 +2232,14 @@ export function TwoDicesExperiment({
                 Um <strong>alienígena brincalhão</strong> surgiu na sua tela. Debaixo do braço,
                 ele carrega um livro enorme, com símbolos dourados que pulsam na capa.
               </p>
-              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify', fontStyle: 'italic' }}>
+              <p className="ds-body text-neutral-black text-justify italic">
                 — Olá, humano! Este é o livro de matemática mais precioso da minha civilização.
                 Levou 3 000 anos para ser escrito, e eu já fiz a tradução completa para o seu idioma.
               </p>
-              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black text-justify">
                 Ele estica os braços para te entregar o livro, mas o afasta na última hora e ri.
               </p>
-              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify', fontStyle: 'italic' }}>
+              <p className="ds-body text-neutral-black text-justify italic">
                 — Ahn, quase esqueci: no meu planeta a gente só dá presentes para quem vence um
                 joguinho primeiro. São só <strong>três perguntas</strong> sobre a soma de dois dados.
                 Acertou as três, o livro é seu. Mas atenção: você responde <strong>sem ver a tabela</strong>.
@@ -2943,7 +2879,7 @@ export function TwoDicesExperiment({
               <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)', fontSize: '1.1rem' }}>
                 ✓ Todas corretas!
               </p>
-              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black text-justify">
                 Repare que a soma de todas as probabilidades é igual a <strong>1</strong>:
               </p>
               <div style={{
@@ -3051,7 +2987,7 @@ export function TwoDicesExperiment({
                           justifyContent: 'center',
                         }}
                       >
-                        <CarrinhoIcon numero={carNumber} width={44} highlighted={isBet} />
+                        <CarIcon carNumber={carNumber} width={44} highlighted={isBet} />
                       </button>
                       {/* Células vazias 2..6 */}
                       {Array.from({ length: RACE_LENGTH - 1 }, (_, i) => (
@@ -3224,8 +3160,8 @@ export function TwoDicesExperiment({
                                   touchAction: 'manipulation',
                                 }}
                               >
-                                <CarrinhoIcon
-                                  numero={carNumber}
+                                <CarIcon
+                                  carNumber={carNumber}
                                   width={44}
                                   highlighted={isBet}
                                 />
@@ -3323,7 +3259,7 @@ export function TwoDicesExperiment({
                     img.parentElement?.insertBefore(fallback, img);
                   }}
                 />
-                <p className="ds-body text-neutral-black" style={{ textAlign: 'center', fontStyle: 'italic' }}>
+                <p className="ds-body text-neutral-black text-center italic">
                   — Parabéns, humano! Você dominou as probabilidades de dois dados e viu a distribuição em ação.
                   O livro é seu — leia-o bem, ele guarda os segredos matemáticos de um milhão de mundos!
                 </p>
@@ -3552,7 +3488,7 @@ export function TwoDicesExperiment({
                 </div>
               </div>
               {renderTable()}
-              <p className="ds-small text-neutral-dark text-center mt-micro" style={{ fontStyle: 'italic' }}>
+              <p className="ds-small text-neutral-dark text-center mt-micro italic">
                 Lançamentos registrados: {history.length} de {TOTAL_ROUNDS}.
               </p>
               <div className="flex justify-center mt-micro">
@@ -3627,7 +3563,7 @@ export function TwoDicesExperiment({
               Os pares <strong>({o.green}, {o.blue})</strong> e <strong>({o.blue}, {o.green})</strong> são
               resultados <strong>diferentes</strong>.
             </p>
-            <p className="ds-body-bold text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body-bold text-neutral-black mb-micro text-justify">
               Em <strong>({o.green}, {o.blue})</strong>, o dado
               <strong style={{ color: 'var(--color-feedback-success-dark)' }}> verde</strong> saiu {o.green} e o dado
               <strong style={{ color: 'var(--color-brand-otimath-pure)' }}> azul</strong> saiu {o.blue}.
@@ -3732,11 +3668,11 @@ export function TwoDicesExperiment({
             os pares <strong>(x, y)</strong> e <strong>(y, x)</strong> continuam sendo resultados diferentes.
             A <strong>ordem mora no par</strong>, não nos dados.
           </p>
-          <p className="ds-body-bold text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body-bold text-neutral-black mb-micro text-justify">
             Cada dado é um objeto separado, cada um produz seu próprio resultado, e a <strong>ordem importa</strong>{' '}
             como propriedade matemática do par ordenado — independente de conseguirmos distinguir os dados visualmente.
           </p>
-          <p className="ds-body-bold text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body-bold text-neutral-black mb-micro text-justify">
             Usamos cores diferentes apenas para <strong>facilitar a identificação</strong> de qual dado
             corresponde à linha e qual corresponde à coluna na tabela.
           </p>
@@ -3769,7 +3705,7 @@ export function TwoDicesExperiment({
             Cada célula representa um resultado possível do experimento aleatório de lançar dois dados.
           </p>
           {renderTable(false)}
-          <p className="ds-small text-neutral-dark text-center mt-micro" style={{ fontStyle: 'italic' }}>
+          <p className="ds-small text-neutral-dark text-center mt-micro italic">
             Pares registrados: {history.map(h => `(${h.green}, ${h.blue})`).join(', ')}.
           </p>
           <div className="flex justify-center mt-macro">

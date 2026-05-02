@@ -59,7 +59,7 @@ export interface Exercise5Data {
   /** Tipo de questão sorteado para esta instância. */
   questionType: QuestionType;
   /** Enunciado em português, gerado dinamicamente. */
-  enunciado: string;
+  statement: string;
   /** Numerador e denominador da resposta correta P(target). */
   answerNum: number;
   answerDen: number;
@@ -80,10 +80,6 @@ function randInt(min: number, max: number): number {
 
 function pickSex(): Sex {
   return Math.random() < 0.5 ? 'masculino' : 'feminino';
-}
-
-function sexLabel(s: Sex): string {
-  return s === 'masculino' ? 'masculino' : 'feminino';
 }
 
 function sexLabelInfinitive(s: Sex): string {
@@ -222,9 +218,9 @@ export function selectExercise5Data(round: number = 0): Exercise5Data {
     const sex = pickSex();
 
     let questionType: QuestionType;
-    let enunciado: string;
+    let statement: string;
     let answerNum: number;
-    let answerDen: number = tg;
+    const answerDen: number = tg;
     let targetLabel: string;
     let descA: string;
     let descB: string;
@@ -242,7 +238,7 @@ export function selectExercise5Data(round: number = 0): Exercise5Data {
       const numB = t2;
       const numAB = 0;
       const numUnion = numA + numB - numAB;
-      enunciado = `Se uma pessoa é entrevistada ao acaso entre os ${tg} torcedores presentes, qual é a probabilidade de ela torcer pelo ${team1.name} OU torcer pelo ${team2.name}?`;
+      statement = `Se uma pessoa é entrevistada ao acaso entre os ${tg} torcedores presentes, qual é a probabilidade de ela torcer pelo ${team1.name} OU torcer pelo ${team2.name}?`;
       answerNum = numUnion;
       targetLabel = 'P(A ∪ B)';
       descA = `torcer pelo ${team1.name}`;
@@ -255,7 +251,7 @@ export function selectExercise5Data(round: number = 0): Exercise5Data {
       const cellAB = sex === 'masculino' ? H2 : M2;
       const numA = t2;
       const numB = sex === 'masculino' ? th : tm;
-      enunciado = `Se uma pessoa é entrevistada ao acaso entre os ${tg} torcedores presentes, qual é a probabilidade de ela torcer pelo ${team2.name} E ${sexLabelInfinitive(sex)}?`;
+      statement = `Se uma pessoa é entrevistada ao acaso entre os ${tg} torcedores presentes, qual é a probabilidade de ela torcer pelo ${team2.name} E ${sexLabelInfinitive(sex)}?`;
       answerNum = cellAB;
       targetLabel = 'P(A ∩ B)';
       descA = `torcer pelo ${team2.name}`;
@@ -270,7 +266,7 @@ export function selectExercise5Data(round: number = 0): Exercise5Data {
       const numA = t1;
       const numB = sex === 'masculino' ? th : tm;
       const numUnion = numA + numB - cellAB;
-      enunciado = `Se uma pessoa é entrevistada ao acaso entre os ${tg} torcedores presentes, qual é a probabilidade de ela torcer pelo ${team1.name} OU ${sexLabelInfinitive(sex)}?`;
+      statement = `Se uma pessoa é entrevistada ao acaso entre os ${tg} torcedores presentes, qual é a probabilidade de ela torcer pelo ${team1.name} OU ${sexLabelInfinitive(sex)}?`;
       answerNum = numUnion;
       targetLabel = 'P(A ∪ B)';
       descA = `torcer pelo ${team1.name}`;
@@ -288,7 +284,7 @@ export function selectExercise5Data(round: number = 0): Exercise5Data {
       H1, H2, M1, M2,
       t1, t2, th, tm, tg,
       questionType,
-      enunciado,
+      statement,
       answerNum, answerDen,
       targetLabel,
       descA, descB,

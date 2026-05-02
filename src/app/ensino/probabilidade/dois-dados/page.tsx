@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import heroBannerTwoDicesImage from '@/images/teaching/probability/two-dices/twoDicesBanner.webp';
 import TwoDicesActivity from "@/components/teaching/probability/two-dices/TwoDicesActivity";
-import { TwoDicesPresentation } from "@/components/teaching/probability/two-dices/TwoDicesPresentation";
 
 export const generateMetadata = (): Metadata => {
   return {
@@ -45,11 +44,7 @@ export const generateMetadata = (): Metadata => {
 };
 
 export default function TwoDices() {
-  return (
-    <TwoDicesPresentation>
-      <TwoDicesActivity />
-    </TwoDicesPresentation>
-  );
+  return <TwoDicesActivity />;
 }
 
 /* Example 

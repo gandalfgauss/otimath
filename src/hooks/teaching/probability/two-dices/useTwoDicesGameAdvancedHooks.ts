@@ -639,6 +639,7 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
       probabilitiesTextInputs.denominator?.value,
     );
     if (!numIssue.valid) {
+      playSound('/sounds/incorrect.mp3');
       createAlert('Atenção', FRACTION_FEEDBACK_MESSAGES[numIssue.reason!], 'warning', 4000);
       addErrorProbabilitiesTextInputs();
       return false;
@@ -649,6 +650,7 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
         probabilitiesTextInputs.complementaryDenominator?.value,
       );
       if (!compIssue.valid) {
+        playSound('/sounds/incorrect.mp3');
         createAlert('Atenção', FRACTION_FEEDBACK_MESSAGES[compIssue.reason!], 'warning', 4000);
         addErrorProbabilitiesTextInputs();
         return false;
@@ -892,7 +894,7 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
       setDisabledCheckButton(false);
       setDisabledNextStepButton(true);
       setDisabledClearButton(false);
-    } catch (e) {
+    } catch {
       try {
         const setup = buildValidatedGameSetup(
           DEFAULT_EVENT_POOL,

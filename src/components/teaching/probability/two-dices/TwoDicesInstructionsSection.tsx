@@ -64,10 +64,10 @@ export function TwoDicesInstructionsSection() {
                   Próximo à tabela, você encontra <strong>quatro opções:</strong>
                 </p>
                 <List removeMarker={true}>
-                  <li><RefreshCw className="inline" size={16}/> - <strong>Novo</strong> - Reinicia a <strong>atividade,</strong> retornando ao primeiro desafio;</li>
-                  <li><X className="inline" size={16}/> - <strong>Limpar</strong> - Apaga os <strong>quadradinhos</strong> marcados referente ao(s) <strong>evento(s)</strong> ativo(s);</li>
-                  <li><Check className="inline" size={16}/> - <strong>Conferir</strong> - Verifica se a <strong>etapa</strong> está correta;</li>
-                  <li><ArrowRight className="inline" size={16}/> - <strong>Próximo Desafio</strong> - Passa para o próximo <strong>desafio.</strong></li>
+                  <li><RefreshCw aria-hidden="true" className="inline" size={16}/> - <strong>Novo</strong> - Reinicia a <strong>atividade,</strong> retornando ao primeiro desafio;</li>
+                  <li><X aria-hidden="true" className="inline" size={16}/> - <strong>Limpar</strong> - Apaga os <strong>quadradinhos</strong> marcados referente ao(s) <strong>evento(s)</strong> ativo(s);</li>
+                  <li><Check aria-hidden="true" className="inline" size={16}/> - <strong>Conferir</strong> - Verifica se a <strong>etapa</strong> está correta;</li>
+                  <li><ArrowRight aria-hidden="true" className="inline" size={16}/> - <strong>Próximo Desafio</strong> - Passa para o próximo <strong>desafio.</strong></li>
                 </List>
 
                 <br />
@@ -88,6 +88,8 @@ export function TwoDicesInstructionsSection() {
           ></TextBlock>
 
           <svg
+            aria-hidden="true"
+            focusable="false"
             className="absolute top-[12%] rotate-135 right-[-25%] z-0"
             width="600"
             height="600"

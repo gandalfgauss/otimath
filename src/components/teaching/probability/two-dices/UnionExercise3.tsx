@@ -45,7 +45,7 @@ import {
   selectPairForRound, verifyEventTableConsistency,
   pairsMatching, setIntersection,
   MarkMatrix, createEmptyMatrix, matrixToKeySet,
-  EVENT_COLORS, isEquivalentFraction,
+  EVENT_COLORS,
 } from './shared/eventPair';
 import { selectExclusivePairForRound } from './shared/eventPairExclusive';
 import { MarkingTable, EventCard } from './shared/MarkingTable';
@@ -594,14 +594,14 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
               🎯 Diferenças de eventos: A − B e B − A
             </p>
-            <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mb-micro text-justify">
               Neste exercício você vai identificar dois eventos derivados de A e B:
             </p>
             <ul className="ds-body text-neutral-black mb-micro" style={{ paddingLeft: 24, listStyle: 'disc', lineHeight: 1.7 }}>
               <li><strong style={{ color: EVENT_COLORS['A-B'] }}>A − B</strong>: casos em que <em>A ocorre</em> e <em>B não ocorre</em></li>
               <li><strong style={{ color: EVENT_COLORS['B-A'] }}>B − A</strong>: casos em que <em>B ocorre</em> e <em>A não ocorre</em></li>
             </ul>
-            <p className="ds-body text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mb-micro text-justify">
               As marcações de A e B servem apenas para você visualizar a estrutura.
               Depois você calculará apenas <strong>P(A − B)</strong> e{' '}
               <strong>P(B − A)</strong>.
@@ -676,12 +676,12 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['A'] }}>
               Passo 1 — Marcar o evento A
             </p>
-            <p className="ds-body text-neutral-black text-center mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black text-center mt-nano text-justify">
               Marque na tabela <strong>todas as células</strong> em que ocorre o evento A
               (<em>{currentPair.eventA.description}</em>).
             </p>
             {feedbackMessage(feedbackA, correctSets.nA, marksCountByStep)}
-            <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+            <p className="ds-small text-center text-neutral-dark mt-nano italic">
               Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
             </p>
             <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
@@ -698,12 +698,12 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['B'] }}>
               Passo 2 — Marcar o evento B
             </p>
-            <p className="ds-body text-neutral-black text-center mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black text-center mt-nano text-justify">
               Agora marque as células em que ocorre o evento B
               (<em>{currentPair.eventB.description}</em>).
             </p>
             {feedbackMessage(feedbackB, correctSets.nB, marksCountByStep)}
-            <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+            <p className="ds-small text-center text-neutral-dark mt-nano italic">
               Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
             </p>
             <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
@@ -720,7 +720,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['A-B'] }}>
               Passo 3 — Marcar A − B
             </p>
-            <p className="ds-body text-neutral-black text-center mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black text-center mt-nano text-justify">
               Marque os casos favoráveis ao evento <strong>A − B</strong>:{' '}
               <em>ocorre A e não ocorre B</em>.
             </p>
@@ -734,7 +734,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
                 {correctSets.nAmB === 0 && ' Neste problema, pode ser que nenhuma célula satisfaça essa condição.'}
               </p>
             )}
-            <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+            <p className="ds-small text-center text-neutral-dark mt-nano italic">
               Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
             </p>
             <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
@@ -751,7 +751,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['B-A'] }}>
               Passo 4 — Marcar B − A
             </p>
-            <p className="ds-body text-neutral-black text-center mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black text-center mt-nano text-justify">
               Marque os casos favoráveis ao evento <strong>B − A</strong>:{' '}
               <em>ocorre B e não ocorre A</em>.
             </p>
@@ -765,7 +765,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
                 {correctSets.nBmA === 0 && ' Neste problema, pode ser que nenhuma célula satisfaça essa condição.'}
               </p>
             )}
-            <p className="ds-small text-center text-neutral-dark mt-nano" style={{ fontStyle: 'italic' }}>
+            <p className="ds-small text-center text-neutral-dark mt-nano italic">
               Dica: às vezes é mais rápido marcar todas e desmarcar as que sobram.
             </p>
             <div className="flex flex-wrap justify-center gap-x-micro gap-y-nano mt-nano">
@@ -782,7 +782,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['A-B'] }}>
               Passo 5 — Calcular P(A − B)
             </p>
-            <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-nano text-justify">
               Qual é a probabilidade de ocorrer A e não ocorrer B?
             </p>
             <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
@@ -816,7 +816,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['B-A'] }}>
               Passo 6 — Calcular P(B − A)
             </p>
-            <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-nano text-justify">
               Qual é a probabilidade de ocorrer B e não ocorrer A?
             </p>
             <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
@@ -859,7 +859,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
                 <HistoryChip label="P(B−A)" num={correctSets.nBmA} den={36} color={EVENT_COLORS['B-A']} />
               </div>
             </div>
-            <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+            <p className="ds-body text-neutral-black mt-micro text-justify">
               Você explorou as <strong>diferenças de eventos</strong>: os casos em que só A
               ocorre (A − B) e os casos em que só B ocorre (B − A).
               {correctSets.nI === 0 && (

@@ -110,7 +110,7 @@ function DiceFaceIcon({
       role={ariaHidden ? undefined : 'img'}
     >
       {pips.map((pip, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div key={i} className="flex items-center justify-center">
           {pip ? (
             <div
               style={{
@@ -615,86 +615,9 @@ export function DiceMachineExperiment({
     playSound('/sounds/nextChallenge.mp3');
   }, []);
 
-  // ═══════ Volta fase a fase (botão triangular acima do indicador) ═══════
-  // Mapeamento das macro-etapas (L1/L2/L3) para a fase ESTÁVEL anterior:
-  //   s1-*  → intro          (1ª macro-etapa volta ao card de transição)
-  //   s2-*  → s1-correct     (estado "L1 concluída", mostra o resultado)
-  //   s3-*  → s2-correct     (estado "L2 concluída")
-  //   bridge → s3-reflect    (volta pro feedback de L3)
-  // Quando volta, limpa o estado introduzido na fase atual (pickers, soma,
-  // previsão) para o usuário não ficar com inputs antigos no caminho.
-  const goPreviousStage = useCallback(() => {
-    if (runningRef.current) return; // não interrompe lançamento em curso
-    if (phase === 'intro' || phase === 's1-ready' || phase === 's1-rolling' || phase === 's1-pick' || phase === 's1-correct') {
-      // Já na primeira macro-etapa (ou intro): volta ao intro
-      if (phase === 'intro') return;
-      resetPicker();
-      setBlueResult(null);
-      setGreenResult(null);
-      setStepIdx(-1);
-      setPhase('intro');
-    } else if (phase.startsWith('s2')) {
-      resetPicker();
-      setSumInput('');
-      setSumError(false);
-      setSumFeedback('');
-      setBlueResult(null);
-      setGreenResult(null);
-      setStepIdx(-1);
-      setPhase('s1-correct');
-    } else if (phase.startsWith('s3') || phase === 'bridge') {
-      // Volta para o final estável da macro anterior
-      if (phase === 'bridge') {
-        setPhase('s3-reflect');
-      } else {
-        setPredictionInput('');
-        setPredictionError('');
-        setPredictionReason('');
-        setPredictionReasonError(false);
-        setBlueResult(null);
-        setGreenResult(null);
-        setStepIdx(-1);
-        setPhase('s2-correct');
-      }
-    }
-    playSound('/sounds/clear.mp3');
-  }, [phase, resetPicker]);
-
-  // Existe alguma fase anterior pra voltar?
-  const hasPreviousStage = phase !== 'intro';
-
-  // ═══════ Indicador de etapas (L1, L2, L3) com botão de voltar fase a fase ═══════
+  // ═══════ Indicador de etapas (L1, L2, L3) ═══════
   const StageIndicator = (
     <div className="flex flex-col items-center mb-micro">
-      {/* Triângulo "voltar fase" — só aparece se há fase anterior e
-         a máquina não está em meio a um lançamento. Acima das bolinhas. */}
-      {hasPreviousStage && !runningRef.current && (
-        <button
-          type="button"
-          onClick={goPreviousStage}
-          aria-label="Voltar uma fase"
-          title="Voltar uma fase"
-          className="mb-nano"
-          style={{
-            background: 'transparent',
-            border: 'none',
-            padding: 4,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--color-brand-otimath-pure)',
-            transition: 'transform 0.15s, color 0.15s',
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px) scale(1.08)'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'none'; }}
-        >
-          {/* Triângulo apontando para cima — SVG inline para edges crisp */}
-          <svg width="22" height="18" viewBox="0 0 22 18" fill="currentColor" aria-hidden>
-            <path d="M11 2 L20 16 L2 16 Z" />
-          </svg>
-        </button>
-      )}
       <div
         className="flex items-center justify-center gap-x-micro"
         role="progressbar"
@@ -807,7 +730,7 @@ export function DiceMachineExperiment({
 
   // ═══════ Bloco do par ordenado (picker visual) ═══════
   const renderPairPicker = () => (
-    <div className="flex flex-col items-center gap-y-micro" style={{ marginBottom: 16 }}>
+    <div className="flex flex-col items-center gap-y-micro mb-xxxs">
       <p className="ds-body-bold text-neutral-black text-center">
         Registre o par ordenado{' '}
         <strong style={{ color: COLOR_GREEN_VIVID }}>(verde,</strong>{' '}
@@ -850,6 +773,7 @@ export function DiceMachineExperiment({
       {pickFeedback && (
         <p
           role="alert"
+          aria-live="assertive"
           className="ds-small-bold text-center"
           style={{ color: 'var(--color-feedback-error-dark)', maxWidth: 360 }}
         >
@@ -946,17 +870,17 @@ export function DiceMachineExperiment({
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             De um para dois dados
           </p>
-          <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black text-justify">
             Você domina o experimento com <strong>um dado</strong>. Agora vamos lançar{' '}
             <strong>dois</strong> — um{' '}
             <strong style={{ color: COLOR_GREEN_VIVID }}>verde</strong> e um{' '}
             <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong>.
           </p>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mt-micro text-justify">
             Antes de organizar tudo numa tabela, <strong>observe o fenômeno</strong>: o
             processo é mecânico, mas o par <strong>(verde, azul)</strong> continua imprevisível.
           </p>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mt-micro text-justify">
             Você fará <strong>3 lançamentos</strong>: nos dois primeiros, vai observar e
             registrar o resultado; no terceiro, fará uma <strong>previsão</strong> antes da
             máquina lançar.
@@ -994,7 +918,7 @@ export function DiceMachineExperiment({
               <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
                 Lançamento 1 de 3 — Observar
               </p>
-              <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mb-macro text-justify">
                 Toque em <strong>Lançar</strong> e <strong>observe</strong> com atenção
                 qual face aparece em cada dado.
               </p>
@@ -1013,7 +937,7 @@ export function DiceMachineExperiment({
 
           {/* ───────── L1, L2, L3: ROLLING (animação da máquina) ───────── */}
           {(phase === 's1-rolling' || phase === 's2-rolling' || phase === 's3-rolling') && (
-            <div style={{ marginTop: 8 }}>
+            <div className="mt-micro">
               {renderStepBar()}
               <p
                 aria-live="polite"
@@ -1037,7 +961,7 @@ export function DiceMachineExperiment({
               <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
                 Lançamento 1 — Registrar
               </p>
-              <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mb-macro text-justify">
                 Toque em cada dado abaixo e escolha a <strong>face</strong> que apareceu
                 na máquina.
               </p>
@@ -1068,7 +992,7 @@ export function DiceMachineExperiment({
                 ✓ Par registrado corretamente
               </p>
               {renderResultCard(false)}
-              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black text-justify">
                 Você leu o par <strong>(verde, azul)</strong> que a máquina produziu. Cada
                 lançamento da máquina forma um novo par desse tipo.
               </p>
@@ -1097,7 +1021,7 @@ export function DiceMachineExperiment({
               <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
                 Lançamento 2 de 3 — Observar e somar
               </p>
-              <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mb-macro text-justify">
                 Agora você vai registrar o par <strong>e</strong> calcular a{' '}
                 <strong>soma</strong> dos dois dados.
               </p>
@@ -1223,7 +1147,7 @@ export function DiceMachineExperiment({
                 ✓ Par registrado e soma calculada
               </p>
               {renderResultCard(true)}
-              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black text-justify">
                 A soma dos dois dados é um número novo, que vem do par. Guarde essa ideia —
                 a <strong>soma</strong> vai voltar.
               </p>
@@ -1252,7 +1176,7 @@ export function DiceMachineExperiment({
               <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
                 Lançamento 3 de 3 — Fazer uma previsão
               </p>
-              <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mb-macro text-justify">
                 Antes de a máquina lançar, faça uma <strong>previsão</strong>: qual será a{' '}
                 <strong>soma</strong> dos dois dados?
               </p>
@@ -1377,7 +1301,7 @@ export function DiceMachineExperiment({
               <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
                 Lançamento 3 — Registrar o par
               </p>
-              <p className="ds-body text-neutral-black mb-macro" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mb-macro text-justify">
                 Antes de conferir sua previsão, registre o par que a máquina produziu.
               </p>
               {renderPairPicker()}
@@ -1487,17 +1411,17 @@ export function DiceMachineExperiment({
                     )}
                   </p>
                   {occurred ? (
-                    <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+                    <p className="ds-body text-neutral-black mt-micro text-justify">
                       Será que ocorreu porque sua intuição estava certa, ou porque o acaso
                       colaborou? Se a máquina lançar de novo, você confiaria na mesma previsão?
                     </p>
                   ) : (
-                    <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+                    <p className="ds-body text-neutral-black mt-micro text-justify">
                       E se a máquina lançar mil vezes, sua previsão seria a melhor escolha?
                       Sua intuição funciona... ou foi acaso?
                     </p>
                   )}
-                  <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+                  <p className="ds-body text-neutral-black mt-micro text-justify">
                     E aquele motivo que você marcou — ele ainda <strong>faz sentido</strong>{' '}
                     para você?
                   </p>
@@ -1530,11 +1454,11 @@ export function DiceMachineExperiment({
               <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
                 Há um padrão escondido?
               </p>
-              <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black text-justify">
                 Você viu que a soma nem sempre sai como imaginamos. Mas será que isso é{' '}
                 <strong>só acaso</strong>... ou existe um <strong>padrão escondido</strong>?
               </p>
-              <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+              <p className="ds-body text-neutral-black mt-micro text-justify">
                 Para descobrir, precisamos enxergar <strong>todos</strong> os resultados
                 possíveis ao mesmo tempo. Vamos organizar todos os pares numa tabela 6×6.
               </p>

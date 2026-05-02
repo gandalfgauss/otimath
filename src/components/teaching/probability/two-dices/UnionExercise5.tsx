@@ -32,7 +32,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import React, {
-  useState, useCallback, useMemo, useEffect, useRef,
+  useState, useCallback, useMemo, useRef,
   forwardRef, useImperativeHandle,
 } from 'react';
 import { Button } from '@/components/global/Button';
@@ -108,27 +108,27 @@ function fmtFracDisplay(num: number, den: number): string {
 // DICAS ESCALONADAS — geral → específica
 // ═══════════════════════════════════════════════════════════════
 
-function buildHints(data: Exercise5Data): { geral: string; especifica: string } {
+function buildHints(data: Exercise5Data): { general: string; specific: string } {
   if (data.questionType === 'union') {
     return {
-      geral:
+      general:
         `Releia o enunciado: a pergunta usa "OU". Pense em duas categorias diferentes — você precisa contar pessoas que pertencem a pelo menos uma delas. Há alguma pessoa que pertence às DUAS categorias ao mesmo tempo? O que isso implica sobre a forma de contar?`,
-      especifica:
+      specific:
         `Use a fórmula geral P(A ∪ B) = P(A) + P(B) − P(A ∩ B). Identifique:\n• n(A) = ${data.nA} pessoas (${data.descA})\n• n(B) = ${data.nB} pessoas (${data.descB})\n• n(A ∩ B) = ${data.nAB} pessoas (que satisfazem AS DUAS condições)\n• Total geral = ${data.tg}\nMonte: P(A ∪ B) = (${data.nA} + ${data.nB} − ${data.nAB}) / ${data.tg}.`,
     };
   }
   if (data.questionType === 'union_excl') {
     return {
-      geral:
+      general:
         `Os dois eventos pedidos podem ocorrer simultaneamente? Uma pessoa pode torcer pelos dois times ao mesmo tempo? Quando A ∩ B = ∅, o que acontece com a fórmula geral da união?`,
-      especifica:
+      specific:
         `Como A ∩ B = ∅ (nenhuma pessoa torce pelos dois times), a fórmula reduz-se a P(A ∪ B) = P(A) + P(B). Identifique:\n• n(A) = ${data.nA} (${data.descA})\n• n(B) = ${data.nB} (${data.descB})\n• Total geral = ${data.tg}\nMonte: P(A ∪ B) = (${data.nA} + ${data.nB}) / ${data.tg}.`,
     };
   }
   return {
-    geral:
+    general:
       `A pergunta usa "E" — pede pessoas que satisfazem AS DUAS condições simultaneamente. Localize na tabela a célula correspondente. O denominador é o total geral S.`,
-    especifica:
+    specific:
       `Identifique a célula da interseção: pessoas que ${data.descA} E ${data.descB} são n(A ∩ B) = ${data.nAB}. O total é ${data.tg}.\nMonte: P(A ∩ B) = ${data.nAB} / ${data.tg}.`,
   };
 }
@@ -333,7 +333,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
 
     // ── Renderização ─────────────────────────────────────────────
 
-    const isObrigatoria = round <= 1;
+    const isMandatory = round <= 1;
     const reduced = reduceFraction(data.answerNum, data.answerDen);
     void fractionsEquivalent; // disponibiliza para uso eventual em testes externos
 
@@ -353,7 +353,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
         <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-micro">
           Exercício 5 — Pesquisa em campo (tabela de contingência)
         </h2>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div className="flex justify-center">
           <RoundIndicator round={round} />
         </div>
 
@@ -364,7 +364,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
         {step === 'intro' && (
           <IntroPanel
             data={data}
-            isObrigatoria={isObrigatoria}
+            isMandatory={isMandatory}
             roundLabel={round === 0 ? 'primeira rodada' : round === 1 ? 'segunda rodada' : `rodada ${round + 1}`}
             onContinue={() => setStep('fillTotals')}
           />
@@ -385,7 +385,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
         )}
 
         {(step === 'enunciadoView' || step === 'wrongFeedback') && (
-          <EnunciadoPanel
+          <StatementPanel
             data={data}
             totals={totals}
             validation={validation}
@@ -429,7 +429,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
             answerFraction={fmtFracDisplay(data.answerNum, data.answerDen)}
             answerDecimal={fmtDecimal(data.answerNum, data.answerDen, 3)}
             answerPercent={fmtPercent(data.answerNum, data.answerDen, 1)}
-            onNextObrigatoria={advanceToNextRound}
+            onNextMandatory={advanceToNextRound}
             onContinueStudying={advanceToNextRound}
             onFinish={finishExercise}
           />
@@ -440,7 +440,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
           open={step === 'spiralOpen'}
           team1={data.team1}
           team2={data.team2}
-          question={data.enunciado}
+          question={data.statement}
           alternatives={alternatives}
           correctId="correct"
           onSubmit={onSpiralSubmit}
@@ -493,9 +493,9 @@ function SexSymbol({ s }: { s: 'm' | 'f' }) {
 }
 
 function RoundIndicator({ round }: { round: number }) {
-  const totalObrigatorias = 2;
+  const totalMandatory = 2;
   const dots = [];
-  for (let i = 0; i < totalObrigatorias; i++) {
+  for (let i = 0; i < totalMandatory; i++) {
     const filled = i <= round;
     dots.push(
       <span
@@ -516,23 +516,23 @@ function RoundIndicator({ round }: { round: number }) {
   return (
     <div
       style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
-      aria-label={`Rodada ${round + 1} de ${Math.max(round + 1, totalObrigatorias)}`}
+      aria-label={`Rodada ${round + 1} de ${Math.max(round + 1, totalMandatory)}`}
     >
       {dots}
       <span className="ds-small-bold" style={{ color: 'var(--color-brand-otimath-darker)' }}>
-        {round < totalObrigatorias
-          ? `Rodada ${round + 1} de ${totalObrigatorias}`
-          : `Rodada extra ${round - totalObrigatorias + 1}`}
+        {round < totalMandatory
+          ? `Rodada ${round + 1} de ${totalMandatory}`
+          : `Rodada extra ${round - totalMandatory + 1}`}
       </span>
     </div>
   );
 }
 
 function IntroPanel({
-  data, isObrigatoria, roundLabel, onContinue,
+  data, isMandatory, roundLabel, onContinue,
 }: {
   data: Exercise5Data;
-  isObrigatoria: boolean;
+  isMandatory: boolean;
   roundLabel: string;
   onContinue: () => void;
 }) {
@@ -561,7 +561,7 @@ function IntroPanel({
       </p>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 8 }}>
         <Button onClick={onContinue} size="medium" style="primary">
-          Começar {isObrigatoria ? '' : '(rodada extra)'}
+          Começar {isMandatory ? '' : '(rodada extra)'}
         </Button>
       </div>
     </section>
@@ -607,7 +607,7 @@ function FillTotalsPanel({
         </div>
         <CalculatorToggleButton open={calcOpen} onToggle={onToggleCalc} />
       </div>
-      <div ref={tableBoundsRef} style={{ position: 'relative' }}>
+      <div ref={tableBoundsRef} className="relative">
         <ContingencyTable
           data={data}
           totals={totals}
@@ -625,7 +625,7 @@ function FillTotalsPanel({
   );
 }
 
-function EnunciadoPanel({
+function StatementPanel({
   data, totals, validation, hintLevel, hints, wrongAttempts, showNoIdeaButton,
   onResponderClick, onRequestHint, onNoIdea,
   tableBoundsRef, calcOpen, onToggleCalc,
@@ -634,7 +634,7 @@ function EnunciadoPanel({
   totals: TotalsState;
   validation: TotalsValidation;
   hintLevel: 0 | 1 | 2;
-  hints: { geral: string; especifica: string };
+  hints: { general: string; specific: string };
   wrongAttempts: number;
   showNoIdeaButton: boolean;
   onResponderClick: () => void;
@@ -646,10 +646,10 @@ function EnunciadoPanel({
 }) {
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div className="flex justify-end">
         <CalculatorToggleButton open={calcOpen} onToggle={onToggleCalc} />
       </div>
-      <div ref={tableBoundsRef} style={{ position: 'relative' }}>
+      <div ref={tableBoundsRef} className="relative">
         <ContingencyTable
           data={data}
           totals={totals}
@@ -671,7 +671,7 @@ function EnunciadoPanel({
           className="ds-body-large"
           style={{ margin: 0, color: 'var(--color-neutral-darkest)' }}
         >
-          {data.enunciado}
+          {data.statement}
         </p>
       </div>
 
@@ -693,7 +693,7 @@ function EnunciadoPanel({
             className="ds-body"
             style={{ margin: 0, color: 'var(--color-neutral-darkest)', whiteSpace: 'pre-line' }}
           >
-            {hintLevel === 1 ? hints.geral : hints.especifica}
+            {hintLevel === 1 ? hints.general : hints.specific}
           </p>
         </aside>
       )}
@@ -778,7 +778,7 @@ function ConditionalGlimpsePanel({
         conceito a fundo nos próximos OVAs da sequência. Por enquanto,
         observe que ele depende de restringirmos o espaço amostral.
       </p>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div className="flex justify-end">
         <Button onClick={onContinue} size="medium" style="primary">
           Entendi, prosseguir
         </Button>
@@ -789,7 +789,7 @@ function ConditionalGlimpsePanel({
 
 function RoundFinishedPanel({
   round, data, answerNum, answerDen, answerFraction, answerDecimal, answerPercent,
-  onNextObrigatoria, onContinueStudying, onFinish,
+  onNextMandatory, onContinueStudying, onFinish,
 }: {
   round: number;
   data: Exercise5Data;
@@ -798,11 +798,11 @@ function RoundFinishedPanel({
   answerFraction: string;
   answerDecimal: string;
   answerPercent: string;
-  onNextObrigatoria: () => void;
+  onNextMandatory: () => void;
   onContinueStudying: () => void;
   onFinish: () => void;
 }) {
-  const isObrigatoriaPendente = round === 0;
+  const isMandatoryPending = round === 0;
   void answerNum; void answerDen;
   return (
     <section
@@ -832,8 +832,8 @@ function RoundFinishedPanel({
           marginTop: 4,
         }}
       >
-        {isObrigatoriaPendente ? (
-          <Button onClick={onNextObrigatoria} size="medium" style="primary">
+        {isMandatoryPending ? (
+          <Button onClick={onNextMandatory} size="medium" style="primary">
             Próxima rodada (mutuamente exclusivos)
           </Button>
         ) : (

@@ -58,13 +58,6 @@ export interface Team {
   imgScale?: number;
 }
 
-const SPRITE_4 = '/images/teaching/probability/two-dices/escudos/_sprite_4.png';
-
-// Coordenadas calibradas dos 4 escudos no sprite 470×470:
-// América-RN | Corinthians | Vasco | Grêmio  (linha superior)
-const SPRITE_W = 470;
-const SPRITE_H = 470;
-
 export const TEAMS: Team[] = [
   // Calibração matemática (rev. 4): após trim de transparência,
   // imgScale ≈ sqrt(1/aspect_ratio) iguala área visual, compensando

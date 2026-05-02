@@ -520,6 +520,9 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
     const clock = new THREE.Clock();
     const animate = () => {
       state.animId = requestAnimationFrame(animate);
+      // Otimização: pula render se canvas oculto (display:none em ancestral) —
+      // evita gastar CPU/GPU no Ex7 quando alterna entre TwoDiceScene e a máquina.
+      if (renderer.domElement.offsetParent === null) return;
       clock.getDelta(); // consume delta
       updatePhysics();
       animateCamera();
@@ -608,6 +611,8 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
   return (
     <div
       ref={containerRef}
+      role="img"
+      aria-label="Cena 3D interativa com dois dados (verde e azul) sobre uma mesa de madeira."
       className="w-full rounded-lg overflow-hidden"
       style={{ aspectRatio, maxWidth: 620, margin: '0 auto', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
     />

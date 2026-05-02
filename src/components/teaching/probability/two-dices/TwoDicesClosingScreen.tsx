@@ -29,7 +29,7 @@
    ARQUITETURA
      Reusa Button, TextBlock, StudyMenu — sem componentes globais novos.
      Lê dados via `useTwoDicesLog`: `getLogSummary`, `getPhasePerformance`,
-     `detectCognitiveBiases`, `getVerbeteConsultations`, `downloadLog`.
+     `detectCognitiveBiases`, `getGlossaryConsultations`, `downloadLog`.
    ═══════════════════════════════════════════════════════════════════ */
 
 import React, { useMemo } from 'react';
@@ -40,7 +40,7 @@ import {
   getLogSummary,
   getPhasePerformance,
   detectCognitiveBiases,
-  getVerbeteConsultations,
+  getGlossaryConsultations,
   downloadLog,
   type PhasePerformance,
   type BiasOccurrence,
@@ -50,10 +50,9 @@ import {
   BLOCK_TITLES,
   BNCC_DESCRIPTIONS,
   TOPIC_DESCRIPTIONS,
-  getPhaseDescriptor,
   type PhaseDescriptor,
 } from './shared/twoDicesPhaseRegistry';
-import { VERBETES } from './shared/studyMenuContent';
+import { GLOSSARY_ENTRIES } from './shared/studyMenuContent';
 
 interface TwoDicesClosingScreenProps {
   /** Disparado quando o estudante clica em "Voltar para o início". */
@@ -119,7 +118,7 @@ export function TwoDicesClosingScreen({
   const summary = useMemo(getLogSummary, []);
   const performance = useMemo(getPhasePerformance, []);
   const biases = useMemo(detectCognitiveBiases, []);
-  const verbeteConsultations = useMemo(getVerbeteConsultations, []);
+  const glossaryConsultations = useMemo(getGlossaryConsultations, []);
 
   /* ──────────────────────────────────────────────────────────────
      Mapeamento de uso:
@@ -168,11 +167,11 @@ export function TwoDicesClosingScreen({
   }, [performanceByPhase]);
 
   /* Verbete mais consultado — destaque com badge. */
-  const mostConsultedVerbeteId =
-    verbeteConsultations[0]?.count > 0 ? verbeteConsultations[0].verbeteId : null;
-  const verbeteTitleById = useMemo(() => {
+  const mostConsultedGlossaryEntryId =
+    glossaryConsultations[0]?.count > 0 ? glossaryConsultations[0].glossaryEntryId : null;
+  const glossaryTitleById = useMemo(() => {
     const map: Record<string, string> = {};
-    for (const v of VERBETES) map[v.id] = v.titulo;
+    for (const v of GLOSSARY_ENTRIES) map[v.id] = v.title;
     return map;
   }, []);
 
@@ -301,26 +300,26 @@ export function TwoDicesClosingScreen({
         <h3 id="closing-verbetes" className="ds-heading-large text-brand-otimath-darker mb-micro">
           3. Verbetes do Menu de Revisão consultados
         </h3>
-        {verbeteConsultations.length === 0 ? (
+        {glossaryConsultations.length === 0 ? (
           <p className="ds-small text-neutral-dark italic">
             Você não consultou o Menu de Revisão nesta sessão. Se estudar para uma avaliação,
             todos os verbetes continuam disponíveis pelo botão <strong>Ajuda</strong> do Ex6.
           </p>
         ) : (
           <ul className="flex flex-col gap-y-quarck">
-            {verbeteConsultations.map((c) => (
+            {glossaryConsultations.map((c) => (
               <li
-                key={c.verbeteId}
+                key={c.glossaryEntryId}
                 className="flex items-center justify-between p-quarck rounded-sm border-hairline border-neutral-lightest bg-neutral-white"
               >
                 <span className="ds-small text-neutral-darkest">
-                  {verbeteTitleById[c.verbeteId] ?? c.verbeteId}
+                  {glossaryTitleById[c.glossaryEntryId] ?? c.glossaryEntryId}
                 </span>
                 <span className="flex items-center gap-x-quarck">
                   <span className="ds-caption text-neutral-dark">
                     {c.count} {c.count === 1 ? 'consulta' : 'consultas'}
                   </span>
-                  {c.verbeteId === mostConsultedVerbeteId && (
+                  {c.glossaryEntryId === mostConsultedGlossaryEntryId && (
                     <span
                       className="ds-caption-bold rounded-sm px-quarck"
                       style={{
@@ -388,22 +387,22 @@ export function TwoDicesClosingScreen({
         </h3>
         <TextBlock
           paragraph={
-            biases.length === 0 && verbeteConsultations.length === 0
+            biases.length === 0 && glossaryConsultations.length === 0
               ? `<p class="ds-body">Nenhuma dificuldade saliente foi detectada nesta sessão. Você atravessou o percurso sem padrão recorrente de erro nem necessidade de consultar o Menu de Revisão. Isso sugere que os conceitos T1 a T7 estão consolidados ao nível esperado pelo OVA.</p>`
               : `<p class="ds-body">A síntese abaixo combina os <strong>vieses detectados</strong> e os <strong>verbetes mais consultados</strong> para apontar — em linguagem operacional — as áreas em que pode valer a pena revisitar antes de uma avaliação ou ao iniciar o próximo OVA da sequência. Esta síntese segue o princípio de relevância contextual (<strong>MAYER, 2014, p. 280</strong>): apontar o que estudar, não apenas o que se errou.</p>`
           }
           maxWidthParagraph="max-w-[820px]"
         />
-        {(biases.length > 0 || verbeteConsultations.length > 0) && (
-          <ul className="ds-body text-neutral-darkest mt-micro" style={{ paddingLeft: 24 }}>
+        {(biases.length > 0 || glossaryConsultations.length > 0) && (
+          <ul className="ds-body text-neutral-darkest mt-micro pl-xxs">
             {biases.slice(0, 3).map((b) => (
               <li key={'diff-' + b.code} className="mb-quarck">
                 Dificuldade com <strong>{b.name.toLowerCase()}</strong>: revise o(s) verbete(s) ligado(s) à operação correspondente no Menu de Revisão. ({b.reference})
               </li>
             ))}
-            {verbeteConsultations.slice(0, 2).map((v) => (
-              <li key={'diff-v-' + v.verbeteId} className="mb-quarck">
-                Você consultou <strong>{verbeteTitleById[v.verbeteId] ?? v.verbeteId}</strong> {v.count} {v.count === 1 ? 'vez' : 'vezes'} — vale revisitar o verbete ao estudar.
+            {glossaryConsultations.slice(0, 2).map((v) => (
+              <li key={'diff-v-' + v.glossaryEntryId} className="mb-quarck">
+                Você consultou <strong>{glossaryTitleById[v.glossaryEntryId] ?? v.glossaryEntryId}</strong> {v.count} {v.count === 1 ? 'vez' : 'vezes'} — vale revisitar o verbete ao estudar.
               </li>
             ))}
           </ul>
@@ -500,11 +499,11 @@ export function TwoDicesClosingScreen({
 
       {/* ───────────────── AÇÕES ───────────────── */}
       <footer className="flex flex-wrap justify-center gap-x-micro gap-y-micro pt-micro border-t-hairline border-neutral-lightest">
-        <Button style="secondary" size="medium" icon={<Download />} onClick={downloadLog}>
+        <Button style="secondary" size="medium" icon={<Download aria-hidden="true" />} onClick={downloadLog}>
           Baixar relatório (JSON)
         </Button>
         {onRestart && (
-          <Button style="secondary" size="medium" icon={<RefreshCw />} onClick={onRestart}>
+          <Button style="secondary" size="medium" icon={<RefreshCw aria-hidden="true" />} onClick={onRestart}>
             Refazer o OVA
           </Button>
         )}

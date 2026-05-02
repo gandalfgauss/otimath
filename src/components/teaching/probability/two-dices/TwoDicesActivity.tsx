@@ -1,19 +1,19 @@
 import { HeroBanner } from "@/components/global/HeroBanner";
+import { OvaCredits } from "@/components/global/OvaCredits";
 import { TextBlock } from "@/components/global/TextBlock";
 import { TwoDicesInstructionsSection } from "@/components/teaching/probability/two-dices/TwoDicesInstructionsSection";
 import { TwoDicesSection } from "@/components/teaching/probability/two-dices/TwoDicesSection";
 import heroBannerTwoDicesImage from '@/images/teaching/probability/two-dices/twoDicesBanner.webp';
-import { TwoDicesCredits } from "./TwoDicesCredits";
 
 
 export default function TwoDicesActivity() {
   return (
     <main>
-      <HeroBanner 
+      <HeroBanner
         id="hero-banner"
         textBlock={
-          <TextBlock 
-              overline="Probabilidade" 
+          <TextBlock
+              overline="Probabilidade"
               title={<h1 className="ds-heading-giga">Dois Dados: cálculo de probabilidade em espaços amostrais equiprováveis</h1>}
               paragraph={
                 <p className="ds-body">
@@ -26,9 +26,8 @@ export default function TwoDicesActivity() {
         }
         image={heroBannerTwoDicesImage}
       />
-      <TwoDicesInstructionsSection />
       <TwoDicesSection />
-      <TwoDicesCredits />
+      <OvaCredits />
     </main>
   );
 }

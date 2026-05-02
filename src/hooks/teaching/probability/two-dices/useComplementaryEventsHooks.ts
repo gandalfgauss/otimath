@@ -23,7 +23,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CheckboxInterface } from '@/components/global/Checkbox';
-import { TextInputInterface } from '@/components/global/TextInput';
 import { useAlerts } from '@/hooks/global/useAlerts';
 import { useModal } from '@/hooks/global/useModal';
 import { playSound } from '@/hooks/global/useSound';
@@ -634,6 +633,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
       case 'strategyChoice': {
         // Passo 1 — NÃO valida. Apenas registra e avança.
         if (!strategyChoice) {
+          playSound('/sounds/incorrect.mp3');
           createAlert('Escolha uma opção', 'Selecione um caminho antes de continuar.', 'info', 3000);
           return;
         }
@@ -667,6 +667,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
         // Primeiro clique: precisa ter escolhido "mantenho" ou "mudo".
         if (!reviewChoice) {
           setReviewError(true);
+          playSound('/sounds/incorrect.mp3');
           createAlert('Escolha uma opção', 'Indique se mantém ou muda sua escolha.', 'info', 3000);
           return;
         }

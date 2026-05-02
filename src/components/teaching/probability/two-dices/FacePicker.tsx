@@ -76,7 +76,7 @@ function PickerDiceFaceIcon({
       role={ariaHidden ? undefined : 'img'}
     >
       {pips.map((pip, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div key={i} className="flex items-center justify-center">
           {pip ? (
             <div
               style={{

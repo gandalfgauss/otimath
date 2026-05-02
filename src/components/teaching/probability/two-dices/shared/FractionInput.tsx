@@ -31,6 +31,7 @@ export function FractionInput({ num, den, setNum, setDen, error, onEnter, disabl
         onChange={e => setNum(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' && onEnter && !disabled) onEnter(); }}
         placeholder="?" aria-label="Numerador"
+        aria-invalid={error}
         disabled={disabled}
         style={{
           border: `2px solid ${border}`, borderRadius: 6, padding: '4px',
@@ -39,12 +40,13 @@ export function FractionInput({ num, den, setNum, setDen, error, onEnter, disabl
           color: disabled ? 'var(--color-neutral-dark)' : undefined,
         }}
       />
-      <hr style={{ width: '100%', height: 2, background: 'var(--color-neutral-black)', border: 'none', margin: '3px 0' }} />
+      <hr aria-hidden="true" style={{ width: '100%', height: 2, background: 'var(--color-neutral-black)', border: 'none', margin: '3px 0' }} />
       <input
         type="number" inputMode="numeric" value={den}
         onChange={e => setDen(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' && onEnter && !disabled) onEnter(); }}
         placeholder="?" aria-label="Denominador"
+        aria-invalid={error}
         disabled={disabled}
         style={{
           border: `2px solid ${border}`, borderRadius: 6, padding: '4px',

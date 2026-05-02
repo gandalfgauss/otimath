@@ -16,6 +16,21 @@ interface CupShakerProps {
   diceColor: 'green' | 'blue';
 }
 
+// Helpers (puros, escopo de módulo — evita recriar identidade a cada render)
+const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
+const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+
+// Posições das pintas em cada face (escopo de módulo — constante)
+const PIP_MAP: Record<number, number[][]> = {
+  1: [[0, 0]],
+  2: [[-1, -1], [1, 1]],
+  3: [[-1, -1], [0, 0], [1, 1]],
+  4: [[-1, -1], [1, -1], [-1, 1], [1, 1]],
+  5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]],
+  6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]],
+};
+
 const CupShaker = forwardRef<CupShakerHandle, CupShakerProps>(function CupShaker(
   { diceColor },
   ref
@@ -31,24 +46,9 @@ const CupShaker = forwardRef<CupShakerHandle, CupShakerProps>(function CupShaker
   // Dimensões internas
   const W = 800, H = 500;
 
-  // Helpers
-  const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
-  const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-  const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-
   // Cores
   const diceHex = diceColor === 'green' ? '#1a5c2e' : '#0a1f6e';
   const diceHi = diceColor === 'green' ? '#2a8844' : '#1a3f9e';
-
-  // Pip positions
-  const PIP_MAP: Record<number, number[][]> = {
-    1: [[0, 0]],
-    2: [[-1, -1], [1, 1]],
-    3: [[-1, -1], [0, 0], [1, 1]],
-    4: [[-1, -1], [1, -1], [-1, 1], [1, 1]],
-    5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]],
-    6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]],
-  };
 
   // Dado 2D dentro do copo
   const drawDie2D = useCallback((ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, rot: number, face: number, alpha: number) => {
@@ -232,7 +232,7 @@ const CupShaker = forwardRef<CupShakerHandle, CupShakerProps>(function CupShaker
     }
 
     animRef.current = requestAnimationFrame(animate);
-  }, [drawDie2D, drawCup, easeInOut, easeOut, clamp, W, H]);
+  }, [drawDie2D, drawCup, W, H]);
 
   // API pública
   const start = useCallback((): Promise<void> => {

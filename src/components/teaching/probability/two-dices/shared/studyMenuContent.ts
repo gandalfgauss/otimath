@@ -17,7 +17,7 @@
      7 Prob. da união  V7.2 — generalização da exclusão (Batanero & Diaz, 2007)
    ═══════════════════════════════════════════════════════════════════ */
 
-export type VerbeteId =
+export type GlossaryEntryId =
   | 'uniao'
   | 'intersecao'
   | 'diferenca'
@@ -26,153 +26,153 @@ export type VerbeteId =
   | 'cardinalidade-uniao'
   | 'probabilidade-uniao';
 
-export interface Verbete {
-  readonly id: VerbeteId;
-  readonly titulo: string;
-  readonly grupo: 'operacoes' | 'eventos-especiais' | 'probabilidade';
-  readonly grupoTitulo: string;
-  readonly definicaoFormal: string;
-  readonly definicaoNatural: string;
-  readonly exemploContexto: string;
-  readonly exemploCalculo: string;
-  readonly paraQueServe: string;
-  readonly atencao: string;
-  readonly referencia: string;
+export interface GlossaryEntry {
+  readonly id: GlossaryEntryId;
+  readonly title: string;
+  readonly group: 'operacoes' | 'eventos-especiais' | 'probabilidade';
+  readonly groupTitle: string;
+  readonly formalDefinition: string;
+  readonly naturalDefinition: string;
+  readonly exampleContext: string;
+  readonly exampleCalculation: string;
+  readonly useCase: string;
+  readonly attention: string;
+  readonly reference: string;
 }
 
-export const VERBETES: readonly Verbete[] = [
+export const GLOSSARY_ENTRIES: readonly GlossaryEntry[] = [
   {
     id: 'uniao',
-    titulo: 'União (A ∪ B)',
-    grupo: 'operacoes',
-    grupoTitulo: 'Operações entre eventos',
-    definicaoFormal:
+    title: 'União (A ∪ B)',
+    group: 'operacoes',
+    groupTitle: 'Operações entre eventos',
+    formalDefinition:
       'A ∪ B = { x ∈ S | x ∈ A ou x ∈ B } — conjunto dos resultados que pertencem a A, a B, ou a ambos.',
-    definicaoNatural:
+    naturalDefinition:
       'A união reúne em um único evento TODOS os resultados que satisfazem o evento A OU o evento B (ou ambos). Aqui, "ou" é INCLUSIVO — quem está nos dois também conta.',
-    exemploContexto:
+    exampleContext:
       'Considere A = "Soma maior que 8" e B = "Face par no dado verde" no lançamento de dois dados (verde × azul). O evento A ∪ B contém todos os pares ordenados (g, b) em que a soma é maior que 8 OU o dado verde mostra face par (ou as duas coisas).',
-    exemploCalculo:
+    exampleCalculation:
       'n(A) = 10; n(B) = 18; n(A ∩ B) = 6 (pares que satisfazem AS DUAS condições). Logo n(A ∪ B) = 10 + 18 − 6 = 22 pares ordenados em 36 possíveis.',
-    paraQueServe:
+    useCase:
       'Quando o problema pergunta "qual a probabilidade de OCORRER A OU B?", você precisa do evento A ∪ B. É a operação que aparece em quase todo problema de probabilidade que envolve duas condições alternativas.',
-    atencao:
+    attention:
       'Em linguagem cotidiana, "ou" às vezes significa "uma OU outra, mas não as duas" (ou exclusivo). Em Matemática, A ∪ B é SEMPRE inclusivo — quem está em A ∩ B também está em A ∪ B. Confundir isso é o viés mais comum (BATANERO; DIAZ, 2007, p. 123).',
-    referencia: 'BATANERO, C.; DIAZ, C. (eds.). Matemáticas y su didáctica para maestros. Granada: Universidad de Granada, 2007.',
+    reference: 'BATANERO, C.; DIAZ, C. (eds.). Matemáticas y su didáctica para maestros. Granada: Universidad de Granada, 2007.',
   },
   {
     id: 'intersecao',
-    titulo: 'Interseção (A ∩ B)',
-    grupo: 'operacoes',
-    grupoTitulo: 'Operações entre eventos',
-    definicaoFormal:
+    title: 'Interseção (A ∩ B)',
+    group: 'operacoes',
+    groupTitle: 'Operações entre eventos',
+    formalDefinition:
       'A ∩ B = { x ∈ S | x ∈ A e x ∈ B } — conjunto dos resultados que pertencem SIMULTANEAMENTE a A e a B.',
-    definicaoNatural:
+    naturalDefinition:
       'A interseção reúne apenas os resultados que satisfazem AO MESMO TEMPO o evento A E o evento B. Quem está em só um dos dois fica de fora.',
-    exemploContexto:
+    exampleContext:
       'Com A = "Soma maior que 8" e B = "Face par no dado verde", o evento A ∩ B contém os pares (g, b) em que a soma é maior que 8 E o dado verde é par. Por exemplo, (4, 5): soma = 9 > 8 ✓ e verde = 4 é par ✓. Já (3, 6): soma = 9 > 8 ✓ mas verde = 3 não é par ✗ — fica de fora.',
-    exemploCalculo:
+    exampleCalculation:
       'Os pares (g, b) com soma > 8 E verde par são: (4,5), (4,6), (6,3), (6,4), (6,5), (6,6) — total n(A ∩ B) = 6 em 36 possíveis. P(A ∩ B) = 6/36 = 1/6.',
-    paraQueServe:
+    useCase:
       'Quando o problema pergunta "qual a probabilidade de OCORRER A E B AO MESMO TEMPO?", você precisa do evento A ∩ B. Também aparece como termo dentro da fórmula da união: P(A ∪ B) = P(A) + P(B) − P(A ∩ B).',
-    atencao:
+    attention:
       'Não confunda "e" da linguagem comum com o "e" matemático. Para estar em A ∩ B, é PRECISO satisfazer as DUAS condições — basta uma falhar e o resultado fica fora. Ambiguidade na palavra "e" é fonte recorrente de erro (BATANERO; DIAZ, 2007, p. 123).',
-    referencia: 'BATANERO, C.; DIAZ, C. (eds.). Matemáticas y su didáctica para maestros. Granada: Universidad de Granada, 2007.',
+    reference: 'BATANERO, C.; DIAZ, C. (eds.). Matemáticas y su didáctica para maestros. Granada: Universidad de Granada, 2007.',
   },
   {
     id: 'diferenca',
-    titulo: 'Diferença (A − B)',
-    grupo: 'operacoes',
-    grupoTitulo: 'Operações entre eventos',
-    definicaoFormal:
+    title: 'Diferença (A − B)',
+    group: 'operacoes',
+    groupTitle: 'Operações entre eventos',
+    formalDefinition:
       'A − B = { x ∈ S | x ∈ A e x ∉ B } = A ∩ B̄ — conjunto dos resultados que pertencem a A MAS NÃO a B (S é o espaço amostral).',
-    definicaoNatural:
+    naturalDefinition:
       'A diferença A − B pega tudo o que está em A e REMOVE o que também esteja em B. É equivalente a "A interseção com o complementar de B".',
-    exemploContexto:
+    exampleContext:
       'Com A = "Soma maior que 8" e B = "Face par no dado verde", o evento A − B contém os pares com soma > 8 EXCETO aqueles em que o verde é par. Por exemplo, (3,6) tem soma = 9 > 8 e verde = 3 (ímpar) → está em A − B. Já (4,5) tem soma = 9 > 8 mas verde = 4 (par) → fica fora.',
-    exemploCalculo:
+    exampleCalculation:
       'n(A) = 10; n(A ∩ B) = 6. Logo n(A − B) = n(A) − n(A ∩ B) = 10 − 6 = 4 pares: (3,6), (5,4), (5,5), (5,6). P(A − B) = 4/36 = 1/9.',
-    paraQueServe:
+    useCase:
       'Útil quando o problema pede "ocorre A mas NÃO ocorre B". Também aparece quando uma operação de interseção pode ser reescrita como diferença com complementar: A ∩ B = A − B̄.',
-    atencao:
+    attention:
       'A − B NÃO é o mesmo que B − A (a operação não é comutativa). Verifique sempre qual conjunto é o "principal" (de onde se remove) e qual é o "subtraído" (BATANERO; DIAZ, 2007, p. 126).',
-    referencia: 'BATANERO, C.; DIAZ, C. (eds.). Matemáticas y su didáctica para maestros. Granada: Universidad de Granada, 2007.',
+    reference: 'BATANERO, C.; DIAZ, C. (eds.). Matemáticas y su didáctica para maestros. Granada: Universidad de Granada, 2007.',
   },
   {
     id: 'complementar',
-    titulo: 'Evento Complementar (Ā)',
-    grupo: 'eventos-especiais',
-    grupoTitulo: 'Eventos especiais',
-    definicaoFormal:
+    title: 'Evento Complementar (Ā)',
+    group: 'eventos-especiais',
+    groupTitle: 'Eventos especiais',
+    formalDefinition:
       'Ā = { x ∈ S | x ∉ A } = S − A — conjunto dos resultados do espaço amostral S que NÃO pertencem a A. Vale P(A) + P(Ā) = 1.',
-    definicaoNatural:
+    naturalDefinition:
       'O complementar de A é tudo o que está no espaço amostral S menos o que está em A. Em palavras: "o evento de A NÃO ocorrer".',
-    exemploContexto:
+    exampleContext:
       'Se A = "Soma maior que 8", então Ā = "Soma menor ou igual a 8". A cobre 10 dos 36 pares; Ā cobre os outros 26. Note que A ∪ Ā = S e A ∩ Ā = ∅.',
-    exemploCalculo:
+    exampleCalculation:
       'P(A) = 10/36 = 5/18. P(Ā) = 1 − 5/18 = 13/18 = 26/36. Verificação: 10 + 26 = 36 ✓.',
-    paraQueServe:
+    useCase:
       'Quando calcular P(A) é difícil mas P(Ā) é fácil, use P(A) = 1 − P(Ā). Especialmente útil em problemas com "pelo menos um(a)" — o complementar costuma ser "nenhum(a)", muito mais fácil de contar.',
-    atencao:
+    attention:
       'Estudantes tendem a calcular sempre direto, mesmo quando o complementar seria mais simples (BATANERO; DIAZ, 2007, p. 127). Habitue-se a perguntar: "é mais fácil contar o que ocorre OU o que NÃO ocorre?" antes de escolher a estratégia.',
-    referencia: 'BATANERO, C.; DIAZ, C. (eds.). Matemáticas y su didáctica para maestros. Granada: Universidad de Granada, 2007.',
+    reference: 'BATANERO, C.; DIAZ, C. (eds.). Matemáticas y su didáctica para maestros. Granada: Universidad de Granada, 2007.',
   },
   {
     id: 'equiprovavel',
-    titulo: 'Probabilidade em espaço amostral equiprovável',
-    grupo: 'probabilidade',
-    grupoTitulo: 'Probabilidade',
-    definicaoFormal:
+    title: 'Probabilidade em espaço amostral equiprovável',
+    group: 'probabilidade',
+    groupTitle: 'Probabilidade',
+    formalDefinition:
       'Seja S o espaço amostral (conjunto de TODOS os resultados possíveis do experimento). Se S é finito e todos os resultados elementares são igualmente prováveis, então P(A) = n(A) / n(S) para qualquer evento A ⊆ S. Esta é a definição clássica de probabilidade (Laplace).',
-    definicaoNatural:
+    naturalDefinition:
       'Em um espaço amostral em que cada resultado tem a mesma chance de sair, a probabilidade de um evento é a razão entre quantos resultados favorecem o evento e quantos resultados são possíveis no total.',
-    exemploContexto:
+    exampleContext:
       'No lançamento de dois dados (verde × azul), o espaço amostral S é o conjunto dos 36 pares ordenados (g, b) com g, b ∈ {1, 2, 3, 4, 5, 6}. Cada par é igualmente provável (1/36).',
-    exemploCalculo:
+    exampleCalculation:
       'Para o evento A = "Soma maior que 8", contam-se os pares favoráveis: (3,6), (4,5), (4,6), (5,4), (5,5), (5,6), (6,3), (6,4), (6,5), (6,6) → n(A) = 10. Logo P(A) = 10/36 = 5/18.',
-    paraQueServe:
+    useCase:
       'É a fórmula básica para calcular probabilidade em qualquer experimento clássico — dados, moedas, baralhos, sorteios — em que a simetria garante que todos os resultados elementares têm a mesma chance.',
-    atencao:
+    attention:
       'Antes de aplicar a fórmula, VERIFIQUE se S (o espaço amostral) é mesmo equiprovável. Se não for, n(A)/n(S) está errado. E nunca esqueça de identificar n(S) corretamente — esse é o erro mais frequente em probabilidade clássica (NAVARRO-PELAYO et al., 2016, p. 734).',
-    referencia: 'NAVARRO-PELAYO, V.; PAEZ-MONTIEL, J. C.; AMADOR-CRUZ, J. A. Secondary school students\' difficulties in solving probability tasks. IJMEST, v. 47, n. 5, p. 732-747, 2016.',
+    reference: 'NAVARRO-PELAYO, V.; PAEZ-MONTIEL, J. C.; AMADOR-CRUZ, J. A. Secondary school students\' difficulties in solving probability tasks. IJMEST, v. 47, n. 5, p. 732-747, 2016.',
   },
   {
     id: 'cardinalidade-uniao',
-    titulo: 'Cardinalidade da União: n(A ∪ B) = n(A) + n(B) − n(A ∩ B)',
-    grupo: 'probabilidade',
-    grupoTitulo: 'Probabilidade',
-    definicaoFormal:
+    title: 'Cardinalidade da União: n(A ∪ B) = n(A) + n(B) − n(A ∩ B)',
+    group: 'probabilidade',
+    groupTitle: 'Probabilidade',
+    formalDefinition:
       'Para quaisquer eventos finitos A e B, vale o princípio da inclusão-exclusão: n(A ∪ B) = n(A) + n(B) − n(A ∩ B). A subtração de n(A ∩ B) corrige a contagem dupla dos elementos que pertencem aos dois conjuntos.',
-    definicaoNatural:
+    naturalDefinition:
       'Para contar quantos resultados estão em A ∪ B, somamos n(A) e n(B), MAS subtraímos n(A ∩ B) — porque os elementos da interseção foram contados duas vezes (uma em A, outra em B).',
-    exemploContexto:
+    exampleContext:
       'Com A = "Soma maior que 8" (n(A) = 10) e B = "Face par no dado verde" (n(B) = 18), há 6 pares que estão em ambos (n(A ∩ B) = 6). Se somássemos direto, contaríamos esses 6 pares duas vezes.',
-    exemploCalculo:
+    exampleCalculation:
       'n(A ∪ B) = n(A) + n(B) − n(A ∩ B) = 10 + 18 − 6 = 22. Sem subtrair a interseção, daria 28 — errado.',
-    paraQueServe:
+    useCase:
       'É o passo intermediário entre saber n(A), n(B), n(A ∩ B) e calcular P(A ∪ B). Sempre que você precisar de "quantos estão em A ou em B", use esta fórmula.',
-    atencao:
+    attention:
       'O erro clássico é fazer n(A) + n(B) sem subtrair a interseção — chamado de heurística aditiva simplificada (KAHNEMAN; TVERSKY, 1972, p. 432). Resulta em SUPERESTIMAÇÃO da cardinalidade (e, em probabilidade, em valores possivelmente acima de 1, o que é matematicamente impossível).',
-    referencia: 'KAHNEMAN, D.; TVERSKY, A. Subjective probability: a judgment of representativeness. Cognitive Psychology, v. 3, n. 3, p. 430-454, 1972.',
+    reference: 'KAHNEMAN, D.; TVERSKY, A. Subjective probability: a judgment of representativeness. Cognitive Psychology, v. 3, n. 3, p. 430-454, 1972.',
   },
   {
     id: 'probabilidade-uniao',
-    titulo: 'Probabilidade da União — duas formas equivalentes',
-    grupo: 'probabilidade',
-    grupoTitulo: 'Probabilidade',
-    definicaoFormal:
+    title: 'Probabilidade da União — duas formas equivalentes',
+    group: 'probabilidade',
+    groupTitle: 'Probabilidade',
+    formalDefinition:
       'Sendo S o espaço amostral, a probabilidade do evento A ∪ B pode ser calculada de DUAS formas equivalentes:\n\n  (a) Forma direta:    P(A ∪ B) = n(A ∪ B) / n(S)\n  (b) Forma composta:  P(A ∪ B) = P(A) + P(B) − P(A ∩ B)\n\nAmbas dão o mesmo resultado. A forma (b) é consequência direta da fórmula da inclusão-exclusão dividida por n(S).',
-    definicaoNatural:
+    naturalDefinition:
       'Você tem DOIS caminhos para calcular P(A ∪ B): contar diretamente quantos pares estão em A ∪ B e dividir por 36, OU somar P(A) + P(B) e subtrair P(A ∩ B). Os dois caminhos chegam ao mesmo número.',
-    exemploContexto:
+    exampleContext:
       'Com A = "Soma maior que 8" e B = "Face par no dado verde": n(A) = 10, n(B) = 18, n(A ∩ B) = 6, n(A ∪ B) = 22.',
-    exemploCalculo:
+    exampleCalculation:
       'Forma direta:   P(A ∪ B) = 22/36 = 11/18 ≈ 0,611\nForma composta: P(A ∪ B) = 10/36 + 18/36 − 6/36 = (10 + 18 − 6)/36 = 22/36 = 11/18 ✓\n\nResultado idêntico.',
-    paraQueServe:
+    useCase:
       'A forma direta é melhor quando você já marcou A ∪ B na tabela e contou as células. A forma composta é melhor quando você conhece P(A), P(B) e P(A ∩ B) separadamente — situação típica em problemas de palavras.',
-    atencao:
+    attention:
       'NÃO use P(A ∪ B) = P(A) + P(B) sem subtrair P(A ∩ B), a menos que A e B sejam MUTUAMENTE EXCLUSIVOS (A ∩ B = ∅). Generalizar a regra dos exclusivos para eventos quaisquer é erro frequente (BATANERO; DIAZ, 2007, p. 125).',
-    referencia: 'BATANERO, C.; DIAZ, C. (eds.). Matemáticas y su didáctica para maestros. Granada: Universidad de Granada, 2007.',
+    reference: 'BATANERO, C.; DIAZ, C. (eds.). Matemáticas y su didáctica para maestros. Granada: Universidad de Granada, 2007.',
   },
 ];
 
@@ -197,10 +197,10 @@ export type Ex6StepKind = 'mark-A' | 'mark-B' | 'mark-D' | 'identify-operation' 
 export type Ex8AdvancedStepKind = Ex6StepKind | 'compute-probability-and-complementary';
 export type AdvancedOperation = 'Union' | 'Intersection' | 'Difference' | 'ReverseDifference';
 
-export function getSuggestedVerbetes(
+export function getSuggestedEntries(
   step: Ex6StepKind,
   operation: 'Union' | 'Intersection',
-): readonly VerbeteId[] {
+): readonly GlossaryEntryId[] {
   switch (step) {
     case 'mark-A':
     case 'mark-B':
@@ -239,7 +239,7 @@ export function getFeedbackMessage(
 }
 
 /* ───────────────────────────────────────────────────────────────────
-   getSuggestedVerbetesAdvanced — versão para o Ex8 (Fixação avançada).
+   getSuggestedEntriesAdvanced — versão para o Ex8 (Fixação avançada).
    Cobre as quatro operações (Union, Intersection, Difference,
    ReverseDifference) e o step extra compute-probability-and-complementary.
    Quando a operação é Difference ou ReverseDifference, o verbete sugerido
@@ -247,10 +247,10 @@ export function getFeedbackMessage(
    (apenas nos desafios simples do Ex8), sugere "complementar" + "equiprovavel".
    ─────────────────────────────────────────────────────────────────── */
 
-export function getSuggestedVerbetesAdvanced(
+export function getSuggestedEntriesAdvanced(
   step: Ex8AdvancedStepKind,
   operation: AdvancedOperation,
-): readonly VerbeteId[] {
+): readonly GlossaryEntryId[] {
   if (step === 'compute-probability-and-complementary') {
     return ['equiprovavel', 'complementar'];
   }

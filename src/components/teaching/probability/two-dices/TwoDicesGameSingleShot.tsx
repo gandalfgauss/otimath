@@ -83,7 +83,7 @@ export function TwoDicesGameSingleShot({
               <Button
                 style="borderless"
                 size="extra-small"
-                icon={<CheckSquare />}
+                icon={<CheckSquare aria-hidden="true" />}
                 onClick={markAllOnClick}
                 disabled={disabledMarkAllButton}
                 ariaLabel="Marcar todos os casos: Para eventos com número grande de casos favoráveis é mais fácil usar esse recurso e desmarcar os casos não favoráveis ao evento."
@@ -94,7 +94,7 @@ export function TwoDicesGameSingleShot({
             <Button
               style="borderless"
               size="extra-small"
-              icon={<X />}
+              icon={<X aria-hidden="true" />}
               onClick={dicesChecksClearOnClick}
               disabled={disabledClearButton}
             >
@@ -113,7 +113,7 @@ export function TwoDicesGameSingleShot({
             <Button
               style="secondary"
               size="small"
-              icon={<Check />}
+              icon={<Check aria-hidden="true" />}
               onClick={checkOnClick}
               disabled={disabledCheckButton}
             >
@@ -122,7 +122,7 @@ export function TwoDicesGameSingleShot({
             <Button
               style="primary"
               size="small"
-              icon={<ArrowRight />}
+              icon={<ArrowRight aria-hidden="true" />}
               onClick={goToNextStepOnClick}
               disabled={disabledNextStepButton}
             >

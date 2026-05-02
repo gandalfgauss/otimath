@@ -21,18 +21,22 @@ function DiceFaceIcon({ face, size, color = 'blue' }: { face: number; size: numb
   const gap = Math.floor(size * 0.04);
   const bgColor = color === 'green' ? '#1a5c2e' : 'var(--color-brand-otimath-dark)';
   return (
-    <div style={{
-      width: size, height: size,
-      borderRadius: Math.floor(size * 0.16),
-      background: bgColor,
-      display: 'grid',
-      gridTemplateColumns: 'repeat(3, 1fr)',
-      gridTemplateRows: 'repeat(3, 1fr)',
-      padding: Math.floor(size * 0.14),
-      gap,
-    }}>
+    <div
+      role="img"
+      aria-label={`Face ${face} do dado ${color === 'green' ? 'verde' : 'azul'}`}
+      style={{
+        width: size, height: size,
+        borderRadius: Math.floor(size * 0.16),
+        background: bgColor,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gridTemplateRows: 'repeat(3, 1fr)',
+        padding: Math.floor(size * 0.14),
+        gap,
+      }}
+    >
       {pips.map((pip, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div key={i} className="flex items-center justify-center">
           {pip ? <div style={{ width: pipSize, height: pipSize, borderRadius: '50%', background: '#fff' }} /> : null}
         </div>
       ))}
@@ -70,7 +74,6 @@ const isSumOfTwoPrimes = (n: number) => {
   return false;
 };
 const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
-const hasCommonDivisorBeyond1 = (a: number, b: number) => gcd(a, b) > 1;
 
 type E = SingleDieEvent;
 const e = (d: string, v: (f: number) => boolean): E => ({ description: d, validation: v });
@@ -335,10 +338,6 @@ class RNG {
 }
 const rng = new RNG();
 
-function pickRandom<T>(arr: T[]): T {
-  return rng.pick(arr);
-}
-
 // ═══════ Tipos de fase ═══════
 type MainPhase = 'intro' | 'experimentA' | 'experimentB' | 'exercises' | 'finished';
 type ExpSubPhase = 'bet' | 'rolling' | 'landed' | 'compare' | 'markResult';
@@ -348,11 +347,10 @@ type ExSubPhase = 'mark' | 'bet' | 'rolling' | 'landed' | 'readDice' | 'result' 
 interface TwoDicesPracticeProps {
   diceRef: React.RefObject<DiceSceneHandle | null>;
   diceContainerRef: React.RefObject<HTMLDivElement | null>;
-  onColorChange: (color: DiceColor) => void;
   onFinished: () => void;
 }
 
-export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onFinished }: Readonly<TwoDicesPracticeProps>) {
+export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Readonly<TwoDicesPracticeProps>) {
   // Cor inicial sorteada via xoshiro128** — segundo é sempre o oposto
   const [colors] = useState<[DiceColor, DiceColor]>(() => {
     const first: DiceColor = rng.color();
@@ -402,14 +400,12 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
 
   // Estado principal
   const [mainPhase, setMainPhase] = useState<MainPhase>('intro');
-  const [expRound, setExpRound] = useState(0); // 0 ou 1 (2 rodadas de experimentação)
   const [expSubPhase, setExpSubPhase] = useState<ExpSubPhase>('bet');
   const [exerciseIdx, setExerciseIdx] = useState(0); // 0–3
   const [exSubPhase, setExSubPhase] = useState<ExSubPhase>('mark');
 
   // Aposta
   const [bet, setBet] = useState('');
-  const [betError, setBetError] = useState(false);
 
   // Resultado do dado
   const [diceResult, setDiceResult] = useState(0);
@@ -502,21 +498,19 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
         diceRef.current?.setBetting(false);
         diceRef.current?.setIdle(true);
       }
-      onColorChange(color);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mainPhase, exerciseIdx]);
 
   // ── Confirmar aposta e lançar ──
+  // Defensivo: a UI só renderiza este botão quando bet ∈ {1..6}, então o
+  // ramo "else" é inalcançável em uso normal — mantido para robustez.
   const submitBet = () => {
     const v = parseInt(bet);
     if (v >= 1 && v <= 6) {
-      setBetError(false);
-      // Sair do modo betting antes de lançar
       diceRef.current?.setBetting(false);
       launchDie();
     } else {
-      setBetError(true);
       playSound('/sounds/incorrect.mp3');
     }
   };
@@ -784,7 +778,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
   };
 
   // ── Renderizar matriz conforme cor ──
-  const renderMatrix = (checks: boolean[], disabled: boolean, onChange: (idx: number, val: boolean) => void, error: boolean) => {
+  const renderMatrix = (checks: boolean[], disabled: boolean, onChange: (idx: number, val: boolean) => void) => {
     const color = currentColor();
     if (color === 'green') {
       // Vertical: 6 linhas × 2 colunas
@@ -808,6 +802,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     <input
                       type="checkbox" checked={checks[f - 1]} disabled={disabled}
                       onChange={e => onChange(f - 1, e.target.checked)}
+                      aria-label={`Marcar face ${f} do dado verde`}
                       style={{ width: 20, height: 20, accentColor: 'var(--color-feedback-success-dark)' }}
                     />
                   </td>
@@ -839,6 +834,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     <input
                       type="checkbox" checked={checks[f - 1]} disabled={disabled}
                       onChange={e => onChange(f - 1, e.target.checked)}
+                      aria-label={`Marcar face ${f} do dado azul`}
                       style={{ width: 20, height: 20, accentColor: 'var(--color-brand-otimath-pure)' }}
                     />
                   </td>
@@ -896,7 +892,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   <p className="ds-body-bold text-neutral-black text-center">
                     <strong>Gire o dado</strong> arrastando com o dedo ou mouse e <strong>clique na face</strong> em que deseja apostar.
                   </p>
-                  <p className="ds-small text-neutral-dark text-center" style={{ fontStyle: 'italic' }}>
+                  <p className="ds-small text-neutral-dark text-center italic">
                     Posicione a face desejada voltada para você e clique sobre o dado.
                   </p>
                 </>
@@ -948,12 +944,16 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   setResultCheck(next);
                   setResultCheckError(false);
                 },
-                resultCheckError
               )}
               <div className="flex flex-col items-center gap-y-micro">
                 <Button style="primary" size="extra-small" onClick={validateResultMark}>Conferir</Button>
                 {resultCheckError && (
-                  <p className="ds-small-bold" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                  <p
+                    role="alert"
+                    aria-live="assertive"
+                    className="ds-small-bold"
+                    style={{ color: 'var(--color-feedback-error-dark)' }}
+                  >
                     Veja o resultado na face superior do dado e tente novamente.
                   </p>
                 )}
@@ -980,8 +980,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
               {/* Matriz com resultado marcado (somente leitura) */}
               {renderMatrix(
                 resultCheck, true,
-                () => {},
-                false
+                () => {}
               )}
               <p className="ds-body-bold text-center" style={{
                 color: parseInt(bet) === diceResult ? 'var(--color-feedback-success-dark)' : 'var(--color-feedback-error-dark)',
@@ -1041,19 +1040,19 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
               {event.description}
             </p>
             {/ ou / .test(event.description) && (
-              <p className="ds-small text-neutral-dark text-center mt-nano" style={{ fontStyle: 'italic' }}>
+              <p className="ds-small text-neutral-dark text-center mt-nano italic">
                 Lembre-se: na Matemática, &quot;ou&quot; significa um, outro, ou ambos.
               </p>
             )}
             {/ e /.test(event.description) && !/ ou /.test(event.description) && (
-              <p className="ds-small text-neutral-dark text-center mt-nano" style={{ fontStyle: 'italic' }}>
+              <p className="ds-small text-neutral-dark text-center mt-nano italic">
                 Lembre-se: na Matemática, &quot;e&quot; exige que ambas as condições sejam satisfeitas.
               </p>
             )}
           </div>
 
           {/* ETAPA 1 — Marcar favoráveis */}
-          <p className="ds-body-bold text-neutral-black mb-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body-bold text-neutral-black mb-micro text-justify">
             Considere o lançamento de um dado equilibrado. Marque os <strong>resultados favoráveis</strong> ao evento A:
           </p>
 
@@ -1065,14 +1064,18 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
               setEventChecks(next);
               setEventChecksError(false);
             },
-            eventChecksError
           )}
 
           {exSubPhase === 'mark' && (
             <div className="flex flex-col items-center gap-y-micro">
               <Button style="primary" size="extra-small" onClick={validateEventMarks}>Conferir</Button>
               {eventChecksError && (
-                <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                <p
+                  role="alert"
+                  aria-live="assertive"
+                  className="ds-small-bold text-center"
+                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                >
                   Verifique quais resultados satisfazem o evento &quot;{event.description}&quot;.
                 </p>
               )}
@@ -1097,7 +1100,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     border: '1px solid var(--color-feedback-info-dark)',
                   }}
                 >
-                  <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                  <p className="ds-small text-neutral-darkest text-justify">
                     💡 Você marcou <strong>nenhuma face</strong> — e está correto! Quando{' '}
                     <strong>nenhum</strong> resultado do lançamento é favorável ao evento A,
                     dizemos que A não tem elementos: A é o <strong>conjunto vazio</strong>{' '}
@@ -1133,7 +1136,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                 </Button>
               </div>
               {(exBet === 'contra' || exBet === 'indiferente') && (
-                <p className="ds-small text-neutral-dark text-center mt-nano" style={{ fontStyle: 'italic' }}>
+                <p className="ds-small text-neutral-dark text-center mt-nano italic">
                   O <strong>evento complementar</strong> Ā é formado por todos os resultados que <strong>não</strong> pertencem a A.
                   {exBet === 'indiferente' && ' Quando A e Ā têm a mesma quantidade de resultados favoráveis, é indiferente apostar em um ou no outro.'}
                 </p>
@@ -1168,6 +1171,9 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   value={readDiceAnswer}
                   onChange={e => { setReadDiceAnswer(e.target.value); setReadDiceError(false); }}
                   className="ds-body-bold"
+                  aria-label="Resultado do lançamento do dado"
+                  aria-invalid={readDiceError}
+                  aria-describedby={readDiceError ? 'practice-read-dice-error' : undefined}
                   style={{
                     border: `2px solid ${readDiceError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
                     borderRadius: 8, padding: '6px 12px', outline: 'none',
@@ -1202,7 +1208,13 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                 }}>Conferir</Button>
               </div>
               {readDiceError && (
-                <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                <p
+                  id="practice-read-dice-error"
+                  role="alert"
+                  aria-live="assertive"
+                  className="ds-small-bold text-center"
+                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                >
                   Veja o resultado na face superior do dado e tente novamente.
                 </p>
               )}
@@ -1253,7 +1265,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   }}
                 >
                   {exBet === 'favor' && (
-                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                    <p className="ds-small text-neutral-darkest text-justify">
                       💡 Você marcou <strong>todas as 6 faces</strong> e apostou{' '}
                       <strong>a favor de A</strong>. Observe algo especial: nesse exercício,
                       A coincide com o <strong>próprio espaço amostral S</strong>. Isso quer
@@ -1264,7 +1276,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     </p>
                   )}
                   {exBet === 'contra' && (
-                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                    <p className="ds-small text-neutral-darkest text-justify">
                       💡 Você marcou <strong>todas as 6 faces</strong> mas apostou{' '}
                       <strong>contra A</strong>. Observe: como A coincide com o{' '}
                       <strong>próprio espaço amostral S</strong>, o complementar de A é o{' '}
@@ -1275,7 +1287,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     </p>
                   )}
                   {exBet === 'indiferente' && (
-                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                    <p className="ds-small text-neutral-darkest text-justify">
                       💡 Você marcou <strong>todas as 6 faces</strong> e escolheu{' '}
                       <strong>indiferente</strong>. A opção indiferente faz sentido quando
                       P(A) = P(Ā). Mas aqui temos o caso mais distante possível dessa igualdade:
@@ -1300,7 +1312,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   }}
                 >
                   {exBet === 'favor' && (
-                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                    <p className="ds-small text-neutral-darkest text-justify">
                       💡 Você marcou <strong>nenhuma face</strong> e ainda assim apostou{' '}
                       <strong>a favor de A</strong>. Observe: como nenhum dos resultados
                       possíveis pertence a A, esse é o <strong>evento impossível</strong>{' '}
@@ -1310,7 +1322,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     </p>
                   )}
                   {exBet === 'contra' && (
-                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                    <p className="ds-small text-neutral-darkest text-justify">
                       💡 Você marcou <strong>nenhuma face</strong> e apostou{' '}
                       <strong>contra A</strong>. Observe algo especial: como A = ∅
                       (nenhum resultado favorável), o complementar Ā coincide com{' '}
@@ -1322,7 +1334,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     </p>
                   )}
                   {exBet === 'indiferente' && (
-                    <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                    <p className="ds-small text-neutral-darkest text-justify">
                       💡 Você marcou <strong>nenhuma face</strong> e escolheu{' '}
                       <strong>indiferente</strong>. A opção indiferente faz sentido quando
                       P(A) = P(Ā). Mas aqui temos o caso mais distante possível dessa
@@ -1361,17 +1373,23 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     onChange={e => { setCalcNum(e.target.value); setCalcNumError(false); setCalcFeedback(''); }}
                     placeholder="?" className="ds-body"
                     disabled={needsComp && pACorrect}
+                    aria-label="Numerador de P de A"
+                    aria-invalid={calcNumError}
+                    aria-describedby={calcFeedback ? 'practice-calc-feedback' : undefined}
                     style={{
                       border: `2px solid ${calcNumError ? 'var(--color-feedback-error-dark)' : pACorrect && needsComp ? 'var(--color-feedback-success-dark)' : 'var(--color-neutral-lighter)'}`,
                       borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
                     }}
                   />
-                  <hr style={{ width: '100%', height: 2, background: 'var(--color-neutral-black)', border: 'none', margin: '2px 0' }} />
+                  <hr aria-hidden="true" style={{ width: '100%', height: 2, background: 'var(--color-neutral-black)', border: 'none', margin: '2px 0' }} />
                   <input
                     type="text" value={calcDen}
                     onChange={e => { setCalcDen(e.target.value); setCalcDenError(false); setCalcFeedback(''); }}
                     placeholder="?" className="ds-body"
                     disabled={needsComp && pACorrect}
+                    aria-label="Denominador de P de A"
+                    aria-invalid={calcDenError}
+                    aria-describedby={calcFeedback ? 'practice-calc-feedback' : undefined}
                     style={{
                       border: `2px solid ${calcDenError ? 'var(--color-feedback-error-dark)' : pACorrect && needsComp ? 'var(--color-feedback-success-dark)' : 'var(--color-neutral-lighter)'}`,
                       borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
@@ -1383,7 +1401,13 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                 )}
               </div>
               {calcFeedback && (
-                <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                <p
+                  id="practice-calc-feedback"
+                  role="alert"
+                  aria-live="assertive"
+                  className="ds-small-bold text-center"
+                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                >
                   {calcFeedback}
                 </p>
               )}
@@ -1401,16 +1425,22 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                         type="text" value={calcCompNum}
                         onChange={e => { setCalcCompNum(e.target.value); setCalcCompNumError(false); setCalcCompFeedback(''); }}
                         placeholder="?" className="ds-body"
+                        aria-label="Numerador de P do complementar de A"
+                        aria-invalid={calcCompNumError}
+                        aria-describedby={calcCompFeedback ? 'practice-calc-comp-feedback' : undefined}
                         style={{
                           border: `2px solid ${calcCompNumError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
                           borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
                         }}
                       />
-                      <hr style={{ width: '100%', height: 2, background: 'var(--color-neutral-black)', border: 'none', margin: '2px 0' }} />
+                      <hr aria-hidden="true" style={{ width: '100%', height: 2, background: 'var(--color-neutral-black)', border: 'none', margin: '2px 0' }} />
                       <input
                         type="text" value={calcCompDen}
                         onChange={e => { setCalcCompDen(e.target.value); setCalcCompDenError(false); setCalcCompFeedback(''); }}
                         placeholder="?" className="ds-body"
+                        aria-label="Denominador de P do complementar de A"
+                        aria-invalid={calcCompDenError}
+                        aria-describedby={calcCompFeedback ? 'practice-calc-comp-feedback' : undefined}
                         style={{
                           border: `2px solid ${calcCompDenError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
                           borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
@@ -1420,7 +1450,13 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     <Button style="primary" size="extra-small" onClick={validateCompCalc}>Conferir</Button>
                   </div>
                   {calcCompFeedback && (
-                    <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                    <p
+                      id="practice-calc-comp-feedback"
+                      role="alert"
+                      aria-live="assertive"
+                      className="ds-small-bold text-center"
+                      style={{ color: 'var(--color-feedback-error-dark)' }}
+                    >
                       {calcCompFeedback}
                     </p>
                   )}
@@ -1439,6 +1475,8 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                       value={compOperator}
                       onChange={e => { setCompOperator(e.target.value); setCompOperatorError(false); }}
                       className="ds-body-bold"
+                      aria-label="Operador de comparação entre P(A) e P(complementar de A)"
+                      aria-invalid={compOperatorError}
                       style={{
                         border: `2px solid ${compOperatorError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
                         borderRadius: 6, padding: '4px 8px', outline: 'none',
@@ -1560,10 +1598,10 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     border: '1px solid var(--color-feedback-info-dark)',
                   }}
                 >
-                  <p className="ds-small-bold text-center text-neutral-darkest" style={{ marginBottom: 8 }}>
+                  <p className="ds-small-bold text-center text-neutral-darkest mb-micro">
                     Veja o caso especial deste exercício:
                   </p>
-                  <div className="flex items-center justify-center gap-x-xs flex-wrap" style={{ marginBottom: 8 }}>
+                  <div className="flex items-center justify-center gap-x-xs flex-wrap mb-micro">
                     <span className="ds-body-bold text-neutral-black inline-flex items-center gap-x-nano">
                       P(A) = <Fraction num="6" den="6" /> = 1
                     </span>
@@ -1572,7 +1610,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                       P(Ā) = <Fraction num="0" den="6" /> = 0
                     </span>
                   </div>
-                  <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                  <p className="ds-small text-neutral-darkest text-justify">
                     Note que <strong>P(A) + P(Ā) = 1 + 0 = 1</strong> — esta é a{' '}
                     <strong>regra do complementar</strong>, válida para qualquer evento.
                     O caso de A = S é o <em>caso extremo</em> dessa regra: <strong>toda</strong>
@@ -1587,7 +1625,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   poder avançar para o próximo exercício. */}
               {favorable === 6 && (
                 <div className="mt-micro">
-                  <p className="ds-small-bold text-center text-neutral-darkest" style={{ marginBottom: 8 }}>
+                  <p className="ds-small-bold text-center text-neutral-darkest mb-micro">
                     Como chamamos um evento que coincide com todo o espaço amostral?
                   </p>
                   <div className="flex flex-col items-center gap-y-quarck">
@@ -1644,6 +1682,8 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   )}
                   {certainNameError && !certainNameValidated && (
                     <p
+                      role="alert"
+                      aria-live="assertive"
                       className="ds-small-bold text-center mt-micro"
                       style={{ color: 'var(--color-feedback-error-dark)' }}
                     >
@@ -1654,6 +1694,8 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   )}
                   {certainNameValidated && (
                     <p
+                      role="status"
+                      aria-live="polite"
                       className="ds-small-bold text-center mt-micro"
                       style={{ color: 'var(--color-feedback-success-dark)' }}
                     >
@@ -1676,10 +1718,10 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                     border: '1px solid var(--color-feedback-info-dark)',
                   }}
                 >
-                  <p className="ds-small-bold text-center text-neutral-darkest" style={{ marginBottom: 8 }}>
+                  <p className="ds-small-bold text-center text-neutral-darkest mb-micro">
                     Veja o caso especial deste exercício:
                   </p>
-                  <div className="flex items-center justify-center gap-x-xs flex-wrap" style={{ marginBottom: 8 }}>
+                  <div className="flex items-center justify-center gap-x-xs flex-wrap mb-micro">
                     <span className="ds-body-bold text-neutral-black inline-flex items-center gap-x-nano">
                       P(A) = <Fraction num="0" den="6" /> = 0
                     </span>
@@ -1688,7 +1730,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                       P(Ā) = <Fraction num="6" den="6" /> = 1
                     </span>
                   </div>
-                  <p className="ds-small text-neutral-darkest" style={{ textAlign: 'justify' }}>
+                  <p className="ds-small text-neutral-darkest text-justify">
                     Note que <strong>P(A) + P(Ā) = 0 + 1 = 1</strong> — esta é a{' '}
                     <strong>regra do complementar</strong>, válida para qualquer evento.
                     O caso de A = ∅ é o <em>outro extremo</em> dessa regra:{' '}
@@ -1704,7 +1746,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   poder avançar para o próximo exercício. */}
               {favorable === 0 && (
                 <div className="mt-micro">
-                  <p className="ds-small-bold text-center text-neutral-darkest" style={{ marginBottom: 8 }}>
+                  <p className="ds-small-bold text-center text-neutral-darkest mb-micro">
                     Como chamamos um evento que não pode acontecer em nenhum lançamento?
                   </p>
                   <div className="flex flex-col items-center gap-y-quarck">
@@ -1761,6 +1803,8 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   )}
                   {impossibleNameError && !impossibleNameValidated && (
                     <p
+                      role="alert"
+                      aria-live="assertive"
                       className="ds-small-bold text-center mt-micro"
                       style={{ color: 'var(--color-feedback-error-dark)' }}
                     >
@@ -1771,6 +1815,8 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
                   )}
                   {impossibleNameValidated && (
                     <p
+                      role="status"
+                      aria-live="polite"
                       className="ds-small-bold text-center mt-micro"
                       style={{ color: 'var(--color-feedback-success-dark)' }}
                     >
@@ -1812,12 +1858,12 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onColorChange, onF
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             De um para dois dados
           </p>
-          <p className="ds-body text-neutral-black" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black text-justify">
             Você domina o experimento com <strong>um dado</strong>. Agora vamos lançar
             {' '}<strong>dois</strong> — um <strong style={{ color: 'var(--color-feedback-success-dark)' }}>verde</strong>
             {' '}e um <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong>.
           </p>
-          <p className="ds-body text-neutral-black mt-micro" style={{ textAlign: 'justify' }}>
+          <p className="ds-body text-neutral-black mt-micro text-justify">
             Antes de organizar tudo numa tabela, <strong>observe o fenômeno</strong>:
             o processo é mecânico, mas o par <strong>(verde, azul)</strong> continua imprevisível.
           </p>

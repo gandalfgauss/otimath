@@ -21,6 +21,7 @@ function TableDiceFace({ face, size, color }: { face: number; size: number; colo
 
   return (
     <div
+      role="img"
       aria-label={`Dado ${color === 'green' ? 'verde' : 'azul'} ${face}`}
       style={{
         width: size,
@@ -35,7 +36,7 @@ function TableDiceFace({ face, size, color }: { face: number; size: number; colo
       }}
     >
       {pips.map((pip, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div key={i} className="flex items-center justify-center">
           {pip ? (
             <div style={{
               width: pipSize,
@@ -230,6 +231,7 @@ export function TwoDicesTable({
                                     isDisabled,
                                   );
                                 }}
+                                aria-label={`Marcar evento ${eventName} para o par dado verde ${rowIndex + 1} e dado azul ${colIndex}`}
                                 style={{
                                   width: 16,
                                   height: 16,
