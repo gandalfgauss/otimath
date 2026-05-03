@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useAlerts } from '@/hooks/global/useAlerts';
 import { useModal } from '@/hooks/global/useModal';
 import { playSound } from '@/hooks/global/useSound';
@@ -4084,6 +4085,16 @@ export const useRouletteHooks = () => {
       return;
     }
 
+    // Etapa 2 — investigação inicial (0.15→0.16) e retry da reflexão (0.19→0.195):
+    // o spin é controlado por spinRouletteS2 / handler do subStep 0.19, que têm
+    // setTimeout próprio (spinDuration + 300ms) responsável por atualizar
+    // subStep/isSpinning/instructions de forma atômica. Se este handler default
+    // setasse isSpinning=false antes desse setTimeout disparar, o painel da
+    // pergunta anterior renderizaria por ~300ms (flash).
+    if (gameState.stage === 2 && (gameState.subStep === 0.15 || gameState.subStep === 0.19)) {
+      return;
+    }
+
     setGameState(prev => ({
       ...prev,
       isSpinning: false,
@@ -4319,7 +4330,7 @@ export const useRouletteHooks = () => {
         if (userVal === String(expectedKi)) {
           playSound("/sounds/correct.mp3");
           createAlert("Correto!", `${tAngles[tIdx]}° ÷ ${tM}° = ${expectedKi}`, "success", 2000);
-          setTrainRatioInputs(prev => ({ ...prev, [color]: { ...prev[color], value: userVal, disabled: true } }));
+          setTrainRatioInputs(prev => ({ ...prev, [color]: { ...prev[color], value: userVal, disabled: true, error: false } }));
           const nextIdx = tIdx + 1;
           if (nextIdx >= tColors.length) {
             const ixInputs: { [c: string]: TextInputInterface } = {};
@@ -4351,7 +4362,7 @@ export const useRouletteHooks = () => {
         if (isCorrect) {
           playSound("/sounds/correct.mp3");
           createAlert("Correto!", `P(${color}) = ${expectedI === 1 ? 'p' : expectedStr}`, "success", 2000);
-          setTrainIxInputs(prev => ({ ...prev, [color]: { ...prev[color], value: expectedI === 1 ? 'p' : expectedStr, disabled: true } }));
+          setTrainIxInputs(prev => ({ ...prev, [color]: { ...prev[color], value: expectedI === 1 ? 'p' : expectedStr, disabled: true, error: false } }));
           const nextIdx = tIdx + 1;
           if (nextIdx >= tColors.length) {
             setTrainSumInput({ value: '', disabled: false, error: false, setValue: (val: string) => setTrainSumInput(prev => ({ ...prev, value: val })) });
@@ -4393,7 +4404,7 @@ export const useRouletteHooks = () => {
         if (areFractionsEquivalent(input?.value || '', expectedFrac)) {
           playSound("/sounds/correct.mp3");
           createAlert("Parabéns!", `P(${color}) = ${expectedKi}/${tS}`, "success", 2000);
-          setTrainProbInputs(prev => ({ ...prev, [color]: { ...prev[color], value: input?.value || '', disabled: true } }));
+          setTrainProbInputs(prev => ({ ...prev, [color]: { ...prev[color], value: input?.value || '', disabled: true, error: false } }));
           const nextIdx = tIdx + 1;
           if (nextIdx >= tColors.length) {
             playSound("/sounds/challengeFinished.mp3");
@@ -6098,6 +6109,13 @@ export const useRouletteHooks = () => {
           playSound("/sounds/correct.mp3");
           createAlert("Parabéns!", `Correto! P(${color}) = ${expectedI}p.`, "success", 2000);
 
+          // Travar o campo recém-confirmado e limpar eventual estado de erro
+          // — evita que o aluno volte e edite uma resposta já validada.
+          setS2IxInputs(prev => ({
+            ...prev,
+            [color]: { ...prev[color], disabled: true, error: false },
+          }));
+
           const nextIdx = idx + 1;
           if (nextIdx >= colors.length) {
             // Todos i·p preenchidos → habilitar campo da soma
@@ -6207,6 +6225,12 @@ export const useRouletteHooks = () => {
         playSound("/sounds/correct.mp3");
         createAlert("Parabéns!", `P(${color}) = ${ki}/${S}`, "success", 2000);
 
+        // Travar campo recém-confirmado e limpar erro residual
+        setS2NumProbInputs(prev => ({
+          ...prev,
+          [color]: { ...prev[color], disabled: true, error: false },
+        }));
+
         const nextIdx = idx + 1;
         if (nextIdx >= colors.length) {
           // Todos P(cor) preenchidos → iniciar fase de treinos (inline)
@@ -6305,6 +6329,12 @@ export const useRouletteHooks = () => {
 
         createAlert("Parabéns!", `P(${color}) = ${angle}/360 = ${decimalStr} = ${percentStr}`, "success", 3000);
 
+        // Travar campo recém-confirmado e limpar erro residual
+        setS2AngleProbInputs(prev => ({
+          ...prev,
+          [color]: { ...prev[color], disabled: true, error: false },
+        }));
+
         // Atualizar decimais e porcentagens reveladas
         const newDecimals = [...gameState.s2AngleProbDecimals];
         const newPercents = [...gameState.s2AngleProbPercents];
@@ -6383,7 +6413,15 @@ export const useRouletteHooks = () => {
         const angle = ftAngles[ftIdx];
         const val = (inp.value || '').trim().replace(/\s/g, '');
 
-        if (!val || !val.includes('/') || val.includes('%') || val.includes(',') || val.includes('.')) {
+        // Vazio — não marcar como erro (campo só está pendente). Mantém
+        // allOk=true para que o feedback global possa ser "Continue!" em
+        // vez de "Tente novamente" quando há acertos + vazios mas nenhum erro.
+        if (!val) {
+          upd[ftColor] = { ...inp, error: false, errorMsg: '' };
+          return;
+        }
+
+        if (!val.includes('/') || val.includes('%') || val.includes(',') || val.includes('.')) {
           upd[ftColor] = { ...inp, error: true, errorMsg: 'Use uma fração a/b.' };
           allOk = false;
           return;
@@ -6435,15 +6473,27 @@ export const useRouletteHooks = () => {
     if (stage === 2 && subStep === 9.1) {
       const colors = gameState.sectors.map(s => s.colorName);
       let allCorrect = true;
+      let anyWrong = false; // distingue "vazio" de "errado"
       const updated = { ...s2FreqAbsInputs };
 
       colors.forEach(color => {
         const input = s2FreqAbsInputs[color];
         const expected = gameState.frequencies[color] || 0;
-        const val = parseInt((input?.value || '').trim());
+        const rawVal = (input?.value || '').trim();
+        if (rawVal === '') {
+          // Vazio — limpa erro residual e marca como pendente, sem som de erro.
+          updated[color] = { ...updated[color], error: false };
+          allCorrect = false;
+          return;
+        }
+        const val = parseInt(rawVal);
         if (isNaN(val) || val !== expected) {
           updated[color] = { ...updated[color], error: true };
           allCorrect = false;
+          anyWrong = true;
+        } else {
+          // Correto — limpa estado de erro residual de tentativas anteriores.
+          updated[color] = { ...updated[color], error: false };
         }
       });
 
@@ -6470,9 +6520,15 @@ export const useRouletteHooks = () => {
         setInstructions(`<p class="ds-body"><strong>Reflexão</strong></p>
           <p class="ds-body">Responda a pergunta a seguir.</p>`);
       } else {
-        playSound("/sounds/incorrect.mp3");
         setS2FreqAbsInputs(updated);
-        createAlert("Tente novamente.", "Verifique a contagem de cada cor.", "error", 4000);
+        if (anyWrong) {
+          playSound("/sounds/incorrect.mp3");
+          createAlert("Tente novamente.", "Verifique a contagem de cada cor.", "error", 4000);
+        } else {
+          // Só faltam campos vazios (nenhum errado) — feedback positivo de progresso
+          playSound("/sounds/correct.mp3");
+          createAlert("Continue!", "Preencha as células restantes para concluir.", "info", 3000);
+        }
       }
       return;
     }
@@ -6529,6 +6585,12 @@ export const useRouletteHooks = () => {
 
         const percent = ((freq / P) * 100).toFixed(1) + '%';
         createAlert("Parabéns!", `FR(${color}) = ${freq}/${P} = ${percent}`, "success", 2000);
+
+        // Travar campo recém-confirmado e limpar erro residual
+        setS2FreqRelInputs(prev => ({
+          ...prev,
+          [color]: { ...prev[color], disabled: true, error: false },
+        }));
 
         const nextIdx = idx + 1;
         if (nextIdx >= colors.length) {
@@ -9695,6 +9757,40 @@ export const useRouletteHooks = () => {
   const getChartData = useCallback((): ChartData[] => {
     const { stage, sectors, frequencies, totalSpins, targetSectorCount, s2Angles } = gameState;
 
+    // Etapa 3: o spinRouletteS3 (Falácia do Jogador) acumula resultados em
+    // s3State.spinHistory, NÃO em gameState.frequencies/totalSpins. Para
+    // o gráfico refletir os giros da E3, agregamos por COR a partir do
+    // histórico (vários setores podem compartilhar a mesma cor) e usamos
+    // s3State.colorCounts como base da probabilidade teórica = count/n.
+    if (stage === 3) {
+      const totalS3 = s3State.spinHistory.length;
+      const freqByColor: { [c: string]: number } = {};
+      s3State.spinHistory.forEach(c => { freqByColor[c] = (freqByColor[c] || 0) + 1; });
+
+      const distinctColors: string[] = [];
+      const seen = new Set<string>();
+      sectors.forEach(s => {
+        if (!seen.has(s.colorName)) {
+          seen.add(s.colorName);
+          distinctColors.push(s.colorName);
+        }
+      });
+      const totalSectors = sectors.length;
+
+      return distinctColors.map(color => {
+        const absFreq = freqByColor[color] || 0;
+        const relFreq = totalS3 > 0 ? absFreq / totalS3 : 0;
+        const theorProb = (s3State.colorCounts[color] || 0) / Math.max(totalSectors, 1);
+        return {
+          colorName: color,
+          relativeFrequency: relFreq,
+          theoreticalProbability: theorProb,
+          absoluteFrequency: absFreq,
+          relativeFrequencyLabel: totalS3 > 0 ? `${absFreq}/${totalS3}` : '-'
+        };
+      });
+    }
+
     return sectors.map((sector, idx) => {
       const absFreq = frequencies[sector.colorName] || 0;
       const relFreq = totalSpins > 0 ? absFreq / totalSpins : 0;
@@ -9711,7 +9807,7 @@ export const useRouletteHooks = () => {
         relativeFrequencyLabel: totalSpins > 0 ? `${absFreq}/${totalSpins}` : '-'
       };
     });
-  }, [gameState]);
+  }, [gameState, s3State]);
 
   // Função para próximo passo
   const nextStep = useCallback(() => {
@@ -9967,19 +10063,43 @@ export const useRouletteHooks = () => {
     setInstructions(instrHtml);
   }, [s3State]);
 
-  // Handler: finalizar Etapa 3 (institucionalização)
-  const handleS3Finalize = useCallback(() => {
+  // Handler: finalizar Etapa 3 (institucionalização).
+  // Quando o OVA roda DENTRO da sequência didática (inSequence=true),
+  // mostramos primeiro a Reflexão de ponte com o próximo OVA (subStep 11);
+  // o aluno clica "Li" e só então chega na tela "Atividade Concluída!"
+  // (subStep 10) com o botão "Continuar a Sequência".
+  // Em standalone (inSequence=false), pulamos a Reflexão e vamos direto
+  // para a tela final — Reflexão e botão de continuar só fazem sentido
+  // quando há um próximo OVA na trilha.
+  const handleS3Finalize = useCallback((inSequence: boolean = false) => {
     playSound("/sounds/gameFinished.mp3");
     createAlert("Parabéns!", "Você concluiu todas as etapas do Simulador Probabilístico com Disco Aleatório!", "success", 6000);
-    setGameState(prev => ({ ...prev, subStep: 10 }));
-    setInstructions(`<p class="ds-body"><strong>Atividade Finalizada!</strong></p>
-      <p class="ds-body">Você completou todas as 3 etapas do simulador. Parabéns!</p>`);
+    if (inSequence) {
+      setGameState(prev => ({ ...prev, subStep: 11 }));
+      setInstructions(`<p class="ds-body"><strong>Reflexão para o próximo desafio</strong></p>`);
+    } else {
+      setGameState(prev => ({ ...prev, subStep: 10 }));
+      setInstructions(`<p class="ds-body"><strong>Atividade Finalizada!</strong></p>
+        <p class="ds-body">Você completou todas as 3 etapas do simulador. Parabéns!</p>`);
+    }
   }, [createAlert]);
 
-  // Handler: avançar para reflexão de ponte com OVA 2 (subStep 11)
+  // Handler: avançar para reflexão de ponte com OVA 2 (subStep 11).
+  // Mantido para compatibilidade com DEV nav, mas o uso pedagógico real
+  // foi invertido — handleS3Finalize agora roteia direto para a Reflexão
+  // quando há fluxo de sequência didática.
   const handleS3GoToReflection = useCallback(() => {
     setGameState(prev => ({ ...prev, subStep: 11 }));
     setInstructions(`<p class="ds-body"><strong>Reflexão para o próximo desafio</strong></p>`);
+  }, []);
+
+  // Handler: após o aluno ler a Reflexão (subStep 11), avançar para a tela
+  // final "Atividade Concluída!" (subStep 10) com o botão "Continuar a
+  // Sequência". Usado tanto pelo botão "Li" quanto pela seta avançar do DEV.
+  const handleS3DismissReflexao = useCallback(() => {
+    setGameState(prev => ({ ...prev, subStep: 10 }));
+    setInstructions(`<p class="ds-body"><strong>Atividade Finalizada!</strong></p>
+      <p class="ds-body">Você completou todas as 3 etapas do simulador. Parabéns!</p>`);
   }, []);
 
   // Função para iniciar Etapa 1
@@ -10841,6 +10961,7 @@ export const useRouletteHooks = () => {
   }, [gameState, disjointExercisePhase, disjointExamplesViewed, unionPhase, unionActivityNum, unionCurrentEventIdx, compPhase, compExamplesViewed, deterministicExamplesViewed, randomExamplesViewed, freqRelConceptPhase, interpretationPhase, lgnPhase, diceState, progressiveReadingStep, s2RatioPhase, s2IxPhase, s2IxCalcStep, s2AngleReadingStep, trainingState, fracTraining, convergenceSim, s2SpinReflection, s3State, showInfoBox, infoBoxContent]);
 
   const getDevSnapshot = useCallback(() => ({
+    // Core
     gameState,
     showInfoBox,
     infoBoxContent,
@@ -10849,9 +10970,16 @@ export const useRouletteHooks = () => {
     selectedOption,
     sliderValue,
     selectedCharacteristics,
+    currentQuestion,
+    suboptimalAttempts,
+    progressiveReadingStep,
+    // Inputs / questões da Etapa 1
     sampleSpaceInput,
     sampleSpaceCountInput,
     probabilityInputs,
+    relativeFrequencyInputs,
+    convergenceInputs,
+    colorCountInputs,
     theoreticalQuestion1Input,
     theoreticalQuestion2Input,
     favorableCasesInput,
@@ -10860,40 +10988,143 @@ export const useRouletteHooks = () => {
     exerciseNSInput,
     exercisePENumeratorInput,
     exercisePEDenominatorInput,
+    deterministicExamplesViewed,
+    randomExamplesViewed,
+    // Disjuntos
+    disjointExamplesViewed,
+    lastDisjointMeta,
+    disjointNeedsNumbers,
+    disjointExercisePhase,
+    disjointUserSelectA,
+    disjointUserSelectB,
+    disjointCorrectA,
+    disjointCorrectB,
+    disjointExerciseTextA,
+    disjointExerciseTextB,
+    // União ME
+    unionPhase,
+    unionActivityNum,
+    unionCurrentEventIdx,
+    unionEvents,
+    unionSelectedSectors,
+    unionProbNumInput,
+    unionProbDenInput,
+    unionFinalNumInput,
+    unionFinalDenInput,
+    unionSectorNumbers,
+    unionMaxActivities,
+    unionNeedsNumbers,
+    // Eventos complementares
+    compPhase,
+    compExamplesViewed,
+    compCalcExampleNum,
+    compUserSelectA,
+    compUserSelectAbar,
+    compIsGuided,
+    compUsedBitmasks,
+    compChainInputs,
+    compChainResult,
+    compPaInput,
+    compStepByStep,
+    // Frequências / Interpretação
+    freqAbsQuestion,
+    freqAbsInput,
+    freqRelConceptPhase,
+    freqRelQuestion,
+    freqRelInput,
+    interpretationPhase,
+    interpretationSelected,
+    interpretationQ3,
+    // LGN / dado
+    lgnPhase,
+    lgnVerbalInput,
+    lgnN,
+    lgnParams,
+    lgnInput,
+    diceState,
+    diceInput,
+    // Etapa 2 — tabelas e fases
+    s2RandomColors,
+    s2AngleReadingStep,
+    s2RatioInputs,
+    s2IxInputs,
+    s2SumEquationInput,
+    s2XInput,
+    s2NumProbInputs,
+    s2AngleProbInputs,
+    s2PredictionInput,
+    s2FreqAbsInputs,
+    s2FreqRelInputs,
+    s2ConclusionInput,
+    s2RatioPhase,
+    s2ConceptQuestion,
+    s2ConceptSelected,
+    s2UnitSectorIndex,
+    s2TableAllCorrect,
+    s2ReasoningColorY,
+    s2ReasoningAngleY,
+    s2ReasoningRatio,
+    s2ReasoningInput,
+    s2ReasoningErrors,
+    s2ReasoningShowHint,
+    s2IxPhase,
+    s2IxSumSelected,
+    s2IxCalcStep,
+    trainingState,
+    trainRatioInputs,
+    trainIxInputs,
+    trainSumInput,
+    trainProbInputs,
+    fracTraining,
+    fracThetaInputs,
+    convergenceSim,
+    s2SpinReflection,
+    // Etapa 3
+    s3State,
+    // UI flags
     disabledSpinButton,
     disabledCheckButton,
     disabledNextButton,
     showAutoSpinButtons,
-    // Comp/Desafio/Frequências/Convergência/Interpretação/LGN
-    compPhase,
-    compUserSelectAbar,
-    compChainInputs,
-    compPaInput,
-    freqAbsInput,
-    freqRelInput,
-    convergenceInputs,
-    interpretationPhase,
-    interpretationSelected,
-    interpretationQ3,
-    lgnPhase,
-    lgnParams,
-    lgnInput,
   }), [
     gameState, showInfoBox, infoBoxContent, instructions, experimentationState,
-    selectedOption, sliderValue, selectedCharacteristics,
+    selectedOption, sliderValue, selectedCharacteristics, currentQuestion,
+    suboptimalAttempts, progressiveReadingStep,
     sampleSpaceInput, sampleSpaceCountInput, probabilityInputs,
+    relativeFrequencyInputs, convergenceInputs, colorCountInputs,
     theoreticalQuestion1Input, theoreticalQuestion2Input, favorableCasesInput,
     predictionInput, exerciseNEInput, exerciseNSInput,
     exercisePENumeratorInput, exercisePEDenominatorInput,
-    disabledSpinButton, disabledCheckButton, disabledNextButton, showAutoSpinButtons,
-    compPhase, compUserSelectAbar, compChainInputs, compPaInput,
-    freqAbsInput, freqRelInput, convergenceInputs,
+    deterministicExamplesViewed, randomExamplesViewed,
+    disjointExamplesViewed, lastDisjointMeta, disjointNeedsNumbers,
+    disjointExercisePhase, disjointUserSelectA, disjointUserSelectB,
+    disjointCorrectA, disjointCorrectB, disjointExerciseTextA, disjointExerciseTextB,
+    unionPhase, unionActivityNum, unionCurrentEventIdx, unionEvents,
+    unionSelectedSectors, unionProbNumInput, unionProbDenInput,
+    unionFinalNumInput, unionFinalDenInput, unionSectorNumbers,
+    unionMaxActivities, unionNeedsNumbers,
+    compPhase, compExamplesViewed, compCalcExampleNum, compUserSelectA,
+    compUserSelectAbar, compIsGuided, compUsedBitmasks, compChainInputs,
+    compChainResult, compPaInput, compStepByStep,
+    freqAbsQuestion, freqAbsInput, freqRelConceptPhase, freqRelQuestion, freqRelInput,
     interpretationPhase, interpretationSelected, interpretationQ3,
-    lgnPhase, lgnParams, lgnInput,
+    lgnPhase, lgnVerbalInput, lgnN, lgnParams, lgnInput, diceState, diceInput,
+    s2RandomColors, s2AngleReadingStep, s2RatioInputs, s2IxInputs,
+    s2SumEquationInput, s2XInput, s2NumProbInputs, s2AngleProbInputs,
+    s2PredictionInput, s2FreqAbsInputs, s2FreqRelInputs, s2ConclusionInput,
+    s2RatioPhase, s2ConceptQuestion, s2ConceptSelected, s2UnitSectorIndex,
+    s2TableAllCorrect,
+    s2ReasoningColorY, s2ReasoningAngleY, s2ReasoningRatio, s2ReasoningInput,
+    s2ReasoningErrors, s2ReasoningShowHint,
+    s2IxPhase, s2IxSumSelected, s2IxCalcStep,
+    trainingState, trainRatioInputs, trainIxInputs, trainSumInput, trainProbInputs,
+    fracTraining, fracThetaInputs, convergenceSim, s2SpinReflection, s3State,
+    disabledSpinButton, disabledCheckButton, disabledNextButton, showAutoSpinButtons,
   ]);
   type DevSnapshot = ReturnType<typeof getDevSnapshot>;
 
   const applyDevSnapshot = useCallback((snap: DevSnapshot) => {
+    // Core
     setGameState(snap.gameState);
     setShowInfoBox(snap.showInfoBox);
     setInfoBoxContent(snap.infoBoxContent);
@@ -10902,9 +11133,16 @@ export const useRouletteHooks = () => {
     setSelectedOption(snap.selectedOption);
     setSliderValue(snap.sliderValue);
     setSelectedCharacteristics(snap.selectedCharacteristics);
+    setCurrentQuestion(snap.currentQuestion);
+    setSuboptimalAttempts(snap.suboptimalAttempts);
+    setProgressiveReadingStep(snap.progressiveReadingStep);
+    // Inputs Etapa 1
     setSampleSpaceInput(snap.sampleSpaceInput);
     setSampleSpaceCountInput(snap.sampleSpaceCountInput);
     setProbabilityInputs(snap.probabilityInputs);
+    setRelativeFrequencyInputs(snap.relativeFrequencyInputs);
+    setConvergenceInputs(snap.convergenceInputs);
+    setColorCountInputs(snap.colorCountInputs);
     setTheoreticalQuestion1Input(snap.theoreticalQuestion1Input);
     setTheoreticalQuestion2Input(snap.theoreticalQuestion2Input);
     setFavorableCasesInput(snap.favorableCasesInput);
@@ -10913,23 +11151,104 @@ export const useRouletteHooks = () => {
     setExerciseNSInput(snap.exerciseNSInput);
     setExercisePENumeratorInput(snap.exercisePENumeratorInput);
     setExercisePEDenominatorInput(snap.exercisePEDenominatorInput);
+    setDeterministicExamplesViewed(snap.deterministicExamplesViewed);
+    setRandomExamplesViewed(snap.randomExamplesViewed);
+    // Disjuntos
+    setDisjointExamplesViewed(snap.disjointExamplesViewed);
+    setLastDisjointMeta(snap.lastDisjointMeta);
+    setDisjointNeedsNumbers(snap.disjointNeedsNumbers);
+    setDisjointExercisePhase(snap.disjointExercisePhase);
+    setDisjointUserSelectA(snap.disjointUserSelectA);
+    setDisjointUserSelectB(snap.disjointUserSelectB);
+    setDisjointCorrectA(snap.disjointCorrectA);
+    setDisjointCorrectB(snap.disjointCorrectB);
+    setDisjointExerciseTextA(snap.disjointExerciseTextA);
+    setDisjointExerciseTextB(snap.disjointExerciseTextB);
+    // União ME
+    setUnionPhase(snap.unionPhase);
+    setUnionActivityNum(snap.unionActivityNum);
+    setUnionCurrentEventIdx(snap.unionCurrentEventIdx);
+    setUnionEvents(snap.unionEvents);
+    setUnionSelectedSectors(snap.unionSelectedSectors);
+    setUnionProbNumInput(snap.unionProbNumInput);
+    setUnionProbDenInput(snap.unionProbDenInput);
+    setUnionFinalNumInput(snap.unionFinalNumInput);
+    setUnionFinalDenInput(snap.unionFinalDenInput);
+    setUnionSectorNumbers(snap.unionSectorNumbers);
+    setUnionMaxActivities(snap.unionMaxActivities);
+    setUnionNeedsNumbers(snap.unionNeedsNumbers);
+    // Comp
+    setCompPhase(snap.compPhase);
+    setCompExamplesViewed(snap.compExamplesViewed);
+    setCompCalcExampleNum(snap.compCalcExampleNum);
+    setCompUserSelectA(snap.compUserSelectA);
+    setCompUserSelectAbar(snap.compUserSelectAbar);
+    setCompIsGuided(snap.compIsGuided);
+    setCompUsedBitmasks(snap.compUsedBitmasks);
+    setCompChainInputs(snap.compChainInputs);
+    setCompChainResult(snap.compChainResult);
+    setCompPaInput(snap.compPaInput);
+    setCompStepByStep(snap.compStepByStep);
+    // Frequências / Interpretação
+    setFreqAbsQuestion(snap.freqAbsQuestion);
+    setFreqAbsInput(snap.freqAbsInput);
+    setFreqRelConceptPhase(snap.freqRelConceptPhase);
+    setFreqRelQuestion(snap.freqRelQuestion);
+    setFreqRelInput(snap.freqRelInput);
+    setInterpretationPhase(snap.interpretationPhase);
+    setInterpretationSelected(snap.interpretationSelected);
+    setInterpretationQ3(snap.interpretationQ3);
+    // LGN / dado
+    setLgnPhase(snap.lgnPhase);
+    setLgnVerbalInput(snap.lgnVerbalInput);
+    setLgnN(snap.lgnN);
+    setLgnParams(snap.lgnParams);
+    setLgnInput(snap.lgnInput);
+    setDiceState(snap.diceState);
+    setDiceInput(snap.diceInput);
+    // Etapa 2
+    setS2RandomColors(snap.s2RandomColors);
+    setS2AngleReadingStep(snap.s2AngleReadingStep);
+    setS2RatioInputs(snap.s2RatioInputs);
+    setS2IxInputs(snap.s2IxInputs);
+    setS2SumEquationInput(snap.s2SumEquationInput);
+    setS2XInput(snap.s2XInput);
+    setS2NumProbInputs(snap.s2NumProbInputs);
+    setS2AngleProbInputs(snap.s2AngleProbInputs);
+    setS2PredictionInput(snap.s2PredictionInput);
+    setS2FreqAbsInputs(snap.s2FreqAbsInputs);
+    setS2FreqRelInputs(snap.s2FreqRelInputs);
+    setS2ConclusionInput(snap.s2ConclusionInput);
+    setS2RatioPhase(snap.s2RatioPhase);
+    setS2ConceptQuestion(snap.s2ConceptQuestion);
+    setS2ConceptSelected(snap.s2ConceptSelected);
+    setS2UnitSectorIndex(snap.s2UnitSectorIndex);
+    setS2TableAllCorrect(snap.s2TableAllCorrect);
+    setS2ReasoningColorY(snap.s2ReasoningColorY);
+    setS2ReasoningAngleY(snap.s2ReasoningAngleY);
+    setS2ReasoningRatio(snap.s2ReasoningRatio);
+    setS2ReasoningInput(snap.s2ReasoningInput);
+    setS2ReasoningErrors(snap.s2ReasoningErrors);
+    setS2ReasoningShowHint(snap.s2ReasoningShowHint);
+    setS2IxPhase(snap.s2IxPhase);
+    setS2IxSumSelected(snap.s2IxSumSelected);
+    setS2IxCalcStep(snap.s2IxCalcStep);
+    setTrainingState(snap.trainingState);
+    setTrainRatioInputs(snap.trainRatioInputs);
+    setTrainIxInputs(snap.trainIxInputs);
+    setTrainSumInput(snap.trainSumInput);
+    setTrainProbInputs(snap.trainProbInputs);
+    setFracTraining(snap.fracTraining);
+    setFracThetaInputs(snap.fracThetaInputs);
+    setConvergenceSim(snap.convergenceSim);
+    setS2SpinReflection(snap.s2SpinReflection);
+    // Etapa 3
+    setS3State(snap.s3State);
+    // UI flags
     setDisabledSpinButton(snap.disabledSpinButton);
     setDisabledCheckButton(snap.disabledCheckButton);
     setDisabledNextButton(snap.disabledNextButton);
     setShowAutoSpinButtons(snap.showAutoSpinButtons);
-    setCompPhase(snap.compPhase);
-    setCompUserSelectAbar(snap.compUserSelectAbar);
-    setCompChainInputs(snap.compChainInputs);
-    setCompPaInput(snap.compPaInput);
-    setFreqAbsInput(snap.freqAbsInput);
-    setFreqRelInput(snap.freqRelInput);
-    setConvergenceInputs(snap.convergenceInputs);
-    setInterpretationPhase(snap.interpretationPhase);
-    setInterpretationSelected(snap.interpretationSelected);
-    setInterpretationQ3(snap.interpretationQ3);
-    setLgnPhase(snap.lgnPhase);
-    setLgnParams(snap.lgnParams);
-    setLgnInput(snap.lgnInput);
     // Libera locks síncronos para evitar travamentos pós-restore.
     experimentBetLockedRef.current = false;
     resultConfirmationLockedRef.current = false;
@@ -10953,11 +11272,56 @@ export const useRouletteHooks = () => {
   const devSimulateAdvance = useCallback(() => {
     const { stage, subStep, sectors, targetSectorCount } = gameState;
 
-    // Helper: pré-preenche um input + dispara checkAnswer no próximo tick
-    // (setTimeout evita closure stale do React).
+    // Helpers de validação no DEV: garantem que checkAnswer rode contra o
+    // estado JÁ COMPROMETIDO pelo React, e não contra um closure velho.
+    //
+    // Bug original: setTimeout(50) e até requestAnimationFrame duplo eram
+    // insuficientes em React 19 com renderização concorrente — o commit
+    // podia ser adiado para depois do tick agendado, então
+    // checkAnswerRef.current ainda apontava pro closure antigo (com o
+    // valor anterior do input/state). Resultado: aluno via erro mesmo
+    // tendo o estado correto, e só clicando de novo (já com o ref
+    // atualizado) avançava.
+    //
+    // Solução: flushSync força React a processar TODAS as setStates
+    // pendentes e re-renderizar SÍNCRONAMENTE antes de retornar. Após o
+    // flushSync, checkAnswerRef.current está garantido como a versão
+    // nova com o estado atualizado, e podemos chamar a validação direto.
+
+    // Cerca o callback de fill em flushSync e dispara checkAnswer já
+    // com o estado novo comprometido.
     const fillThenCheck = (fill: () => void) => {
-      fill();
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      try {
+        flushSync(fill);
+      } catch {
+        // Edge case: flushSync chamado durante render dispara warning.
+        // Fallback para a forma antiga (rAF duplo).
+        fill();
+        if (typeof requestAnimationFrame !== 'undefined') {
+          requestAnimationFrame(() => requestAnimationFrame(() => checkAnswerRef.current?.()));
+        } else {
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+        }
+        return;
+      }
+      checkAnswerRef.current?.();
+    };
+
+    // Para sites que já chamaram setStates inline antes — força flush das
+    // pendências (callback vazio drena trabalho enfileirado) e dispara a
+    // validação na sequência.
+    const scheduleCheck = () => {
+      try {
+        flushSync(() => { /* drena setStates pendentes */ });
+      } catch {
+        if (typeof requestAnimationFrame !== 'undefined') {
+          requestAnimationFrame(() => requestAnimationFrame(() => checkAnswerRef.current?.()));
+        } else {
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+        }
+        return;
+      }
+      checkAnswerRef.current?.();
     };
 
     // ── 6.70 — Cena complexa multi-fase. Cada compPhase é uma "ceninha"
@@ -11145,7 +11509,7 @@ export const useRouletteHooks = () => {
           errN1: false, errD1: false, errN2: false, errD2: false,
           errFinalNum: false, errFinalDen: false,
         });
-        setTimeout(() => checkAnswerRef.current?.(), 50);
+        scheduleCheck();
         return;
       }
     }
@@ -11188,7 +11552,7 @@ export const useRouletteHooks = () => {
         if (showInfoBox) {
           handleInfoBoxConfirm();
         } else {
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
         }
         return;
       }
@@ -11297,13 +11661,13 @@ export const useRouletteHooks = () => {
         if (s2RatioPhase === 'ratio_question' || s2RatioPhase === 'area_question') {
           // Preenche razão correta
           setS2ReasoningInput(String(s2ReasoningRatio));
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
         if (s2RatioPhase === 'prob_question') {
           // Preenche "Np" onde N é a razão
           setS2ReasoningInput(`${s2ReasoningRatio}p`);
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
         if (s2RatioPhase === 'question_correct' || s2RatioPhase === 'table_checked') {
@@ -11324,7 +11688,7 @@ export const useRouletteHooks = () => {
               : { value: String(gameState.s2Ki[idx]), disabled: false, error: false };
           });
           setS2RatioInputs(inputs);
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
       }
@@ -11332,7 +11696,7 @@ export const useRouletteHooks = () => {
       if (subStep === 4) {
         if (s2IxPhase === 'sum_question') {
           setS2IxSumSelected('deve_dar_1');
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
         if (s2IxPhase === 'filling_table') {
@@ -11346,12 +11710,12 @@ export const useRouletteHooks = () => {
               ...prev,
               [color]: { ...prev[color], value: `${ki}p`, error: false },
             }));
-            setTimeout(() => checkAnswerRef.current?.(), 50);
+            scheduleCheck();
             return;
           }
           // Tabela cheia — preenche soma '1'
           setS2SumEquationInput(prev => ({ ...prev, value: '1', error: false }));
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
         if (s2IxPhase === 'guided_calc') {
@@ -11419,7 +11783,7 @@ export const useRouletteHooks = () => {
         if (s2SpinReflection.phase === 'question') {
           // Resposta da segunda pergunta reflexiva → checkAnswer leva pra 6.205.
           setS2SpinReflection(prev => ({ ...prev, selectedOption: 'apostar_outra' }));
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
         return;
@@ -11452,7 +11816,7 @@ export const useRouletteHooks = () => {
             ...prev,
             [color]: { ...prev[color], value: String(expectedKi), error: false },
           }));
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
         if (phase === 'fill_ip') {
@@ -11463,13 +11827,13 @@ export const useRouletteHooks = () => {
             ...prev,
             [color]: { ...prev[color], value: expectedKi === 1 ? 'p' : `${expectedKi}p`, error: false },
           }));
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
         if (phase === 'fill_sum') {
           // Preenche "1" e confere.
           setTrainSumInput(prev => ({ ...prev, value: '1', error: false }));
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
         if (phase === 'guided_calc') {
@@ -11486,7 +11850,7 @@ export const useRouletteHooks = () => {
             ...prev,
             [color]: { ...prev[color], value: `${expectedKi}/${tS}`, error: false },
           }));
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
         if (phase === 'completed') {
@@ -11513,7 +11877,7 @@ export const useRouletteHooks = () => {
             ...prev,
             [color]: { ...prev[color], value: `${ki}/${S}`, error: false },
           }));
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
       }
@@ -11539,7 +11903,7 @@ export const useRouletteHooks = () => {
             ...prev,
             [color]: { ...prev[color], value: `${angle}/360`, error: false },
           }));
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
       }
@@ -11564,7 +11928,7 @@ export const useRouletteHooks = () => {
           upd[c] = { value: `${ftAngles[i]}/360`, error: false, status: 'pending', errorMsg: '' };
         });
         setFracThetaInputs(upd);
-        setTimeout(() => checkAnswerRef.current?.(), 50);
+        scheduleCheck();
         return;
       }
       // 8.7: Simulação de Convergência — dispara blocos sequenciais
@@ -11591,7 +11955,7 @@ export const useRouletteHooks = () => {
             : { value: String(expected), disabled: false, error: false };
         });
         setS2FreqAbsInputs(upd);
-        setTimeout(() => checkAnswerRef.current?.(), 50);
+        scheduleCheck();
         return;
       }
       // 9.2: pergunta de incerteza
@@ -11611,7 +11975,7 @@ export const useRouletteHooks = () => {
             ...prev,
             [color]: { ...prev[color], value: `${freq}/${P}`, error: false },
           }));
-          setTimeout(() => checkAnswerRef.current?.(), 50);
+          scheduleCheck();
           return;
         }
       }
@@ -11739,7 +12103,7 @@ export const useRouletteHooks = () => {
           upd[color] = { value: String(count), error: false, correct: false };
         });
         setS3State(prev => ({ ...prev, countInputs: upd }));
-        setTimeout(() => checkAnswerRef.current?.(), 50);
+        scheduleCheck();
         return;
       }
       // 2 — Tabela P(cor) = a/b (preenche num/den de cada cor).
@@ -11750,7 +12114,7 @@ export const useRouletteHooks = () => {
           upd[color] = { num: String(count), den: String(n3), errorNum: false, errorDen: false, status: 'pending', errorMsg: '' };
         });
         setS3State(prev => ({ ...prev, probInputs: upd }));
-        setTimeout(() => checkAnswerRef.current?.(), 50);
+        scheduleCheck();
         return;
       }
       // 3, 4, 6, 7 — perguntas MC com resposta 'A'.
@@ -11803,14 +12167,22 @@ export const useRouletteHooks = () => {
         handleS3FallacyFinish();
         return;
       }
-      // 9 — institucionalização final → handleS3Finalize (avança para 10).
+      // 9 — institucionalização final → handleS3Finalize.
+      // DEV mode só é habilitado dentro da sequência didática, então
+      // sempre passamos inSequence=true (rota: 9 → 11 Reflexão → 10 Final).
       if (subStep === 9) {
-        handleS3Finalize();
+        handleS3Finalize(true);
         return;
       }
-      // 10 — tela final → handleS3GoToReflection (avança para 11).
+      // 11 — Reflexão de ponte → handleS3DismissReflexao (avança para 10).
+      if (subStep === 11) {
+        handleS3DismissReflexao();
+        return;
+      }
+      // 10 — tela final "Atividade Concluída!". Sem avanço dentro do OVA.
+      // O botão "Continuar a Sequência" (renderizado no UI) é quem chama
+      // onFinished para sair do OVA do disco.
       if (subStep === 10) {
-        handleS3GoToReflection();
         return;
       }
       // 11 — reflexão de ponte. O DEV não tem acesso ao onFinished;
@@ -12016,7 +12388,7 @@ export const useRouletteHooks = () => {
     if (stage === 1 && subStep === 1.25) {
       // Marca todas as 7 características (indices 0-6) como corretas e confere
       setSelectedCharacteristics(RANDOM_EXPERIMENT_CHARACTERISTICS.map((_, i) => i));
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
     if (stage === 1 && subStep === 2) {
@@ -12057,7 +12429,7 @@ export const useRouletteHooks = () => {
           : { value: expectedProb, disabled: false, error: false };
       });
       setProbabilityInputs(newInputs);
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
     if (stage === 1 && subStep === 6.1) {
@@ -12071,7 +12443,7 @@ export const useRouletteHooks = () => {
         .map((s, i) => gameState.exerciseEventE.includes(s.colorName) ? i : -1)
         .filter(i => i !== -1);
       setGameState(prev => ({ ...prev, selectedSectors: correctIndices }));
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
     if (stage === 1 && subStep === 6.42) {
@@ -12088,7 +12460,7 @@ export const useRouletteHooks = () => {
       const den = String(sectors.length);
       setExercisePENumeratorInput(prev => ({ ...prev, value: num }));
       setExercisePEDenominatorInput(prev => ({ ...prev, value: den }));
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
     if (stage === 1 && subStep === 6.5) {
@@ -12171,7 +12543,7 @@ export const useRouletteHooks = () => {
         });
       }
       setGameState(prev => ({ ...prev, selectedSectors: correctSectors }));
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
 
@@ -12247,7 +12619,7 @@ export const useRouletteHooks = () => {
         return;
       }
       setGameState(prev => ({ ...prev, selectedSectors: [...ev.indicesA] }));
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
     if (stage === 1 && subStep === 6.90 && compPhase === 'calc_pa') {
@@ -12256,7 +12628,7 @@ export const useRouletteHooks = () => {
       const m = ev.indicesA.length;
       const n = sectors.length;
       setCompPaInput({ num: String(m), den: String(n), errNum: false, errDen: false });
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
     if (stage === 1 && (subStep === 6.86 || subStep === 6.91)) {
@@ -12274,7 +12646,7 @@ export const useRouletteHooks = () => {
         return;
       }
       setCompUserSelectAbar([...ev.indicesAbar]);
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
     // ── 6.80 — formalize1/2/3/4: balão sequencial. Se compPhase ainda não
@@ -12312,7 +12684,7 @@ export const useRouletteHooks = () => {
         errN1: false, errD1: false, errN2: false, errD2: false,
         errFinalNum: false, errFinalDen: false,
       });
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
 
@@ -12334,7 +12706,7 @@ export const useRouletteHooks = () => {
       const den = String(sectors.length);
       setExercisePENumeratorInput(prev => ({ ...prev, value: num }));
       setExercisePEDenominatorInput(prev => ({ ...prev, value: den }));
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
 
@@ -12342,14 +12714,14 @@ export const useRouletteHooks = () => {
     if (stage === 1 && subStep === 8.5 && freqAbsQuestion) {
       const expected = gameState.frequencies[freqAbsQuestion.color] || 0;
       setFreqAbsInput({ value: String(expected), error: false });
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
     if (stage === 1 && subStep === 9.5 && freqRelQuestion) {
       const absFreq = gameState.frequencies[freqRelQuestion.color] || 0;
       const expectedPercent = (absFreq / gameState.ySpins) * 100;
       setFreqRelInput({ value: expectedPercent.toFixed(2).replace('.', ',') + '%', error: false });
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
 
@@ -12368,7 +12740,7 @@ export const useRouletteHooks = () => {
               })),
             },
       });
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
     if (stage === 1 && subStep === 12) {
@@ -12582,7 +12954,7 @@ export const useRouletteHooks = () => {
           : { value: `${f}/${ySpins}`, disabled: false, error: false };
       });
       setRelativeFrequencyInputs(filled);
-      setTimeout(() => checkAnswerRef.current?.(), 50);
+      scheduleCheck();
       return;
     }
     // ── 16 (Etapa 1 concluída) — apenas garante que o botão "Próxima Etapa"
@@ -12714,7 +13086,7 @@ export const useRouletteHooks = () => {
     s3State, setS3State, currentQuestion,
     handleS3ConfirmPrediction, handleS3SectorBet, handleS3ConfirmBet,
     spinRouletteS3, handleS3FallacyContinue, handleS3NewBetConfirm,
-    handleS3FallacyFinish, handleS3Finalize, handleS3GoToReflection,
+    handleS3FallacyFinish, handleS3Finalize, handleS3GoToReflection, handleS3DismissReflexao,
     s2AngleReadingStep, currentQuestion, s2AngleProbInputs, setS2AngleProbInputs,
     fracTraining, fracThetaInputs, setFracThetaInputs,
     handleFracTrainingNext, handleFracTrainingChangePhase,
@@ -13003,6 +13375,7 @@ export const useRouletteHooks = () => {
     handleS3ConfirmBet,
     handleS3Finalize,
     handleS3GoToReflection,
+    handleS3DismissReflexao,
     spinRouletteS3,
     handleS3FallacyContinue,
     handleS3NewBetConfirm,

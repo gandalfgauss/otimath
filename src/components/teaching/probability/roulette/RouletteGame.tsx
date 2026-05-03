@@ -14,13 +14,10 @@ import { RouletteQuestion } from "./RouletteQuestion";
 import { RouletteInfoBox } from "./RouletteInfoBox";
 import { useRouletteHooks } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
 
-// ─────────────────────────────────────────────────────────────────
-// FLAG TEMPORÁRIA: libera os botões "Etapa 2" e "Etapa 3" no seletor
-// de etapas mesmo sem ter concluído a etapa anterior. Usar SOMENTE
-// para QA/desenvolvimento. Para reverter ao fluxo normal de aluno,
-// basta voltar para `false`.
-// ─────────────────────────────────────────────────────────────────
-const DEV_UNLOCK_ALL_STAGES = true;
+// Snapshot opaco — round-trip entre getDevSnapshot/applyDevSnapshot do hook,
+// usado tanto pelo painel DEV (RouletteDevNav) quanto pela gravação contínua
+// no RouletteGame (que mantém o histórico vivo mesmo com modo DEV desligado).
+type DevSnapshotOpaque = ReturnType<ReturnType<typeof useRouletteHooks>['getDevSnapshot']>;
 
 function generateUnionNoteText(n: number) {
   const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].slice(0, n);
@@ -239,6 +236,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
     s2ReasoningAngleY,
     s2ReasoningRatio,
     s2ReasoningInput, setS2ReasoningInput,
+    s2ReasoningErrors,
     s2ReasoningShowHint,
     s2IxPhase,
     s2IxSumSelected, setS2IxSumSelected,
@@ -292,6 +290,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
     handleS3ConfirmBet,
     handleS3Finalize,
     handleS3GoToReflection,
+    handleS3DismissReflexao,
     spinRouletteS3,
     handleS3FallacyContinue,
     handleS3NewBetConfirm,
@@ -332,14 +331,47 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
   // Verificar se deve mostrar os botões de registro de cor
   const shouldShowColorRegistration = gameState.pendingRegistration && shouldShowSpinButton;
 
+  // ─────────────────────────────────────────────────────────────────
+  // Histórico DEV — vivo no escopo do RouletteGame para que continue
+  // gravando snapshots mesmo quando o painel DEV está DESLIGADO. Sem
+  // isso, a história só existia enquanto o RouletteDevNav estivesse
+  // montado, então ativar o DEV depois de algumas interações dava
+  // histórico vazio. Agora a captura roda sempre; o painel DEV apenas
+  // expõe a UI de navegação sobre o mesmo histórico.
+  // ─────────────────────────────────────────────────────────────────
+  const devHistoryRef = useRef<DevSnapshotOpaque[]>([]);
+  const devCursorRef = useRef<number>(-1);
+  const devRestoringRef = useRef<boolean>(false);
+  const [devHistoryTick, setDevHistoryTick] = useState(0);
+  const devCenaId = getDevCenaId();
+
+  useEffect(() => {
+    // Restaurações disparadas pelo próprio DEV não devem empilhar snapshot
+    // novo — apenas movem o cursor. O ref é resetado e a captura é pulada.
+    if (devRestoringRef.current) {
+      devRestoringRef.current = false;
+      return;
+    }
+    const snap = getDevSnapshot();
+    const cursor = devCursorRef.current;
+    devHistoryRef.current = devHistoryRef.current.slice(0, cursor + 1);
+    devHistoryRef.current.push(snap);
+    devCursorRef.current = devHistoryRef.current.length - 1;
+    setDevHistoryTick(c => c + 1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devCenaId]);
+
   return (
     <div className="flex flex-col gap-y-xxs">
       {devMode && (
         <RouletteDevNav
           stage={gameState.stage}
-          cenaId={getDevCenaId()}
+          historyRef={devHistoryRef}
+          cursorRef={devCursorRef}
+          restoringRef={devRestoringRef}
+          historyTick={devHistoryTick}
+          onCursorChange={() => setDevHistoryTick(c => c + 1)}
           onSimulateAdvance={devSimulateAdvance}
-          getDevSnapshot={getDevSnapshot}
           applyDevSnapshot={applyDevSnapshot}
           onStartStage={(n) => {
             if (n === 1) startStage1();
@@ -348,53 +380,35 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
           }}
         />
       )}
-      {/* Stage indicator */}
-      <div className="flex justify-center gap-x-macro mb-macro" role="tablist" aria-label="Etapas do disco">
+      {/* Indicador visual das etapas — não são botões, apenas ilustram em
+          qual etapa o aluno está e quais já foram concluídas. A navegação
+          entre etapas só é possível pelo fluxo natural do OVA ou pelo
+          modo DEV da sequência didática. */}
+      <div className="flex justify-center gap-x-macro mb-macro" role="list" aria-label="Etapas do disco">
         {[1, 2, 3].map((stageNum) => {
-          // Etapas anteriores à atual ficam desabilitadas — o aluno só pode
-          // avançar pelo OVA. Voltar para etapas concluídas só é possível
-          // via modo DEV da sequência didática.
-          // Se DEV_UNLOCK_ALL_STAGES estiver ativo, qualquer etapa >= atual
-          // fica clicável (independente de stage{2,3}Available).
-          const isAvailable = stageNum >= gameState.stage && (
-            DEV_UNLOCK_ALL_STAGES ||
-            stageNum === 1 ||
-            (stageNum === 2 && gameState.stage2Available) ||
-            (stageNum === 3 && gameState.stage3Available)
-          );
           const isCurrentStage = gameState.stage === stageNum;
           const isCompleted = gameState.stage > stageNum ||
             (stageNum === 1 && gameState.stage2Available) ||
             (stageNum === 2 && gameState.stage3Available);
 
           return (
-            <button
+            <div
               key={stageNum}
-              role="tab"
-              aria-selected={isCurrentStage}
-              aria-label={`Etapa ${stageNum}${isCompleted ? ' (concluída)' : ''}${!isAvailable ? ' (bloqueada)' : ''}`}
-              onClick={() => {
-                if (isAvailable && !isCurrentStage) {
-                  if (stageNum === 1) startStage1();
-                  else if (stageNum === 2) startStage2();
-                  else if (stageNum === 3) startStage3();
-                }
-              }}
-              disabled={!isAvailable || isCurrentStage}
+              role="listitem"
+              aria-current={isCurrentStage ? 'step' : undefined}
+              aria-label={`Etapa ${stageNum}${isCurrentStage ? ' (atual)' : isCompleted ? ' (concluída)' : ' (bloqueada)'}`}
               className={`
-                px-macro py-micro rounded-pill ds-small-bold transition-colors min-h-[44px]
+                px-macro py-micro rounded-pill ds-small-bold transition-colors min-h-[44px] flex items-center justify-center select-none
                 ${isCurrentStage
-                  ? 'bg-brand-otimath-pure text-neutral-white cursor-default'
-                  : !isAvailable && isCompleted
-                    ? 'bg-feedback-success-lighter text-feedback-success-darkest cursor-not-allowed opacity-70'
-                    : !isAvailable
-                      ? 'bg-neutral-lighter text-neutral-medium cursor-not-allowed opacity-50'
-                      : 'bg-brand-otimath-light text-neutral-white hover:bg-brand-otimath-pure cursor-pointer'
+                  ? 'bg-brand-otimath-pure text-neutral-white'
+                  : isCompleted
+                    ? 'bg-feedback-success-lighter text-feedback-success-darkest opacity-70'
+                    : 'bg-neutral-lighter text-neutral-medium opacity-50'
                 }
               `}
             >
               Etapa {stageNum}
-            </button>
+            </div>
           );
         })}
       </div>
@@ -2266,8 +2280,16 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
             />
           )}
 
-          {/* Gráfico de frequências relativas (mostrar após giros automáticos, ocultar durante perguntas de interpretação) */}
-          {gameState.totalSpins > 10 && gameState.subStep >= 10 && gameState.subStep !== 15 && !(gameState.subStep === 14 && interpretationPhase !== 'done') && (
+          {/* Gráfico de frequências relativas:
+              - Etapas 1/2: aparece após os giros automáticos (totalSpins>10),
+                escondido durante as perguntas de interpretação.
+              - Etapa 3: a Falácia do Jogador acumula em s3State.spinHistory
+                (não em gameState.totalSpins), então ali a condição é a
+                quantidade de giros realizados na própria E3. */}
+          {(
+            (gameState.stage !== 3 && gameState.totalSpins > 10 && gameState.subStep >= 10 && gameState.subStep !== 15 && !(gameState.subStep === 14 && interpretationPhase !== 'done')) ||
+            (gameState.stage === 3 && s3State.spinHistory.length > 0)
+          ) && (
             <RouletteChart
               title="Frequências Relativas"
               data={chartData}
@@ -2377,7 +2399,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
               selectedOption={selectedOption}
               onOptionSelect={setSelectedOption}
               onCheck={checkAnswer}
-              disabled={disabledCheckButton}
+              disabled={disabledCheckButton || !selectedOption}
             />
           )}
 
@@ -2585,9 +2607,15 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                       type="text"
                       inputMode="decimal"
                       value={s2ReasoningInput}
-                      onChange={(e) => setS2ReasoningInput(e.target.value)}
+                      onChange={(e) => {
+                        // Permite apenas dígitos com um único separador decimal (. ou ,) — número real positivo
+                        const next = e.target.value;
+                        if (next === '' || /^\d*[.,]?\d*$/.test(next)) {
+                          setS2ReasoningInput(next);
+                        }
+                      }}
                       placeholder="Digite o valor"
-                      className="border border-neutral-light rounded-sm p-micro ds-body w-[120px] text-center focus:border-brand-otimath-pure focus:outline-none"
+                      className={`border rounded-sm p-micro ds-body w-[120px] text-center focus:border-brand-otimath-pure focus:outline-none ${s2ReasoningErrors > 0 ? 'border-feedback-error-dark text-feedback-error-dark' : 'border-neutral-light'}`}
                     />
                   </div>
                   {s2ReasoningShowHint && (
@@ -2616,9 +2644,15 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                       type="text"
                       inputMode="decimal"
                       value={s2ReasoningInput}
-                      onChange={(e) => setS2ReasoningInput(e.target.value)}
+                      onChange={(e) => {
+                        // Permite apenas dígitos com um único separador decimal (. ou ,) — número real positivo
+                        const next = e.target.value;
+                        if (next === '' || /^\d*[.,]?\d*$/.test(next)) {
+                          setS2ReasoningInput(next);
+                        }
+                      }}
                       placeholder="Digite o valor"
-                      className="border border-neutral-light rounded-sm p-micro ds-body w-[120px] text-center focus:border-brand-otimath-pure focus:outline-none"
+                      className={`border rounded-sm p-micro ds-body w-[120px] text-center focus:border-brand-otimath-pure focus:outline-none ${s2ReasoningErrors > 0 ? 'border-feedback-error-dark text-feedback-error-dark' : 'border-neutral-light'}`}
                     />
                   </div>
                   {s2ReasoningShowHint && (
@@ -2648,7 +2682,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                       value={s2ReasoningInput}
                       onChange={(e) => setS2ReasoningInput(e.target.value)}
                       placeholder=""
-                      className="border border-neutral-light rounded-sm p-micro ds-body w-[120px] text-center focus:border-brand-otimath-pure focus:outline-none"
+                      className={`border rounded-sm p-micro ds-body w-[120px] text-center focus:border-brand-otimath-pure focus:outline-none ${s2ReasoningErrors > 0 ? 'border-feedback-error-dark text-feedback-error-dark' : 'border-neutral-light'}`}
                     />
                   </div>
                   {s2ReasoningShowHint && (
@@ -2675,7 +2709,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                   <p className="ds-small text-neutral-dark mb-micro">
                     Quantas unidades de {gameState.s2M}° cabem em cada setor?
                   </p>
-                  <table className="w-full border-collapse">
+                  <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                     <thead>
                       <tr className="bg-brand-otimath-pure text-neutral-white">
                         <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -2714,7 +2748,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                         );
                       })}
                     </tbody>
-                  </table>
+                  </table></div>
                   <div className="mt-micro flex gap-x-micro justify-center">
                     {!s2TableAllCorrect && (
                       <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer}>
@@ -2758,7 +2792,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                   <h3 className="ds-body-bold text-brand-otimath-pure mb-nano">Distribuindo a probabilidade entre todos os setores</h3>
                   <p className="ds-small text-neutral-dark mb-macro">Cada setor recebe uma quantidade proporcional à sua área. Seja p a probabilidade do setor de menor ângulo central ser sorteado. Vamos determinar o valor de p. Atribua probabilidades a cada setor na tabela em função de p.</p>
 
-                  <table className="w-full border-collapse">
+                  <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                     <thead>
                       <tr className="bg-brand-otimath-pure text-neutral-white">
                         <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -2813,7 +2847,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                         </td>
                       </tr>
                     </tbody>
-                  </table>
+                  </table></div>
 
                   {/* Cálculo guiado passo a passo (aparece após digitar 1 na soma) */}
                   {s2IxPhase === 'guided_calc' && (
@@ -2924,7 +2958,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
           {gameState.stage === 2 && gameState.subStep === 6 && Object.keys(s2NumProbInputs).length > 0 && (
             <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
               <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Probabilidades Numéricas (p = 1/{gameState.s2SumI})</h3>
-              <table className="w-full border-collapse">
+              <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                 <thead>
                   <tr className="bg-brand-otimath-pure text-neutral-white">
                     <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -2958,7 +2992,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
               <div className="mt-micro flex justify-center">
                 <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
                   Verificar
@@ -2976,7 +3010,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                   Treino {trainingState.currentTraining} de 4
                 </p>
                 <p className="ds-small text-neutral-dark">
-                  Girando-se o disco abaixo ao acaso, determine a probabilidade de o ponteiro indicar cada uma das cores do disco.
+                  Girando-se o disco apresentado ao acaso, determine a probabilidade de o ponteiro indicar cada uma das cores do disco.
                 </p>
               </div>
 
@@ -2993,7 +3027,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
               {trainingState.phase === 'fill_ratios' && Object.keys(trainRatioInputs).length > 0 && (
                 <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
                   <h3 className="ds-body-bold text-brand-otimath-pure mb-nano">Divida todos os ângulos pelo menor</h3>
-                  <table className="w-full border-collapse">
+                  <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                     <thead>
                       <tr className="bg-brand-otimath-pure text-neutral-white">
                         <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -3027,7 +3061,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                   <div className="mt-micro flex justify-center">
                     <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
                       Verificar
@@ -3042,7 +3076,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                   <h3 className="ds-body-bold text-brand-otimath-pure mb-nano">Probabilidades em função de p</h3>
                   <p className="ds-small text-neutral-dark mb-macro">Seja p a probabilidade do setor de menor ângulo central ser sorteado. Atribua probabilidades a cada setor na tabela em função de p.</p>
 
-                  <table className="w-full border-collapse">
+                  <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                     <thead>
                       <tr className="bg-brand-otimath-pure text-neutral-white">
                         <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -3097,7 +3131,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                         </td>
                       </tr>
                     </tbody>
-                  </table>
+                  </table></div>
 
                   {/* Cálculo guiado passo a passo */}
                   {trainingState.phase === 'guided_calc' && (
@@ -3150,7 +3184,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
               {trainingState.phase === 'fill_prob' && Object.keys(trainProbInputs).length > 0 && (
                 <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
                   <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Probabilidades Numéricas (p = 1/{trainingState.S})</h3>
-                  <table className="w-full border-collapse">
+                  <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                     <thead>
                       <tr className="bg-brand-otimath-pure text-neutral-white">
                         <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -3184,7 +3218,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                   <div className="mt-micro flex justify-center">
                     <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
                       Verificar
@@ -3408,7 +3442,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
             <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
               <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Probabilidade Angular (θ/360)</h3>
               <p className="ds-small text-neutral-dark mb-micro">Estamos comparando cada setor com o disco completo (360°).</p>
-              <table className="w-full border-collapse">
+              <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                 <thead>
                   <tr className="bg-brand-otimath-pure text-neutral-white">
                     <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -3450,7 +3484,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
               <div className="mt-micro flex justify-center">
                 <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
                   Verificar
@@ -3502,7 +3536,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
 
               {/* Tabela: Cor | Fração (θ/360) | Percentual | Status */}
               <div className="bg-neutral-white rounded-md border border-neutral-lighter overflow-hidden">
-                <table className="w-full border-collapse">
+                <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                   <thead>
                     <tr className="bg-brand-otimath-pure text-neutral-white">
                       <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -3575,7 +3609,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
                 {/* Conferir — só aparece enquanto não completou */}
                 {!fracTraining.allCorrect && (
                   <div className="p-micro flex justify-center border-t border-neutral-lighter">
@@ -3688,7 +3722,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
               {/* Tabela dinâmica */}
               {gameState.totalSpins > 0 && (
               <div className="bg-neutral-white rounded-md border border-neutral-lighter overflow-hidden">
-                <table className="w-full border-collapse">
+                <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                   <thead>
                     <tr className="bg-brand-otimath-pure text-neutral-white">
                       <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -3757,7 +3791,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
               )}
 
@@ -3842,7 +3876,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
               <p className="ds-small text-neutral-dark mb-macro">
                 Preencha a frequência absoluta observada para cada cor:
               </p>
-              <table className="w-full border-collapse">
+              <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                 <thead>
                   <tr className="bg-brand-otimath-pure text-neutral-white">
                     <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -3871,7 +3905,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
               <div className="mt-micro flex justify-center">
                 <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
                   Verificar
@@ -3897,7 +3931,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
           {gameState.stage === 2 && gameState.subStep === 9.3 && Object.keys(s2FreqRelInputs).length > 0 && (
             <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
               <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">Frequência Relativa</h3>
-              <table className="w-full border-collapse">
+              <div className="overflow-x-auto"><table className="min-w-full border-collapse">
                 <thead>
                   <tr className="bg-brand-otimath-pure text-neutral-white">
                     <th className="p-micro text-left ds-small-bold">Cor</th>
@@ -3938,7 +3972,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                     <td className="p-micro text-center ds-small-bold">-</td>
                   </tr>
                 </tfoot>
-              </table>
+              </table></div>
               <div className="mt-micro flex justify-center">
                 <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={disabledCheckButton}>
                   Verificar
@@ -4561,7 +4595,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                     style="primary"
                     size="medium"
                     icon={<Check />}
-                    onClick={handleS3Finalize}
+                    onClick={() => handleS3Finalize(!!onFinished)}
                   >
                     Finalizar
                   </Button>
@@ -4591,8 +4625,12 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
             </div>
           )}
 
-          {/* Stage 3 — SubStep 11: Reflexão de ponte com OVA 2 */}
-          {gameState.stage === 3 && gameState.subStep === 11 && (
+          {/* Stage 3 — SubStep 11: Reflexão de ponte com OVA 2.
+              Só aparece na sequência didática (onFinished definido). No OVA
+              standalone, handleS3Finalize roteia direto para subStep 10
+              (Atividade Concluída) — Reflexão e botão de continuar só fazem
+              sentido quando há um próximo OVA na trilha. */}
+          {gameState.stage === 3 && gameState.subStep === 11 && onFinished && (
             <div className="flex flex-col items-center gap-y-xxs">
               <div className="w-full max-w-[650px] rounded-lg p-xxs border-l-4 border-brand-otimath-pure bg-brand-otimath-lightest">
                 <p className="ds-body-bold text-brand-otimath-dark mb-micro">Reflexão para o próximo desafio</p>
@@ -4609,23 +4647,14 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                   Pense nisso. A resposta pode te surpreender.
                 </p>
               </div>
-              {onFinished ? (
-                <Button
-                  style="primary"
-                  size="medium"
-                  icon={<ArrowRight />}
-                  onClick={onFinished}
-                >
-                  Avançar para o próximo OVA
-                </Button>
-              ) : (
-                <a
-                  href="/ensino/probabilidade/dois-dados"
-                  className="ds-body-bold inline-block bg-brand-otimath-pure text-neutral-white rounded-md no-underline py-macro px-xxs"
-                >
-                  Ir para o OVA: Probabilidade com Dois Dados →
-                </a>
-              )}
+              <Button
+                style="primary"
+                size="small"
+                icon={<Check />}
+                onClick={handleS3DismissReflexao}
+              >
+                Li.
+              </Button>
             </div>
           )}
 
@@ -5031,57 +5060,34 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
 
 // ─────────────────────────────────────────────────────────────────
 // Barra de DEV interna do disco — uso restrito ao painel de DEV da
-// sequência didática. Histórico de snapshots COMPLETOS (incluindo
-// InfoBox, instruções, inputs, fase de experimentação, etc.) capturado
-// via getDevSnapshot. Voltar restaura snapshot via applyDevSnapshot;
-// avançar restaura snapshot futuro ou simula o usuário acertando a
-// cena via onSimulateAdvance — ambos preservam todas as dependências.
+// sequência didática. O histórico de snapshots vive no RouletteGame
+// (parent), garantindo que a captura continue acontecendo mesmo
+// quando o painel está desligado. Este componente é apenas a UI de
+// navegação sobre esse histórico.
 // ─────────────────────────────────────────────────────────────────
-// Snapshot opaco — passamos round-trip entre getDevSnapshot e applyDevSnapshot
-// sem precisar duplicar o tipo aqui (que tem 20+ campos).
-type DevSnapshotOpaque = ReturnType<ReturnType<typeof useRouletteHooks>['getDevSnapshot']>;
-
 function RouletteDevNav({
-  stage, cenaId, onSimulateAdvance, getDevSnapshot, applyDevSnapshot, onStartStage,
+  stage, historyRef, cursorRef, restoringRef, historyTick,
+  onCursorChange, onSimulateAdvance, applyDevSnapshot, onStartStage,
 }: {
   stage: number;
-  cenaId: string;
+  historyRef: React.MutableRefObject<DevSnapshotOpaque[]>;
+  cursorRef: React.MutableRefObject<number>;
+  restoringRef: React.MutableRefObject<boolean>;
+  historyTick: number; // força re-render quando o histórico muda no parent
+  onCursorChange: () => void;
   onSimulateAdvance: () => void;
-  getDevSnapshot: () => DevSnapshotOpaque;
   applyDevSnapshot: (snap: DevSnapshotOpaque) => void;
   onStartStage: (n: 1 | 2 | 3) => void;
 }) {
-  const historyRef = useRef<DevSnapshotOpaque[]>([]);
-  const cursorRef = useRef<number>(-1);
-  const restoringRef = useRef<boolean>(false);
-  const [, force] = useState(0);
-
-  // Snapshot automático em cada mudança natural de cena (subStep + sub-fase
-  // como compPhase, unionPhase, freqRelConceptPhase, etc.). Ignora mudanças
-  // disparadas por DEV (restoring) — essas só movem o cursor.
-  useEffect(() => {
-    if (restoringRef.current) {
-      restoringRef.current = false;
-      return;
-    }
-    const snap = getDevSnapshot();
-    const cursor = cursorRef.current;
-    historyRef.current = historyRef.current.slice(0, cursor + 1);
-    historyRef.current.push(snap);
-    cursorRef.current = historyRef.current.length - 1;
-    force(c => c + 1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cenaId]);
-
   const goPrev = () => {
     if (cursorRef.current > 0) {
       cursorRef.current -= 1;
       restoringRef.current = true;
       // applyDevSnapshot dispara várias setStates que React baterá num
-      // único re-render; o useEffect acima detecta restoringRef e não
-      // empilha snapshot novo.
+      // único re-render; o useEffect no parent detecta restoringRef e
+      // não empilha snapshot novo.
       applyDevSnapshot(historyRef.current[cursorRef.current]);
-      force(c => c + 1);
+      onCursorChange();
     }
   };
 
@@ -5090,7 +5096,7 @@ function RouletteDevNav({
       cursorRef.current += 1;
       restoringRef.current = true;
       applyDevSnapshot(historyRef.current[cursorRef.current]);
-      force(c => c + 1);
+      onCursorChange();
       return;
     }
     // Sem snapshot futuro — simula resposta correta para construir a próxima cena.
@@ -5102,9 +5108,12 @@ function RouletteDevNav({
   // que o usuário viu — não tenta prever total porque cenas dinâmicas
   // (3 exemplos no comp, etc.) tornam isso impreciso.
   const positionLabel = `Cena ${cursorRef.current + 1}`;
+  // historyTick é referenciado para que o React inclua-o como dep do render
+  // (re-renderiza quando o parent atualiza o tick após push/restore).
+  void historyTick;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-quarck gap-y-quarck p-quarck rounded-md bg-feedback-warning-lightest border border-feedback-warning-light text-neutral-darkest">
+    <div className="relative z-50 flex flex-wrap items-center justify-center gap-x-quarck gap-y-quarck p-quarck rounded-md bg-feedback-warning-lightest border border-feedback-warning-light text-neutral-darkest">
       <span className="ds-caption font-bold">DEV — Disco:</span>
       <div className="flex gap-x-quarck">
         {[1, 2, 3].map(n => (
