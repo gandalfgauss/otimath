@@ -1,10 +1,24 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
+import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle, type RefObject } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
 import type { DiceMachineSceneHandle } from './DiceMachineScene';
 import { STEP_NAMES } from './DiceMachineScene';
+import type { AlertType } from '@/components/global/Alert';
+
+// Handle exposto ao pai (TwoDicesPresentation) para o painel DEV
+// avançar a Cena 6 simulando a interação natural do aluno em cada fase.
+export interface DiceMachineExperimentHandle {
+  /** ID textual da fase atual — entra no cenaId DEV. */
+  getCurrentPhaseId: () => string;
+  /** Simula a próxima ação correta do aluno na fase atual.
+   *  Em fases que envolvem rolagem 3D, pula direto para a próxima fase
+   *  sem aguardar a animação. */
+  advance: () => void;
+  /** Restaura a fase a partir de um snapshot DEV. */
+  setCurrentPhaseId: (phaseId: string) => void;
+}
 
 // ═══════ Constantes de design (alinhadas ao Design System OtiMath) ═══════
 // Tamanhos pensados para mobile-first (>= 320 px). Alvos de toque
@@ -394,14 +408,23 @@ interface DiceMachineExperimentProps {
   diceMachineRef: RefObject<DiceMachineSceneHandle | null>;
   diceContainerRef: RefObject<HTMLDivElement | null>;
   onFinished: () => void;
+  /** Notifica o pai quando a fase interna muda — usado pelo painel DEV
+   *  para construir um cenaId que reflete a sub-cena ativa da Cena 6. */
+  onPhaseChange?: (phaseId: string) => void;
+  /** Cria um toast alert via o sistema de alerts do pai (TwoDicesPresentation).
+   *  Usado pelas validações para feedback consistente com o resto do OVA. */
+  createAlert?: (title: string, description: string, type: AlertType, timeout?: number) => void;
 }
 
 // ═══════ Componente principal ═══════
-export function DiceMachineExperiment({
-  diceMachineRef,
-  diceContainerRef,
-  onFinished,
-}: Readonly<DiceMachineExperimentProps>) {
+export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, DiceMachineExperimentProps>(
+  function DiceMachineExperiment({
+    diceMachineRef,
+    diceContainerRef,
+    onFinished,
+    onPhaseChange,
+    createAlert,
+  }, ref) {
   const [phase, setPhase] = useState<Phase>('intro');
 
   // Resultado do lançamento atual
@@ -495,12 +518,14 @@ export function DiceMachineExperiment({
         setPickGreenError(true);
         setPickFeedback('Toque no dado verde e escolha a face que apareceu.');
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Faltou o dado verde', 'Toque no dado verde e escolha a face que apareceu.', 'error', 4000);
         return;
       }
       if (pickedBlue == null) {
         setPickBlueError(true);
         setPickFeedback('Toque no dado azul e escolha a face que apareceu.');
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Faltou o dado azul', 'Toque no dado azul e escolha a face que apareceu.', 'error', 4000);
         return;
       }
       const greenOk = pickedGreen === greenResult;
@@ -510,23 +535,25 @@ export function DiceMachineExperiment({
         setPickBlueError(false);
         setPickFeedback('');
         playSound('/sounds/correct.mp3');
+        createAlert?.('Par registrado!', `(verde, azul) = (${greenResult}, ${blueResult}).`, 'success', 3000);
         onSuccess();
       } else {
         setPickGreenError(!greenOk);
         setPickBlueError(!blueOk);
+        let msg: string;
         if (!greenOk && !blueOk) {
-          setPickFeedback(
-            'Releia os dois dados na máquina. Toque em cada um e escolha de novo a face que apareceu.',
-          );
+          msg = 'Releia os dois dados na máquina. Toque em cada um e escolha de novo a face que apareceu.';
         } else if (!greenOk) {
-          setPickFeedback('Releia o dado verde. Toque nele e escolha a face que realmente apareceu.');
+          msg = 'Releia o dado verde. Toque nele e escolha a face que realmente apareceu.';
         } else {
-          setPickFeedback('Releia o dado azul. Toque nele e escolha a face que realmente apareceu.');
+          msg = 'Releia o dado azul. Toque nele e escolha a face que realmente apareceu.';
         }
+        setPickFeedback(msg);
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', msg, 'error', 4500);
       }
     },
-    [pickedGreen, pickedBlue, greenResult, blueResult],
+    [pickedGreen, pickedBlue, greenResult, blueResult, createAlert],
   );
 
   // ═══════ Validação da soma (L2 e L3) ═══════
@@ -536,6 +563,7 @@ export function DiceMachineExperiment({
       setSumError(true);
       setSumFeedback('Digite um número inteiro.');
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Campo inválido', 'Digite um número inteiro.', 'error', 4000);
       return;
     }
     const expected = (greenResult ?? 0) + (blueResult ?? 0);
@@ -543,13 +571,16 @@ export function DiceMachineExperiment({
       setSumError(false);
       setSumFeedback('');
       playSound('/sounds/correct.mp3');
+      createAlert?.('Soma correta!', `${greenResult} + ${blueResult} = ${expected}.`, 'success', 3000);
       setPhase(nextPhase);
     } else {
       setSumError(true);
-      setSumFeedback(`Some ${greenResult} (verde) com ${blueResult} (azul) e tente de novo.`);
+      const msg = `Some ${greenResult} (verde) com ${blueResult} (azul) e tente de novo.`;
+      setSumFeedback(msg);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', msg, 'error', 4000);
     }
-  }, [sumInput, greenResult, blueResult]);
+  }, [sumInput, greenResult, blueResult, createAlert]);
 
   // ═══════ Validação da previsão (L3) ═══════
   const validatePrediction = useCallback(() => {
@@ -569,15 +600,24 @@ export function DiceMachineExperiment({
     }
     if (hasError) {
       playSound('/sounds/incorrect.mp3');
+      createAlert?.(
+        'Complete os campos',
+        (isNaN(v) || v < 2 || v > 12)
+          ? 'Escolha um número inteiro entre 2 e 12 e selecione uma justificativa.'
+          : 'Selecione uma justificativa para sua previsão.',
+        'error',
+        4500,
+      );
       return;
     }
+    createAlert?.('Previsão registrada', `Você apostou na soma ${v}. Vamos lançar a máquina.`, 'info', 3000);
     // Lança a máquina — após pousar, aluno registra par + soma antes do reflect
     resetPicker();
     setSumInput('');
     setSumError(false);
     setSumFeedback('');
     void launchMachine('s3-rolling', 's3-pick');
-  }, [predictionInput, predictionReason, launchMachine, resetPicker]);
+  }, [predictionInput, predictionReason, launchMachine, resetPicker, createAlert]);
 
   // ═══════ Avanço entre etapas ═══════
   const goToS2 = useCallback(() => {
@@ -844,6 +884,41 @@ export function DiceMachineExperiment({
     );
   };
 
+  // ═══════ Notificação de mudança de fase para o pai (cenaId DEV) ═══════
+  useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [phase, onPhaseChange]);
+
+  // ═══════ Handle exposto ao painel DEV ═══════
+  // Avança simulando a interação natural do aluno em cada fase. Pula
+  // animações de rolagem (3D) direto para a próxima fase relevante.
+  useImperativeHandle(ref, () => ({
+    getCurrentPhaseId: () => phase,
+    advance: () => {
+      switch (phase) {
+        case 'intro':       setPhase('s1-ready'); return;
+        case 's1-ready':    setPhase('s1-pick'); return;
+        case 's1-rolling':  setPhase('s1-pick'); return;
+        case 's1-pick':     setPhase('s1-correct'); return;
+        case 's1-correct':  setPhase('s2-ready'); return;
+        case 's2-ready':    setPhase('s2-pick'); return;
+        case 's2-rolling':  setPhase('s2-pick'); return;
+        case 's2-pick':     setPhase('s2-sum'); return;
+        case 's2-sum':      setPhase('s2-correct'); return;
+        case 's2-correct':  setPhase('s3-predict'); return;
+        case 's3-predict':  setPhase('s3-pick'); return;
+        case 's3-rolling':  setPhase('s3-pick'); return;
+        case 's3-pick':     setPhase('s3-sum'); return;
+        case 's3-sum':      setPhase('s3-reflect'); return;
+        case 's3-reflect':  setPhase('bridge'); return;
+        case 'bridge':      onFinished(); return;
+      }
+    },
+    setCurrentPhaseId: (phaseId: string) => {
+      setPhase(phaseId as typeof phase);
+    },
+  }), [phase, onFinished]);
+
   // ═══════ RENDER ═══════
   return (
     <div className="w-full" style={{ maxWidth: 720, margin: '0 auto', marginTop: 16 }}>
@@ -962,7 +1037,7 @@ export function DiceMachineExperiment({
                 Lançamento 1 — Registrar
               </p>
               <p className="ds-body text-neutral-black mb-macro text-justify">
-                Toque em cada dado abaixo e escolha a <strong>face</strong> que apareceu
+                Toque em cada dado apresentado e escolha a <strong>face</strong> que apareceu
                 na máquina.
               </p>
               {renderPairPicker()}
@@ -1088,7 +1163,8 @@ export function DiceMachineExperiment({
                   pattern="[0-9]*"
                   value={sumInput}
                   onChange={e => {
-                    setSumInput(e.target.value);
+                    // Aceita apenas dígitos — input numérico puro.
+                    setSumInput(e.target.value.replace(/\D/g, ''));
                     setSumError(false);
                     setSumFeedback('');
                   }}
@@ -1347,7 +1423,8 @@ export function DiceMachineExperiment({
                   pattern="[0-9]*"
                   value={sumInput}
                   onChange={e => {
-                    setSumInput(e.target.value);
+                    // Aceita apenas dígitos — input numérico puro.
+                    setSumInput(e.target.value.replace(/\D/g, ''));
                     setSumError(false);
                     setSumFeedback('');
                   }}
@@ -1478,4 +1555,5 @@ export function DiceMachineExperiment({
       )}
     </div>
   );
-}
+});
+DiceMachineExperiment.displayName = 'DiceMachineExperiment';

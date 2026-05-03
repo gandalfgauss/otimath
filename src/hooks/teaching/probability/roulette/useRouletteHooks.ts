@@ -1666,7 +1666,13 @@ function fallbackEvents(
   n: number
 ): { events: UnionEvent[], needsNumbers: boolean } {
   const shuffled = shuffleArray([...uniqueColors]);
-  const maxColors = Math.min(numEvents, Math.max(1, shuffled.length - 1));
+  // Garantir SEMPRE numEvents (até o limite de cores disponíveis). Antes,
+  // `Math.max(1, shuffled.length - 1)` deixava uma cor de fora para evitar
+  // P(união) = 1, mas isso fazia a Atividade 1 (numEvents=2) renderizar com
+  // só 1 evento quando o disco tinha exatamente 2 cores únicas — quebrando
+  // a definição pedagógica de "união de eventos". Aceitar P=1 é melhor que
+  // ter um único evento numa atividade de união.
+  const maxColors = Math.min(numEvents, shuffled.length);
   const usedColors = shuffled.slice(0, maxColors);
 
   const events: UnionEvent[] = usedColors.map((color, i) =>

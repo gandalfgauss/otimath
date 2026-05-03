@@ -549,7 +549,7 @@ function IntroPanel({
       <p className="ds-body-large" style={{ margin: 0, color: 'var(--color-neutral-darkest)' }}>
         Você está na <strong>{roundLabel}</strong>. Imagine que uma pesquisa
         entrevistou torcedores presentes no estádio durante o jogo
-        <strong> {data.team1.name} × {data.team2.name}</strong>. A tabela abaixo
+        <strong> {data.team1.name} × {data.team2.name}</strong>. A tabela apresentada
         mostra quantos torcedores de cada time são do <strong>sexo masculino</strong> (<SexSymbol s="m" />)
         {' '}e do <strong>sexo feminino</strong> (<SexSymbol s="f" />).
       </p>

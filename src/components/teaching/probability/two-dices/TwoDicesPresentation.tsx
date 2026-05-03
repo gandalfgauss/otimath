@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/global/Button';
 import { Grid } from '@/components/global/Grid';
 import { GridItem } from '@/components/global/GridItem';
+import { Alerts } from '@/components/global/Alerts';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { playSound } from '@/hooks/global/useSound';
+import { useAlerts } from '@/hooks/global/useAlerts';
 import type { DiceSceneHandle } from './DiceScene';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
 import type { UnionTheoryHandle } from './UnionProbabilityTheory';
@@ -17,9 +20,9 @@ import type { UnionExercise4Handle } from './UnionExercise4';
 import type { UnionExercise5Handle } from './UnionExercise5';
 import type { UnionExercise6Handle } from './UnionExercise6Review';
 import type { DiceMachineSceneHandle } from './DiceMachineScene';
-import { TwoDicesPractice } from './TwoDicesPractice';
-import { TwoDicesExperiment } from './TwoDicesExperiment';
-import { DiceMachineExperiment } from './DiceMachineExperiment';
+import { TwoDicesPractice, type TwoDicesPracticeHandle } from './TwoDicesPractice';
+import { TwoDicesExperiment, type TwoDicesExperimentHandle } from './TwoDicesExperiment';
+import { DiceMachineExperiment, type DiceMachineExperimentHandle } from './DiceMachineExperiment';
 
 // Skeleton exibido enquanto o chunk JS do componente 3D é baixado
 function Scene3DSkeleton({ label = 'Carregando cena 3D...' }: { label?: string }) {
@@ -199,12 +202,28 @@ interface TwoDicesPresentationProps {
 }
 
 export function TwoDicesPresentation({ children, onFinished, devMode = false }: TwoDicesPresentationProps) {
+  // Sistema de alerts toast — consistente com o restante do OVA dos dados
+  // (ComplementaryEventsActivity, useComplementaryEventsHooks, etc.).
+  const { alerts, createAlert, updateAlert, deleteAlerts } = useAlerts();
+
   const [done, setDone] = useState(false);
   const [scene, setScene] = useState(1);
   const [transitioning, setTransitioning] = useState(false);
 
   // Ref do dado 3D e seu container (para scroll programático)
   const diceRef = useRef<DiceSceneHandle>(null);
+  // Handle da Cena 5 (TwoDicesPractice) — expõe phase + advance para o
+  // painel DEV simular o fluxo natural sem interação manual.
+  const practiceRef = useRef<TwoDicesPracticeHandle>(null);
+  // Fase interna atual da Cena 5 (notificada via onPhaseChange) — entra
+  // no cenaId DEV para que cada sub-fase seja capturada como snapshot.
+  const [scene5InternalPhase, setScene5InternalPhase] = useState<string>('main=intro');
+  // Mesmo padrão para Cena 6 (DiceMachineExperiment).
+  const machineExperimentRef = useRef<DiceMachineExperimentHandle>(null);
+  const [scene6InternalPhase, setScene6InternalPhase] = useState<string>('intro');
+  // Handle da Cena 7 (TwoDicesExperiment) — usado pelo DEV para avançar
+  // pelas fases via handle do componente em vez de pular cena inteira.
+  const twoDicesExperimentRef = useRef<TwoDicesExperimentHandle>(null);
   const diceContainerRef = useRef<HTMLDivElement>(null);
   // Ref da máquina de lançamento (Cena 6 — percepção do acaso)
   const diceMachineRef = useRef<DiceMachineSceneHandle>(null);
@@ -343,29 +362,40 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
     setTransitioning(true);
 
     setTimeout(() => {
+      // CRÍTICO: resetar scene3Step/scene4Step JUNTO com setScene no
+      // mesmo batch — caso contrário, há um render intermediário em que
+      // scene=3 já está aplicado mas scene3Step ainda tem o valor antigo
+      // (ex.: 6 de uma execução anterior), causando um flash do texto
+      // de fechamento da Cena 3 logo na entrada. Mesma proteção para a
+      // Cena 4 (step + flags de erro + radioOrder).
       setScene(num);
-
-      // Resetar estados por cena
-      if (num === 3) setBarsAnimated(false);
-      if (num === 4) setCompareBarsAnimated(false);
+      if (num === 3) {
+        setBarsAnimated(false);
+        setScene3Step(0);
+        setScene3AllBars(false);
+        setScene3ShowBar(false);
+      }
+      if (num === 4) {
+        setCompareBarsAnimated(false);
+        setScene4Step(0);
+        setScene4EqAnswer('');
+        setScene4VicAnswer('');
+        setScene4EqError(false);
+        setScene4VicError(false);
+        setScene4RadioOrder([Math.random() > 0.5, Math.random() > 0.5, Math.random() > 0.5]);
+      }
 
       requestAnimationFrame(() => {
         setTransitioning(false);
 
-        // Iniciar comportamento da cena
+        // Iniciar comportamento da cena (animações que precisam de UM render
+        // já concluído — não devem rodar no mesmo batch da troca de cena).
         if (num === 2) {
           setCurrentFaceIdx(-1);
           diceRef.current?.setIdle(false);
           setTimeout(() => startScene2(), 300);
         }
-        if (num === 3) { setBarsAnimated(false); setScene3Step(0); }
         if (num === 4) {
-          setScene4Step(0);
-          setScene4EqAnswer('');
-          setScene4VicAnswer('');
-          setScene4EqError(false);
-          setScene4VicError(false);
-          setScene4RadioOrder([Math.random() > 0.5, Math.random() > 0.5, Math.random() > 0.5]);
           setTimeout(() => {
             setCompareBarsAnimated(true);
             setTimeout(() => setScene4Step(1), 1500);
@@ -390,10 +420,12 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
     if (nums.length === 6 && nums.every((n, i) => n === i + 1)) {
       setScene3SampleSpaceError(false);
       playSound("/sounds/correct.mp3");
+      createAlert('Correto!', 'Espaço amostral identificado.', 'success', 2500);
       setScene3Step(2);
     } else {
       setScene3SampleSpaceError(true);
       playSound("/sounds/incorrect.mp3");
+      createAlert('Tente novamente', 'Verifique quais os resultados possíveis no lançamento de um dado.', 'error', 4000);
     }
   };
 
@@ -402,31 +434,51 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
     if (v === 6) {
       setScene3NSError(false);
       playSound("/sounds/correct.mp3");
+      createAlert('Correto!', 'O espaço amostral tem 6 elementos.', 'success', 2500);
       setScene3Step(3);
     } else {
       setScene3NSError(true);
       playSound("/sounds/incorrect.mp3");
+      createAlert('Tente novamente', 'Conte quantos elementos você listou no espaço amostral S.', 'error', 4000);
     }
   };
 
   const validatePS = () => {
-    const v = scene3PS.trim().replace(',', '.').replace('%', '');
-    if (v === '1' || v === '100') {
+    // P(S) = 1 — aceita: 1, 100, 1.0, 100%, ou QUALQUER fração equivalente
+    // a 1 (ex.: 6/6, 3/3, 100/100, 36/36) usando produto cruzado.
+    const raw = scene3PS.trim().replace('%', '');
+    let ok = false;
+    if (raw.includes('/')) {
+      const [n, d] = raw.split('/');
+      const num = parseFloat(n.replace(',', '.'));
+      const den = parseFloat(d.replace(',', '.'));
+      if (!Number.isNaN(num) && !Number.isNaN(den) && den !== 0 && num === den) {
+        ok = true;
+      }
+    } else {
+      const v = parseFloat(raw.replace(',', '.'));
+      if (!Number.isNaN(v) && (v === 1 || v === 100)) ok = true;
+    }
+    if (ok) {
       setScene3PSError(false);
       playSound("/sounds/correct.mp3");
+      createAlert('Correto!', 'P(S) = 1 — algum resultado certamente ocorre.', 'success', 2500);
       setScene3Step(4);
     } else {
       setScene3PSError(true);
       playSound("/sounds/incorrect.mp3");
+      createAlert('Tente novamente', 'Se o dado é lançado, algum resultado certamente ocorrerá. Qual probabilidade representa a certeza?', 'error', 4500);
     }
   };
 
   const validateProb = () => {
     const num = parseInt(scene3Num);
     const den = parseInt(scene3Den);
-    const numOk = num === 1;
-    const denOk = den === 6;
-    const fracOk = denOk && numOk;
+    // Aceita qualquer fração equivalente a 1/6 via produto cruzado
+    // (ex: 2/12, 3/18, 5/30) — assim o aluno não precisa simplificar.
+    const fracOk = !Number.isNaN(num) && !Number.isNaN(den) && den !== 0 && num * 6 === den * 1;
+    const numOk = !Number.isNaN(num) && (fracOk || num === 1);
+    const denOk = !Number.isNaN(den) && (fracOk || den === 6);
     // Aceita: 16.6, 16.66, 16.666, 16.6666..., 16.67, 16.7, e variações com "..." ou "…"
     const pctRaw = scene3Pct.trim().replace(',', '.').replace('%', '');
     const hasEllipsis = pctRaw.includes('...') || pctRaw.includes('…');
@@ -445,10 +497,14 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
 
     if (fracOk && pctOk) {
       playSound("/sounds/correct.mp3");
+      createAlert('Correto!', `P(face ${scene3RandomFace}) = 1/6 ≈ 16,7%.`, 'success', 3000);
       setScene3ShowBar(true);
-      setTimeout(() => setScene3Step(5), 800);
+      // Tempo aumentado de 800ms para 3000ms para o aluno conseguir
+      // observar a barra animada da face sorteada antes da transição.
+      setTimeout(() => setScene3Step(5), 3000);
     } else {
       playSound("/sounds/incorrect.mp3");
+      createAlert('Tente novamente', 'Verifique a fração e a porcentagem.', 'error', 4000);
 
       if (fracOk && !pctOk) {
         // Fração correta, porcentagem errada
@@ -480,10 +536,12 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
       setScene3AllBars(true);
       setBarsAnimated(true);
       playSound("/sounds/correct.mp3");
+      createAlert('Exatamente!', 'Em um dado equilibrado todas as faces têm a mesma probabilidade.', 'success', 3000);
       setTimeout(() => setScene3Step(6), 1200);
     } else {
       setScene3NoError(true);
       playSound("/sounds/incorrect.mp3");
+      createAlert('Releia a definição', 'Releia a definição de dado equilibrado e tente novamente.', 'error', 4000);
     }
   };
 
@@ -497,22 +555,40 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
 
     if (eqOk && vicOk) {
       playSound("/sounds/correct.mp3");
+      createAlert('Correto!', 'Você classificou corretamente os espaços amostrais.', 'success', 3000);
       setScene4Step(2);
     } else {
       playSound("/sounds/incorrect.mp3");
+      createAlert('Tente novamente', 'Releia a definição de dado equilibrado/viciado e revise as opções.', 'error', 4000);
     }
   };
 
   // ── Validação da soma P(Ω) = 1 na Cena 4 ──
   const validateScene4Sum = () => {
-    const v = scene4SumAnswer.trim().replace(',', '.').replace('%', '');
-    if (v === '1' || v === '100') {
+    // Aceita: 1, 100, 1.0, 100%, ou QUALQUER fração equivalente a 1
+    // (ex.: 6/6, 3/3, 100/100) usando produto cruzado.
+    const raw = scene4SumAnswer.trim().replace('%', '');
+    let ok = false;
+    if (raw.includes('/')) {
+      const [n, d] = raw.split('/');
+      const num = parseFloat(n.replace(',', '.'));
+      const den = parseFloat(d.replace(',', '.'));
+      if (!Number.isNaN(num) && !Number.isNaN(den) && den !== 0 && num === den) {
+        ok = true;
+      }
+    } else {
+      const v = parseFloat(raw.replace(',', '.'));
+      if (!Number.isNaN(v) && (v === 1 || v === 100)) ok = true;
+    }
+    if (ok) {
       setScene4SumError(false);
       playSound("/sounds/correct.mp3");
+      createAlert('Correto!', 'A soma das probabilidades de todos os resultados possíveis é sempre 1 (100%).', 'success', 3000);
       setScene4Step(3);
     } else {
       setScene4SumError(true);
       playSound("/sounds/incorrect.mp3");
+      createAlert('Tente novamente', 'Lembre-se do valor que você calculou para P(S) na etapa anterior.', 'error', 4000);
     }
   };
 
@@ -539,6 +615,330 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
     if (scene < 5) goToScene(scene + 1);
   };
 
+  // ─────────────────────────────────────────────────────────────────
+  // SNAPSHOT/RESTORE para o painel DEV (estilo OVA do Disco). Toda a
+  // captura roda no parent — assim o histórico continua sendo gravado
+  // mesmo quando devMode está OFF. Quando o aluno ativa o DEV depois,
+  // já existe histórico para voltar.
+  //
+  // Cenas 5, 6 e 7 delegam estado a filhos com phase próprio
+  // (TwoDicesPractice, DiceMachineExperiment, TwoDicesExperiment).
+  // Capturamos a fase interna via onPhaseChange e, ao restaurar um snapshot,
+  // chamamos setCurrentPhaseId no handle do filho para sincronizar o phase
+  // interno com o snapshot — sem isso, ao voltar e seguir adiante via DEV,
+  // a próxima seta avançava a partir da fase REAL (não do snapshot) e
+  // cenas como pairQuestion/pairExplain/colorQuestion eram puladas.
+  // ─────────────────────────────────────────────────────────────────
+
+  // ID textual da cena atual — chave usada para detectar transições e
+  // empilhar snapshots. Inclui sub-passos (Cena 3 e 4) e a fase interna
+  // da Cena 7 (exposta via onPhaseChange).
+  const devCenaId = (() => {
+    const parts: string[] = [`scene=${scene}`];
+    if (scene === 3) parts.push(`step=${scene3Step}`);
+    if (scene === 4) parts.push(`step=${scene4Step}`);
+    if (scene === 5) parts.push(`practice=${scene5InternalPhase}`);
+    if (scene === 6) parts.push(`machine=${scene6InternalPhase}`);
+    if (scene === 7) parts.push(`phase=${scene7ExperimentPhase}`);
+    if (done) parts.push('done');
+    return parts.join('|');
+  })();
+
+  // Snapshot do estado parent — usado para restaurar visualmente uma
+  // cena anterior. Não captura estado interno dos filhos (limitação).
+  type DevSnapshot = {
+    done: boolean;
+    scene: number;
+    transitioning: boolean;
+    currentFaceIdx: number;
+    barsAnimated: boolean;
+    scene3Step: number;
+    scene3SampleSpace: string;
+    scene3SampleSpaceError: boolean;
+    scene3NS: string;
+    scene3NSError: boolean;
+    scene3PS: string;
+    scene3PSError: boolean;
+    scene3Num: string;
+    scene3Den: string;
+    scene3Pct: string;
+    scene3NumError: boolean;
+    scene3DenError: boolean;
+    scene3PctError: boolean;
+    scene3ProbFeedback: string;
+    scene3ShowBar: boolean;
+    scene3AllBars: boolean;
+    scene3NoError: boolean;
+    compareBarsAnimated: boolean;
+    scene4Step: number;
+    scene4EqAnswer: string;
+    scene4EqError: boolean;
+    scene4VicAnswer: string;
+    scene4VicError: boolean;
+    scene4SumAnswer: string;
+    scene4SumError: boolean;
+    scene4RadioOrder: [boolean, boolean, boolean];
+    scene5Finished: boolean;
+    scene5InternalPhase: string;
+    scene6Finished: boolean;
+    scene6InternalPhase: string;
+    machineReady: boolean;
+    scene7Finished: boolean;
+    scene7UsesMachine: boolean;
+    scene7HideAllDice: boolean;
+    scene7ExperimentPhase: string;
+  };
+
+  const getDevSnapshot = (): DevSnapshot => ({
+    done, scene, transitioning, currentFaceIdx, barsAnimated,
+    scene3Step, scene3SampleSpace, scene3SampleSpaceError,
+    scene3NS, scene3NSError, scene3PS, scene3PSError,
+    scene3Num, scene3Den, scene3Pct,
+    scene3NumError, scene3DenError, scene3PctError,
+    scene3ProbFeedback, scene3ShowBar, scene3AllBars, scene3NoError,
+    compareBarsAnimated, scene4Step,
+    scene4EqAnswer, scene4EqError, scene4VicAnswer, scene4VicError,
+    scene4SumAnswer, scene4SumError, scene4RadioOrder,
+    scene5Finished, scene5InternalPhase, scene6Finished, scene6InternalPhase, machineReady, scene7Finished,
+    scene7UsesMachine, scene7HideAllDice, scene7ExperimentPhase,
+  });
+
+  const applyDevSnapshot = (snap: DevSnapshot) => {
+    setDone(snap.done);
+    setScene(snap.scene);
+    setTransitioning(snap.transitioning);
+    setCurrentFaceIdx(snap.currentFaceIdx);
+    setBarsAnimated(snap.barsAnimated);
+    setScene3Step(snap.scene3Step);
+    setScene3SampleSpace(snap.scene3SampleSpace);
+    setScene3SampleSpaceError(snap.scene3SampleSpaceError);
+    setScene3NS(snap.scene3NS);
+    setScene3NSError(snap.scene3NSError);
+    setScene3PS(snap.scene3PS);
+    setScene3PSError(snap.scene3PSError);
+    setScene3Num(snap.scene3Num);
+    setScene3Den(snap.scene3Den);
+    setScene3Pct(snap.scene3Pct);
+    setScene3NumError(snap.scene3NumError);
+    setScene3DenError(snap.scene3DenError);
+    setScene3PctError(snap.scene3PctError);
+    setScene3ProbFeedback(snap.scene3ProbFeedback);
+    setScene3ShowBar(snap.scene3ShowBar);
+    setScene3AllBars(snap.scene3AllBars);
+    setScene3NoError(snap.scene3NoError);
+    setCompareBarsAnimated(snap.compareBarsAnimated);
+    setScene4Step(snap.scene4Step);
+    setScene4EqAnswer(snap.scene4EqAnswer);
+    setScene4EqError(snap.scene4EqError);
+    setScene4VicAnswer(snap.scene4VicAnswer);
+    setScene4VicError(snap.scene4VicError);
+    setScene4SumAnswer(snap.scene4SumAnswer);
+    setScene4SumError(snap.scene4SumError);
+    setScene4RadioOrder(snap.scene4RadioOrder);
+    setScene5Finished(snap.scene5Finished);
+    setScene5InternalPhase(snap.scene5InternalPhase);
+    setScene6InternalPhase(snap.scene6InternalPhase);
+    setScene6Finished(snap.scene6Finished);
+    setMachineReady(snap.machineReady);
+    setScene7Finished(snap.scene7Finished);
+    setScene7UsesMachine(snap.scene7UsesMachine);
+    setScene7HideAllDice(snap.scene7HideAllDice);
+    setScene7ExperimentPhase(snap.scene7ExperimentPhase);
+
+    // CRÍTICO: parent state e child state estavam desincronizados ao
+    // navegar via DEV. Sem isso, scene7ExperimentPhase mostrava (ex.)
+    // 'pairQuestion' no snapshot, mas o phase real do TwoDicesExperiment
+    // continuava em 'colorExplain' — então a próxima seta avançava a partir
+    // da fase REAL e o aluno via cenas serem puladas. Aqui sincronizamos
+    // explicitamente o phase interno de cada handle filho.
+    requestAnimationFrame(() => {
+      if (snap.scene === 5) {
+        practiceRef.current?.setCurrentPhaseId?.(snap.scene5InternalPhase);
+      }
+      if (snap.scene === 6) {
+        machineExperimentRef.current?.setCurrentPhaseId?.(snap.scene6InternalPhase);
+      }
+      if (snap.scene === 7) {
+        twoDicesExperimentRef.current?.setCurrentPhaseId?.(snap.scene7ExperimentPhase);
+      }
+    });
+  };
+
+  // Histórico de snapshots — vive aqui (não no DevNav) para persistir
+  // capturas mesmo quando o painel DEV está desligado.
+  const devHistoryRef = useRef<DevSnapshot[]>([]);
+  const devCursorRef = useRef<number>(-1);
+  const devRestoringRef = useRef<boolean>(false);
+  const [, setDevHistoryTick] = useState(0);
+
+  useEffect(() => {
+    if (devRestoringRef.current) {
+      devRestoringRef.current = false;
+      return;
+    }
+    const snap = getDevSnapshot();
+    const cursor = devCursorRef.current;
+    devHistoryRef.current = devHistoryRef.current.slice(0, cursor + 1);
+    devHistoryRef.current.push(snap);
+    devCursorRef.current = devHistoryRef.current.length - 1;
+    setDevHistoryTick(c => c + 1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devCenaId]);
+
+  // Simula o avanço NATURAL para a próxima cena, como se o aluno
+  // tivesse respondido corretamente. Cobre Cenas 1–4 (estado parent)
+  // de forma rica e usa goToScene/handles externos para Cenas 5–7.
+  const devSimulateAdvance = () => {
+    const wrap = (fn: () => void) => {
+      try { flushSync(fn); } catch { fn(); }
+    };
+
+    // Cena 1: clicar Próximo
+    if (scene === 1) { handleNext(); return; }
+
+    // Cena 2: a sequência roda automaticamente — pular para a Cena 3 final
+    if (scene === 2) {
+      scene2Running.current = false;
+      goToScene(3);
+      return;
+    }
+
+    // Cena 3: cada step exige preencher e validar.
+    // IMPORTANTE: NÃO chamamos validateXXX após setState — chamar a função
+    // produziria closure stale (a validateXXX foi criada no render anterior
+    // e lê o state antigo, mesmo após flushSync). Como sabemos que a resposta
+    // simulada é correta, INLINAMOS o caminho de sucesso (mesmo som/alert/
+    // mudança de step da função real) — assim a transição é determinística
+    // e independente do timing de render.
+    if (scene === 3) {
+      if (scene3Step === 0) { wrap(() => setScene3Step(1)); return; }
+      if (scene3Step === 1) {
+        wrap(() => {
+          setScene3SampleSpace('1,2,3,4,5,6');
+          setScene3SampleSpaceError(false);
+          setScene3Step(2);
+        });
+        playSound("/sounds/correct.mp3");
+        createAlert('Correto!', 'Espaço amostral identificado.', 'success', 2500);
+        return;
+      }
+      if (scene3Step === 2) {
+        wrap(() => {
+          setScene3NS('6');
+          setScene3NSError(false);
+          setScene3Step(3);
+        });
+        playSound("/sounds/correct.mp3");
+        createAlert('Correto!', 'O espaço amostral tem 6 elementos.', 'success', 2500);
+        return;
+      }
+      if (scene3Step === 3) {
+        wrap(() => {
+          setScene3PS('1');
+          setScene3PSError(false);
+          setScene3Step(4);
+        });
+        playSound("/sounds/correct.mp3");
+        createAlert('Correto!', 'P(S) = 1 — algum resultado certamente ocorre.', 'success', 2500);
+        return;
+      }
+      if (scene3Step === 4) {
+        wrap(() => {
+          setScene3Num('1');
+          setScene3Den('6');
+          setScene3Pct('16,67');
+          setScene3NumError(false);
+          setScene3DenError(false);
+          setScene3PctError(false);
+          setScene3ProbFeedback('');
+          setScene3ShowBar(true);
+        });
+        playSound("/sounds/correct.mp3");
+        createAlert('Correto!', `P(face ${scene3RandomFace}) = 1/6 ≈ 16,7%.`, 'success', 3000);
+        // Avança para step 5 com o mesmo delay da validação real.
+        setTimeout(() => setScene3Step(5), 3000);
+        return;
+      }
+      if (scene3Step === 5) {
+        wrap(() => {
+          setScene3NoError(false);
+          setScene3AllBars(true);
+          setBarsAnimated(true);
+        });
+        playSound("/sounds/correct.mp3");
+        createAlert('Exatamente!', 'Em um dado equilibrado todas as faces têm a mesma probabilidade.', 'success', 3000);
+        setTimeout(() => setScene3Step(6), 1200);
+        return;
+      }
+      if (scene3Step === 6) { handleNext(); return; }
+      return;
+    }
+
+    // Cena 4: idem, por step
+    if (scene === 4) {
+      if (scene4Step === 0) { wrap(() => setScene4Step(1)); return; }
+      if (scene4Step === 1) {
+        wrap(() => {
+          setScene4EqAnswer('equiprovavel');
+          setScene4VicAnswer('nao-equiprovavel');
+          setScene4EqError(false);
+          setScene4VicError(false);
+          setScene4Step(2);
+        });
+        playSound("/sounds/correct.mp3");
+        createAlert('Correto!', 'Você classificou corretamente os espaços amostrais.', 'success', 3000);
+        return;
+      }
+      if (scene4Step === 2) {
+        wrap(() => {
+          setScene4SumAnswer('1');
+          setScene4SumError(false);
+          setScene4Step(3);
+        });
+        playSound("/sounds/correct.mp3");
+        createAlert('Correto!', 'A soma das probabilidades de todos os resultados possíveis é sempre 1 (100%).', 'success', 3000);
+        return;
+      }
+      if (scene4Step === 3) { handleNext(); return; }
+      return;
+    }
+
+    // Cena 5: avança simulando a interação do aluno via TwoDicesPracticeHandle.
+    // Quando chega ao mainPhase 'finished', chama onFinished que vai para Cena 6.
+    if (scene === 5) {
+      if (practiceRef.current) {
+        practiceRef.current.advance();
+      } else {
+        setScene5Finished(true);
+        goToScene(6);
+      }
+      return;
+    }
+    // Cena 6: avança simulando a interação do aluno via DiceMachineExperimentHandle.
+    if (scene === 6) {
+      if (machineExperimentRef.current) {
+        machineExperimentRef.current.advance();
+      } else {
+        setScene6Finished(true);
+        goToScene(7);
+      }
+      return;
+    }
+
+    // Cena 7: avança via TwoDicesExperimentHandle, que internamente
+    // delega para os handles dos sub-exercícios (UnionTheory,
+    // UnionExerciseN) quando aplicável e mapeia o resto das fases.
+    if (scene === 7) {
+      if (twoDicesExperimentRef.current) {
+        twoDicesExperimentRef.current.advance();
+      } else if (scene7Finished) {
+        playSound('/sounds/gameFinished.mp3');
+        setDone(true);
+      }
+      return;
+    }
+  };
+
   // Se apresentação finalizada: dispara onFinished (se fornecido) ou
   // revela children no lugar das cenas. Em fluxos compostos (sequência
   // didática), onFinished é usado para passar o controle ao orquestrador
@@ -556,12 +956,12 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
     <main className="bg-brand-otimath-lightest">
       {devMode && (
         <TwoDicesDevNav
-          scene={scene}
-          setScene={setScene}
-          scene3Step={scene3Step}
-          setScene3Step={setScene3Step}
-          scene4Step={scene4Step}
-          setScene4Step={setScene4Step}
+          historyRef={devHistoryRef}
+          cursorRef={devCursorRef}
+          restoringRef={devRestoringRef}
+          onCursorChange={() => setDevHistoryTick(c => c + 1)}
+          onSimulateAdvance={devSimulateAdvance}
+          applyDevSnapshot={applyDevSnapshot}
         />
       )}
       <Grid id="apresentacao-dado" paddings="pt-xl">
@@ -742,8 +1142,12 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                           <span className="ds-body-bold text-neutral-black">n(S) =</span>
                           <input
                             type="text"
+                            inputMode="numeric"
                             value={scene3NS}
-                            onChange={e => { setScene3NS(e.target.value); setScene3NSError(false); }}
+                            onChange={e => {
+                              const v = e.target.value.replace(/\D/g, '');
+                              setScene3NS(v); setScene3NSError(false);
+                            }}
                             placeholder="?"
                             className="ds-body"
                             aria-label="Número de elementos do espaço amostral n de S"
@@ -781,8 +1185,16 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                           <span className="ds-body-bold text-neutral-black">P(S) =</span>
                           <input
                             type="text"
+                            inputMode="decimal"
                             value={scene3PS}
-                            onChange={e => { setScene3PS(e.target.value); setScene3PSError(false); }}
+                            onChange={e => {
+                              // Aceita dígitos, separador decimal (. ou ,), barra (/)
+                              // para frações equivalentes a 1 (ex: 6/6) e o sinal %.
+                              const next = e.target.value;
+                              if (next === '' || /^\d*[.,]?\d*\/?\d*[.,]?\d*%?$/.test(next)) {
+                                setScene3PS(next); setScene3PSError(false);
+                              }
+                            }}
                             placeholder="?"
                             className="ds-body"
                             aria-label="Probabilidade do espaço amostral P de S"
@@ -820,8 +1232,11 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                           <span className="ds-body-bold text-neutral-black">P(face {scene3RandomFace}) =</span>
                           <div className="inline-flex flex-col items-center mx-nano">
                             <input
-                              type="text" value={scene3Num}
-                              onChange={e => { setScene3Num(e.target.value); setScene3NumError(false); setScene3ProbFeedback(''); }}
+                              type="text" inputMode="numeric" value={scene3Num}
+                              onChange={e => {
+                                const v = e.target.value.replace(/\D/g, '');
+                                setScene3Num(v); setScene3NumError(false); setScene3ProbFeedback('');
+                              }}
                               placeholder="?" className="ds-body"
                               aria-label="Numerador da probabilidade"
                               aria-invalid={scene3NumError}
@@ -833,8 +1248,11 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                             />
                             <hr aria-hidden="true" style={{ width: '100%', height: 2, background: 'var(--color-neutral-black)', border: 'none', margin: '2px 0' }} />
                             <input
-                              type="text" value={scene3Den}
-                              onChange={e => { setScene3Den(e.target.value); setScene3DenError(false); setScene3ProbFeedback(''); }}
+                              type="text" inputMode="numeric" value={scene3Den}
+                              onChange={e => {
+                                const v = e.target.value.replace(/\D/g, '');
+                                setScene3Den(v); setScene3DenError(false); setScene3ProbFeedback('');
+                              }}
                               placeholder="?" className="ds-body"
                               aria-label="Denominador da probabilidade"
                               aria-invalid={scene3DenError}
@@ -847,8 +1265,15 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                           </div>
                           <span className="ds-body-bold text-neutral-black">≈</span>
                           <input
-                            type="text" value={scene3Pct}
-                            onChange={e => { setScene3Pct(e.target.value); setScene3PctError(false); setScene3ProbFeedback(''); }}
+                            type="text" inputMode="decimal" value={scene3Pct}
+                            onChange={e => {
+                              // Aceita dígitos + um separador decimal (. ou ,) + reticências (...) usadas
+                              // para indicar dízima periódica (16,6...). Bloqueia letras e símbolos.
+                              const next = e.target.value;
+                              if (next === '' || /^\d*[.,]?\d*\.?\.?\.?$/.test(next) || next === '…') {
+                                setScene3Pct(next); setScene3PctError(false); setScene3ProbFeedback('');
+                              }
+                            }}
                             placeholder="?" className="ds-body"
                             aria-label="Probabilidade em porcentagem"
                             aria-invalid={scene3PctError}
@@ -1052,7 +1477,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                               className="ds-small-bold"
                               style={{ color: 'var(--color-feedback-error-dark)' }}
                             >
-                              Releia o texto acima e tente novamente.
+                              Releia o texto apresentado e tente novamente.
                             </p>
                           )}
                         </div>
@@ -1082,8 +1507,16 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                           Mas a soma das probabilidades de ocorrer cada um dos resultados possíveis do experimento aleatório é
                           <input
                             type="text"
+                            inputMode="decimal"
                             value={scene4SumAnswer}
-                            onChange={e => { setScene4SumAnswer(e.target.value); setScene4SumError(false); }}
+                            onChange={e => {
+                              // Aceita dígitos, separador decimal (. ou ,), barra (/) para
+                              // fração equivalente a 1, e o sinal %.
+                              const next = e.target.value;
+                              if (next === '' || /^\d*[.,]?\d*\/?\d*[.,]?\d*%?$/.test(next)) {
+                                setScene4SumAnswer(next); setScene4SumError(false);
+                              }
+                            }}
                             placeholder="?"
                             className="ds-body-bold"
                             aria-label="Soma das probabilidades dos resultados possíveis"
@@ -1140,8 +1573,11 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
             {/* ═══════ CENA 5 — Componente separado ═══════ */}
             {scene === 5 && (
               <TwoDicesPractice
+                ref={practiceRef}
                 diceRef={diceRef}
                 diceContainerRef={diceContainerRef}
+                onPhaseChange={setScene5InternalPhase}
+                createAlert={createAlert}
                 onFinished={() => {
                   setScene5Finished(true);
                   goToScene(6);
@@ -1189,8 +1625,11 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
             {/* ═══════ CENA 6 — Experimento com a máquina ═══════ */}
             {scene === 6 && (
               <DiceMachineExperiment
+                ref={machineExperimentRef}
                 diceMachineRef={diceMachineRef}
                 diceContainerRef={diceMachineContainerRef}
+                onPhaseChange={setScene6InternalPhase}
+                createAlert={createAlert}
                 onFinished={() => {
                   setScene6Finished(true);
                   goToScene(7);
@@ -1231,6 +1670,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                   <DiceMachineScene ref={diceMachineRef} />
                 </div>
                 <TwoDicesExperiment
+                  ref={twoDicesExperimentRef}
                   diceSceneRef={twoDiceRef}
                   diceContainerRef={twoDiceContainerRef}
                   diceMachineRef={diceMachineRef}
@@ -1245,6 +1685,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                   onMachineVisibilityChange={setScene7UsesMachine}
                   onHideAllDice={setScene7HideAllDice}
                   onPhaseChange={setScene7ExperimentPhase}
+                  createAlert={createAlert}
                   onFinished={() => {
                     setScene7Finished(true);
                     playSound("/sounds/gameFinished.mp3");
@@ -1258,96 +1699,82 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
         </GridItem>
       </Grid>
 
+      {/* Sistema de toast alerts — usado pelas validações das Cenas 3 e 4
+          para feedback consistente com o restante do OVA dos dados. */}
+      <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts} />
     </main>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────
 // Barra de DEV interna do Dois Dados — uso restrito ao painel de DEV da
-// sequência didática. Navegação por (cena, scene3Step, scene4Step) com
-// snapshot do estado a cada mudança natural — voltar restaura snapshot,
-// avançar restaura snapshot futuro ou herda o estado atual.
+// sequência didática. O histórico de snapshots vive no parent
+// (TwoDicesPresentation), garantindo que a captura continue acontecendo
+// mesmo quando o painel está desligado. Este componente é apenas a UI
+// de navegação (prev/next) sobre esse histórico — mesmo padrão do OVA
+// do Disco (RouletteDevNav).
 // ─────────────────────────────────────────────────────────────────
-type TwoDicesSnapshot = { scene: number; scene3Step: number; scene4Step: number };
+function TwoDicesDevNav<TSnap>({
+  historyRef, cursorRef, restoringRef, onCursorChange,
+  onSimulateAdvance, applyDevSnapshot,
+}: Readonly<{
+  historyRef: React.MutableRefObject<TSnap[]>;
+  cursorRef: React.MutableRefObject<number>;
+  restoringRef: React.MutableRefObject<boolean>;
+  onCursorChange: () => void;
+  onSimulateAdvance: () => void;
+  applyDevSnapshot: (snap: TSnap) => void;
+}>) {
+  const goPrev = () => {
+    if (cursorRef.current > 0) {
+      cursorRef.current -= 1;
+      restoringRef.current = true;
+      // applyDevSnapshot dispara várias setStates que React baterá num
+      // único re-render; o useEffect no parent detecta restoringRef e
+      // não empilha snapshot novo.
+      applyDevSnapshot(historyRef.current[cursorRef.current]);
+      onCursorChange();
+    }
+  };
 
-function TwoDicesDevNav({
-  scene, setScene, scene3Step, setScene3Step, scene4Step, setScene4Step,
-}: {
-  scene: number;
-  setScene: (n: number) => void;
-  scene3Step: number;
-  setScene3Step: (n: number) => void;
-  scene4Step: number;
-  setScene4Step: (n: number) => void;
-}) {
-  const TOTAL = 7;
-  // Lista plana de "ceninhas" navegáveis: cena base + variações por step
-  // dentro das cenas que têm sub-passos visíveis (3 e 4).
-  const phases: { label: string; apply: () => void; snapshot: TwoDicesSnapshot }[] = [
-    { label: '1', apply: () => setScene(1), snapshot: { scene: 1, scene3Step: 0, scene4Step: 0 } },
-    { label: '2', apply: () => setScene(2), snapshot: { scene: 2, scene3Step: 0, scene4Step: 0 } },
-    ...[0, 1, 2, 3, 4, 5, 6].map(s => ({
-      label: `3.${s}`,
-      apply: () => { setScene(3); setScene3Step(s); },
-      snapshot: { scene: 3, scene3Step: s, scene4Step: 0 },
-    })),
-    ...[0, 1, 2].map(s => ({
-      label: `4.${s}`,
-      apply: () => { setScene(4); setScene4Step(s); },
-      snapshot: { scene: 4, scene3Step: 0, scene4Step: s },
-    })),
-    { label: '5', apply: () => setScene(5), snapshot: { scene: 5, scene3Step: 0, scene4Step: 0 } },
-    { label: '6', apply: () => setScene(6), snapshot: { scene: 6, scene3Step: 0, scene4Step: 0 } },
-    { label: '7', apply: () => setScene(7), snapshot: { scene: 7, scene3Step: 0, scene4Step: 0 } },
-  ];
-  const total = phases.length;
+  const goNext = () => {
+    if (cursorRef.current < historyRef.current.length - 1) {
+      cursorRef.current += 1;
+      restoringRef.current = true;
+      applyDevSnapshot(historyRef.current[cursorRef.current]);
+      onCursorChange();
+      return;
+    }
+    // Sem snapshot futuro — simula a resposta correta do aluno para
+    // construir a próxima cena.
+    onSimulateAdvance();
+  };
 
-  const matchesIdx = (s: TwoDicesSnapshot) =>
-    phases.findIndex(p =>
-      p.snapshot.scene === s.scene &&
-      (s.scene === 3 ? p.snapshot.scene3Step === s.scene3Step : true) &&
-      (s.scene === 4 ? p.snapshot.scene4Step === s.scene4Step : true)
-    );
-
-  const currentSnapshot: TwoDicesSnapshot = { scene, scene3Step, scene4Step };
-  const currentIdx = matchesIdx(currentSnapshot);
-
-  const goPrev = () => { if (currentIdx > 0) phases[currentIdx - 1].apply(); };
-  const goNext = () => { if (currentIdx >= 0 && currentIdx < total - 1) phases[currentIdx + 1].apply(); };
+  const positionLabel = `Cena ${cursorRef.current + 1}`;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-quarck gap-y-quarck p-quarck bg-feedback-warning-lightest border-b border-feedback-warning-light text-neutral-darkest">
+    <div className="relative z-50 flex flex-wrap items-center justify-center gap-x-quarck gap-y-quarck p-quarck rounded-md bg-feedback-warning-lightest border border-feedback-warning-light text-neutral-darkest">
       <span className="ds-caption font-bold">DEV — Dois Dados:</span>
       <button
+        type="button"
         onClick={goPrev}
-        disabled={currentIdx <= 0}
-        aria-label="Ceninha anterior"
+        disabled={cursorRef.current <= 0}
+        aria-label="Cena anterior"
         className="flex items-center justify-center w-6 h-6 rounded-sm border border-neutral-light bg-neutral-white cursor-pointer hover:bg-neutral-lightest disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <ChevronLeft size={14} aria-hidden="true" />
       </button>
       <span className="ds-caption">
-        {currentIdx >= 0 ? `Cena ${currentIdx + 1} de ${total}` : `? de ${total}`} · <strong>{phases[Math.max(currentIdx, 0)].label}</strong>
+        {positionLabel} de {historyRef.current.length}
       </span>
       <button
+        type="button"
         onClick={goNext}
-        disabled={currentIdx < 0 || currentIdx >= total - 1}
-        aria-label="Próxima ceninha"
-        className="flex items-center justify-center w-6 h-6 rounded-sm border border-neutral-light bg-neutral-white cursor-pointer hover:bg-neutral-lightest disabled:opacity-40 disabled:cursor-not-allowed"
+        aria-label="Próxima cena (simula resposta correta)"
+        className="flex items-center justify-center w-6 h-6 rounded-sm border border-neutral-light bg-neutral-white cursor-pointer hover:bg-neutral-lightest"
       >
         <ChevronRight size={14} aria-hidden="true" />
       </button>
-      <div className="flex flex-wrap gap-x-quarck gap-y-quarck">
-        {phases.map((p, i) => (
-          <button
-            key={p.label}
-            onClick={p.apply}
-            className={`min-w-6 h-6 px-quarck rounded-sm border ds-caption cursor-pointer ${i === currentIdx ? 'bg-brand-otimath-pure text-neutral-white border-brand-otimath-pure' : 'bg-neutral-white border-neutral-light hover:bg-neutral-lightest'}`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

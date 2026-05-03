@@ -1289,7 +1289,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 {/* ── Sub-passo B: equação com 3 placeholders ─────── */}
                 <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
                   <p className="ds-body text-neutral-black text-justify">
-                    Observando o diagrama acima, escreva a equação que permite calcular n(A ∪ B):
+                    Observando o diagrama apresentado, escreva a equação que permite calcular n(A ∪ B):
                   </p>
                   <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
                     <span style={{ color: EVENT_COLORS['A∪B'] }}>n(A ∪ B) =</span>
@@ -1341,7 +1341,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                   </div>
                   {vennEqLhsValueError && (
                     <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
-                      Substitua n(A ∪ B) pelo valor encontrado acima (o número que você identificou no enunciado).
+                      Substitua n(A ∪ B) pelo valor encontrado anteriormente (o número que você identificou no enunciado).
                     </p>
                   )}
                   {vennEqSimplifiedError && (
@@ -1356,7 +1356,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 {/* ── Sub-passo C: resolução (opcional) ───────────── */}
                 <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
                   <p className="ds-body text-neutral-black text-justify">
-                    Resolva a equação acima para encontrar o valor de <strong>{vennVar}</strong>.
+                    Resolva a equação anterior para encontrar o valor de <strong>{vennVar}</strong>.
                     <span className="ds-caption text-neutral-dark" style={{ fontStyle: 'italic', marginLeft: 8 }}>
                       (opcional — pode ser deixado em branco se preferir ir direto ao valor)
                     </span>
@@ -1480,7 +1480,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 locked
               />
               <p className="ds-small text-center text-neutral-dark mt-nano italic">
-                Identifique no diagrama acima a região que representa {data.targetLabel} e
+                Identifique no diagrama apresentado a região que representa {data.targetLabel} e
                 aplique P(E) = n(E)/S.
               </p>
               <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">

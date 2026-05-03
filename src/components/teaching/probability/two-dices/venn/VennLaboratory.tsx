@@ -222,7 +222,7 @@ export function VennLaboratory({
       const k = maskKey(mask);
       if (k === maskKey([false, false])) return;  // ignora região externa
       if (!armedExpression) {
-        setFeedback({ type: 'err', msg: 'Primeiro clique em uma expressão acima para armá-la.' });
+        setFeedback({ type: 'err', msg: 'Primeiro clique em uma das expressões disponíveis para armá-la.' });
         return;
       }
       setPlacedExpressions(prev => ({ ...prev, [k]: armedExpression }));
@@ -1140,7 +1140,7 @@ function StepInstruction({
           Como você deveria dispor os diagramas A e B para que seja possível representar também <strong>A ∩ B</strong>, ou seja, os elementos que ocorrem em A e em B <strong>ao mesmo tempo</strong>?
         </p>
         <p className="ds-body text-neutral-black mt-nano text-justify">
-          Aproxime os diagramas abaixo até que isso seja possível.
+          Aproxime os diagramas até que isso seja possível.
         </p>
       </>
     );
@@ -1265,7 +1265,7 @@ function StepInstruction({
   if (step === 'placeExpressions') {
     return (
       <p className="ds-body text-neutral-black text-justify">
-        Clique em uma das expressões acima para armá-la e, em seguida, clique na <strong>região correspondente</strong> do diagrama. Repita para as três expressões e depois clique em <em>Confirmar</em>.
+        Clique em uma das expressões disponíveis para armá-la e, em seguida, clique na <strong>região correspondente</strong> do diagrama. Repita para as três expressões e depois clique em <em>Confirmar</em>.
       </p>
     );
   }
@@ -1273,7 +1273,7 @@ function StepInstruction({
   if (step === 'writeUnionFormula') {
     return (
       <p className="ds-body text-neutral-black text-justify">
-        Note pelo diagrama que <strong>n(A ∪ B)</strong> é a soma das três regiões internas. Clique em cada região para preencher os três espaços acima.
+        Note pelo diagrama que <strong>n(A ∪ B)</strong> é a soma das três regiões internas. Clique em cada região para preencher os três espaços indicados.
       </p>
     );
   }

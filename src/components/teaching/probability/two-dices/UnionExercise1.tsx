@@ -866,7 +866,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               <li>Aplicar a fórmula: <strong>P(A ∪ B) = P(A) + P(B) − P(A ∩ B)</strong></li>
             </ul>
             <p className="ds-small text-neutral-dark mb-micro text-justify italic">
-              Sugestão: sempre que for calcular, consulte os <em>n</em>s congelados acima
+              Sugestão: sempre que for calcular, consulte os <em>n</em>s congelados no histórico
               do painel — a memória externa é uma ferramenta matemática legítima.
             </p>
             <div className="flex justify-center mt-macro">
@@ -1351,7 +1351,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                   className="ds-small text-center mt-nano"
                   style={{ color: 'var(--color-neutral-dark)', fontStyle: 'italic' }}
                 >
-                  Escolha primeiro a fórmula correta acima para liberar a montagem.
+                  Escolha primeiro a fórmula correta para liberar a montagem.
                 </p>
               )}
 

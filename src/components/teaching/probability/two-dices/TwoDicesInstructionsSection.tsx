@@ -28,12 +28,12 @@ export function TwoDicesInstructionsSection() {
 
                 <p>
                   A cada <strong>desafio</strong>, será apresentado um ou mais <strong>eventos</strong> definidos 
-                  no <strong>Quadro de Evento(s)</strong> abaixo. Sua tarefa inicial é identificar 
+                  no <strong>Quadro de Evento(s)</strong> apresentado. Sua tarefa inicial é identificar
                   os <strong>resultados possíveis</strong> que pertencem a esses <strong>eventos</strong>. Para isso:
                 </p>
 
                 <List>
-                  <li>Clique nos <strong>quadradinhos</strong> da tabela abaixo para marcar os <strong>resultados</strong> que fazem parte do <strong>evento</strong> indicado;</li> 
+                  <li>Clique nos <strong>quadradinhos</strong> da tabela apresentada para marcar os <strong>resultados</strong> que fazem parte do <strong>evento</strong> indicado;</li>
                   <li>Cada <strong>quadradinho</strong> representa uma combinação possível entre os <strong>dados verde e azul;</strong></li>
                   <li>Se clicar novamente, o <strong>quadradinho</strong> será desmarcado.</li>
                 </List>

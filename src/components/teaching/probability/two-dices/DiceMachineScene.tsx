@@ -560,6 +560,31 @@ function faceLayout(top: number): number[] {
   return [rest[0], rest[1], top, bot, rest[2], rest[3]];
 }
 
+// Calcula qual face do cubo está mais voltada para CIMA (+Y mundo)
+// dado o quaternion atual do mesh e a configuração de faces (faceLayout(top))
+// usada quando os materiais foram aplicados. Necessário porque a física
+// pode adormecer o dado em qualquer orientação — a `state.die1/die2`
+// guarda o sorteio inicial, mas o aluno vê o que está visível, não o
+// sorteado. Esta leitura sincroniza ambos.
+const FACE_NORMALS_LOCAL = [
+  new THREE.Vector3( 1, 0, 0), // +X (mat 0)
+  new THREE.Vector3(-1, 0, 0), // -X (mat 1)
+  new THREE.Vector3( 0, 1, 0), // +Y (mat 2)
+  new THREE.Vector3( 0,-1, 0), // -Y (mat 3)
+  new THREE.Vector3( 0, 0, 1), // +Z (mat 4)
+  new THREE.Vector3( 0, 0,-1), // -Z (mat 5)
+];
+function readTopFace(mesh: THREE.Mesh, configuredTop: number): number {
+  const layout = faceLayout(configuredTop);
+  let bestIdx = 2; // +Y default
+  let bestY = -Infinity;
+  for (let i = 0; i < 6; i++) {
+    const n = FACE_NORMALS_LOCAL[i].clone().applyQuaternion(mesh.quaternion);
+    if (n.y > bestY) { bestY = n.y; bestIdx = i; }
+  }
+  return layout[bestIdx];
+}
+
 function makeMats(
   result: number,
   tx: Record<number, THREE.CanvasTexture>,
@@ -2126,10 +2151,22 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
         playSound('/sounds/correct.mp3');
         updateStepProgress();
         if (state.rollResolve) {
-          // pequena pausa para o aluno ver o zoom estabilizado
+          // pequena pausa para o aluno ver o zoom estabilizado.
+          // CRÍTICO: lemos a face REAL voltada para cima a partir do
+          // quaternion do mesh. Antes resolvíamos com state.die1/die2
+          // (valores pré-sorteados), mas se a física adormecer o dado
+          // em outra orientação, o aluno vê 1 e o sistema reporta 4 —
+          // bug. A leitura por quaternion garante que reportamos a face
+          // que o aluno realmente está vendo.
           setTimeout(() => {
             if (state.rollResolve) {
-              state.rollResolve({ blue: state.die1, green: state.die2 });
+              const realBlue = readTopFace(state.die1Mesh, state.die1);
+              const realGreen = readTopFace(state.die2Mesh, state.die2);
+              // Sincroniza a memória interna com a face visível (caso
+              // outras partes da cena dependam de die1/die2).
+              state.die1 = realBlue;
+              state.die2 = realGreen;
+              state.rollResolve({ blue: realBlue, green: realGreen });
               state.rollResolve = null;
             }
           }, 350);

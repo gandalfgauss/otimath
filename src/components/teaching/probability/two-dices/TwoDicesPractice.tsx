@@ -1,9 +1,26 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
 import type { DiceSceneHandle, DiceColor } from './DiceScene';
+import type { AlertType } from '@/components/global/Alert';
+
+// Handle exposto ao pai (TwoDicesPresentation) para o painel DEV poder
+// avançar a Cena 5 simulando a interação natural do aluno em cada fase.
+export interface TwoDicesPracticeHandle {
+  /** Identificador da cena interna atual — usado pelo pai para construir o
+   *  cenaId do snapshot DEV. Inclui mainPhase + sub-phase relevante +
+   *  exerciseIdx quando estamos em 'exercises'. */
+  getCurrentPhaseId: () => string;
+  /** Simula a próxima ação correta do aluno na fase atual. Em fases que
+   *  envolvem rolagem 3D (rolling/landed), pula direto para a próxima
+   *  fase sem esperar a animação. */
+  advance: () => void;
+  /** Restaura main/sub-phases a partir de um snapshot DEV. Aceita o formato
+   *  produzido por getCurrentPhaseId (campos separados por '|'). */
+  setCurrentPhaseId: (phaseId: string) => void;
+}
 
 // ═══════ Padrão de pintas para as faces do dado ═══════
 const PIP_PATTERNS: Record<number, number[]> = {
@@ -35,7 +52,7 @@ function DiceFaceIcon({ face, size, color = 'blue' }: { face: number; size: numb
         gap,
       }}
     >
-      {pips.map((pip, i) => (
+      {(pips ?? []).map((pip, i) => (
         <div key={i} className="flex items-center justify-center">
           {pip ? <div style={{ width: pipSize, height: pipSize, borderRadius: '50%', background: '#fff' }} /> : null}
         </div>
@@ -348,9 +365,16 @@ interface TwoDicesPracticeProps {
   diceRef: React.RefObject<DiceSceneHandle | null>;
   diceContainerRef: React.RefObject<HTMLDivElement | null>;
   onFinished: () => void;
+  /** Notifica o pai quando a fase interna muda — usado pelo painel DEV
+   *  para construir um cenaId que reflete a sub-cena ativa da Cena 5. */
+  onPhaseChange?: (phaseId: string) => void;
+  /** Cria um toast alert via o sistema de alerts do pai (TwoDicesPresentation).
+   *  Usado pelas validações para feedback consistente com o resto do OVA. */
+  createAlert?: (title: string, description: string, type: AlertType, timeout?: number) => void;
 }
 
-export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Readonly<TwoDicesPracticeProps>) {
+export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPracticeProps>(
+  function TwoDicesPractice({ diceRef, diceContainerRef, onFinished, onPhaseChange, createAlert }, ref) {
   // Cor inicial sorteada via xoshiro128** — segundo é sempre o oposto
   const [colors] = useState<[DiceColor, DiceColor]>(() => {
     const first: DiceColor = rng.color();
@@ -560,14 +584,33 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
     if (marked === 1 && resultCheck[diceResult - 1]) {
       setResultCheckError(false);
       playSound('/sounds/correct.mp3');
+      const won = parseInt(bet) === diceResult;
+      createAlert?.(
+        'Marcação correta!',
+        won
+          ? `Você apostou ${bet} e o dado caiu em ${diceResult}. Aposta certeira!`
+          : `Você apostou ${bet} mas o dado caiu em ${diceResult}.`,
+        won ? 'success' : 'info',
+        3500,
+      );
       // Ir para comparação (aposta × resultado) com feedback
       setTimeout(() => {
-        playSound(parseInt(bet) === diceResult ? '/sounds/correct.mp3' : '/sounds/incorrect.mp3');
+        playSound(won ? '/sounds/correct.mp3' : '/sounds/incorrect.mp3');
       }, 400);
       setExpSubPhase('compare');
     } else {
       setResultCheckError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.(
+        'Tente novamente',
+        marked === 0
+          ? 'Marque exatamente uma face — a que apareceu no dado.'
+          : marked > 1
+            ? 'Marque APENAS uma face — a que apareceu no dado.'
+            : `O dado caiu em ${diceResult}. Marque essa face.`,
+        'error',
+        4000,
+      );
     }
   };
 
@@ -603,10 +646,22 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
       setEventChecksError(false);
       setEventChecksDisabled(true);
       playSound('/sounds/correct.mp3');
+      createAlert?.(
+        'Correto!',
+        `Você identificou as faces favoráveis ao evento "${event.description}".`,
+        'success',
+        3000,
+      );
       setExSubPhase('bet');
     } else {
       setEventChecksError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.(
+        'Marcação incorreta',
+        `Releia o evento "${event.description}" e marque apenas as faces favoráveis.`,
+        'error',
+        4000,
+      );
     }
   };
 
@@ -707,6 +762,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
       if (!numIsValid) setCalcCompNumError(true);
       if (!denIsValid || den === 0) setCalcCompDenError(true);
       setCalcCompFeedback('Preencha numerador e denominador com números inteiros (denominador maior que zero).');
+      createAlert?.('Campos inválidos', 'Preencha numerador e denominador com números inteiros (denominador maior que zero).', 'error', 4000);
       return;
     }
 
@@ -715,6 +771,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
     if (equivalent) {
       playSound('/sounds/correct.mp3');
       setBothCalcCorrect(true);
+      createAlert?.('Correto!', `P(Ā) = ${compFavorable}/6 (ou qualquer fração equivalente).`, 'success', 3000);
     } else {
       playSound('/sounds/incorrect.mp3');
       setCalcCompNumError(true);
@@ -722,6 +779,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
       setCalcCompFeedback(
         `A fração ${num}/${den} não é equivalente a P(Ā). Lembre: P(Ā) = nº de resultados que não pertencem a A / nº total de resultados. Frações equivalentes são aceitas (por exemplo, 2/4 = 1/2 = 3/6).`
       );
+      createAlert?.('Tente novamente', `A fração ${num}/${den} não é equivalente a P(Ā).`, 'error', 4000);
     }
   };
 
@@ -752,6 +810,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
       if (!numIsValid) setCalcNumError(true);
       if (!denIsValid || den === 0) setCalcDenError(true);
       setCalcFeedback('Preencha numerador e denominador com números inteiros (denominador maior que zero).');
+      createAlert?.('Campos inválidos', 'Preencha numerador e denominador com números inteiros (denominador maior que zero).', 'error', 4000);
       return;
     }
 
@@ -764,8 +823,10 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
       const needsCompCalc = exBet === 'indiferente' && favorable !== 3;
       if (needsCompCalc) {
         // P(A) ok, agora precisa de P(Ā) — não muda de fase, render mostrará o campo
+        createAlert?.('P(A) correto!', 'Agora calcule também P(Ā) — a probabilidade do evento complementar.', 'info', 4000);
       } else {
         setExSubPhase('next');
+        createAlert?.('Correto!', `P(A) = ${favorable}/6 (ou qualquer fração equivalente).`, 'success', 3000);
       }
     } else {
       playSound('/sounds/incorrect.mp3');
@@ -774,6 +835,7 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
       setCalcFeedback(
         `A fração ${num}/${den} não é equivalente a P(A). Lembre: P(A) = nº de favoráveis / nº total de resultados. Frações equivalentes são aceitas (por exemplo, 2/4 = 1/2 = 3/6).`
       );
+      createAlert?.('Tente novamente', `A fração ${num}/${den} não é equivalente a P(A).`, 'error', 4000);
     }
   };
 
@@ -849,6 +911,169 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
 
   const colorLabel = (c: DiceColor) => c === 'green' ? 'Verde' : 'Azul';
   const colorStyle = (c: DiceColor) => c === 'green' ? 'var(--color-feedback-success-dark)' : 'var(--color-brand-otimath-pure)';
+
+  // Sub-fase derivada da 'calc' — usada pelo cenaId DEV para tornar cada
+  // input/comparador um snapshot distinto, e pelo advance() para saber
+  // qual ação simular dentro do cálculo.
+  const calcSubStep = (() => {
+    if (mainPhase !== 'exercises' || exSubPhase !== 'calc') return '';
+    const ev = events[exerciseIdx];
+    if (!ev) return '';
+    let fav = 0; for (let f = 1; f <= 6; f++) if (ev.validation(f)) fav++;
+    const needsComp = exBet === 'indiferente' && fav !== 3;
+    if (fav === 6 && !certainNameValidated) return 'certainName';
+    if (fav === 0 && !impossibleNameValidated) return 'impossibleName';
+    if (needsComp && !bothCalcCorrect) return 'pa+pcomp';
+    if (needsComp && bothCalcCorrect && !compValidated) return 'compare';
+    if (needsComp && compValidated) return 'done';
+    // caso normal (sem needsComp): só P(A) — depois passa para 'next'
+    return 'pa';
+  })();
+
+  // ═══════ Notificação de mudança de fase ao pai (para o cenaId DEV) ═══════
+  useEffect(() => {
+    if (!onPhaseChange) return;
+    const parts: string[] = [`main=${mainPhase}`];
+    if (mainPhase === 'experimentA' || mainPhase === 'experimentB') {
+      parts.push(`exp=${expSubPhase}`);
+    }
+    if (mainPhase === 'exercises') {
+      parts.push(`ex=${exerciseIdx}`, `sub=${exSubPhase}`);
+      if (exSubPhase === 'calc' && calcSubStep) parts.push(`calc=${calcSubStep}`);
+    }
+    onPhaseChange(parts.join('|'));
+  }, [mainPhase, expSubPhase, exSubPhase, exerciseIdx, calcSubStep, onPhaseChange]);
+
+  // ═══════ Handle exposto ao painel DEV ═══════
+  // Identifica a sub-cena atual + simula a próxima ação correta.
+  // Para a fase 'calc' (cálculo de P(A)/P(Ā)/comparador/certo/impossível),
+  // o avanço respeita cada sub-passo via inline da lógica de sucesso —
+  // sem chamar validateCalc/validateCompCalc (closure stale após flushSync).
+  useImperativeHandle(ref, () => ({
+    getCurrentPhaseId: () => {
+      const parts: string[] = [`main=${mainPhase}`];
+      if (mainPhase === 'experimentA' || mainPhase === 'experimentB') {
+        parts.push(`exp=${expSubPhase}`);
+      }
+      if (mainPhase === 'exercises') {
+        parts.push(`ex=${exerciseIdx}`, `sub=${exSubPhase}`);
+        if (exSubPhase === 'calc' && calcSubStep) parts.push(`calc=${calcSubStep}`);
+      }
+      return parts.join('|');
+    },
+    advance: () => {
+      if (mainPhase === 'intro') {
+        setMainPhase('experimentA');
+        setExpSubPhase('bet');
+        return;
+      }
+      if (mainPhase === 'experimentA' || mainPhase === 'experimentB') {
+        if (expSubPhase === 'bet' || expSubPhase === 'rolling' || expSubPhase === 'landed' || expSubPhase === 'markResult') {
+          if (!bet) setBet('1');
+          if (!diceResult) setDiceResult(1);
+          setResultCheck([true, false, false, false, false, false]);
+          setExpSubPhase('compare');
+          return;
+        }
+        if (expSubPhase === 'compare') {
+          goToNextRound();
+          return;
+        }
+      }
+      if (mainPhase === 'exercises') {
+        // Antes de 'calc': pula direto para 'calc' (com valores plausíveis).
+        if (exSubPhase === 'mark' || exSubPhase === 'bet' || exSubPhase === 'rolling' || exSubPhase === 'landed' || exSubPhase === 'readDice' || exSubPhase === 'result') {
+          if (!exDiceResult || exDiceResult < 1) setExDiceResult(1);
+          if (!exBet) setExBet('favor');
+          setExSubPhase('calc');
+          return;
+        }
+        // Dentro de 'calc': respeita cada sub-passo.
+        if (exSubPhase === 'calc') {
+          const ev = events[exerciseIdx];
+          if (!ev) return;
+          let fav = 0; for (let f = 1; f <= 6; f++) if (ev.validation(f)) fav++;
+          const needsComp = exBet === 'indiferente' && fav !== 3;
+
+          // Caso degenerado — evento certo (favorable === 6).
+          if (fav === 6 && !certainNameValidated) {
+            setCertainNameAnswer('certo');
+            setCertainNameValidated(true);
+            setCertainNameError(false);
+            return;
+          }
+          // Caso degenerado — evento impossível (favorable === 0).
+          if (fav === 0 && !impossibleNameValidated) {
+            setImpossibleNameAnswer('impossivel');
+            setImpossibleNameValidated(true);
+            setImpossibleNameError(false);
+            return;
+          }
+          // Indiferente em evento não trivial: P(A), depois P(Ā), depois compare.
+          if (needsComp && !bothCalcCorrect) {
+            // Preencher P(A) e P(Ā) corretos de uma vez e marcar bothCalcCorrect.
+            setCalcNum(String(fav));
+            setCalcDen('6');
+            setCalcNumError(false);
+            setCalcDenError(false);
+            setCalcFeedback('');
+            setCalcCompNum(String(6 - fav));
+            setCalcCompDen('6');
+            setCalcCompNumError(false);
+            setCalcCompDenError(false);
+            setCalcCompFeedback('');
+            setBothCalcCorrect(true);
+            return;
+          }
+          if (needsComp && bothCalcCorrect && !compValidated) {
+            const correct = fav > 3 ? '>' : fav < 3 ? '<' : '=';
+            setCompOperator(correct);
+            setCompOperatorError(false);
+            setCompValidated(true);
+            return;
+          }
+          // Caso normal (a favor / contra com fav coerente, ou indiferente em fav=3):
+          // só preencher P(A) e ir para 'next'.
+          if (!needsComp && fav !== 6 && fav !== 0) {
+            setCalcNum(String(fav));
+            setCalcDen('6');
+            setCalcNumError(false);
+            setCalcDenError(false);
+            setCalcFeedback('');
+            setExSubPhase('next');
+            return;
+          }
+          // Tudo já validado — avança para 'next'.
+          setExSubPhase('next');
+          return;
+        }
+        if (exSubPhase === 'next') {
+          goToNextExercise();
+          return;
+        }
+      }
+      if (mainPhase === 'finished') {
+        onFinished();
+      }
+    },
+    setCurrentPhaseId: (phaseId: string) => {
+      // Decodifica o formato 'main=X|exp=Y|ex=N|sub=Z|calc=W' produzido por
+      // getCurrentPhaseId e restaura os estados correspondentes.
+      const fields: Record<string, string> = {};
+      for (const part of phaseId.split('|')) {
+        const eq = part.indexOf('=');
+        if (eq > 0) fields[part.slice(0, eq)] = part.slice(eq + 1);
+      }
+      if (fields.main) setMainPhase(fields.main as typeof mainPhase);
+      if (fields.exp)  setExpSubPhase(fields.exp as typeof expSubPhase);
+      if (fields.ex)   setExerciseIdx(parseInt(fields.ex, 10) || 0);
+      if (fields.sub)  setExSubPhase(fields.sub as typeof exSubPhase);
+    },
+  }), [
+    mainPhase, expSubPhase, exSubPhase, exerciseIdx, bet, diceResult,
+    exBet, exDiceResult, events, bothCalcCorrect, compValidated,
+    certainNameValidated, impossibleNameValidated, calcSubStep, onFinished,
+  ]);
 
   // ═══════ RENDER ═══════
   return (
@@ -1200,10 +1425,22 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
                       || (exBet === 'favor' && belongsTo)
                       || (exBet === 'contra' && !belongsTo);
                     setTimeout(() => playSound(w ? '/sounds/correct.mp3' : '/sounds/incorrect.mp3'), 400);
+                    createAlert?.(
+                      'Resultado correto!',
+                      `O dado caiu em ${exDiceResult}. ${w ? 'Sua aposta acertou!' : 'Sua aposta não acertou desta vez.'}`,
+                      w ? 'success' : 'info',
+                      4000,
+                    );
                     setExSubPhase('result');
                   } else {
                     setReadDiceError(true);
                     playSound('/sounds/incorrect.mp3');
+                    createAlert?.(
+                      'Tente novamente',
+                      'Veja o resultado na face superior do dado 3D e selecione a face correta.',
+                      'error',
+                      4000,
+                    );
                   }
                 }}>Conferir</Button>
               </div>
@@ -1360,11 +1597,21 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
           {exSubPhase === 'calc' && (() => {
             const needsComp = exBet === 'indiferente' && favorable !== 3;
             const pACorrect = parseInt(calcNum) === favorable && parseInt(calcDen) === 6;
+            const betLabelExtended =
+              exBet === 'favor'        ? 'a favor do evento A (a face sorteada pertencer ao evento)'
+              : exBet === 'contra'     ? 'contra o evento A (a face sorteada NÃO pertencer ao evento)'
+              : exBet === 'indiferente' ? 'indiferente (apostou que tanto faz se a face pertence ou não ao evento)'
+              : '';
             return (
             <div className="flex flex-col gap-y-micro mt-micro border-t border-neutral-lighter pt-micro">
               <p className="ds-body-bold text-neutral-black text-center">
                 Qual era a probabilidade de você ganhar a aposta?
               </p>
+              {betLabelExtended && (
+                <p className="ds-small text-neutral-dark text-center italic">
+                  (Lembrete: você apostou <strong>{betLabelExtended}</strong>.)
+                </p>
+              )}
               <div className="flex items-center justify-center gap-x-micro flex-wrap">
                 <span className="ds-body-bold text-neutral-black">P(A) =</span>
                 <div className="inline-flex flex-col items-center mx-nano">
@@ -1494,9 +1741,21 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
                       if (compOperator === correct) {
                         playSound('/sounds/correct.mp3');
                         setCompValidated(true);
+                        createAlert?.(
+                          'Correto!',
+                          `P(A) ${correct} P(Ā). ${correct === '=' ? 'As duas probabilidades são iguais.' : correct === '>' ? 'A é mais provável que seu complementar.' : 'O complementar de A é mais provável que A.'}`,
+                          'success',
+                          3500,
+                        );
                       } else {
                         playSound('/sounds/incorrect.mp3');
                         setCompOperatorError(true);
+                        createAlert?.(
+                          'Tente novamente',
+                          `Compare os numeradores: ${favorable} e ${6 - favorable}. Qual é maior?`,
+                          'error',
+                          4000,
+                        );
                       }
                     }}>Conferir</Button>
                   </div>
@@ -1668,11 +1927,29 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
                             playSound('/sounds/correct.mp3');
                             setCertainNameValidated(true);
                             setCertainNameError(false);
+                            createAlert?.(
+                              'Correto!',
+                              'Quando A coincide com todo o espaço amostral S, chamamos A de evento certo (probabilidade 1).',
+                              'success',
+                              4000,
+                            );
                           } else if (certainNameAnswer === '') {
                             setCertainNameError(true);
+                            createAlert?.(
+                              'Marque uma opção',
+                              'Selecione uma das alternativas antes de conferir.',
+                              'info',
+                              3000,
+                            );
                           } else {
                             playSound('/sounds/incorrect.mp3');
                             setCertainNameError(true);
+                            createAlert?.(
+                              'Tente novamente',
+                              'Não é essa. Pense: o evento acontece em todos os lançamentos possíveis, sem exceção. Como chamamos isso?',
+                              'error',
+                              5000,
+                            );
                           }
                         }}
                       >
@@ -1789,11 +2066,29 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
                             playSound('/sounds/correct.mp3');
                             setImpossibleNameValidated(true);
                             setImpossibleNameError(false);
+                            createAlert?.(
+                              'Correto!',
+                              'Quando A não acontece em nenhum lançamento possível, chamamos A de evento impossível (probabilidade 0).',
+                              'success',
+                              4000,
+                            );
                           } else if (impossibleNameAnswer === '') {
                             setImpossibleNameError(true);
+                            createAlert?.(
+                              'Marque uma opção',
+                              'Selecione uma das alternativas antes de conferir.',
+                              'info',
+                              3000,
+                            );
                           } else {
                             playSound('/sounds/incorrect.mp3');
                             setImpossibleNameError(true);
+                            createAlert?.(
+                              'Tente novamente',
+                              'Não é essa. Pense: A não acontece em nenhum lançamento possível. Como chamamos esse caso?',
+                              'error',
+                              5000,
+                            );
                           }
                         }}
                       >
@@ -1881,4 +2176,5 @@ export function TwoDicesPractice({ diceRef, diceContainerRef, onFinished }: Read
       )}
     </div>
   );
-}
+});
+TwoDicesPractice.displayName = 'TwoDicesPractice';

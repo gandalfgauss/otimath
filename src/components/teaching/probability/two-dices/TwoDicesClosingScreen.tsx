@@ -389,7 +389,7 @@ export function TwoDicesClosingScreen({
           paragraph={
             biases.length === 0 && glossaryConsultations.length === 0
               ? `<p class="ds-body">Nenhuma dificuldade saliente foi detectada nesta sessão. Você atravessou o percurso sem padrão recorrente de erro nem necessidade de consultar o Menu de Revisão. Isso sugere que os conceitos T1 a T7 estão consolidados ao nível esperado pelo OVA.</p>`
-              : `<p class="ds-body">A síntese abaixo combina os <strong>vieses detectados</strong> e os <strong>verbetes mais consultados</strong> para apontar — em linguagem operacional — as áreas em que pode valer a pena revisitar antes de uma avaliação ou ao iniciar o próximo OVA da sequência. Esta síntese segue o princípio de relevância contextual (<strong>MAYER, 2014, p. 280</strong>): apontar o que estudar, não apenas o que se errou.</p>`
+              : `<p class="ds-body">A síntese a seguir combina os <strong>vieses detectados</strong> e os <strong>verbetes mais consultados</strong> para apontar — em linguagem operacional — as áreas em que pode valer a pena revisitar antes de uma avaliação ou ao iniciar o próximo OVA da sequência. Esta síntese segue o princípio de relevância contextual (<strong>MAYER, 2014, p. 280</strong>): apontar o que estudar, não apenas o que se errou.</p>`
           }
           maxWidthParagraph="max-w-[820px]"
         />
@@ -415,7 +415,7 @@ export function TwoDicesClosingScreen({
           6. Desempenho por exercício — habilidades operacionais e BNCC
         </h3>
         <TextBlock
-          paragraph={`<p class="ds-body">Para cada exercício efetivamente realizado, o quadro abaixo indica as <strong>habilidades operacionais mobilizadas</strong> (o que você fez no exercício) e as <strong>habilidades da BNCC do Ensino Médio</strong> correspondentes. As habilidades BNCC seguem o <strong>Mapa de Tópicos do Protocolo Dr. OtiMath</strong> e <strong>BRASIL (2018)</strong>.</p>`}
+          paragraph={`<p class="ds-body">Para cada exercício efetivamente realizado, o quadro a seguir indica as <strong>habilidades operacionais mobilizadas</strong> (o que você fez no exercício) e as <strong>habilidades da BNCC do Ensino Médio</strong> correspondentes. As habilidades BNCC seguem o <strong>Mapa de Tópicos do Protocolo Dr. OtiMath</strong> e <strong>BRASIL (2018)</strong>.</p>`}
           maxWidthParagraph="max-w-[820px]"
         />
         <div className="flex flex-col gap-y-xxs mt-micro">

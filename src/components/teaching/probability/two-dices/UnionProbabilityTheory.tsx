@@ -1928,7 +1928,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               </div>
               {compareError && (
                 <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)' }}>
-                  Observe a barra acima: a barra de n(A) + n(B) inclui os pares de A ∩ B duas vezes.
+                  Observe a barra apresentada: a barra de n(A) + n(B) inclui os pares de A ∩ B duas vezes.
                 </p>
               )}
             </>
@@ -2652,7 +2652,7 @@ function ProbTransferScreen({
       {revealStep >= 3 && (
         <div className="mt-micro">
           <p className="ds-body text-neutral-black text-center mb-nano">
-            Substituindo os valores, preencha a fração abaixo:
+            Substituindo os valores, preencha a fração a seguir:
           </p>
           <div
             className="rounded-md p-micro"

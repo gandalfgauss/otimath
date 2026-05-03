@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
 import type { DiceMachineSceneHandle } from './DiceMachineScene';
-import { SampleSpaceTree } from './SampleSpaceTree';
+import { SampleSpaceTree, type SampleSpaceTreeHandle } from './SampleSpaceTree';
 import { FacePicker } from './FacePicker';
 import { UnionProbabilityTheory, type UnionTheoryHandle } from './UnionProbabilityTheory';
 import { UnionExercise1, type UnionExercise1Handle } from './UnionExercise1';
@@ -17,11 +17,7 @@ import { UnionExercise6Review, type UnionExercise6Handle } from './UnionExercise
 import { TwoDicesGame } from './TwoDicesGame';
 import { TwoDicesGameAdvanced } from './TwoDicesGameAdvanced';
 import { ComplementaryEventsActivity } from './ComplementaryEventsActivity';
-import {
-  TwoDicesClosingScreen,
-  TwoDicesProgressOverlay,
-} from './TwoDicesClosingScreen';
-import { History } from 'lucide-react';
+import { TwoDicesClosingScreen } from './TwoDicesClosingScreen';
 import {
   logTransition,
   logBet,
@@ -355,26 +351,52 @@ interface TwoDicesExperimentProps {
   unionExercise4Ref?: React.RefObject<UnionExercise4Handle | null>;
   unionExercise5Ref?: React.RefObject<UnionExercise5Handle | null>;
   unionExercise6Ref?: React.RefObject<UnionExercise6Handle | null>;
+  /** Cria um toast alert via o sistema global do OVA. Propagado para
+   *  os sub-componentes (SampleSpaceTree, etc.). */
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
 }
 
-export function TwoDicesExperiment({
-  diceSceneRef,
-  diceContainerRef,
-  diceMachineRef,
-  diceMachineContainerRef,
-  unionTheoryRef,
-  unionExercise1Ref,
-  unionExercise2Ref,
-  unionExercise3Ref,
-  unionExercise4Ref,
-  unionExercise5Ref,
-  unionExercise6Ref,
-  onMachineVisibilityChange,
-  onHideAllDice,
-  onFinished,
-  onPhaseChange,
-}: Readonly<TwoDicesExperimentProps>) {
+export interface TwoDicesExperimentHandle {
+  /** Fase atual exposta como string para o cenaId DEV. */
+  getCurrentPhaseId: () => string;
+  /** Avança para a próxima fase (simulando a interação correta do aluno).
+   *  Em fases delegadas a sub-componentes (UnionTheory, UnionExerciseN),
+   *  delega para o handle do filho. Para fases físicas/dependentes de
+   *  rolagem, pula direto para a fase seguinte. */
+  advance: () => void;
+  /** Restaura a fase do componente a partir de um snapshot DEV. Aceita
+   *  o formato 'tree|<subphase>' para sincronizar também a sub-fase do
+   *  SampleSpaceTree. Sem isso, ao navegar para trás via DEV o estado
+   *  visível desincroniza do snapshot e a próxima seta avança a partir
+   *  da fase REAL (não da fase do snapshot). */
+  setCurrentPhaseId: (phaseId: string) => void;
+}
+
+export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesExperimentProps>(
+  function TwoDicesExperiment({
+    diceSceneRef,
+    diceContainerRef,
+    diceMachineRef,
+    diceMachineContainerRef,
+    unionTheoryRef,
+    unionExercise1Ref,
+    unionExercise2Ref,
+    unionExercise3Ref,
+    unionExercise4Ref,
+    unionExercise5Ref,
+    unionExercise6Ref,
+    onMachineVisibilityChange,
+    onHideAllDice,
+    onFinished,
+    onPhaseChange,
+    createAlert,
+  }, ref) {
   const [phase, setPhase] = useState<Phase>('intro');
+  // Handle do SampleSpaceTree (sub-componente da fase 'tree') —
+  // permite ao painel DEV avançar pelas 7 sub-fases internas em vez
+  // de pular tudo de uma vez.
+  const sampleSpaceTreeRef = useRef<SampleSpaceTreeHandle>(null);
+  const [sampleSpaceTreePhase, setSampleSpaceTreePhase] = useState<string>('select1');
 
   const [round, setRound] = useState(0);
   const [greenResult, setGreenResult] = useState(0);
@@ -421,6 +443,16 @@ export function TwoDicesExperiment({
   // Pergunta (x,y) vs (y,x)
   const [pairAnswer, setPairAnswer] = useState('');
   const [pairAnswerError, setPairAnswerError] = useState(false);
+  // Par cacheado para pairQuestion/pairExplain — fixado uma única vez
+  // ao entrar na fase pairQuestion. Antes, getPairForQuestion() era
+  // chamado a cada render e, quando history estava vazio (ex.: depois
+  // do DEV fast-forward), o fallback aleatório gerava números novos
+  // a cada render — o aluno via "(1,5)" no texto da cena mas tinha
+  // registrado outros valores no markTable.
+  const [cachedPair, setCachedPair] = useState<{
+    original: { green: number; blue: number };
+    inverted: { green: number; blue: number };
+  } | null>(null);
   // Pergunta dados mesma cor
   const [colorAnswer, setColorAnswer] = useState('');
   const [colorAnswerError, setColorAnswerError] = useState(false);
@@ -646,12 +678,14 @@ export function TwoDicesExperiment({
       setPickGreenError(true);
       setPickFeedback('Toque no dado verde e escolha a face que apareceu.');
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Falta registrar', 'Toque no dado verde e escolha a face que apareceu.', 'error', 4000);
       return;
     }
     if (pickedBlue == null) {
       setPickBlueError(true);
       setPickFeedback('Toque no dado azul e escolha a face que apareceu.');
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Falta registrar', 'Toque no dado azul e escolha a face que apareceu.', 'error', 4000);
       return;
     }
     const greenOk = pickedGreen === greenResult;
@@ -661,6 +695,7 @@ export function TwoDicesExperiment({
       setPickBlueError(false);
       setPickFeedback('');
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `Par registrado: (${greenResult}, ${blueResult}).`, 'success', 3000);
       setPhase('pickConfirm');
       return;
     }
@@ -672,18 +707,22 @@ export function TwoDicesExperiment({
     if (nextAttempts >= 3) {
       // Ao 3º erro: relança os dados e reinicia o picker com novo par
       setPickFeedback('');
+      createAlert?.('Vamos relançar', 'Você terá um novo par de dados para registrar.', 'warning', 4000);
       rerollAndRestartPicker();
       return;
     }
+    let msg: string;
     if (!greenOk && !blueOk) {
-      setPickFeedback('Releia os dois dados na cena acima. Toque em cada um e escolha a face que realmente apareceu.');
+      msg = 'Releia os dois dados na cena apresentada. Toque em cada um e escolha a face que realmente apareceu.';
     } else if (!greenOk) {
-      setPickFeedback('Releia o dado verde na cena acima. Toque nele e escolha a face que realmente apareceu.');
+      msg = 'Releia o dado verde na cena apresentada. Toque nele e escolha a face que realmente apareceu.';
     } else {
-      setPickFeedback('Releia o dado azul na cena acima. Toque nele e escolha a face que realmente apareceu.');
+      msg = 'Releia o dado azul na cena apresentada. Toque nele e escolha a face que realmente apareceu.';
     }
+    setPickFeedback(msg);
     playSound('/sounds/incorrect.mp3');
-  }, [pickedGreen, pickedBlue, greenResult, blueResult, pickAttempts, rerollAndRestartPicker]);
+    createAlert?.('Tente novamente', msg, 'error', 4500);
+  }, [pickedGreen, pickedBlue, greenResult, blueResult, pickAttempts, rerollAndRestartPicker, createAlert]);
 
   // ── Próxima rodada (com intervalo pedagógico após rodada 2) ──
   const nextRound = () => {
@@ -777,11 +816,13 @@ export function TwoDicesExperiment({
     if (isNaN(typed)) {
       setSumAnswerError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Falta digitar', 'Digite a soma dos dois dados.', 'error', 3500);
       return;
     }
     if (typed === correct) {
       setSumAnswerError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `${greenResult} + ${blueResult} = ${correct}.`, 'success', 3000);
       setSumMarks(new Set());
       setSumWrongMarks(new Set());
       setSumFeedbackState('none');
@@ -789,6 +830,7 @@ export function TwoDicesExperiment({
     } else {
       setSumAnswerError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', `Recalcule: ${greenResult} + ${blueResult} = ?`, 'error', 4000);
     }
   };
 
@@ -828,17 +870,20 @@ export function TwoDicesExperiment({
       setSumCountError(false);
       setSumCountValidated(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `Todos os pares com soma ${targetSum} foram marcados.`, 'success', 3000);
       setPhase('sumComplete');
     } else if (wrong.size === 0 && missing.size > 0) {
       // Estado 2: só acertos mas incompleto → reforço positivo parcial
       setSumFeedbackState('incomplete');
       setSumWrongMarks(new Set());
       playSound('/sounds/correct.mp3');
+      createAlert?.('Quase lá', `Você acertou os marcados, mas ainda faltam ${missing.size} par(es) com soma ${targetSum}.`, 'warning', 4000);
     } else {
       // Estado 3: há marcações erradas → X vermelho nelas, aluno corrige
       setSumFeedbackState('wrong');
       setSumWrongMarks(wrong);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'Há marcações incorretas (em vermelho). Corrija antes de conferir.', 'error', 4000);
     }
   };
 
@@ -851,11 +896,13 @@ export function TwoDicesExperiment({
     if (isNaN(typed) || typed !== correct) {
       setSumCountError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', `Conte na tabela quantas células estão marcadas com a soma ${greenResult + blueResult}.`, 'error', 4000);
       return;
     }
     setSumCountError(false);
     setSumCountValidated(true);
     playSound('/sounds/correct.mp3');
+    createAlert?.('Correto!', `A soma ${greenResult + blueResult} ocorre ${correct} ${correct === 1 ? 'vez' : 'vezes'}.`, 'success', 3000);
   };
 
   // ═══════ Rodada 3 — Momento B: helper e validações ═══════
@@ -901,14 +948,22 @@ export function TwoDicesExperiment({
 
   // Validações das 3 perguntas do alienígena
   const validateSumPredictMax = () => {
-    if (sumPredictedMax === null) return;
+    if (sumPredictedMax === null) {
+      createAlert?.('Falta escolher', 'Selecione uma soma antes de confirmar.', 'error', 3500);
+      return;
+    }
     playSound('/sounds/correct.mp3');
+    createAlert?.('Resposta registrada', 'Vamos para a próxima pergunta do alienígena.', 'info', 2500);
     setPhase('sumPredictMin');
   };
 
   const validateSumPredictMin = () => {
-    if (sumPredictedMin === null) return;
+    if (sumPredictedMin === null) {
+      createAlert?.('Falta escolher', 'Selecione uma soma antes de confirmar.', 'error', 3500);
+      return;
+    }
     playSound('/sounds/correct.mp3');
+    createAlert?.('Resposta registrada', 'Última pergunta do alienígena.', 'info', 2500);
     // Gera as opções dinâmicas antes de entrar na fase da pergunta 3
     setSumImpossibleOptions(generateImpossibleOptions());
     setSumImpossibleSelected(new Set());
@@ -935,17 +990,20 @@ export function TwoDicesExperiment({
     if (sumImpossibleSelected.size !== correctSet.size) {
       setSumImpossibleError('hint');
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'Pense no menor e no maior valor possíveis para a soma de dois dados.', 'error', 4500);
       return;
     }
     for (const c of correctSet) {
       if (!sumImpossibleSelected.has(c)) {
         setSumImpossibleError('hint');
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Pense no menor e no maior valor possíveis para a soma de dois dados.', 'error', 4500);
         return;
       }
     }
     setSumImpossibleError('none');
     playSound('/sounds/correct.mp3');
+    createAlert?.('Correto!', 'Somas fora do intervalo [2, 12] são impossíveis.', 'success', 3500);
     setPhase('sumReveal');
   };
 
@@ -978,6 +1036,7 @@ export function TwoDicesExperiment({
       setProbPairError(false);
       setProbPairErrorType(null);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `P(par) = 1/36 — todos os 36 pares são equiprováveis.`, 'success', 3500);
       setPhase('probPairReveal');
       return;
     }
@@ -997,6 +1056,12 @@ export function TwoDicesExperiment({
     setProbPairError(true);
     setProbPairErrorType(errorType);
     playSound('/sounds/incorrect.mp3');
+    const errorMsg = errorType === 'denominator'
+      ? 'Quantos pares ordenados existem ao todo no espaço amostral?'
+      : errorType === 'numerator'
+        ? 'Quantos pares correspondem a esse resultado específico?'
+        : 'Pense em quantos pares satisfazem o evento sobre o total de 36 pares possíveis.';
+    createAlert?.('Tente novamente', errorMsg, 'error', 4500);
   };
 
   /**
@@ -1023,12 +1088,21 @@ export function TwoDicesExperiment({
       setProbSumWrongRows(new Set());
       setProbSumFeedback('none');
       playSound('/sounds/gameFinished.mp3');
+      createAlert?.('Excelente!', 'Todas as 11 probabilidades estão corretas.', 'success', 4000);
       setPhase('probSumReveal');
       return;
     }
     setProbSumWrongRows(wrong);
     setProbSumFeedback(missingAny ? 'missing' : 'wrong');
     playSound('/sounds/incorrect.mp3');
+    createAlert?.(
+      missingAny ? 'Faltam linhas' : 'Tente novamente',
+      missingAny
+        ? 'Preencha todas as linhas (numerador e denominador) antes de conferir.'
+        : `Há ${wrong.size} linha(s) incorreta(s) (em vermelho). Pense: quantos pares produzem cada soma?`,
+      'error',
+      5000,
+    );
   };
 
   // ═══════ CORRIDA DE CARRINHOS — lógica ═══════
@@ -1100,6 +1174,7 @@ export function TwoDicesExperiment({
     if (carNumber !== racePendingSum) {
       setRaceClickError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Carrinho errado', `A soma sorteada foi ${racePendingSum}. Avance o carrinho ${racePendingSum}.`, 'error', 3500);
       return;
     }
     // Acertou — avança o carrinho 1 célula
@@ -1152,6 +1227,7 @@ export function TwoDicesExperiment({
     if (isCorrect) {
       setMarkError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `Par (${greenResult}, ${blueResult}) marcado na tabela.`, 'success', 3000);
       setMarkSolvedCell({ r: row, c: col });
       setMarkCelebStep(0);
       // Sequência de celebração (gold fill + V → par + blink sync verde → blink sync azul → avançar)
@@ -1172,8 +1248,16 @@ export function TwoDicesExperiment({
       const nextAttempts = markAttempts + 1;
       setMarkAttempts(nextAttempts);
       if (nextAttempts >= 3) {
+        createAlert?.('Vamos relançar', 'Você terá um novo par de dados para registrar.', 'warning', 4000);
         // 3 erros no markTable: relança e volta ao picker com novo par
         rerollAndRestartPicker();
+      } else {
+        createAlert?.(
+          'Tente novamente',
+          'Linha = dado verde, coluna = dado azul. Encontre a célula correta.',
+          'error',
+          4000,
+        );
       }
     }
   };
@@ -1181,7 +1265,9 @@ export function TwoDicesExperiment({
   // ── Iniciar piscar ──
   useEffect(() => {
     if (phase === 'pairExplain') {
-      const pair = getPairForQuestion();
+      // Usa o par cacheado (fixado em pairQuestion) — garante consistência
+      // entre o texto da pergunta anterior e a explicação.
+      const pair = cachedPair ?? getPairForQuestion();
       if (pair) {
         setBlinkPairs([pair.original, pair.inverted]);
       }
@@ -1198,6 +1284,20 @@ export function TwoDicesExperiment({
   // Nas fases da corrida (raceBet, raceRunning, raceFinished), os dados VOLTAM
   // a ser visíveis — o aluno precisa ver o lançamento físico que determina a
   // soma. Apenas raceFinished esconde novamente (celebração + alien).
+  // Fixa o par para pairQuestion/pairExplain ao entrar em pairQuestion.
+  // Usa o pair derivado de history se houver, senão um pair plausível.
+  useEffect(() => {
+    if (phase === 'pairQuestion' && !cachedPair) {
+      setCachedPair(getPairForQuestion());
+    }
+    if (phase !== 'pairQuestion' && phase !== 'pairExplain') {
+      // Limpa o cache ao sair das fases que dependem dele para que
+      // próximas visitas (re-entradas via DEV) gerem um par fresco.
+      if (cachedPair) setCachedPair(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
   useEffect(() => {
     if (!onHideAllDice) return;
     const shouldHide =
@@ -1220,8 +1320,15 @@ export function TwoDicesExperiment({
   }, [phase, onHideAllDice]);
 
   useEffect(() => {
-    onPhaseChange?.(phase);
-  }, [phase, onPhaseChange]);
+    // Notifica o pai com fase + sub-fase (quando aplicável). Para 'tree',
+    // inclui a sub-fase interna do SampleSpaceTree para o cenaId DEV
+    // refletir cada uma das 7 sub-cenas como snapshot distinto.
+    if (phase === 'tree') {
+      onPhaseChange?.(`tree|${sampleSpaceTreePhase}` as Phase);
+    } else {
+      onPhaseChange?.(phase);
+    }
+  }, [phase, sampleSpaceTreePhase, onPhaseChange]);
 
   // Log de transição de phase — instrumentação invisível para análise
   // a posteriori. Cada mudança de phase do Experiment vira um entry de
@@ -1771,32 +1878,158 @@ export function TwoDicesExperiment({
     );
   };
 
-  // ═══════ RENDER ═══════
-  /* Painel de Histórico ao Vivo — visibilidade do estado do sistema
-     (NIELSEN, 1994, h. 1). Botão sutil no canto sup. dir. abre overlay
-     com a posição atual do estudante no percurso completo do OVA. */
-  const [progressOverlayOpen, setProgressOverlayOpen] = useState(false);
+  // ═══════ Handle exposto ao painel DEV ═══════
+  // Para fases delegadas a sub-componentes (UnionTheory, UnionExerciseN),
+  // delega para o handle do filho. Para as outras, mapeia diretamente
+  // para a próxima fase pulando animações 3D.
+  useImperativeHandle(ref, () => ({
+    getCurrentPhaseId: () => {
+      if (phase === 'tree') return `tree|${sampleSpaceTreePhase}`;
+      return phase;
+    },
+    advance: () => {
+      // Delegação para o SampleSpaceTree (Cena "tree" tem 7 sub-fases internas).
+      if (phase === 'tree' && sampleSpaceTreeRef.current) {
+        sampleSpaceTreeRef.current.advance();
+        return;
+      }
+      // Delegação para filhos com handle próprio.
+      if (phase === 'unionTheory'    && unionTheoryRef?.current?.canAdvance())    { unionTheoryRef.current.advance();    return; }
+      if (phase === 'unionExercises' && unionExercise1Ref?.current?.canAdvance()) { unionExercise1Ref.current.advance(); return; }
+      if (phase === 'unionExercise2' && unionExercise2Ref?.current?.canAdvance()) { unionExercise2Ref.current.advance(); return; }
+      if (phase === 'unionExercise3' && unionExercise3Ref?.current?.canAdvance()) { unionExercise3Ref.current.advance(); return; }
+      if (phase === 'unionExercise4' && unionExercise4Ref?.current?.canAdvance()) { unionExercise4Ref.current.advance(); return; }
+      if (phase === 'unionExercise5' && unionExercise5Ref?.current?.canAdvance()) { unionExercise5Ref.current.advance(); return; }
+      if (phase === 'unionExercise6' && unionExercise6Ref?.current?.canAdvance()) { unionExercise6Ref.current.advance(); return; }
+
+      // Transições contextuais — espelham o fluxo NATURAL visível ao aluno,
+      // que depende de `round` e `pedagogicDone` (não pode ser um mapa puro
+      // phase→phase). Em particular:
+      //   - markTable só ocorre nas rodadas 0 e 1; rodada 2 vai para sumInput
+      //   - feedback nas rodadas 0/1: avança para a próxima rodada (ready)
+      //   - feedback na rodada 1 (transição p/ rodada 2): entra no intervalo
+      //     pedagógico (pairQuestion → pairExplain → colorQuestion → colorExplain)
+      //   - colorExplain: simula resumeAfterPedagogic → ready (rodada 2)
+      //   - ready (rodada 2): avança para sumInput (não para feedback)
+      // Sem essa lógica, o DEV ia direto de feedback (rodada 0) para sumInput
+      // — pulando rodadas 1 e 2 e o intervalo pedagógico inteiro.
+
+      // Helper: simula nextRound, replicando a lógica inline (sem chamar
+      // a função real para evitar closure stale após múltiplas setState).
+      const simulateNextRound = () => {
+        const next = round + 1;
+        if (next === 2 && !pedagogicDone) {
+          setPairAnswer('');
+          setPairAnswerError(false);
+          setColorAnswer('');
+          setColorAnswerError(false);
+          setPhase('pairQuestion');
+          return;
+        }
+        if (next >= TOTAL_ROUNDS) {
+          setPhase('finished');
+        } else {
+          setRound(next);
+          setPhase('ready');
+        }
+      };
+
+      // Helper: simula resumeAfterPedagogic — reseta estados da rodada
+      // anterior (markSolvedCell, markCelebStep, etc.) e move para round 2.
+      const simulateResumeAfterPedagogic = () => {
+        setPedagogicDone(true);
+        setBlinkPairs([]);
+        setRound(2);
+        setMarkSolvedCell(null);
+        setMarkCelebStep(null);
+        setMarkError(false);
+        setMarkAttempts(0);
+        setMarkBusy(false);
+        setMarkRetryMsg(false);
+        setSumAnswer('');
+        setSumAnswerError(false);
+        setSumMarks(new Set());
+        setSumWrongMarks(new Set());
+        setSumFeedbackState('none');
+        setPhase('ready');
+      };
+
+      switch (phase) {
+        case 'intro':       setPhase('tree'); return;
+        case 'ready':
+        case 'rolling':
+        case 'landed':
+        case 'pickPair':
+        case 'pickConfirm':
+          // Rodadas 0 e 1: pula direto para feedback (skip animação 3D + markTable).
+          // Rodada 2: pula direto para sumInput (rodada 2 não tem markTable).
+          if (round === 2) {
+            setPhase('sumInput');
+          } else {
+            setPhase('feedback');
+          }
+          return;
+        case 'markTable':
+          // markTable só existe nas rodadas 0 e 1. Vai para feedback.
+          setPhase('feedback');
+          return;
+        case 'feedback':
+          simulateNextRound();
+          return;
+        case 'pairQuestion':  setPhase('pairExplain');  return;
+        case 'pairExplain':   setPhase('colorQuestion'); return;
+        case 'colorQuestion': setPhase('colorExplain'); return;
+        case 'colorExplain':
+          simulateResumeAfterPedagogic();
+          return;
+        case 'sumInput':
+        case 'sumMarkTable':
+          setPhase('sumComplete');
+          return;
+        case 'sumComplete':   setPhase('sumAlienIntro'); return;
+        case 'sumAlienIntro': setPhase('sumPredictMax'); return;
+        case 'sumPredictMax': setPhase('sumPredictMin'); return;
+        case 'sumPredictMin': setPhase('sumImpossible'); return;
+        case 'sumImpossible': setPhase('sumReveal'); return;
+        case 'sumReveal':     setPhase('probPair'); return;
+        case 'probPair':      setPhase('probPairReveal'); return;
+        case 'probPairReveal':setPhase('probSumTable'); return;
+        case 'probSumTable':  setPhase('probSumReveal'); return;
+        case 'probSumReveal': setPhase('raceBet'); return;
+        case 'raceBet':       setPhase('raceRunning'); return;
+        case 'raceRunning':   setPhase('raceFinished'); return;
+        case 'raceFinished':  setPhase('complementaryEvents'); return;
+        case 'complementaryEvents': setPhase('unionTheory'); return;
+        case 'unionTheory':       setPhase('unionExercises'); return;
+        case 'unionExercises':    setPhase('unionExercise2'); return;
+        case 'unionExercise2':    setPhase('unionExercise3'); return;
+        case 'unionExercise3':    setPhase('unionExercise4'); return;
+        case 'unionExercise4':    setPhase('unionExercise5'); return;
+        case 'unionExercise5':    setPhase('unionExercise6'); return;
+        case 'unionExercise6':    setPhase('twoDicesGameFree'); return;
+        case 'twoDicesGameFree':  setPhase('unionExercise8'); return;
+        case 'unionExercise8':    setPhase('closing'); return;
+        case 'closing':           setPhase('finished'); return;
+        case 'finished':
+          onFinished();
+          return;
+      }
+    },
+    setCurrentPhaseId: (phaseId: string) => {
+      // Sincroniza a fase do componente a partir do snapshot DEV.
+      // Aceita 'tree|<sub>' (sincroniza phase='tree' E SampleSpaceTree).
+      if (phaseId.startsWith('tree|')) {
+        const sub = phaseId.slice('tree|'.length);
+        setPhase('tree');
+        sampleSpaceTreeRef.current?.setCurrentPhaseId?.(sub);
+        return;
+      }
+      setPhase(phaseId as Phase);
+    },
+  }), [phase, round, pedagogicDone, sampleSpaceTreePhase, onFinished, unionTheoryRef, unionExercise1Ref, unionExercise2Ref, unionExercise3Ref, unionExercise4Ref, unionExercise5Ref, unionExercise6Ref]);
 
   return (
     <div className={`w-full ${phase === 'complementaryEvents' || phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' || phase === 'unionExercise5' || phase === 'unionExercise6' || phase === 'twoDicesGameFree' || phase === 'unionExercise8' || phase === 'closing' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
-      {/* Botão do Painel de Histórico ao Vivo — discreto, sempre visível,
-          permite consulta a qualquer momento sem interromper o fluxo. */}
-      <div className="flex justify-end mb-quarck">
-        <Button
-          style="borderless"
-          size="extra-small"
-          icon={<History aria-hidden="true" />}
-          onClick={() => setProgressOverlayOpen(true)}
-          ariaLabel="Abrir painel: Onde você está no OVA"
-        >
-          Onde estou
-        </Button>
-      </div>
-      <TwoDicesProgressOverlay
-        open={progressOverlayOpen}
-        onClose={() => setProgressOverlayOpen(false)}
-        currentPhaseId={phase}
-      />
       {phase !== 'unionExercise5' && phase !== 'unionExercise6' && phase !== 'twoDicesGameFree' && phase !== 'unionExercise8' && phase !== 'closing' && (
         <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
           Lançamento de dois dados
@@ -1841,7 +2074,13 @@ export function TwoDicesExperiment({
 
       {/* ═══════ ÁRVORE PROGRESSIVA — construção do espaço amostral ═══════ */}
       {phase === 'tree' && (
-        <SampleSpaceTree onFinished={() => setPhase('ready')} diceSceneRef={diceSceneRef} />
+        <SampleSpaceTree
+          ref={sampleSpaceTreeRef}
+          onFinished={() => setPhase('ready')}
+          diceSceneRef={diceSceneRef}
+          onPhaseChange={setSampleSpaceTreePhase}
+          createAlert={createAlert}
+        />
       )}
 
       {/* ═══════ RODADA ATIVA ═══════ */}
@@ -2754,7 +2993,7 @@ export function TwoDicesExperiment({
               </p>
               <p className="ds-body text-neutral-black" style={{ textAlign: 'justify', fontSize: '0.96rem' }}>
                 Você já sabe que cada par ordenado tem probabilidade <strong>1/36</strong>.
-                Agora use o <strong>histograma</strong> abaixo para completar a probabilidade
+                Agora use o <strong>histograma</strong> apresentado para completar a probabilidade
                 de cada <strong>soma</strong> — o número no topo de cada coluna indica
                 quantos pares produzem aquela soma.
               </p>
@@ -3503,8 +3742,7 @@ export function TwoDicesExperiment({
 
       {/* ═══════ INTERVALO PEDAGÓGICO: (x,y) vs (y,x) ═══════ */}
       {phase === 'pairQuestion' && (() => {
-        const pair = getPairForQuestion();
-        if (!pair) { setPhase('pairExplain'); return null; }
+        const pair = cachedPair ?? getPairForQuestion();
         const { original: o } = pair;
         return (
           <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
@@ -3536,25 +3774,42 @@ export function TwoDicesExperiment({
                 <Button style="primary" size="small" onClick={() => {
                   if (pairAnswer === 'nao') {
                     playSound('/sounds/correct.mp3');
+                    createAlert?.(
+                      'Correto!',
+                      `O par (${o.green}, ${o.blue}) é diferente de (${o.blue}, ${o.green}) — a ordem importa.`,
+                      'success',
+                      3500,
+                    );
                     setPhase('pairExplain');
                   } else {
                     playSound('/sounds/incorrect.mp3');
+                    createAlert?.(
+                      'Tente novamente',
+                      'Observe a posição de cada resultado na tabela.',
+                      'error',
+                      4000,
+                    );
                     setPairAnswerError(true);
                   }
                 }}>Conferir</Button>
               </div>
             )}
             {pairAnswerError && (
-              <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)' }}>
-                Observe a posição de cada resultado na tabela. Tente novamente.
-              </p>
+              <>
+                <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                  Observe a posição de cada resultado na tabela. Tente novamente.
+                </p>
+                <div className="mt-micro">
+                  {renderTable(false)}
+                </div>
+              </>
             )}
           </div>
         );
       })()}
 
       {phase === 'pairExplain' && (() => {
-        const pair = getPairForQuestion();
+        const pair = cachedPair ?? getPairForQuestion();
         const o = pair?.original ?? { green: 3, blue: 5 };
         return (
           <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
@@ -3644,9 +3899,21 @@ export function TwoDicesExperiment({
               <Button style="primary" size="small" onClick={() => {
                 if (colorAnswer === 'sim') {
                   playSound('/sounds/correct.mp3');
+                  createAlert?.(
+                    'Correto!',
+                    'Mesmo da mesma cor, os dois dados são objetos separados — a ordem ainda importa.',
+                    'success',
+                    3500,
+                  );
                   setPhase('colorExplain');
                 } else {
                   playSound('/sounds/incorrect.mp3');
+                  createAlert?.(
+                    'Tente novamente',
+                    'Os dois dados são objetos distintos, mesmo que tenham a mesma cor.',
+                    'error',
+                    4000,
+                  );
                   setColorAnswerError(true);
                 }
               }}>Conferir</Button>
@@ -3718,4 +3985,5 @@ export function TwoDicesExperiment({
 
     </div>
   );
-}
+});
+TwoDicesExperiment.displayName = 'TwoDicesExperiment';

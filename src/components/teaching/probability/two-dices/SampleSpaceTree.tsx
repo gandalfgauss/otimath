@@ -24,9 +24,22 @@
    Tópicos: T2 (Espaço Amostral), T4 (Representação)
    ═══════════════════════════════════════════════════════════════ */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
+import type { AlertType } from '@/components/global/Alert';
+
+// Handle exposto ao pai (TwoDicesExperiment) para o painel DEV
+// avançar pela árvore do espaço amostral simulando a interação natural
+// do aluno em cada fase.
+export interface SampleSpaceTreeHandle {
+  /** ID textual da fase atual — entra no cenaId DEV. */
+  getCurrentPhaseId: () => string;
+  /** Simula a próxima ação correta do aluno na fase atual. */
+  advance: () => void;
+  /** Restaura a fase a partir de um snapshot DEV. */
+  setCurrentPhaseId: (phaseId: string) => void;
+}
 
 // ═══════ Face do dado com pintas ═══════
 const PIP_PATTERNS: Record<number, number[]> = {
@@ -102,13 +115,19 @@ type Phase =
 interface SampleSpaceTreeProps {
   onFinished: () => void;
   diceSceneRef?: React.RefObject<{ roll: () => Promise<{ green: number; blue: number }> } | null>;
+  /** Notifica o pai quando a fase interna muda — usado pelo painel DEV
+   *  para construir um cenaId que reflete a sub-cena ativa. */
+  onPhaseChange?: (phaseId: string) => void;
+  /** Cria um toast alert via o sistema de alerts global do OVA. */
+  createAlert?: (title: string, description: string, type: AlertType, timeout?: number) => void;
 }
 
 const GREEN_COLOR = '#1a5c2e';
 const BLUE_COLOR = 'var(--color-brand-otimath-pure)';
 const BRANCH_COLOR = '#8b1a1a'; // vermelho escuro
 
-export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpaceTreeProps>) {
+export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTreeProps>(
+  function SampleSpaceTree({ onFinished, diceSceneRef, onPhaseChange, createAlert }, ref) {
   const [phase, setPhase] = useState<Phase>('select1');
   const [selectedFaces, setSelectedFaces] = useState<Set<number>>(new Set());
   const [selectError, setSelectError] = useState('');
@@ -163,9 +182,11 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
     if (selectedFaces.size < 6 || ![1,2,3,4,5,6].every(v => selectedFaces.has(v))) {
       setSelectError('Selecione todas as 6 faces possíveis do dado azul.');
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'Selecione todas as 6 faces possíveis do dado azul.', 'error', 4000);
       return;
     }
     playSound('/sounds/correct.mp3');
+    createAlert?.('Correto!', 'Para cada face do verde, o azul pode mostrar 1, 2, 3, 4, 5 ou 6.', 'success', 3000);
     if (phase === 'select1') {
       setSelectedFaces(new Set());
       setSelectError('');
@@ -173,7 +194,7 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
     } else {
       setPhase('animate');
     }
-  }, [selectedFaces, phase]);
+  }, [selectedFaces, phase, createAlert]);
 
   // ─── Desenhar linhas SVG (vermelho escuro, mais grossas) ───
   const drawLines = useCallback(() => {
@@ -273,53 +294,51 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
   // ─── Validações ───
   const validateCount = useCallback(() => {
     if (countAnswer.trim() !== '6') {
-      setCountError('Observe a árvore: para cada resultado do primeiro dado, aparecem 6 possibilidades no segundo.');
+      const msg = 'Observe a árvore: para cada resultado do primeiro dado, aparecem 6 possibilidades no segundo.';
+      setCountError(msg);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', msg, 'error', 4500);
       return;
     }
     setCountError('');
     playSound('/sounds/correct.mp3');
+    createAlert?.('Correto!', 'Para cada face do primeiro dado, há 6 pares ordenados possíveis.', 'success', 3000);
     setPhase('multiply');
-  }, [countAnswer]);
+  }, [countAnswer, createAlert]);
 
   const validateMultiply = useCallback(() => {
     const op = multOp.trim();
     const opOk = op === 'x' || op === '×' || op === '*' || op === 'X';
-    if (multA.trim() !== '6') {
-      setMultError('Quantos resultados são possíveis no primeiro dado?');
+    let msg = '';
+    if (multA.trim() !== '6')      msg = 'Quantos resultados são possíveis no primeiro dado?';
+    else if (multB.trim() !== '6') msg = 'Quantos resultados são possíveis no segundo dado?';
+    else if (!opOk)                msg = 'Qual operação combina cada resultado do primeiro dado com cada resultado do segundo?';
+    else if (multC.trim() !== '36') msg = 'Qual o resultado da multiplicação dos dois fatores?';
+    if (msg) {
+      setMultError(msg);
       playSound('/sounds/incorrect.mp3');
-      return;
-    }
-    if (multB.trim() !== '6') {
-      setMultError('Quantos resultados são possíveis no segundo dado?');
-      playSound('/sounds/incorrect.mp3');
-      return;
-    }
-    if (!opOk) {
-      setMultError('Qual operação combina cada resultado do primeiro dado com cada resultado do segundo?');
-      playSound('/sounds/incorrect.mp3');
-      return;
-    }
-    if (multC.trim() !== '36') {
-      setMultError('Qual o resultado da multiplicação dos dois fatores?');
-      playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', msg, 'error', 4500);
       return;
     }
     setMultError('');
     playSound('/sounds/correct.mp3');
+    createAlert?.('Correto!', '6 × 6 = 36 pares ordenados.', 'success', 3000);
     setPhase('total');
-  }, [multA, multOp, multB, multC]);
+  }, [multA, multOp, multB, multC, createAlert]);
 
   const validateTotal = useCallback(() => {
     if (totalAnswer.trim() !== '36') {
-      setTotalError('Lembre-se: 6 × 6 = 36 pares ordenados.');
+      const msg = 'Lembre-se: 6 × 6 = 36 pares ordenados.';
+      setTotalError(msg);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', msg, 'error', 4000);
       return;
     }
     setTotalError('');
     playSound('/sounds/correct.mp3');
+    createAlert?.('Correto!', 'O espaço amostral tem 36 pares ordenados.', 'success', 3000);
     setPhase('pairs');
-  }, [totalAnswer]);
+  }, [totalAnswer, createAlert]);
 
   // ─── Scroll ao mudar de fase ───
   useEffect(() => {
@@ -351,6 +370,52 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
     border: '2px solid var(--color-brand-otimath-light)',
     boxShadow: '0 4px 16px rgba(36, 80, 190, 0.10)',
   };
+
+  // Notifica o pai quando a fase muda — para o cenaId DEV.
+  useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [phase, onPhaseChange]);
+
+  // Handle exposto ao painel DEV — simula a próxima ação correta.
+  // Para fases que envolvem animações ou inputs específicos, inlineamos a
+  // transição de sucesso (DEV sempre fornece a resposta correta) — assim
+  // não dependemos do timing das animações nem de closure stale.
+  useImperativeHandle(ref, () => ({
+    getCurrentPhaseId: () => phase,
+    advance: () => {
+      switch (phase) {
+        case 'select1':
+          setSelectedFaces(new Set([1, 2, 3, 4, 5, 6]));
+          setSelectError('');
+          setPhase('select2');
+          return;
+        case 'select2':
+          setSelectedFaces(new Set([1, 2, 3, 4, 5, 6]));
+          setSelectError('');
+          setPhase('animate');
+          return;
+        case 'animate':
+          // Pula direto para a contagem (sem aguardar animação ramo a ramo).
+          setPhase('count');
+          return;
+        case 'count':
+          setPhase('multiply');
+          return;
+        case 'multiply':
+          setPhase('total');
+          return;
+        case 'total':
+          setPhase('pairs');
+          return;
+        case 'pairs':
+          onFinished();
+          return;
+      }
+    },
+    setCurrentPhaseId: (phaseId: string) => {
+      setPhase(phaseId as Phase);
+    },
+  }), [phase, onFinished]);
 
   return (
     <div className="w-full" style={{ maxWidth: 660, margin: '0 auto', position: 'relative' }}>
@@ -700,4 +765,5 @@ export function SampleSpaceTree({ onFinished, diceSceneRef }: Readonly<SampleSpa
       )}
     </div>
   );
-}
+});
+SampleSpaceTree.displayName = 'SampleSpaceTree';
