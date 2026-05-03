@@ -12,7 +12,15 @@ import { RouletteTable } from "./RouletteTable";
 import { RouletteChart } from "./RouletteChart";
 import { RouletteQuestion } from "./RouletteQuestion";
 import { RouletteInfoBox } from "./RouletteInfoBox";
-import { useRouletteHooks, ROULETTE_STAGE_PHASES } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
+import { useRouletteHooks } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
+
+// ─────────────────────────────────────────────────────────────────
+// FLAG TEMPORÁRIA: libera os botões "Etapa 2" e "Etapa 3" no seletor
+// de etapas mesmo sem ter concluído a etapa anterior. Usar SOMENTE
+// para QA/desenvolvimento. Para reverter ao fluxo normal de aluno,
+// basta voltar para `false`.
+// ─────────────────────────────────────────────────────────────────
+const DEV_UNLOCK_ALL_STAGES = true;
 
 function generateUnionNoteText(n: number) {
   const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].slice(0, n);
@@ -343,9 +351,17 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
       {/* Stage indicator */}
       <div className="flex justify-center gap-x-macro mb-macro" role="tablist" aria-label="Etapas do disco">
         {[1, 2, 3].map((stageNum) => {
-          const isAvailable = stageNum === 1 ||
+          // Etapas anteriores à atual ficam desabilitadas — o aluno só pode
+          // avançar pelo OVA. Voltar para etapas concluídas só é possível
+          // via modo DEV da sequência didática.
+          // Se DEV_UNLOCK_ALL_STAGES estiver ativo, qualquer etapa >= atual
+          // fica clicável (independente de stage{2,3}Available).
+          const isAvailable = stageNum >= gameState.stage && (
+            DEV_UNLOCK_ALL_STAGES ||
+            stageNum === 1 ||
             (stageNum === 2 && gameState.stage2Available) ||
-            (stageNum === 3 && gameState.stage3Available);
+            (stageNum === 3 && gameState.stage3Available)
+          );
           const isCurrentStage = gameState.stage === stageNum;
           const isCompleted = gameState.stage > stageNum ||
             (stageNum === 1 && gameState.stage2Available) ||
@@ -369,11 +385,11 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                 px-macro py-micro rounded-pill ds-small-bold transition-colors min-h-[44px]
                 ${isCurrentStage
                   ? 'bg-brand-otimath-pure text-neutral-white cursor-default'
-                  : isCompleted
-                    ? 'bg-feedback-success-lighter text-feedback-success-darkest hover:bg-feedback-success-dark hover:text-neutral-white cursor-pointer'
-                    : isAvailable
-                      ? 'bg-brand-otimath-light text-neutral-white hover:bg-brand-otimath-pure cursor-pointer'
-                      : 'bg-neutral-lighter text-neutral-medium cursor-not-allowed opacity-50'
+                  : !isAvailable && isCompleted
+                    ? 'bg-feedback-success-lighter text-feedback-success-darkest cursor-not-allowed opacity-70'
+                    : !isAvailable
+                      ? 'bg-neutral-lighter text-neutral-medium cursor-not-allowed opacity-50'
+                      : 'bg-brand-otimath-light text-neutral-white hover:bg-brand-otimath-pure cursor-pointer'
                 }
               `}
             >
@@ -3991,7 +4007,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                 {Object.keys(s3State.colorCounts).map(color => (
                   <button
                     key={color}
-                    className={`flex items-center gap-x-micro p-micro rounded-sm border text-left transition-all min-h-[44px] ${
+                    className={`flex items-center gap-x-micro p-micro rounded-sm border text-left transition-all min-h-[44px] cursor-pointer ${
                       selectedOption === color
                         ? 'border-brand-otimath-pure bg-brand-otimath-lightest'
                         : 'border-neutral-lighter bg-neutral-white hover:bg-neutral-lightest'
@@ -4004,7 +4020,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                   </button>
                 ))}
                 <button
-                  className={`flex items-center gap-x-micro p-micro rounded-sm border text-left transition-all min-h-[44px] ${
+                  className={`flex items-center gap-x-micro p-micro rounded-sm border text-left transition-all min-h-[44px] cursor-pointer ${
                     selectedOption === 'iguais'
                       ? 'border-brand-otimath-pure bg-brand-otimath-lightest'
                       : 'border-neutral-lighter bg-neutral-white hover:bg-neutral-lightest'
@@ -4413,7 +4429,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                 {Object.keys(s3State.colorCounts).map(color => (
                   <button
                     key={color}
-                    className={`flex items-center gap-x-micro p-micro rounded-sm border text-left transition-all min-h-[44px] ${
+                    className={`flex items-center gap-x-micro p-micro rounded-sm border text-left transition-all min-h-[44px] cursor-pointer ${
                       s3State.newBetColor === color
                         ? 'border-brand-otimath-pure bg-brand-otimath-lightest'
                         : 'border-neutral-lighter bg-neutral-white hover:bg-neutral-lightest'
@@ -4551,34 +4567,26 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
             );
           })()}
 
-          {/* Stage 3 — SubStep 10: Tela final */}
-          {gameState.stage === 3 && gameState.subStep === 10 && (() => {
-            const summary = getLogSummary();
-            return (
-              <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-light text-center flex flex-col items-center gap-y-macro">
-                <p className="ds-body-bold text-feedback-success-darkest">Atividade Concluída!</p>
-                <p className="ds-small text-neutral-dark">
-                  Você explorou espaços equiprováveis e não equiprováveis, identificou vieses cognitivos e refletiu sobre suas escolhas. Parabéns!
-                </p>
-                <p className="ds-caption text-neutral-dark">
-                  Tempo total: <strong>{summary.totalTime}</strong> | Interações: <strong>{summary.totalEntries}</strong> | Tentativas: <strong>{summary.attempts}</strong> | Erros: <strong>{summary.errors}</strong>
-                </p>
-                <div className="flex gap-x-micro">
-                  <Button style="secondary" size="medium" icon={<RefreshCw />} onClick={startStage3}>
-                    Interagir de Novo
-                  </Button>
-                  <Button style="secondary" size="medium" icon={<Download />} onClick={downloadLog}>
-                    Exportar Dados
-                  </Button>
-                </div>
-                <div className="mt-macro">
-                  <Button style="primary" size="medium" icon={<ArrowRight />} onClick={handleS3GoToReflection}>
-                    Continuar
-                  </Button>
-                </div>
-              </div>
-            );
-          })()}
+          {/* Stage 3 — SubStep 10: Tela final.
+              No OVA standalone: apenas celebração + estatísticas (sem botões).
+              Na sequência didática (onFinished definido): único botão
+              "Continuar a Sequência" que avança direto para a próxima cena
+              da trilha (TransitionSection antes do OVA Dois Dados),
+              pulando o subStep 11 (Reflexão de ponte) que duplicaria o conteúdo
+              de transição já renderizado pela própria sequência. */}
+          {gameState.stage === 3 && gameState.subStep === 10 && (
+            <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-light text-center flex flex-col items-center gap-y-macro">
+              <p className="ds-body-bold text-feedback-success-darkest">Atividade Concluída!</p>
+              <p className="ds-small text-neutral-dark">
+                Você explorou espaços equiprováveis e não equiprováveis, identificou vieses cognitivos e refletiu sobre suas escolhas. Parabéns!
+              </p>
+              {onFinished && (
+                <Button style="primary" size="medium" icon={<ArrowRight />} onClick={onFinished}>
+                  Continuar a Sequência
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Stage 3 — SubStep 11: Reflexão de ponte com OVA 2 */}
           {gameState.stage === 3 && gameState.subStep === 11 && (
@@ -4977,8 +4985,11 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
             </div>
           )}
 
-          {/* Check and Next buttons (apenas no subStep 0 e 16) */}
-          {(gameState.subStep === 0 || gameState.subStep === 16) && (
+          {/* Check and Next buttons (apenas no subStep 0 e 16).
+              No subStep 0 da Etapa 2 o InfoBox de transição é mostrado primeiro;
+              o botão "Confirmar" só faz sentido depois que o balão é fechado
+              (slider e placeholder também são ocultados durante o InfoBox). */}
+          {((gameState.subStep === 0 && !showInfoBox) || gameState.subStep === 16) && (
             <div className="flex gap-xxxs items-center justify-center">
               {gameState.subStep === 0 && (
                 <Button

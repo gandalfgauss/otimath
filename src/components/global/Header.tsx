@@ -19,7 +19,7 @@ export function Header() {
     <Grid 
       id="header" 
       backgroundColor='bg-neutral-white'
-      styles='shadow-level-4 sticky z-10 top-[0px] h-[68px]'
+      styles='shadow-level-4 sticky z-11 top-[0px] h-[68px]'
       tag="header"
     >
       <GridItem cols="col-[1_/_13]">

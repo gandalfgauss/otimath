@@ -7,7 +7,7 @@ import { TextBlock } from "@/components/global/TextBlock";
 import { Button } from "@/components/global/Button";
 import { Grid } from "@/components/global/Grid";
 import { GridItem } from "@/components/global/GridItem";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { RouletteGame } from "@/components/teaching/probability/roulette/RouletteGame";
 import { TwoDicesPresentation } from "@/components/teaching/probability/two-dices/TwoDicesPresentation";
 import { playSound } from "@/hooks/global/useSound";
@@ -277,10 +277,11 @@ function IntroSection({ onStart }: { onStart: () => void }) {
         <div className="flex flex-col items-center gap-y-xs">
           <SequenceIllustration />
           <TextBlock
+            centralize
             overline="VAMOS COMEÇAR"
             title={<h2 className="ds-heading-ultra">Você está pronto para iniciar a sequência?</h2>}
             paragraph={
-              <span className="ds-body">
+              <span className="ds-body block text-center">
                 A trilha é composta por <strong>dois OVAs encadeados</strong>:
                 <br /><br />
                 <strong>1. Disco Aleatório</strong> — você explora a probabilidade como limite
@@ -394,10 +395,9 @@ function TransitionSection({ onContinue }: { onContinue: () => void }) {
     <Grid id="seq-transition" paddings="pt-xl pb-xl" backgroundColor="bg-linear-(--color-gradient-level-5)">
       <GridItem styles="text-center" cols="col-[3_/_11] max-md:col-[1_/_13]">
         <div className="flex flex-col items-center gap-y-xs">
-          <div className="flex items-center justify-center w-[88px] h-[88px] rounded-full bg-feedback-success-lighter border-4 border-feedback-success-medium">
-            <Check size={48} className="text-feedback-success-darkest" aria-hidden="true" />
-          </div>
+          <TransitionIllustration />
           <TextBlock
+            centralize
             overline="PRIMEIRO OVA CONCLUÍDO"
             title={<h2 className="ds-heading-ultra">Excelente! Você concluiu o Disco Aleatório</h2>}
             paragraph={
@@ -422,6 +422,81 @@ function TransitionSection({ onContinue }: { onContinue: () => void }) {
   );
 }
 
+// SVG da transição entre OVAs: disco aleatório completado (com selo verde
+// de conclusão) + seta apontando para o próximo desafio (dois dados).
+function TransitionIllustration() {
+  return (
+    <svg
+      role="img"
+      aria-label="Disco aleatório concluído: setores coloridos com selo verde de aprovado e seta indicando o próximo desafio (dois dados)"
+      viewBox="0 0 380 160"
+      className="w-full max-w-[420px] h-auto"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <filter id="trans-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" />
+          <feOffset dx="0" dy="3" result="offsetBlur" />
+          <feComponentTransfer><feFuncA type="linear" slope="0.25" /></feComponentTransfer>
+          <feMerge>
+            <feMergeNode />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <linearGradient id="trans-green" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3ab85a" />
+          <stop offset="100%" stopColor="#229900" />
+        </linearGradient>
+        <linearGradient id="trans-blue" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3b5fc7" />
+          <stop offset="100%" stopColor="#1a3f9e" />
+        </linearGradient>
+      </defs>
+
+      {/* Disco aleatório (lado esquerdo) — com selo verde de "concluído" */}
+      <g transform="translate(80, 80)" filter="url(#trans-shadow)">
+        <path d="M 0 0 L 50 0 A 50 50 0 0 1 25 43.3 Z" fill="#e03b3b" />
+        <path d="M 0 0 L 25 43.3 A 50 50 0 0 1 -25 43.3 Z" fill="#1a4a9e" />
+        <path d="M 0 0 L -25 43.3 A 50 50 0 0 1 -50 0 Z" fill="#f4c430" />
+        <path d="M 0 0 L -50 0 A 50 50 0 0 1 -25 -43.3 Z" fill="#2a8844" />
+        <path d="M 0 0 L -25 -43.3 A 50 50 0 0 1 25 -43.3 Z" fill="#7d3c98" />
+        <path d="M 0 0 L 25 -43.3 A 50 50 0 0 1 50 0 Z" fill="#e87c1c" />
+        <circle cx="0" cy="0" r="50" fill="none" stroke="#2e2e2e" strokeWidth="2.5" />
+        <circle cx="0" cy="0" r="6" fill="#2e2e2e" />
+        <circle cx="0" cy="0" r="2.5" fill="#fff" />
+      </g>
+
+      {/* Selo de conclusão (badge verde com check) sobreposto ao disco */}
+      <g transform="translate(120, 50)" filter="url(#trans-shadow)">
+        <circle cx="0" cy="0" r="22" fill="url(#trans-green)" stroke="#fff" strokeWidth="3" />
+        <path d="M -9 0 L -3 6 L 10 -7" stroke="#fff" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+
+      {/* Seta de transição (indicando próximo desafio) */}
+      <g transform="translate(190, 80)" stroke="#1a4a9e" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.7">
+        <line x1="-25" y1="0" x2="20" y2="0" strokeDasharray="4 3" />
+        <polyline points="14,-6 22,0 14,6" />
+      </g>
+
+      {/* Próximo desafio: dois dados — discreto, sinalizando o que vem */}
+      <g transform="translate(265, 80) rotate(-8)" filter="url(#trans-shadow)" opacity="0.9">
+        <rect x="-22" y="-22" width="44" height="44" rx="8" fill="#fff" stroke="#0a1f6e" strokeWidth="1.2" />
+        <circle cx="-10" cy="-10" r="3" fill="#1a3f9e" />
+        <circle cx="10"  cy="-10" r="3" fill="#1a3f9e" />
+        <circle cx="0"   cy="0"   r="3" fill="#1a3f9e" />
+        <circle cx="-10" cy="10"  r="3" fill="#1a3f9e" />
+        <circle cx="10"  cy="10"  r="3" fill="#1a3f9e" />
+      </g>
+      <g transform="translate(318, 95) rotate(12)" filter="url(#trans-shadow)" opacity="0.9">
+        <rect x="-22" y="-22" width="44" height="44" rx="8" fill="url(#trans-blue)" stroke="#0a1f6e" strokeWidth="1.2" />
+        <circle cx="-10" cy="-10" r="3" fill="#fff" />
+        <circle cx="0"   cy="0"   r="3" fill="#fff" />
+        <circle cx="10"  cy="10"  r="3" fill="#fff" />
+      </g>
+    </svg>
+  );
+}
+
 function CompletionSection() {
   return (
     <Grid id="seq-complete" paddings="pt-xl pb-xl" backgroundColor="bg-linear-(--color-gradient-level-5)">
@@ -432,16 +507,24 @@ function CompletionSection() {
           aria-live="polite"
           aria-label="Sequência didática concluída"
         >
-          <div
-            className="relative flex items-center justify-center w-[140px] h-[140px] rounded-full bg-feedback-success-lighter border-4 border-feedback-success-medium"
-            style={{ animation: 'seqSuccessPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}
-          >
-            <Check size={72} className="text-feedback-success-darkest" aria-hidden="true" />
-            <span className="absolute inset-0 rounded-full border-4 border-feedback-success-dark" style={{ animation: 'seqSuccessRing 1.4s ease-out 0.3s infinite' }} />
+          {/* Cena celebrativa: troféu + disco + dados + confetti animado */}
+          <div style={{ animation: 'seqSuccessFade 0.6s ease-out 0.1s both' }}>
+            <CompletionIllustration />
           </div>
-          <div style={{ animation: 'seqSuccessFade 0.6s ease-out 0.3s both' }}>
+          <div
+            className="flex flex-col items-center gap-y-xs"
+            style={{ animation: 'seqSuccessFade 0.6s ease-out 0.3s both' }}
+          >
+            <p
+              className="ds-heading-giga text-brand-otimath-pure font-bold flex items-center gap-x-micro flex-wrap justify-center"
+              style={{ transformOrigin: 'center', animation: 'seqStarTwinkle 1.8s ease-in-out infinite' }}
+            >
+              <span aria-hidden="true">🎉</span>
+              <span>PARABÉNS!</span>
+              <span aria-hidden="true">🎉</span>
+            </p>
             <TextBlock
-              overline="🎉 PARABÉNS!"
+              centralize
               title={<h2 className="ds-heading-ultra">Você concluiu a sequência didática!</h2>}
               paragraph={
                 <span className="ds-body">
@@ -479,12 +562,164 @@ function CompletionSection() {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes seqConfettiFall {
+          0%   { transform: translateY(-10px) rotate(0deg); opacity: 0; }
+          15%  { opacity: 1; }
+          100% { transform: translateY(120px) rotate(360deg); opacity: 0; }
+        }
+        @keyframes seqTrophyShine {
+          0%, 100% { opacity: 0.4; }
+          50%      { opacity: 1; }
+        }
+        @keyframes seqStarTwinkle {
+          0%, 100% { transform: scale(1); opacity: 0.8; }
+          50%      { transform: scale(1.25); opacity: 1; }
+        }
         @media (prefers-reduced-motion: reduce) {
           @keyframes seqSuccessPop  { 0%,100% { transform: scale(1); opacity: 1; } }
           @keyframes seqSuccessRing { 0%,100% { transform: scale(1); opacity: 0; } }
           @keyframes seqSuccessFade { 0%,100% { transform: none; opacity: 1; } }
+          @keyframes seqConfettiFall { 0%,100% { transform: none; opacity: 0; } }
+          @keyframes seqTrophyShine  { 0%,100% { opacity: 0.6; } }
+          @keyframes seqStarTwinkle  { 0%,100% { transform: none; opacity: 1; } }
         }
       `}</style>
     </Grid>
+  );
+}
+
+// SVG comemorativo da conclusão da sequência: troféu central + disco
+// aleatório + dois dados nas laterais + confete caindo + estrelas
+// piscando. Anima sutilmente para reforçar a sensação de conquista.
+function CompletionIllustration() {
+  // Confete: gerado uma vez por mount
+  const confetti = Array.from({ length: 14 }, (_, i) => ({
+    x: 20 + (i * 28) + (i % 3) * 6,
+    color: ['#e03b3b', '#1a4a9e', '#f4c430', '#2a8844', '#7d3c98', '#e87c1c'][i % 6],
+    delay: (i * 0.18) % 2.6,
+    duration: 1.8 + (i % 3) * 0.35,
+    rotate: (i * 47) % 360,
+    shape: i % 3,
+  }));
+
+  return (
+    <svg
+      role="img"
+      aria-label="Troféu dourado central com selo de aprovação, ladeado pelo disco aleatório e dois dados, confetes coloridos caindo e estrelas piscando"
+      viewBox="0 0 420 220"
+      className="w-full max-w-[480px] h-auto"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <filter id="comp-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" />
+          <feOffset dx="0" dy="3" result="offsetBlur" />
+          <feComponentTransfer><feFuncA type="linear" slope="0.28" /></feComponentTransfer>
+          <feMerge>
+            <feMergeNode />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <linearGradient id="comp-gold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fbe46b" />
+          <stop offset="55%" stopColor="#f4b731" />
+          <stop offset="100%" stopColor="#c98a18" />
+        </linearGradient>
+        <linearGradient id="comp-gold-handle" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f4b731" />
+          <stop offset="100%" stopColor="#a06b0b" />
+        </linearGradient>
+        <linearGradient id="comp-blue" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3b5fc7" />
+          <stop offset="100%" stopColor="#1a3f9e" />
+        </linearGradient>
+        <radialGradient id="comp-shine" cx="0.5" cy="0.4" r="0.6">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Confete caindo do topo */}
+      {confetti.map((c, i) => (
+        <g key={i} style={{ transformOrigin: `${c.x}px 30px`, animation: `seqConfettiFall ${c.duration}s linear ${c.delay}s infinite` }}>
+          {c.shape === 0 ? (
+            <rect x={c.x - 3} y="20" width="6" height="3" fill={c.color} transform={`rotate(${c.rotate} ${c.x} 22)`} />
+          ) : c.shape === 1 ? (
+            <circle cx={c.x} cy="22" r="2.5" fill={c.color} />
+          ) : (
+            <path d={`M ${c.x} 18 L ${c.x + 4} 24 L ${c.x - 4} 24 Z`} fill={c.color} />
+          )}
+        </g>
+      ))}
+
+      {/* Disco aleatório (lado esquerdo) */}
+      <g transform="translate(70, 145)" filter="url(#comp-shadow)">
+        <path d="M 0 0 L 38 0 A 38 38 0 0 1 19 32.9 Z" fill="#e03b3b" />
+        <path d="M 0 0 L 19 32.9 A 38 38 0 0 1 -19 32.9 Z" fill="#1a4a9e" />
+        <path d="M 0 0 L -19 32.9 A 38 38 0 0 1 -38 0 Z" fill="#f4c430" />
+        <path d="M 0 0 L -38 0 A 38 38 0 0 1 -19 -32.9 Z" fill="#2a8844" />
+        <path d="M 0 0 L -19 -32.9 A 38 38 0 0 1 19 -32.9 Z" fill="#7d3c98" />
+        <path d="M 0 0 L 19 -32.9 A 38 38 0 0 1 38 0 Z" fill="#e87c1c" />
+        <circle cx="0" cy="0" r="38" fill="none" stroke="#2e2e2e" strokeWidth="2" />
+        <circle cx="0" cy="0" r="4" fill="#2e2e2e" />
+      </g>
+
+      {/* Dois dados (lado direito) */}
+      <g transform="translate(335, 130) rotate(-10)" filter="url(#comp-shadow)">
+        <rect x="-22" y="-22" width="44" height="44" rx="8" fill="#fff" stroke="#0a1f6e" strokeWidth="1.4" />
+        <circle cx="-10" cy="-10" r="3" fill="#1a3f9e" />
+        <circle cx="10"  cy="-10" r="3" fill="#1a3f9e" />
+        <circle cx="0"   cy="0"   r="3" fill="#1a3f9e" />
+        <circle cx="-10" cy="10"  r="3" fill="#1a3f9e" />
+        <circle cx="10"  cy="10"  r="3" fill="#1a3f9e" />
+      </g>
+      <g transform="translate(370, 160) rotate(14)" filter="url(#comp-shadow)">
+        <rect x="-20" y="-20" width="40" height="40" rx="7" fill="url(#comp-blue)" stroke="#0a1f6e" strokeWidth="1.2" />
+        <circle cx="-9" cy="-9" r="2.8" fill="#fff" />
+        <circle cx="0"  cy="0"  r="2.8" fill="#fff" />
+        <circle cx="9"  cy="9"  r="2.8" fill="#fff" />
+      </g>
+
+      {/* Troféu central */}
+      <g transform="translate(210, 110)" filter="url(#comp-shadow)">
+        {/* Alças (cabos) */}
+        <path d="M -42 -32 C -68 -32 -68 8 -42 8" fill="none" stroke="url(#comp-gold-handle)" strokeWidth="6" strokeLinecap="round" />
+        <path d="M  42 -32 C  68 -32  68 8  42 8" fill="none" stroke="url(#comp-gold-handle)" strokeWidth="6" strokeLinecap="round" />
+        {/* Copa do troféu */}
+        <path d="M -42 -42 L 42 -42 L 38 12 C 38 28 22 36 0 36 C -22 36 -38 28 -38 12 Z" fill="url(#comp-gold)" stroke="#a06b0b" strokeWidth="1.5" />
+        {/* Highlight (brilho) */}
+        <ellipse cx="-12" cy="-22" rx="14" ry="22" fill="url(#comp-shine)" style={{ animation: 'seqTrophyShine 2.4s ease-in-out infinite' }} />
+        {/* Faixa horizontal decorativa */}
+        <rect x="-42" y="-12" width="84" height="4" fill="#a06b0b" opacity="0.3" />
+        {/* Coluna/haste */}
+        <rect x="-6" y="36" width="12" height="14" fill="url(#comp-gold-handle)" />
+        {/* Base */}
+        <rect x="-30" y="48" width="60" height="6" rx="2" fill="url(#comp-gold-handle)" />
+        <rect x="-36" y="54" width="72" height="8" rx="3" fill="#8b5e0a" />
+        {/* Estrela central no troféu */}
+        <g transform="translate(0, -10)" style={{ transformOrigin: '0 0', animation: 'seqStarTwinkle 1.6s ease-in-out infinite' }}>
+          <path
+            d="M 0 -16 L 4.7 -4.9 L 16.5 -3.3 L 7.9 5.1 L 10.1 16.7 L 0 11.2 L -10.1 16.7 L -7.9 5.1 L -16.5 -3.3 L -4.7 -4.9 Z"
+            fill="#fff"
+            stroke="#a06b0b"
+            strokeWidth="1.2"
+          />
+        </g>
+      </g>
+
+      {/* Estrelinhas decorativas piscando */}
+      <g style={{ transformOrigin: '155px 60px', animation: 'seqStarTwinkle 1.8s ease-in-out 0.2s infinite' }}>
+        <path d="M 155 54 L 156.6 58.6 L 161.4 58.9 L 157.7 62 L 158.9 66.7 L 155 64 L 151.1 66.7 L 152.3 62 L 148.6 58.9 L 153.4 58.6 Z" fill="#f4c430" />
+      </g>
+      <g style={{ transformOrigin: '270px 50px', animation: 'seqStarTwinkle 2.1s ease-in-out 0.6s infinite' }}>
+        <path d="M 270 44 L 271.4 48.2 L 275.8 48.4 L 272.4 51.1 L 273.5 55.4 L 270 52.9 L 266.5 55.4 L 267.6 51.1 L 264.2 48.4 L 268.6 48.2 Z" fill="#fbe46b" />
+      </g>
+      <g style={{ transformOrigin: '305px 90px', animation: 'seqStarTwinkle 1.5s ease-in-out 0.4s infinite' }}>
+        <circle cx="305" cy="90" r="3" fill="#f4c430" />
+      </g>
+      <g style={{ transformOrigin: '125px 95px', animation: 'seqStarTwinkle 2.3s ease-in-out 0.8s infinite' }}>
+        <circle cx="125" cy="95" r="3" fill="#fbe46b" />
+      </g>
+    </svg>
   );
 }

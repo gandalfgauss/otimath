@@ -242,14 +242,14 @@ export const ROULETTE_STAGE_PHASES: Record<number, number[]> = {
     15, 15.5, 15.6, 15.7, 16,
   ],
   2: [
-    0, 0.15, 0.16, 0.17, 0.18, 0.185, 0.19, 0.191,
+    0, 0.15, 0.16, 0.17, 0.18, 0.185, 0.19, 0.191, 0.195,
     2, 2.1, 2.2, 2.3, 2.4, 2.9,
     3, 4, 5, 5.1, 5.2,
-    6, 6.101, 6.201, 6.202, 6.204,
-    7, 8, 9.1, 9.2, 9.3,
-    11, 12,
+    6, 6.101, 6.102, 6.103, 6.104, 6.201, 6.202, 6.204, 6.205,
+    7, 8, 9, 9.1, 9.2, 9.3,
+    10, 11, 12,
   ],
-  3: [0.5, 1.5, 1.75, 2, 3, 4, 5, 6, 7, 8, 8.2, 8.4],
+  3: [0.5, 1, 1.5, 1.75, 2, 3, 4, 5, 6, 7, 8, 8.1, 8.2, 8.3, 8.4, 8.5, 9, 10, 11],
 };
 
 // Função auxiliar para verificar se um número é primo
@@ -3491,7 +3491,8 @@ export const useRouletteHooks = () => {
   const [sampleSpaceCountInput, setSampleSpaceCountInput] = useState<TextInputInterface>({
     value: '',
     disabled: false,
-    error: false
+    error: false,
+    type: 'natural-number',
   });
 
   // Cores aleatórias para a pergunta conceitual 2.4 (P(X ou Y) = 2/k?)
@@ -3535,7 +3536,8 @@ export const useRouletteHooks = () => {
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setFavorableCasesInput(prev => ({ ...prev, value: val }))
+    type: 'natural-number',
+    setValue: (val: string) => setFavorableCasesInput(prev => ({ ...prev, value: val.replace(/\D/g, '').slice(0, 5) }))
   });
 
   // Inputs para o exercício dinâmico (Aplicação do Teorema de Laplace)
@@ -3543,28 +3545,32 @@ export const useRouletteHooks = () => {
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setExerciseNEInput(prev => ({ ...prev, value: val }))
+    type: 'natural-number',
+    setValue: (val: string) => setExerciseNEInput(prev => ({ ...prev, value: val.replace(/\D/g, '').slice(0, 5) }))
   });
 
   const [exerciseNSInput, setExerciseNSInput] = useState<TextInputInterface>({
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setExerciseNSInput(prev => ({ ...prev, value: val }))
+    type: 'natural-number',
+    setValue: (val: string) => setExerciseNSInput(prev => ({ ...prev, value: val.replace(/\D/g, '').slice(0, 5) }))
   });
 
   const [exercisePENumeratorInput, setExercisePENumeratorInput] = useState<TextInputInterface>({
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setExercisePENumeratorInput(prev => ({ ...prev, value: val }))
+    type: 'natural-number',
+    setValue: (val: string) => setExercisePENumeratorInput(prev => ({ ...prev, value: val.replace(/\D/g, '').slice(0, 5) }))
   });
 
   const [exercisePEDenominatorInput, setExercisePEDenominatorInput] = useState<TextInputInterface>({
     value: '',
     disabled: false,
     error: false,
-    setValue: (val: string) => setExercisePEDenominatorInput(prev => ({ ...prev, value: val }))
+    type: 'natural-number',
+    setValue: (val: string) => setExercisePEDenominatorInput(prev => ({ ...prev, value: val.replace(/\D/g, '').slice(0, 5) }))
   });
 
   // InfoBox state
@@ -3864,6 +3870,21 @@ export const useRouletteHooks = () => {
   // tentativa (que só zera waitingForConfirmation após 1.5s no setTimeout).
   const resultConfirmationLockedRef = useRef(false);
 
+  // Trava síncrona da aposta na investigação inicial da Etapa 2 (subStep 0.15).
+  // Setada ao clicar Sortear; liberada quando uma nova tentativa começa
+  // (ex.: 0.195 retry) ou quando muda de subStep.
+  const s2BetLockedRef = useRef(false);
+
+  // Trava síncrona da confirmação do resultado na Etapa 2 (subStep 0.16/0.195).
+  // Bloqueia cliques múltiplos no setor correto durante a janela de 1.5s
+  // até a transição para 0.17.
+  const s2ConfirmationLockedRef = useRef(false);
+
+  // Trava síncrona da aposta na Etapa 3 (subStep 1 — Faça sua aposta).
+  // Setada quando o aluno clica "Confirmar aposta"; impede cliques posteriores
+  // de mudar a cor selecionada enquanto a transição para 1.5 ainda não ocorreu.
+  const s3BetLockedRef = useRef(false);
+
   // Melhoria 12 — Wrapper de createAlert que loga tentativas automaticamente
   const gameStateRef = useRef<{ stage: number; subStep: number }>({ stage: 1, subStep: 0 });
   const createAlert = useCallback((title: string, message: string, type: AlertType, duration?: number) => {
@@ -4035,7 +4056,7 @@ export const useRouletteHooks = () => {
       playSound(won ? "/sounds/correct.mp3" : "/sounds/incorrect.mp3");
       createAlert(won ? "Acertou!" : "Errou!", `Você apostou em ${betColor}. Foi sorteada a cor ${resultColor}.`, won ? "success" : "error", 3000);
       setInstructions(`<p class="ds-body"><strong>Resultado do giro</strong></p>
-        <p class="ds-body">Você apostou em <strong>${betColor}</strong>. Foi sorteada a cor <strong>${resultColor}</strong>. Agora responda à pergunta abaixo.</p>`);
+        <p class="ds-body">Você apostou em <strong>${betColor}</strong>. Foi sorteada a cor <strong>${resultColor}</strong>. Agora responda à pergunta a seguir.</p>`);
       return;
     }
     if (gameState.stage === 2 && gameState.subStep === 6.202 && s2SpinReflection.phase === 'spinning') {
@@ -4193,7 +4214,7 @@ export const useRouletteHooks = () => {
       setGameState(prev => ({ ...prev, subStep: 8.5 }));
       setDisabledSpinButton(true);
       setInstructions(`<p class="ds-body"><strong>Frequência Absoluta</strong></p>
-        <p class="ds-body">Leia o conceito abaixo e responda a pergunta.</p>`);
+        <p class="ds-body">Leia o conceito apresentado e responda a pergunta a seguir.</p>`);
     }
     // STAGE 2 - SubStep 9: Giros manuais P
     else if (gameState.stage === 2 && gameState.subStep === 9 && newManualSpinsDone >= gameState.s2ManualSpinsP) {
@@ -4238,7 +4259,7 @@ export const useRouletteHooks = () => {
     setSelectedOption('');
     setDisabledSpinButton(true);
     setInstructions(`<p class="ds-body"><strong>Reflexão sobre Previsibilidade</strong></p>
-      <p class="ds-body">Responda a pergunta abaixo.</p>`);
+      <p class="ds-body">Responda a pergunta a seguir.</p>`);
   }, [gameState.targetSectorCount]);
 
   // Função para mover para entrada de frequência relativa
@@ -4426,7 +4447,7 @@ export const useRouletteHooks = () => {
         });
 
         setInstructions(`<p class="ds-body"><strong>Conceitos Fundamentais</strong></p>
-          <p class="ds-body">Leia o conteúdo do balão ao lado e clique no <strong>Botão</strong> para continuar.</p>`);
+          <p class="ds-body">Leia o conteúdo do balão e clique no <strong>Botão</strong> para continuar.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
         createAlert("Erro!", `O número correto é ${targetSectorCount}. Tente novamente.`, "error", 4000);
@@ -4682,7 +4703,7 @@ export const useRouletteHooks = () => {
         setFavorableCasesInput({ value: '', disabled: false, error: false, setValue: (val: string) => setFavorableCasesInput(prev => ({ ...prev, value: val })) });
 
         setInstructions(`<p class="ds-body"><strong>Probabilidade do Evento Composto</strong></p>
-          <p class="ds-body">Responda a pergunta abaixo.</p>`);
+          <p class="ds-body">Responda a pergunta a seguir.</p>`);
       } else {
         setProbabilityInputs(updatedInputs);
         playSound("/sounds/incorrect.mp3");
@@ -4818,7 +4839,7 @@ export const useRouletteHooks = () => {
         setFreqRelConceptPhase('definition');
         setGameState(prev => ({ ...prev, subStep: 8.6 }));
         setInstructions(`<p class="ds-body"><strong>Frequência Relativa: Conceito e Exemplo</strong></p>
-          <p class="ds-body">Leia o conceito abaixo.</p>`);
+          <p class="ds-body">Leia o conceito apresentado.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
         setFreqAbsInput(prev => ({ ...prev, error: true }));
@@ -4853,7 +4874,7 @@ export const useRouletteHooks = () => {
         setFreqRelInput({ value: '', error: false });
         setGameState(prev => ({ ...prev, subStep: 9.5 }));
         setInstructions(`<p class="ds-body"><strong>Frequência Relativa</strong></p>
-          <p class="ds-body">Leia o conceito abaixo e responda a pergunta.</p>`);
+          <p class="ds-body">Leia o conceito apresentado e responda a pergunta a seguir.</p>`);
       } else {
         setRelativeFrequencyInputs(updatedInputs);
         playSound("/sounds/incorrect.mp3");
@@ -4913,7 +4934,7 @@ export const useRouletteHooks = () => {
           createAlert("Correto!", `A chance ${lgnParams.p}% corresponde a ${lgnParams.p}/100. Logo, o esperado é ${lgnParams.m}×(${lgnParams.p}/100) = ${lgnParams.answer2}.`, "success", 5000);
           setLgnPhase('note');
           setInstructions(`<p class="ds-body"><strong>Reflexão</strong></p>
-            <p class="ds-body">Leia a nota abaixo.</p>`);
+            <p class="ds-body">Leia a nota apresentada.</p>`);
         } else {
           playSound("/sounds/incorrect.mp3");
           setLgnInput(prev => ({ ...prev, error: true }));
@@ -4943,7 +4964,7 @@ export const useRouletteHooks = () => {
           message: `À medida que o número de giros aumenta, a frequência relativa de cada cor se estabiliza perto de <strong>1/${n}</strong> (≈${probPercent}%).<br/><br/>Esse fenômeno é descrito pela <strong>Lei dos Grandes Números</strong>: quanto mais vezes repetimos um experimento aleatório, mais a frequência relativa se aproxima da probabilidade teórica.`
         });
         setInstructions(`<p class="ds-body"><strong>Lei dos Grandes Números</strong></p>
-          <p class="ds-body">Leia o conceito abaixo.</p>`);
+          <p class="ds-body">Leia o conceito apresentado.</p>`);
       } else {
         if (input) {
           setConvergenceInputs(prev => ({ ...prev, convergence: { ...prev.convergence, error: true } }));
@@ -5601,7 +5622,7 @@ export const useRouletteHooks = () => {
         setSelectedOption('');
         setGameState(prev => ({ ...prev, subStep: 0.19 }));
         setInstructions(`<p class="ds-body"><strong>Reflexão Conceitual</strong></p>
-          <p class="ds-body">Responda a pergunta abaixo.</p>`);
+          <p class="ds-body">Responda a pergunta a seguir.</p>`);
 
       } else if (!betOnLargest && won) {
         // CASO 2: Ganhou, mas NÃO era o setor mais provável → feedback + nova aposta
@@ -5756,7 +5777,7 @@ export const useRouletteHooks = () => {
           setSelectedOption('');
           setGameState(prev => ({ ...prev, subStep: 2.4 }));
           setInstructions(`<p class="ds-body"><strong>Probabilidade Laplaciana</strong></p>
-            <p class="ds-body">Complete a afirmação abaixo.</p>`);
+            <p class="ds-body">Complete a afirmação a seguir.</p>`);
         } else {
           // Sortear 2 cores aleatórias do disco
           const colorNames = gameState.sectors.map(s => s.colorName);
@@ -5804,7 +5825,7 @@ export const useRouletteHooks = () => {
         setSelectedOption('');
         setGameState(prev => ({ ...prev, subStep: 2.4 }));
         setInstructions(`<p class="ds-body"><strong>Probabilidade Laplaciana</strong></p>
-          <p class="ds-body">Complete a afirmação abaixo.</p>`);
+          <p class="ds-body">Complete a afirmação a seguir.</p>`);
       } else if (selectedOption === 'sim') {
         playSound("/sounds/incorrect.mp3");
         createAlert("Tente novamente.", "Lembre-se: os setores não possuem a mesma área, logo a soma de probabilidades individuais iguais não vale aqui.", "error", 4000);
@@ -6202,7 +6223,7 @@ export const useRouletteHooks = () => {
             s2K: trainK, s2M: result.m, s2Ki: result.ki, s2Angles: result.angles, s2SumI: result.S, s2TableIndex: 0,
           }));
           setInstructions(`<p class="ds-body"><strong>Treino 1</strong></p>
-            <p class="ds-body">Girando-se o disco abaixo ao acaso, determine a probabilidade de o ponteiro indicar cada uma das cores do disco.</p>
+            <p class="ds-body">Girando-se o disco ao acaso, determine a probabilidade de o ponteiro indicar cada uma das cores do disco.</p>
             <p class="ds-body">Clique no setor com o <strong>menor ângulo central</strong>.</p>`);
         } else {
           setS2NumProbInputs(prev => {
@@ -6233,7 +6254,7 @@ export const useRouletteHooks = () => {
       // Ir para síntese
       setGameState(prev => ({ ...prev, subStep: 6.205 }));
       setInstructions(`<p class="ds-body"><strong>Suas decisões</strong></p>
-        <p class="ds-body">Veja abaixo o resumo das suas escolhas e reflita.</p>`);
+        <p class="ds-body">Veja o resumo das suas escolhas e reflita.</p>`);
       return;
     }
 
@@ -6434,7 +6455,7 @@ export const useRouletteHooks = () => {
         setSelectedOption('');
         setGameState(prev => ({ ...prev, subStep: 9.2 }));
         setInstructions(`<p class="ds-body"><strong>Reflexão</strong></p>
-          <p class="ds-body">Responda a pergunta abaixo.</p>`);
+          <p class="ds-body">Responda a pergunta a seguir.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
         setS2FreqAbsInputs(updated);
@@ -6502,7 +6523,7 @@ export const useRouletteHooks = () => {
           setShowAutoSpinButtons(true);
           setGameState(prev => ({ ...prev, subStep: 10, s2AutoBatchIndex: 0 }));
           setInstructions(`<p class="ds-body"><strong>Giros Automáticos</strong></p>
-            <p class="ds-body">Clique nos botões abaixo para realizar giros automáticos e observar a convergência.</p>`);
+            <p class="ds-body">Clique nos botões disponíveis para realizar giros automáticos e observar a convergência.</p>`);
         } else {
           setS2FreqRelInputs(prev => {
             const updated = { ...prev };
@@ -6978,7 +6999,7 @@ export const useRouletteHooks = () => {
       setGameState(prev => ({ ...prev, subStep: 8.5 }));
       setSelectedOption('');
       setInstructions(`<p class="ds-body"><strong>Falácia do Jogador</strong></p>
-        <p class="ds-body">Leia o conceito abaixo com atenção.</p>`);
+        <p class="ds-body">Leia o conceito a seguir com atenção.</p>`);
       return;
     }
 
@@ -7255,6 +7276,11 @@ export const useRouletteHooks = () => {
   // Handler: aposta por clique no setor (Etapa 2, subStep 0.15)
   const handleS2Bet = useCallback((clickedColor: string) => {
     if (gameState.stage !== 2 || gameState.subStep !== 0.15) return;
+    // Trava síncrona: depois que o aluno mandar Sortear (ou já passou pra
+    // 0.16), nenhum clique no disco pode mais alterar a aposta — evita race
+    // condition na janela curta entre o fim do giro e a transição de subStep.
+    if (s2BetLockedRef.current) return;
+    if (gameState.isSpinning) return;
 
     playSound("/sounds/click.mp3");
     logBet(gameState.stage, gameState.subStep, clickedColor);
@@ -7269,12 +7295,16 @@ export const useRouletteHooks = () => {
     setInstructions(`<p class="ds-body"><strong>Investigação Inicial</strong></p>
       <p class="ds-body"><strong>Aposta registrada: ${clickedColor}</strong></p>
       <p class="ds-body">Agora clique em <strong>Sortear</strong> para girar o disco.</p>`);
-  }, [gameState.stage, gameState.subStep]);
+  }, [gameState.stage, gameState.subStep, gameState.isSpinning]);
 
   // Handler: giro do disco na investigação (Etapa 2, subStep 0.15)
   const spinRouletteS2 = useCallback(() => {
     const { stage, subStep, sectors, isSpinning } = gameState;
     if (stage !== 2 || subStep !== 0.15 || isSpinning || !experimentationState.wageredColor) return;
+    // Ativa trava SINCRONAMENTE — qualquer clique no disco a partir daqui
+    // (durante o giro de 2s e na janela curta antes da transição para 0.16)
+    // será rejeitado por handleS2Bet.
+    s2BetLockedRef.current = true;
 
     // Sortear setor ponderado pelo ângulo (acumular ângulos desiguais)
     const rand = Math.random() * 360;
@@ -7475,10 +7505,14 @@ export const useRouletteHooks = () => {
     const isReflectionRetry = gameState.stage === 2 && gameState.subStep === 0.195 && experimentationState.waitingForConfirmation;
 
     if (!isInvestigation && !isReflectionRetry) return;
+    // Trava síncrona: bloqueia cliques múltiplos no setor correto durante a
+    // janela de 1.5s (setTimeout abaixo) até a transição para 0.17/0.19.
+    if (s2ConfirmationLockedRef.current) return;
 
     const correctColor = experimentationState.internalDrawnColor;
 
     if (clickedColor === correctColor) {
+      s2ConfirmationLockedRef.current = true;
       playSound("/sounds/correct.mp3");
       createAlert("Correto!", "Esse foi o resultado do sorteio.", "success", 2000);
 
@@ -7490,6 +7524,9 @@ export const useRouletteHooks = () => {
       if (isInvestigation) {
         // Primeiro giro: Após 1.5s → exibir quadro comparação
         setTimeout(() => {
+          // Libera locks pra próxima rodada (retry em 0.195 etc.).
+          s2ConfirmationLockedRef.current = false;
+          s2BetLockedRef.current = false;
           const wagered = experimentationState.wageredColor || '';
           const won = wagered === correctColor;
 
@@ -7503,6 +7540,9 @@ export const useRouletteHooks = () => {
       } else {
         // Retry após erro na reflexão: regenerar alternativas e voltar à pergunta
         setTimeout(() => {
+          // Libera locks também aqui pra fluxo retry.
+          s2ConfirmationLockedRef.current = false;
+          s2BetLockedRef.current = false;
           const retryMaxAngle = Math.max(...gameState.s2Angles);
           const retryMaxIdx = gameState.s2Angles.indexOf(retryMaxAngle);
           const retryMaxColor = gameState.sectors[retryMaxIdx]?.colorName || '';
@@ -7524,7 +7564,7 @@ export const useRouletteHooks = () => {
           setSelectedOption('');
           setGameState(prev => ({ ...prev, subStep: 0.19 }));
           setInstructions(`<p class="ds-body"><strong>Reflexão Conceitual</strong></p>
-            <p class="ds-body">Responda a pergunta abaixo.</p>`);
+            <p class="ds-body">Responda a pergunta a seguir.</p>`);
         }, 1500);
       }
     } else {
@@ -7564,7 +7604,7 @@ export const useRouletteHooks = () => {
         setSelectedOption('');
         setGameState(prev => ({ ...prev, subStep: 0.19 }));
         setInstructions(`<p class="ds-body"><strong>Reflexão Conceitual</strong></p>
-          <p class="ds-body">Responda a pergunta abaixo.</p>`);
+          <p class="ds-body">Responda a pergunta a seguir.</p>`);
       }, 1500);
     } else {
       playSound("/sounds/incorrect.mp3");
@@ -7626,7 +7666,7 @@ export const useRouletteHooks = () => {
     setGameState(prev => ({ ...prev, subStep: 4, s2TableIndex: 0 }));
 
     setInstructions(`<p class="ds-body"><strong>Distribuindo a probabilidade entre todos os setores</strong></p>
-      <p class="ds-body">Cada setor recebe uma quantidade proporcional à sua área. Antes de preencher a tabela, responda à pergunta abaixo.</p>`);
+      <p class="ds-body">Cada setor recebe uma quantidade proporcional à sua área. Antes de preencher a tabela, responda à pergunta a seguir.</p>`);
   }, [gameState, s2TableAllCorrect]);
 
   // Handler: avançar passo no cálculo guiado (subStep 4, guided_calc)
@@ -7818,7 +7858,7 @@ export const useRouletteHooks = () => {
     setTrainProbInputs({});
 
     setInstructions(`<p class="ds-body"><strong>Treino ${nextTraining}</strong></p>
-      <p class="ds-body">Girando-se o disco abaixo ao acaso, determine a probabilidade de o ponteiro indicar cada uma das cores do disco.</p>
+      <p class="ds-body">Girando-se o disco ao acaso, determine a probabilidade de o ponteiro indicar cada uma das cores do disco.</p>
       <p class="ds-body">Clique no setor com o <strong>menor ângulo central</strong>.</p>`);
   }, [trainingState]);
 
@@ -8061,7 +8101,7 @@ export const useRouletteHooks = () => {
       setS2AngleReadingStep(4);
       setSelectedOption('');
       setInstructions(`<p class="ds-body"><strong>Probabilidade Angular</strong></p>
-        <p class="ds-body">Responda à pergunta abaixo.</p>`);
+        <p class="ds-body">Responda à pergunta a seguir.</p>`);
     } else {
       // Após pergunta → inicializar tabela
       const colors = gameState.sectors.map(s => s.colorName);
@@ -8648,7 +8688,7 @@ export const useRouletteHooks = () => {
       setSelectedOption('');
       setGameState(prev => ({ ...prev, subStep: 0.19 }));
       setInstructions(`<p class="ds-body"><strong>Reflexão Conceitual</strong></p>
-        <p class="ds-body">Responda a pergunta abaixo.</p>`);
+        <p class="ds-body">Responda a pergunta a seguir.</p>`);
       return;
     }
 
@@ -8951,7 +8991,7 @@ export const useRouletteHooks = () => {
       });
       setSelectedOption('');
       setInstructions(`<p class="ds-body"><strong>Reflexão sobre Equiprobabilidade</strong></p>
-        <p class="ds-body">Responda a pergunta abaixo.</p>`);
+        <p class="ds-body">Responda a pergunta a seguir.</p>`);
       return;
     }
 
@@ -8995,7 +9035,7 @@ export const useRouletteHooks = () => {
       setGameState(prev => ({ ...prev, subStep: 5.7 }));
       setTheoreticalQuestion1Input({ value: '', disabled: false, error: false, setValue: (val: string) => setTheoreticalQuestion1Input(prev => ({ ...prev, value: val })) });
       setInstructions(`<p class="ds-body"><strong>Probabilidade do Evento Certo</strong></p>
-        <p class="ds-body">Responda a pergunta abaixo.</p>`);
+        <p class="ds-body">Responda a pergunta a seguir.</p>`);
       return;
     }
 
@@ -9209,7 +9249,7 @@ export const useRouletteHooks = () => {
       });
 
       setInstructions(`<p class="ds-body"><strong>Conceito: Eventos Mutuamente Exclusivos</strong></p>
-        <p class="ds-body">Leia a definição e observe os exemplos no card ao lado.</p>`);
+        <p class="ds-body">Leia a definição e observe os exemplos apresentados.</p>`);
 
       return;
     }
@@ -9240,7 +9280,7 @@ export const useRouletteHooks = () => {
       });
 
       setInstructions(`<p class="ds-body"><strong>Probabilidade da União</strong></p>
-        <p class="ds-body">Leia a definição no card ao lado.</p>`);
+        <p class="ds-body">Leia a definição apresentada.</p>`);
       return;
     }
 
@@ -9360,7 +9400,7 @@ export const useRouletteHooks = () => {
           message: `Como os eventos <span style="white-space:nowrap">A e Ā</span> (complementar de A) cobrem todo o espaço amostral sem sobreposição, temos:<br/><br/><strong>P(A ∪ Ā) = P(S)</strong><br/><br/>A probabilidade de A ou Ā ocorrer é a probabilidade do espaço amostral inteiro.<br/><br/><span class="ds-body" style="font-weight:bold;color:#000"><span style="white-space:nowrap">A e Ā</span> são eventos complementares, pois <span style="white-space:nowrap">A ∪ Ā = S (espaço amostral)</span> e <span style="white-space:nowrap">A ∩ Ā = ∅</span>.</span>`
         });
         setInstructions(`<p class="ds-body"><strong>Formalização – Probabilidade de Eventos Complementares</strong></p>
-          <p class="ds-body">Leia a formalização no balão ao lado.</p>`);
+          <p class="ds-body">Leia a formalização apresentada.</p>`);
         return;
       }
     }
@@ -9396,7 +9436,7 @@ export const useRouletteHooks = () => {
           message: `Combinando os passos anteriores:<br/><br/>P(A) + P(Ā) = 1<br/><br/>Portanto:<br/><br/><strong style="font-size:1.2em">P(Ā) = 1 − P(A)</strong><br/><br/>A probabilidade do complementar de A é 1 menos a probabilidade de A.`
         });
         setInstructions(`<p class="ds-body"><strong>Cálculo da Probabilidade de Eventos Complementares</strong></p>
-          <p class="ds-body">Leia a formalização no balão ao lado.</p>`);
+          <p class="ds-body">Leia a formalização apresentada.</p>`);
         return;
       }
       if (compPhase === 'formalize4') {
@@ -9477,7 +9517,7 @@ export const useRouletteHooks = () => {
       setTheoreticalQuestion1Input({ value: '', disabled: false, error: false, setValue: (val: string) => setTheoreticalQuestion1Input(prev => ({ ...prev, value: val })) });
 
       setInstructions(`<p class="ds-body"><strong>Generalização</strong></p>
-        <p class="ds-body">Responda a pergunta teórica abaixo.</p>`);
+        <p class="ds-body">Responda a pergunta teórica a seguir.</p>`);
       return;
     }
   }, [gameState, unionPhase, initUnionActivity, handleUnionNextActivity, compPhase, compIsGuided, compExamplesViewed, compCalcExampleNum, progressiveReadingStep, showUncertaintyQuestion]);
@@ -9537,7 +9577,7 @@ export const useRouletteHooks = () => {
             });
             setGameState(prev => ({ ...prev, subStep: 11 }));
             setInstructions(`<p class="ds-body"><strong>Convergência das Frequências Relativas</strong></p>
-              <p class="ds-body">Observe o histograma e responda a pergunta abaixo.</p>`);
+              <p class="ds-body">Observe o histograma e responda a pergunta a seguir.</p>`);
           }
         }
 
@@ -9652,6 +9692,10 @@ export const useRouletteHooks = () => {
     // Sortear k ∈ {2,3,4,5,6}
     const targetK = Math.floor(Math.random() * 5) + 2;
 
+    // Libera locks da fase de investigação (caso restando de uma rodada anterior)
+    s2BetLockedRef.current = false;
+    s2ConfirmationLockedRef.current = false;
+
     // Resetar todos os inputs da Etapa 2
     setS2RatioInputs({});
     setS2IxInputs({});
@@ -9747,6 +9791,7 @@ export const useRouletteHooks = () => {
 
   // Função para iniciar Etapa 3
   const startStage3 = useCallback(() => {
+    s3BetLockedRef.current = false; // libera trava de aposta da E3
     const roulette = generateS3Roulette();
     const distinctColors = Object.keys(roulette.colorCounts);
 
@@ -9811,6 +9856,7 @@ export const useRouletteHooks = () => {
   // Handler: aluno clica num setor para apostar (Etapa 3, subStep 1)
   const handleS3SectorBet = useCallback((sectorIndex: number) => {
     if (gameState.stage !== 3 || gameState.subStep !== 1) return;
+    if (s3BetLockedRef.current) return; // bloqueia mudanças após Confirmar
     const sector = gameState.sectors[sectorIndex];
     if (!sector) return;
 
@@ -9831,6 +9877,7 @@ export const useRouletteHooks = () => {
   // Handler: confirmar aposta → avançar para questão diagnóstica
   const handleS3ConfirmBet = useCallback(() => {
     if (!s3State.betColor) return;
+    s3BetLockedRef.current = true; // trava mudança de aposta a partir daqui
 
     playSound("/sounds/correct.mp3");
     createAlert("Aposta registrada!", `Você apostou na cor ${s3State.betColor}. Agora justifique sua escolha.`, "success", 3000);
@@ -10241,7 +10288,7 @@ export const useRouletteHooks = () => {
     });
 
     setInstructions(`<p class="ds-body"><strong>Eventos Complementares</strong></p>
-      <p class="ds-body">Leia o conceito no balão ao lado e observe os setores destacados no disco.</p>`);
+      <p class="ds-body">Leia o conceito apresentado e observe os setores destacados no disco.</p>`);
   }, [gameState]);
 
   // 2. Iniciar exercício interativo de identificação (selecting_A)
@@ -10465,7 +10512,7 @@ export const useRouletteHooks = () => {
       message: `Ao girar o disco uma única vez, determine a probabilidade de <strong>não</strong> ocorrer o evento A = "<strong>${ev.textA}</strong>" utilizando o valor da probabilidade de A.`
     });
     setInstructions(`<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
-      <p class="ds-body">Leia o enunciado do problema ao lado.</p>`);
+      <p class="ds-body">Leia o enunciado do problema apresentado.</p>`);
   }, [gameState, compUsedBitmasks, compCalcExampleNum]);
 
   // 9. Transição para Previsão (6.5)
@@ -10735,9 +10782,30 @@ export const useRouletteHooks = () => {
     if (subStep === 14) parts.push(`interp=${interpretationPhase}`);
     if (subStep === 15) parts.push(`lgn=${lgnPhase}`);
     if (subStep === 15.6) parts.push(`dice=${diceState.rolled ? 'rolled' : 'pre'}`, `ans=${diceState.answered ? 'y' : 'n'}`);
+    // Stage 2 sub-fases
+    if (gameState.stage === 2) {
+      if (subStep === 2.9) parts.push(`progRead=${progressiveReadingStep}`);
+      if (subStep === 3) parts.push(`ratioPhase=${s2RatioPhase}`);
+      if (subStep === 4) parts.push(`ixPhase=${s2IxPhase}`, `tableIdx=${gameState.s2TableIndex}`, `calcStep=${s2IxCalcStep}`);
+      if (subStep === 6 || subStep === 7) parts.push(`tableIdx=${gameState.s2TableIndex}`);
+      if (subStep === 7) parts.push(`angleStep=${s2AngleReadingStep}`);
+      if (subStep === 6.101 || subStep === 6.102 || subStep === 6.103 || subStep === 6.104) {
+        parts.push(`trainPhase=${trainingState.phase}`, `trainNum=${trainingState.currentTraining}`, `trainTbl=${trainingState.tableIndex}`, `trainCalc=${trainingState.calcStep}`);
+      }
+      if (subStep === 6.201 || subStep === 6.202) parts.push(`spinRefl=${s2SpinReflection.phase}`);
+      if (subStep === 8) parts.push(`fracTrain=${fracTraining.currentTraining}`, `done=${fracTraining.completedCount}`, `ok=${fracTraining.allCorrect ? 'y' : 'n'}`);
+      if (subStep === 8.7) parts.push(`convBlock=${convergenceSim.currentBlock}`);
+      if (subStep === 9 || subStep === 9.1 || subStep === 9.3) parts.push(`tableIdx=${gameState.s2TableIndex}`);
+    }
+    // Stage 3 sub-fases
+    if (gameState.stage === 3) {
+      if (subStep === 1) parts.push(`betSel=${s3State.betSector >= 0 ? 'y' : 'n'}`);
+      if (subStep === 8.1) parts.push(`spinCnt=${s3State.spinCount}`);
+      if (subStep === 8.3) parts.push(`newBet=${s3State.newBetColor || 'none'}`);
+    }
     if (showInfoBox) parts.push(`info=${infoBoxContent.title || ''}`);
     return parts.join('|');
-  }, [gameState, disjointExercisePhase, disjointExamplesViewed, unionPhase, unionActivityNum, unionCurrentEventIdx, compPhase, compExamplesViewed, deterministicExamplesViewed, randomExamplesViewed, freqRelConceptPhase, interpretationPhase, lgnPhase, diceState, showInfoBox, infoBoxContent]);
+  }, [gameState, disjointExercisePhase, disjointExamplesViewed, unionPhase, unionActivityNum, unionCurrentEventIdx, compPhase, compExamplesViewed, deterministicExamplesViewed, randomExamplesViewed, freqRelConceptPhase, interpretationPhase, lgnPhase, diceState, progressiveReadingStep, s2RatioPhase, s2IxPhase, s2IxCalcStep, s2AngleReadingStep, trainingState, fracTraining, convergenceSim, s2SpinReflection, s3State, showInfoBox, infoBoxContent]);
 
   const getDevSnapshot = useCallback(() => ({
     gameState,
@@ -10832,6 +10900,9 @@ export const useRouletteHooks = () => {
     // Libera locks síncronos para evitar travamentos pós-restore.
     experimentBetLockedRef.current = false;
     resultConfirmationLockedRef.current = false;
+    s2BetLockedRef.current = false;
+    s2ConfirmationLockedRef.current = false;
+    s3BetLockedRef.current = false;
   }, []);
 
   // ─────────────────────────────────────────────────────────────────
@@ -10848,6 +10919,13 @@ export const useRouletteHooks = () => {
 
   const devSimulateAdvance = useCallback(() => {
     const { stage, subStep, sectors, targetSectorCount } = gameState;
+
+    // Helper: pré-preenche um input + dispara checkAnswer no próximo tick
+    // (setTimeout evita closure stale do React).
+    const fillThenCheck = (fill: () => void) => {
+      fill();
+      setTimeout(() => checkAnswerRef.current?.(), 50);
+    };
 
     // ── 6.70 — Cena complexa multi-fase. Cada compPhase é uma "ceninha"
     //    distinta com seu próprio botão de saída. Tratamos ANTES do check
@@ -11039,6 +11117,675 @@ export const useRouletteHooks = () => {
       }
     }
 
+    // ═══════════════ STAGE 2 — handlers comprehensivos ═══════════════
+    if (stage === 2) {
+      // 0: dividir disco — sliderValue = s2K → checkAnswer
+      if (subStep === 0 && !showInfoBox) {
+        fillThenCheck(() => setSliderValue(gameState.s2K));
+        return;
+      }
+      // 0.15: investigação — duas sub-cenas no mesmo subStep:
+      //   sem wageredColor → apostar (handleS2Bet) no setor maior
+      //   com wageredColor → clicar Sortear (spinRouletteS2 anima 2s, setа 0.16)
+      if (subStep === 0.15) {
+        if (!experimentationState.wageredColor) {
+          const maxAngle = Math.max(...gameState.s2Angles);
+          const maxIdx = gameState.s2Angles.indexOf(maxAngle);
+          const maxColor = gameState.sectors[maxIdx]?.colorName;
+          if (maxColor) handleS2Bet(maxColor);
+          return;
+        }
+        if (!gameState.isSpinning) {
+          spinRouletteS2();
+        }
+        return;
+      }
+      // 0.16: confirmação — clicar na cor em que o ponteiro parou (handleS2Confirmation)
+      if (subStep === 0.16) {
+        const drawnColor = experimentationState.internalDrawnColor;
+        if (drawnColor) handleS2Confirmation(drawnColor);
+        return;
+      }
+      // 0.17: tela "Resultado da Aposta" com botão "Continuar" → checkAnswer
+      //   dispatcha por 4 casos. Como o DEV sempre aposta no MAIOR setor:
+      //   - won + maior → 0.19 (pergunta MC)
+      //   - lost + maior → 0.18 (balão "Reflita")
+      //   handleInfoBoxConfirm aqui causaria reset para 0.15 (loop), por isso checkAnswer.
+      if (subStep === 0.17) {
+        if (showInfoBox) {
+          handleInfoBoxConfirm();
+        } else {
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+        }
+        return;
+      }
+      // 0.18: balão "Reflita" → handleInfoBoxConfirm gera a pergunta e vai pra 0.19
+      if (subStep === 0.18) {
+        handleInfoBoxConfirm();
+        return;
+      }
+      // 0.185: paleta de cores — clicar na cor de maior área
+      if (subStep === 0.185) {
+        const maxAngle = Math.max(...gameState.s2Angles);
+        const maxIdx = gameState.s2Angles.indexOf(maxAngle);
+        const maxColor = gameState.sectors[maxIdx]?.colorName;
+        if (maxColor) handleColorPaletteSelect(maxColor);
+        return;
+      }
+      // 0.19: pergunta MC "Por que a cor X tem maior chance?" → 'v_correct' + checkAnswer
+      if (subStep === 0.19) {
+        if (showInfoBox) {
+          handleInfoBoxConfirm();
+          return;
+        }
+        fillThenCheck(() => setSelectedOption('v_correct'));
+        return;
+      }
+      // 0.195: retry da reflexão — clicar na cor sorteada novamente
+      if (subStep === 0.195) {
+        const drawnColor = experimentationState.internalDrawnColor;
+        if (drawnColor) handleS2Confirmation(drawnColor);
+        return;
+      }
+      // 2: espaço amostral S = {cores}
+      if (subStep === 2) {
+        const colors = sectors.map(s => s.colorName).join(', ');
+        fillThenCheck(() => setSampleSpaceInput(prev => ({ ...prev, value: `S = {${colors}}` })));
+        return;
+      }
+      // 2.1: quantos elementos
+      if (subStep === 2.1) {
+        fillThenCheck(() => setSampleSpaceCountInput(prev => ({ ...prev, value: String(gameState.s2K) })));
+        return;
+      }
+      // 2.2: cada setor tem prob 1/k? → 'nao'
+      if (subStep === 2.2) {
+        fillThenCheck(() => setSelectedOption('nao'));
+        return;
+      }
+      // 2.3: P(cor X ou cor Y) = 2/k? → 'nao'
+      if (subStep === 2.3) {
+        fillThenCheck(() => setSelectedOption('nao'));
+        return;
+      }
+      // 2.4: equiprovável? → 'nao_equiprovavel'
+      if (subStep === 2.4) {
+        fillThenCheck(() => setSelectedOption('nao_equiprovavel'));
+        return;
+      }
+      // 3: razões angulares — múltiplas fases s2RatioPhase
+      if (subStep === 3) {
+        if (s2RatioPhase === 'init') {
+          // Cena inicial — usuário precisa clicar no menor setor
+          const minAngle = gameState.s2M;
+          const minIdx = gameState.s2Angles.indexOf(minAngle);
+          setS2UnitSectorIndex(minIdx);
+          setS2RatioPhase('unit_selected');
+          // Mostra a pergunta conceitual
+          setS2ConceptQuestion({
+            options: [
+              { value: 'v_correct', label: 'A área do setor (proporcional ao ângulo central)' },
+              { value: 'f1', label: 'A cor do setor' },
+              { value: 'f2', label: 'A ordem dos setores' },
+            ],
+            correctValue: 'v_correct',
+          });
+          setS2ConceptSelected('');
+          playSound("/sounds/correct.mp3");
+          createAlert("Setor unidade selecionado!", `Menor setor (${minAngle}°) é a unidade.`, "success", 2500);
+          return;
+        }
+        if (s2RatioPhase === 'unit_selected') {
+          // Marca 'v_correct' E inline o success path (avança direto para
+          // ratio_question, evitando 2 cliques: marcar + checkAnswer).
+          setS2ConceptSelected('v_correct');
+          playSound("/sounds/correct.mp3");
+          createAlert("Correto.", "A probabilidade é proporcional à área do setor, que é determinada pelo ângulo central.", "success", 3000);
+          // Sortear cor Y (diferente do menor setor) — replica checkAnswer.
+          const minAngle = gameState.s2M;
+          const nonMinSectors = gameState.sectors.filter((_, idx) => gameState.s2Angles[idx] !== minAngle);
+          const chosen = nonMinSectors[Math.floor(Math.random() * nonMinSectors.length)];
+          const chosenIdx = gameState.sectors.findIndex(s => s.colorName === chosen.colorName);
+          const angleY = gameState.s2Angles[chosenIdx];
+          const ratio = angleY / minAngle;
+          setS2ReasoningColorY(chosen.colorName);
+          setS2ReasoningAngleY(angleY);
+          setS2ReasoningRatio(ratio);
+          setS2ReasoningInput('');
+          setS2ReasoningErrors(0);
+          setS2ReasoningShowHint(false);
+          setS2RatioPhase('ratio_question');
+          const m = gameState.s2M;
+          setInstructions(`<p class="ds-body"><strong>Razões angulares</strong></p>
+            <p class="ds-body">Unidade = ${m}°</p>
+            <p class="ds-body">Observe o disco. Vamos comparar o setor de cor <strong>${chosen.colorName}</strong> com o menor setor.</p>`);
+          return;
+        }
+        if (s2RatioPhase === 'ratio_question' || s2RatioPhase === 'area_question') {
+          // Preenche razão correta
+          setS2ReasoningInput(String(s2ReasoningRatio));
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+        if (s2RatioPhase === 'prob_question') {
+          // Preenche "Np" onde N é a razão
+          setS2ReasoningInput(`${s2ReasoningRatio}p`);
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+        if (s2RatioPhase === 'question_correct' || s2RatioPhase === 'table_checked') {
+          // Se a tabela já foi conferida e todas as razões estão corretas,
+          // o próximo passo é o botão "Continuar" → handleRatioTableContinue
+          // (avança para subStep 4 — distribuição i·p).
+          if (s2TableAllCorrect) {
+            handleRatioTableContinue();
+            return;
+          }
+          // Preenche cada input com o ki correspondente e dispara checkAnswer
+          // (que vai marcar s2TableAllCorrect=true).
+          const inputs: typeof s2RatioInputs = {};
+          sectors.forEach((s, idx) => {
+            const existing = s2RatioInputs[s.colorName];
+            inputs[s.colorName] = existing
+              ? { ...existing, value: String(gameState.s2Ki[idx]), error: false }
+              : { value: String(gameState.s2Ki[idx]), disabled: false, error: false };
+          });
+          setS2RatioInputs(inputs);
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+      }
+      // 4: probabilidades i·p
+      if (subStep === 4) {
+        if (s2IxPhase === 'sum_question') {
+          setS2IxSumSelected('deve_dar_1');
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+        if (s2IxPhase === 'filling_table') {
+          const colors = sectors.map(s => s.colorName);
+          const idx = gameState.s2TableIndex;
+          if (idx < colors.length) {
+            // Preenche o input do setor atual com "ip" onde i é a razão
+            const color = colors[idx];
+            const ki = gameState.s2Ki[idx];
+            setS2IxInputs(prev => ({
+              ...prev,
+              [color]: { ...prev[color], value: `${ki}p`, error: false },
+            }));
+            setTimeout(() => checkAnswerRef.current?.(), 50);
+            return;
+          }
+          // Tabela cheia — preenche soma '1'
+          setS2SumEquationInput(prev => ({ ...prev, value: '1', error: false }));
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+        if (s2IxPhase === 'guided_calc') {
+          // Cálculo passo a passo: s2IxCalcStep 0 → 1 → 2 (mostra "Assim,
+          // a probabilidade do menor setor ser sorteado é p = 1/S") → avança
+          // pra subStep 6. Cada DEV next equivale ao botão "Próximo" da OVA.
+          handleIxCalcNext();
+          return;
+        }
+      }
+      // 5: soma = 1 (input simples)
+      if (subStep === 5) {
+        fillThenCheck(() => setS2SumEquationInput(prev => ({ ...prev, value: '1' })));
+        return;
+      }
+      // 5.2: x = 1/S
+      if (subStep === 5.2) {
+        fillThenCheck(() => setS2XInput(prev => ({ ...prev, value: `1/${gameState.s2SumI}` })));
+        return;
+      }
+      // 6.201/6.202: GIROS REFLEXIVOS (2 giros) — máquina via s2SpinReflection.phase.
+      //   6.201: betting → spinning (autoadvance para 6.202 phase='question' via handleSpinEnd)
+      //   6.202: question → betting/spinning → autoadvance para 6.204 phase='question'
+      //   6.204: question → checkAnswer → 6.205 (síntese "Suas decisões")
+      //   6.205: handleSpinReflectionContinue → subStep 7 (probabilidade angular)
+      if (subStep === 6.201) {
+        if (s2SpinReflection.phase === 'betting') {
+          // Clica no PRIMEIRO setor disponível para apostar.
+          const firstColor = sectors[0]?.colorName;
+          if (firstColor) {
+            setS2SpinReflection(prev => ({ ...prev, bet1Color: firstColor, phase: 'spinning' }));
+            setDisabledSpinButton(false);
+          }
+          return;
+        }
+        if (s2SpinReflection.phase === 'spinning' && !gameState.isSpinning) {
+          spinRoulette();
+          return;
+        }
+        return;
+      }
+      if (subStep === 6.202) {
+        if (s2SpinReflection.phase === 'question') {
+          // Escolhe "apostar_outra" para forçar uma nova aposta visível
+          // (alternativa correta pedagogicamente — explora outras cores).
+          handleReflectionOptionChange('apostar_outra');
+          return;
+        }
+        if (s2SpinReflection.phase === 'betting') {
+          // Clica num setor diferente da cor sorteada no 1º giro.
+          const blocked = s2SpinReflection.spin1Color;
+          const available = sectors.find(s => s.colorName !== blocked);
+          if (available) {
+            handleReflectionBetClick(sectors.indexOf(available));
+          }
+          return;
+        }
+        if (s2SpinReflection.phase === 'spinning' && !gameState.isSpinning) {
+          spinRoulette();
+          return;
+        }
+        return;
+      }
+      if (subStep === 6.204) {
+        if (s2SpinReflection.phase === 'question') {
+          // Resposta da segunda pergunta reflexiva → checkAnswer leva pra 6.205.
+          setS2SpinReflection(prev => ({ ...prev, selectedOption: 'apostar_outra' }));
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+        return;
+      }
+      if (subStep === 6.205) {
+        // Síntese "Suas decisões" → "Vamos calcular as probabilidades" → subStep 7.
+        handleSpinReflectionContinue();
+        return;
+      }
+
+      // 6.101–6.104: TREINOS (1 a 4) — máquina de estados via trainingState.phase.
+      // Cada treino tem 6 fases: identify_sector → fill_ratios → fill_ip →
+      // fill_sum → guided_calc (3 steps) → fill_prob → completed.
+      if ((subStep === 6.101 || subStep === 6.102 || subStep === 6.103 || subStep === 6.104) && trainingState.active) {
+        const phase = trainingState.phase;
+        const tColors = trainingState.sectors.map(s => s.colorName);
+        const tIdx = trainingState.tableIndex;
+
+        if (phase === 'identify_sector') {
+          // Botão simulado: clica no setor com menor ângulo (m).
+          const minIdx = trainingState.angles.findIndex(a => a === trainingState.m);
+          if (minIdx >= 0) handleTrainingSectorClick(minIdx);
+          return;
+        }
+        if (phase === 'fill_ratios') {
+          // Preenche a razão correta da linha atual e confere.
+          const color = tColors[tIdx];
+          const expectedKi = trainingState.ki[tIdx];
+          setTrainRatioInputs(prev => ({
+            ...prev,
+            [color]: { ...prev[color], value: String(expectedKi), error: false },
+          }));
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+        if (phase === 'fill_ip') {
+          // Preenche "ki·p" da linha atual e confere.
+          const color = tColors[tIdx];
+          const expectedKi = trainingState.ki[tIdx];
+          setTrainIxInputs(prev => ({
+            ...prev,
+            [color]: { ...prev[color], value: expectedKi === 1 ? 'p' : `${expectedKi}p`, error: false },
+          }));
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+        if (phase === 'fill_sum') {
+          // Preenche "1" e confere.
+          setTrainSumInput(prev => ({ ...prev, value: '1', error: false }));
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+        if (phase === 'guided_calc') {
+          // Avança um passo por DEV next (mesma lógica do botão "Próximo").
+          handleTrainingCalcNext();
+          return;
+        }
+        if (phase === 'fill_prob') {
+          // Preenche P(cor) = ki/S da linha atual e confere.
+          const color = tColors[tIdx];
+          const expectedKi = trainingState.ki[tIdx];
+          const tS = trainingState.S;
+          setTrainProbInputs(prev => ({
+            ...prev,
+            [color]: { ...prev[color], value: `${expectedKi}/${tS}`, error: false },
+          }));
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+        if (phase === 'completed') {
+          // Treinos 1-3: vai para o próximo treino.
+          // Treino 4: sai dos treinos e avança para subStep 6.201 (giros reflexivos).
+          if (trainingState.currentTraining < 4) {
+            handleTrainingContinue();
+          } else {
+            handleTrainingNext();
+          }
+          return;
+        }
+      }
+
+      // 6: probabilidades numéricas (campo a campo)
+      if (subStep === 6) {
+        const colors = sectors.map(s => s.colorName);
+        const idx = gameState.s2TableIndex;
+        if (idx < colors.length) {
+          const color = colors[idx];
+          const ki = gameState.s2Ki[idx];
+          const S = gameState.s2SumI;
+          setS2NumProbInputs(prev => ({
+            ...prev,
+            [color]: { ...prev[color], value: `${ki}/${S}`, error: false },
+          }));
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+      }
+      // 7: probabilidade angular (campo a campo) com s2AngleReadingStep
+      if (subStep === 7) {
+        // Se está na pergunta de ativação cognitiva (90/360)
+        if (s2AngleReadingStep === 4 && currentQuestion) {
+          fillThenCheck(() => setSelectedOption('90/360'));
+          return;
+        }
+        // Se está na fase de leitura progressiva (steps 0-3), avança
+        if (s2AngleReadingStep >= 0 && s2AngleReadingStep <= 3) {
+          handleAngleReadingNext();
+          return;
+        }
+        // Tabela: preenche fração θ/360 do setor atual
+        const colors = sectors.map(s => s.colorName);
+        const idx = gameState.s2TableIndex;
+        if (idx < colors.length) {
+          const color = colors[idx];
+          const angle = gameState.s2Angles[idx];
+          setS2AngleProbInputs(prev => ({
+            ...prev,
+            [color]: { ...prev[color], value: `${angle}/360`, error: false },
+          }));
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+      }
+      // 8: TREINOS de fração θ/360 — máquina via fracTraining.allCorrect.
+      //   - allCorrect=false: preenche todos com fração correta + checkAnswer
+      //     (que marca allCorrect=true e mostra "Treino X concluído!")
+      //   - allCorrect=true && currentTraining<5: handleFracTrainingNext (próximo treino)
+      //   - allCorrect=true && currentTraining===5: handleFracTrainingChangePhase
+      //     (sai para subStep 8.7 — Simulação de Convergência)
+      if (subStep === 8) {
+        if (fracTraining.allCorrect) {
+          if (fracTraining.currentTraining >= 5) {
+            handleFracTrainingChangePhase();
+          } else {
+            handleFracTrainingNext();
+          }
+          return;
+        }
+        const { angles: ftAngles, colors: ftColors } = fracTraining;
+        const upd = { ...fracThetaInputs };
+        ftColors.forEach((c, i) => {
+          upd[c] = { value: `${ftAngles[i]}/360`, error: false, status: 'pending', errorMsg: '' };
+        });
+        setFracThetaInputs(upd);
+        setTimeout(() => checkAnswerRef.current?.(), 50);
+        return;
+      }
+      // 8.7: Simulação de Convergência — dispara blocos sequenciais
+      if (subStep === 8.7) {
+        if (convergenceSim.currentBlock >= CONVERGENCE_BLOCKS.length) {
+          // Todos blocos concluídos → handleConvergenceContinue → subStep 12
+          handleConvergenceContinue();
+          return;
+        }
+        if (!convergenceSim.running) {
+          handleConvergenceBlock();
+        }
+        return;
+      }
+      // 9.1: frequências absolutas — usa as frequências do gameState
+      if (subStep === 9.1) {
+        const colors = sectors.map(s => s.colorName);
+        const upd: typeof s2FreqAbsInputs = {};
+        colors.forEach(c => {
+          const existing = s2FreqAbsInputs[c];
+          const expected = gameState.frequencies[c] || 0;
+          upd[c] = existing
+            ? { ...existing, value: String(expected), error: false }
+            : { value: String(expected), disabled: false, error: false };
+        });
+        setS2FreqAbsInputs(upd);
+        setTimeout(() => checkAnswerRef.current?.(), 50);
+        return;
+      }
+      // 9.2: pergunta de incerteza
+      if (subStep === 9.2) {
+        fillThenCheck(() => setSelectedOption('incerteza'));
+        return;
+      }
+      // 9.3: frequência relativa por cor (campo a campo)
+      if (subStep === 9.3) {
+        const colors = sectors.map(s => s.colorName);
+        const idx = gameState.s2TableIndex;
+        if (idx < colors.length) {
+          const color = colors[idx];
+          const freq = gameState.frequencies[color] || 0;
+          const P = gameState.s2ManualSpinsP || 1;
+          setS2FreqRelInputs(prev => ({
+            ...prev,
+            [color]: { ...prev[color], value: `${freq}/${P}`, error: false },
+          }));
+          setTimeout(() => checkAnswerRef.current?.(), 50);
+          return;
+        }
+      }
+      // 9: giros manuais P (sem rolar visualmente — popula frequências)
+      if (subStep === 9) {
+        const total = gameState.s2ManualSpinsP || 10;
+        const freqs: { [color: string]: number } = {};
+        // Distribui ponderado pelos ângulos
+        const totalAngle = gameState.s2Angles.reduce((s, a) => s + a, 0);
+        let allocated = 0;
+        sectors.forEach((s, i) => {
+          const proportion = gameState.s2Angles[i] / totalAngle;
+          const count = Math.round(proportion * total);
+          freqs[s.colorName] = count;
+          allocated += count;
+        });
+        // Ajusta para totalizar exatamente `total`
+        if (allocated !== total && sectors.length > 0) {
+          freqs[sectors[0].colorName] += (total - allocated);
+        }
+        setGameState(prev => ({
+          ...prev,
+          subStep: 9.1,
+          frequencies: freqs,
+          totalSpins: total,
+          manualSpinsDone: total,
+        }));
+        // Inicializa s2FreqAbsInputs
+        const inputs: typeof s2FreqAbsInputs = {};
+        sectors.forEach(s => {
+          inputs[s.colorName] = { value: '', disabled: false, error: false };
+        });
+        setS2FreqAbsInputs(inputs);
+        playSound("/sounds/challengeFinished.mp3");
+        createAlert("Giros concluídos!", `${total} giros registrados.`, "success", 2500);
+        setInstructions(`<p class="ds-body"><strong>Frequência Absoluta</strong></p>
+          <p class="ds-body">Preencha a tabela com a frequência absoluta de cada cor e clique em <strong>Conferir</strong>.</p>`);
+        return;
+      }
+      // 10: auto-spins — popula frequências e avança para 11 (conclusão)
+      if (subStep === 10) {
+        const total = (gameState.s2AutoBatches || [50, 100, 200, 500]).reduce((s, v) => s + v, 0);
+        const freqs: { [color: string]: number } = { ...gameState.frequencies };
+        const totalAngle = gameState.s2Angles.reduce((s, a) => s + a, 0);
+        let allocated = 0;
+        sectors.forEach((s, i) => {
+          const proportion = gameState.s2Angles[i] / totalAngle;
+          const count = Math.round(proportion * total);
+          freqs[s.colorName] = (freqs[s.colorName] || 0) + count;
+          allocated += count;
+        });
+        if (allocated !== total && sectors.length > 0) {
+          freqs[sectors[0].colorName] += (total - allocated);
+        }
+        setGameState(prev => ({
+          ...prev,
+          subStep: 11,
+          frequencies: freqs,
+          totalSpins: (prev.totalSpins || 0) + total,
+          s2AutoBatchIndex: (prev.s2AutoBatches || []).length,
+          currentAutoBatchIndex: (prev.s2AutoBatches || []).length,
+        }));
+        setShowAutoSpinButtons(false);
+        // Configura input de conclusão
+        setS2ConclusionInput(prev => ({ ...prev, value: '', error: false }));
+        setInstructions(`<p class="ds-body"><strong>Conclusão</strong></p>
+          <p class="ds-body">À medida que o número de giros aumenta, as frequências relativas se aproximam de quais valores?</p>`);
+        playSound("/sounds/challengeFinished.mp3");
+        createAlert("Convergência observada!", `${total} giros automáticos concluídos.`, "success", 3000);
+        return;
+      }
+      // 11: conclusão (resposta textual)
+      if (subStep === 11) {
+        fillThenCheck(() => setS2ConclusionInput(prev => ({ ...prev, value: 'das probabilidades teóricas' })));
+        return;
+      }
+      // 12: Etapa 2 concluída — habilita botão Próxima Etapa (Etapa 3)
+      if (subStep === 12) {
+        setDisabledNextButton(false);
+        setGameState(prev => ({ ...prev, stage3Available: true }));
+        return;
+      }
+    }
+    // ═════════════════ FIM STAGE 2 ═════════════════
+
+    // ═══════════════ STAGE 3 — handlers comprehensivos ═══════════════
+    if (stage === 3) {
+      // 0.5 — Predição inicial. Se balão de transição estiver aberto, fecha;
+      //       senão escolhe a cor MAIS frequente (mostFreqColor) e confirma.
+      if (subStep === 0.5) {
+        if (showInfoBox) {
+          handleInfoBoxConfirm();
+          return;
+        }
+        const mfc = s3State.mostFreqColor;
+        if (mfc) {
+          setSelectedOption(mfc);
+          setTimeout(() => handleS3ConfirmPrediction(mfc), 50);
+        }
+        return;
+      }
+      // 1 — Aposta no setor. Clica num setor da cor mais frequente, depois confirma.
+      if (subStep === 1) {
+        if (!s3State.betColor) {
+          // Encontra um setor da cor mais frequente
+          const mfc = s3State.mostFreqColor;
+          const sectorIdx = sectors.findIndex(s => s.colorName === mfc);
+          if (sectorIdx >= 0) handleS3SectorBet(sectorIdx);
+          return;
+        }
+        // Já apostou → confirma a aposta
+        handleS3ConfirmBet();
+        return;
+      }
+      // 1.5 — Pergunta diagnóstica MC (correctAnswer dinâmico).
+      if (subStep === 1.5) {
+        const correct = currentQuestion?.correctAnswer || 'A';
+        fillThenCheck(() => setSelectedOption(correct));
+        return;
+      }
+      // 1.75 — Contagem de setores por cor (preenche cada countInput).
+      if (subStep === 1.75) {
+        const upd = { ...s3State.countInputs };
+        Object.entries(s3State.colorCounts).forEach(([color, count]) => {
+          upd[color] = { value: String(count), error: false, correct: false };
+        });
+        setS3State(prev => ({ ...prev, countInputs: upd }));
+        setTimeout(() => checkAnswerRef.current?.(), 50);
+        return;
+      }
+      // 2 — Tabela P(cor) = a/b (preenche num/den de cada cor).
+      if (subStep === 2) {
+        const n3 = s3State.n;
+        const upd = { ...s3State.probInputs };
+        Object.entries(s3State.colorCounts).forEach(([color, count]) => {
+          upd[color] = { num: String(count), den: String(n3), errorNum: false, errorDen: false, status: 'pending', errorMsg: '' };
+        });
+        setS3State(prev => ({ ...prev, probInputs: upd }));
+        setTimeout(() => checkAnswerRef.current?.(), 50);
+        return;
+      }
+      // 3, 4, 6, 7 — perguntas MC com resposta 'A'.
+      if (subStep === 3 || subStep === 4 || subStep === 6 || subStep === 7) {
+        fillThenCheck(() => setSelectedOption('A'));
+        return;
+      }
+      // 5 — falácia do jogador, resposta 'C'.
+      if (subStep === 5) {
+        fillThenCheck(() => setSelectedOption('C'));
+        return;
+      }
+      // 8 — autoconfrontação. Cenário A (apostou certo) → 'B'; Cenário B (errou) → 'A'.
+      if (subStep === 8) {
+        const isCorrectBet = s3State.betColor === s3State.mostFreqColor;
+        fillThenCheck(() => setSelectedOption(isCorrectBet ? 'B' : 'A'));
+        return;
+      }
+      // 8.1 — gira o disco 5 vezes e depois "Continuar".
+      if (subStep === 8.1) {
+        if (s3State.spinCount < 5) {
+          if (!gameState.isSpinning) spinRouletteS3();
+          return;
+        }
+        // Já completou 5 giros → handleS3FallacyContinue
+        handleS3FallacyContinue();
+        return;
+      }
+      // 8.2 — percepção do padrão MC (resposta correta 'B' = "Não").
+      if (subStep === 8.2) {
+        fillThenCheck(() => setSelectedOption('B'));
+        return;
+      }
+      // 8.3 — nova aposta (escolhe a cor mais frequente novamente).
+      if (subStep === 8.3) {
+        if (!s3State.newBetColor) {
+          setS3State(prev => ({ ...prev, newBetColor: s3State.mostFreqColor }));
+          return;
+        }
+        handleS3NewBetConfirm();
+        return;
+      }
+      // 8.4 — conflito cognitivo MC (resposta correta 'B' = "Não").
+      if (subStep === 8.4) {
+        fillThenCheck(() => setSelectedOption('B'));
+        return;
+      }
+      // 8.5 — balão Falácia do Jogador → handleS3FallacyFinish (avança para 9).
+      if (subStep === 8.5) {
+        handleS3FallacyFinish();
+        return;
+      }
+      // 9 — institucionalização final → handleS3Finalize (avança para 10).
+      if (subStep === 9) {
+        handleS3Finalize();
+        return;
+      }
+      // 10 — tela final → handleS3GoToReflection (avança para 11).
+      if (subStep === 10) {
+        handleS3GoToReflection();
+        return;
+      }
+      // 11 — reflexão de ponte. O DEV não tem acesso ao onFinished;
+      //      o usuário usa as setas do painel da Sequência Didática para
+      //      avançar para o OVA seguinte (Dois Dados).
+    }
+    // ═════════════════ FIM STAGE 3 ═════════════════
+
     // ── 15.6 — Generalização: Dado de 6 Faces. Três sub-cenas distintas:
     //    1) !rolled → cena com dado parado + botão "Lançar o dado"
     //    2) rolled && !answered → cena com pergunta "Se lançasse 10.000 vezes..." + input
@@ -11142,13 +11889,7 @@ export const useRouletteHooks = () => {
       return;
     }
 
-    // 2) Pré-preenche o input correto e dispara checkAnswer no próximo tick.
-    //    O setTimeout garante que o setState do input já foi flushado pelo
-    //    React antes do checkAnswer ler o valor.
-    const fillThenCheck = (fill: () => void) => {
-      fill();
-      setTimeout(() => checkAnswerRef.current?.(), 50);
-    };
+    // (fillThenCheck já declarado no topo de devSimulateAdvance)
 
     // ── STAGE 1 ──
     if (stage === 1 && subStep === 0) {
@@ -11778,7 +12519,7 @@ export const useRouletteHooks = () => {
         totalSpins: (prev.totalSpins || 0) + total,
       }));
       setInstructions(`<p class="ds-body"><strong>Frequência Absoluta</strong></p>
-        <p class="ds-body">Leia o conceito abaixo e responda a pergunta.</p>`);
+        <p class="ds-body">Leia o conceito apresentado e responda a pergunta a seguir.</p>`);
       playSound("/sounds/challengeFinished.mp3");
       createAlert("Giros concluídos!", `${total} giros registrados na tabela.`, "success", 2500);
       return;
@@ -11854,7 +12595,7 @@ export const useRouletteHooks = () => {
       }));
       setShowAutoSpinButtons(false);
       setInstructions(`<p class="ds-body"><strong>Convergência das Frequências Relativas</strong></p>
-        <p class="ds-body">Observe o histograma e responda a pergunta abaixo.</p>`);
+        <p class="ds-body">Observe o histograma e responda a pergunta a seguir.</p>`);
       playSound("/sounds/challengeFinished.mp3");
       createAlert("Convergência observada!", `${total} giros automáticos concluídos.`, "success", 3000);
       return;
@@ -11923,6 +12664,32 @@ export const useRouletteHooks = () => {
     lgnPhase, lgnParams, setLgnInput, setLgnVerbalInput,
     handleLgnWantToKnow, handleLgnContinue, handleLgnVerbalConfirm,
     diceState, setDiceState, setDiceInput, handleDiceAnswer,
+    // Stage 2 dependências
+    handleS2Bet, spinRouletteS2, handleS2Confirmation, handleColorPaletteSelect, handleAngleReadingNext,
+    s2RatioPhase, setS2RatioPhase, s2RatioInputs, setS2RatioInputs, s2TableAllCorrect, handleRatioTableContinue,
+    setS2ConceptQuestion, setS2ConceptSelected, setS2UnitSectorIndex,
+    s2ReasoningRatio, setS2ReasoningInput, setS2ReasoningColorY, setS2ReasoningAngleY, setS2ReasoningRatio, setS2ReasoningErrors, setS2ReasoningShowHint,
+    s2IxPhase, setS2IxSumSelected, s2IxInputs, setS2IxInputs, s2IxCalcStep, handleIxCalcNext,
+    s2SumEquationInput, setS2SumEquationInput,
+    s2XInput, setS2XInput,
+    s2NumProbInputs, setS2NumProbInputs,
+    trainingState, setTrainRatioInputs, setTrainIxInputs, setTrainSumInput, setTrainProbInputs,
+    handleTrainingSectorClick, handleTrainingCalcNext, handleTrainingContinue, handleTrainingNext,
+    s2SpinReflection, setS2SpinReflection, spinRoulette,
+    handleReflectionOptionChange, handleReflectionBetClick, handleSpinReflectionContinue,
+    // Stage 3
+    s3State, setS3State, currentQuestion,
+    handleS3ConfirmPrediction, handleS3SectorBet, handleS3ConfirmBet,
+    spinRouletteS3, handleS3FallacyContinue, handleS3NewBetConfirm,
+    handleS3FallacyFinish, handleS3Finalize, handleS3GoToReflection,
+    s2AngleReadingStep, currentQuestion, s2AngleProbInputs, setS2AngleProbInputs,
+    fracTraining, fracThetaInputs, setFracThetaInputs,
+    handleFracTrainingNext, handleFracTrainingChangePhase,
+    convergenceSim, handleConvergenceBlock, handleConvergenceContinue,
+    s2FreqAbsInputs, setS2FreqAbsInputs,
+    s2FreqRelInputs, setS2FreqRelInputs,
+    setShowAutoSpinButtons, s2ConclusionInput, setS2ConclusionInput,
+    setDisabledNextButton, experimentationState,
     setShowInfoBox, setInfoBoxContent,
   ]);
 
