@@ -3624,7 +3624,7 @@ export const useRouletteHooks = () => {
     | 'calc_enunciado' | 'calc_selectA' | 'calc_pa' | 'calc_selectAbar' | 'calc_showBoth' | 'calc_chain'
   >('intro');
   const [compExamplesViewed, setCompExamplesViewed] = useState(0);
-  const [compCalcExampleNum, setCompCalcExampleNum] = useState(0); // 0=guiado, 1-3=independente
+  const [compCalcExampleNum, setCompCalcExampleNum] = useState(0); // 0=guiado, 1-4=independente
   const [compUserSelectA, setCompUserSelectA] = useState<number[]>([]);
   const [compUserSelectAbar, setCompUserSelectAbar] = useState<number[]>([]);
   const [compIsGuided, setCompIsGuided] = useState(true);
@@ -4699,8 +4699,15 @@ export const useRouletteHooks = () => {
           compositeEventE: eventE
         }));
 
-        // Limpar input de casos favoráveis
-        setFavorableCasesInput({ value: '', disabled: false, error: false, setValue: (val: string) => setFavorableCasesInput(prev => ({ ...prev, value: val })) });
+        // Limpar input de casos favoráveis (preserva type natural-number e
+        // saneamento de não-dígitos no setValue, igual ao initializer).
+        setFavorableCasesInput({
+          value: '',
+          disabled: false,
+          error: false,
+          type: 'natural-number',
+          setValue: (val: string) => setFavorableCasesInput(prev => ({ ...prev, value: val.replace(/\D/g, '').slice(0, 5) })),
+        });
 
         setInstructions(`<p class="ds-body"><strong>Probabilidade do Evento Composto</strong></p>
           <p class="ds-body">Responda a pergunta a seguir.</p>`);
@@ -4978,16 +4985,22 @@ export const useRouletteHooks = () => {
     // STAGE 1 - SubStep 12: Verificar pergunta teórica 1
     if (stage === 1 && subStep === 12) {
       const expected = `1/${gameState.theoreticalK}`;
+      const previousAnswer = theoreticalQuestion1Input.value || '';
 
-      if (areFractionsEquivalent(theoreticalQuestion1Input.value || '', expected)) {
+      if (areFractionsEquivalent(previousAnswer, expected)) {
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "Correto!", "success", 3000);
+        createAlert(
+          "Parabéns!",
+          `Correto! Você respondeu que a frequência relativa do setor h se aproxima de ${previousAnswer}. Use esse valor na próxima pergunta.`,
+          "success",
+          5000,
+        );
 
         setGameState(prev => ({ ...prev, subStep: 13 }));
         setTheoreticalQuestion2Input({ value: '', disabled: false, error: false, setValue: (val: string) => setTheoreticalQuestion2Input(prev => ({ ...prev, value: val })) });
 
         setInstructions(`<p class="ds-body"><strong>Probabilidade Teórica</strong></p>
-          <p class="ds-body">Responda a última pergunta.</p>`);
+          <p class="ds-body">Na pergunta anterior você respondeu <strong>${previousAnswer}</strong>. Responda a última pergunta.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
         setTheoreticalQuestion1Input(prev => ({ ...prev, error: true }));
@@ -5359,7 +5372,7 @@ export const useRouletteHooks = () => {
             message: `Agora informe a probabilidade de A como fração.`
           });
           setInstructions(`<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
-            <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 3.</p>`);
+            <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 4.</p>`);
         }
       } else {
         playSound("/sounds/incorrect.mp3");
@@ -5400,7 +5413,7 @@ export const useRouletteHooks = () => {
         message: `Agora marque no disco o evento complementar de A (<strong>Ā</strong>).`
       });
       setInstructions(`<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
-        <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 3.</p>`);
+        <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 4.</p>`);
       return;
     }
 
@@ -5425,7 +5438,7 @@ export const useRouletteHooks = () => {
             <p class="ds-body">Observe os setores de A e Ā no disco.</p>`);
         } else {
           setInstructions(`<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
-            <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 3.</p>`);
+            <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 4.</p>`);
         }
       } else {
         playSound("/sounds/incorrect.mp3");
@@ -5497,7 +5510,7 @@ export const useRouletteHooks = () => {
         }, 1500);
       } else {
         // Independente (6.93) → próximo exemplo ou transição
-        if (compCalcExampleNum >= 3) {
+        if (compCalcExampleNum >= 4) {
           setShowInfoBox(true);
           setInfoBoxContent({
             type: 'success',
@@ -8261,13 +8274,33 @@ export const useRouletteHooks = () => {
     }
   }, [disjointExercisePhase, disjointUserSelectA]);
 
-  // Confirmar seleção do evento A → passar para B
+  // Confirmar seleção do evento A → validar e, se correto, passar para B
   const handleDisjointConfirmA = useCallback(() => {
     if (disjointUserSelectA.length === 0) {
       playSound("/sounds/incorrect.mp3");
       createAlert("Selecione ao menos um setor", `Clique nos setores do disco que pertencem ao evento A (${disjointExerciseTextA}) antes de confirmar.`, "error", 4000);
       return;
     }
+
+    const sortedUserA = [...disjointUserSelectA].sort((a, b) => a - b);
+    const correctA = JSON.stringify(disjointCorrectA) === JSON.stringify(sortedUserA);
+
+    if (!correctA) {
+      playSound("/sounds/incorrect.mp3");
+      setDisjointExercisePhase('wrong');
+      const errorText = `Os setores selecionados para o evento A estão incorretos.`;
+      createAlert("Resposta incorreta", errorText, "error", 4000);
+      setInfoBoxContent({
+        type: 'error',
+        title: 'Tente novamente',
+        message: `${errorText}<br/><br/><strong>A = ${disjointExerciseTextA}</strong><br/><br/>Observe o disco e tente novamente.`,
+      });
+      setInstructions(`<p class="ds-body"><strong>Resposta incorreta</strong></p>
+        <p class="ds-body">Tente novamente. Clique em "Tentar novamente" para recomeçar.</p>`);
+      return;
+    }
+
+    playSound("/sounds/correct.mp3");
     setDisjointExercisePhase('selecting_B');
 
     setInfoBoxContent({
@@ -8278,7 +8311,7 @@ export const useRouletteHooks = () => {
 
     setInstructions(`<p class="ds-body"><strong>Exercício: Eventos Mutuamente Exclusivos</strong></p>
       <p class="ds-body">Agora clique nos setores que pertencem ao <strong>evento B</strong> (${disjointExerciseTextB}).</p>`);
-  }, [disjointUserSelectA, disjointExerciseTextA, disjointExerciseTextB, createAlert]);
+  }, [disjointUserSelectA, disjointCorrectA, disjointExerciseTextA, disjointExerciseTextB, createAlert]);
 
   // Confirmar seleção do evento B → validar
   const handleDisjointConfirmB = useCallback(() => {
@@ -9458,7 +9491,7 @@ export const useRouletteHooks = () => {
       } else {
         setShowInfoBox(false);
         setInstructions(`<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
-          <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 3.</p>`);
+          <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 4.</p>`);
       }
       return;
     }
@@ -9489,7 +9522,7 @@ export const useRouletteHooks = () => {
             message: `Continue com o cálculo do complementar de A.`
           });
           setInstructions(`<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
-            <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 3.</p>`);
+            <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 4.</p>`);
         }
         return;
       }
@@ -11010,7 +11043,7 @@ export const useRouletteHooks = () => {
           ? `<p class="ds-body"><strong>Cálculo da Probabilidade de Eventos Complementares</strong></p>
              <p class="ds-body">Selecione os setores do evento A no disco e clique em Conferir.</p>`
           : `<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
-             <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 3.</p>`);
+             <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 4.</p>`);
         return;
       }
       if (compPhase === 'calc_selectA') {
@@ -11094,7 +11127,7 @@ export const useRouletteHooks = () => {
           ? `<p class="ds-body"><strong>Cálculo da probabilidade do complementar a partir de P(A)</strong></p>
              <p class="ds-body">Preencha as frações para calcular P(Ā) = 1 − P(A).</p>`
           : `<p class="ds-body"><strong>Probabilidade de Eventos Complementares</strong></p>
-             <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 3.</p>`);
+             <p class="ds-body">Agora é a sua vez de treinar! Treino ${compCalcExampleNum} de 4.</p>`);
         return;
       }
     }

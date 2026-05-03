@@ -1032,8 +1032,9 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
               inputPrefix="n(S) ="
               textInput={{
                 ...sampleSpaceCountInput,
+                type: 'natural-number',
                 placeholder: 'Digite um número',
-                setValue: (val) => setSampleSpaceCountInput(prev => ({ ...prev, value: val }))
+                setValue: (val) => setSampleSpaceCountInput(prev => ({ ...prev, value: val, type: 'natural-number' }))
               }}
               onCheck={checkAnswer}
               disabled={disabledCheckButton}
@@ -1143,6 +1144,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                 inputPrefix="n(E) ="
                 textInput={{
                   ...favorableCasesInput,
+                  type: 'natural-number',
                   placeholder: 'Digite um número',
                   setValue: (val) => favorableCasesInput.setValue?.(val)
                 }}
@@ -1655,7 +1657,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
             ) : (
               <div className="bg-feedback-success-lighter p-macro rounded-md border-l-4 border-feedback-success-dark">
                 <h3 className="ds-body-bold text-brand-otimath-dark mb-micro">
-                  {`Treino ${compCalcExampleNum} de 3`}
+                  {`Treino ${compCalcExampleNum} de 4`}
                 </h3>
                 <p className="ds-small text-brand-otimath-dark mb-macro">
                   Girando um disco ao acaso, qual a probabilidade de ocorrer o:
@@ -1677,7 +1679,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
           {gameState.stage === 1 && gameState.subStep === 6.90 && compPhase === 'calc_pa' && (
             <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
               <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
-                {`Treino ${compCalcExampleNum} de 3`}
+                {`Treino ${compCalcExampleNum} de 4`}
               </h3>
               <p className="ds-small text-brand-otimath-dark mb-macro">
                 <strong>A = &quot;{gameState.compEventA?.textA}&quot;</strong>
@@ -1717,7 +1719,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
           {gameState.stage === 1 && (gameState.subStep === 6.86 || gameState.subStep === 6.91) && compPhase === 'calc_selectAbar' && (
             <div className="bg-neutral-white p-macro rounded-md border border-neutral-lighter">
               <h3 className="ds-body-bold text-brand-otimath-pure mb-micro">
-                {compIsGuided ? 'Cálculo Guiado — P(Ā)' : `Treino ${compCalcExampleNum} de 3`}
+                {compIsGuided ? 'Cálculo Guiado — P(Ā)' : `Treino ${compCalcExampleNum} de 4`}
               </h3>
               <p className="ds-small text-brand-otimath-dark mb-macro">
                 <strong>A = &quot;{gameState.compEventA?.textA}&quot;</strong>
@@ -2143,7 +2145,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
           {/* SubStep 13: Pergunta teórica 2 */}
           {gameState.stage === 1 && gameState.subStep === 13 && (
             <RouletteQuestion
-              question="Então qual a probabilidade de o ponteiro do disco após um giro indicar a região h?"
+              question={`Na pergunta anterior você respondeu que a frequência relativa do setor h, após um número p maior que 1 bilhão de giros, se aproxima de <strong>${theoreticalQuestion1Input.value || '—'}</strong>. Então qual a probabilidade de o ponteiro do disco após um giro indicar a região h?`}
               type="text"
               textInput={{
                 ...theoreticalQuestion2Input,
@@ -2403,8 +2405,9 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                 value: sampleSpaceCountInput.value,
                 disabled: false,
                 error: sampleSpaceCountInput.error,
+                type: 'natural-number',
                 placeholder: 'Digite o número',
-                setValue: (val) => setSampleSpaceCountInput({ value: val, disabled: false, error: false })
+                setValue: (val) => setSampleSpaceCountInput({ value: val, disabled: false, error: false, type: 'natural-number' })
               }}
               onCheck={checkAnswer}
               disabled={disabledCheckButton}
