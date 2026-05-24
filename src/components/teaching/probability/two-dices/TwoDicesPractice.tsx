@@ -865,7 +865,11 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                       type="checkbox" checked={checks[f - 1]} disabled={disabled}
                       onChange={e => onChange(f - 1, e.target.checked)}
                       aria-label={`Marcar face ${f} do dado verde`}
-                      style={{ width: 20, height: 20, accentColor: 'var(--color-feedback-success-dark)' }}
+                      style={{
+                        width: 20, height: 20,
+                        accentColor: 'var(--color-feedback-success-dark)',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                      }}
                     />
                   </td>
                 </tr>
@@ -897,7 +901,11 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                       type="checkbox" checked={checks[f - 1]} disabled={disabled}
                       onChange={e => onChange(f - 1, e.target.checked)}
                       aria-label={`Marcar face ${f} do dado azul`}
-                      style={{ width: 20, height: 20, accentColor: 'var(--color-brand-otimath-pure)' }}
+                      style={{
+                        width: 20, height: 20,
+                        accentColor: 'var(--color-brand-otimath-pure)',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                      }}
                     />
                   </td>
                 ))}
@@ -1084,9 +1092,8 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
 
       {/* ═══════ INTRO ═══════ */}
       {mainPhase === 'intro' && (
-        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <p className="ds-body-bold text-neutral-black mb-macro" style={{ textAlign: 'justify', fontSize: '1.05rem' }}>
+        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+          <p className="ds-body-bold text-neutral-black mb-macro text-justify text-[1.05rem]">
             Agora que você conhece o dado equilibrado e seu espaço amostral, vamos
             praticar <strong>simulando lançamentos</strong>. Primeiro você vai apostar em um
             resultado, lançar o dado e marcar o que saiu. Depois, vai resolver
@@ -1102,8 +1109,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
 
       {/* ═══════ FASE A e B — Experimentação ═══════ */}
       {(mainPhase === 'experimentA' || mainPhase === 'experimentB') && (
-        <div ref={exerciseCardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div ref={exerciseCardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
 
           <p className="ds-body-bold text-center mb-micro" style={{ color: colorStyle(currentColor()) }}>
             Dado {colorLabel(currentColor())} — Rodada {mainPhase === 'experimentA' ? '1' : '2'} de 2
@@ -1176,8 +1182,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                   <p
                     role="alert"
                     aria-live="assertive"
-                    className="ds-small-bold"
-                    style={{ color: 'var(--color-feedback-error-dark)' }}
+                    className="ds-small-bold text-feedback-error-dark"
                   >
                     Veja o resultado na face superior do dado e tente novamente.
                   </p>
@@ -1189,7 +1194,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
           {/* Comparação — aposta × resultado + matriz + feedback */}
           {expSubPhase === 'compare' && (
             <div className="flex flex-col gap-y-micro">
-              <div className="flex gap-x-xs items-center flex-wrap justify-center">
+              <div className="flex gap-x-xs gap-y-nano items-center flex-wrap justify-center">
                 <div className="flex flex-col items-center">
                   <span className="ds-caption-bold text-neutral-dark">Sua aposta</span>
                   <DiceFaceIcon face={parseInt(bet)} size={48} color={currentColor()} />
@@ -1235,8 +1240,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
           ? ((exBet === 'indiferente' && isIndifferentCorrect) || (exBet === 'favor' && belongsToEvent) || (exBet === 'contra' && !belongsToEvent))
           : false;
         return (
-        <div ref={exerciseCardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div ref={exerciseCardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
 
           {/* Indicador de progresso */}
           <div className="flex justify-center gap-x-micro mb-macro">
@@ -1298,8 +1302,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                 <p
                   role="alert"
                   aria-live="assertive"
-                  className="ds-small-bold text-center"
-                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                  className="ds-small-bold text-center text-feedback-error-dark"
                 >
                   Verifique quais resultados satisfazem o evento &quot;{event.description}&quot;.
                 </p>
@@ -1337,7 +1340,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
               <p className="ds-body-bold text-neutral-black text-center">
                 Você <strong>aposta</strong> que o resultado do lançamento será favorável ao evento A?
               </p>
-              <div className="flex justify-center gap-x-micro flex-wrap">
+              <div className="flex justify-center gap-x-micro gap-y-nano flex-wrap">
                 <Button
                   style={exBet === 'favor' ? 'primary' : 'secondary'}
                   size="extra-small"
@@ -1449,8 +1452,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                   id="practice-read-dice-error"
                   role="alert"
                   aria-live="assertive"
-                  className="ds-small-bold text-center"
-                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                  className="ds-small-bold text-center text-feedback-error-dark"
                 >
                   Veja o resultado na face superior do dado e tente novamente.
                 </p>
@@ -1612,9 +1614,10 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                   (Lembrete: você apostou <strong>{betLabelExtended}</strong>.)
                 </p>
               )}
-              <div className="flex items-center justify-center gap-x-micro flex-wrap">
-                <span className="ds-body-bold text-neutral-black">P(A) =</span>
-                <div className="inline-flex flex-col items-center mx-nano">
+              <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
+                <div className="flex items-center gap-x-nano">
+                  <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(A) =</span>
+                  <div className="inline-flex flex-col items-center mx-nano">
                   <input
                     type="text" value={calcNum}
                     onChange={e => { setCalcNum(e.target.value); setCalcNumError(false); setCalcFeedback(''); }}
@@ -1642,6 +1645,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                       borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
                     }}
                   />
+                  </div>
                 </div>
                 {!(needsComp && pACorrect) && (
                   <Button style="primary" size="extra-small" onClick={validateCalc}>Conferir</Button>
@@ -1652,8 +1656,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                   id="practice-calc-feedback"
                   role="alert"
                   aria-live="assertive"
-                  className="ds-small-bold text-center"
-                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                  className="ds-small-bold text-center text-feedback-error-dark"
                 >
                   {calcFeedback}
                 </p>
@@ -1665,9 +1668,10 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                   <p className="ds-body-bold text-neutral-black text-center mt-micro">
                     Agora calcule a probabilidade do <strong>complementar de A</strong>:
                   </p>
-                  <div className="flex items-center justify-center gap-x-micro flex-wrap">
-                    <span className="ds-body-bold text-neutral-black">P(Ā) =</span>
-                    <div className="inline-flex flex-col items-center mx-nano">
+                  <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
+                    <div className="flex items-center gap-x-nano">
+                      <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(Ā) =</span>
+                      <div className="inline-flex flex-col items-center mx-nano">
                       <input
                         type="text" value={calcCompNum}
                         onChange={e => { setCalcCompNum(e.target.value); setCalcCompNumError(false); setCalcCompFeedback(''); }}
@@ -1693,6 +1697,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                           borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
                         }}
                       />
+                      </div>
                     </div>
                     <Button style="primary" size="extra-small" onClick={validateCompCalc}>Conferir</Button>
                   </div>
@@ -1701,8 +1706,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                       id="practice-calc-comp-feedback"
                       role="alert"
                       aria-live="assertive"
-                      className="ds-small-bold text-center"
-                      style={{ color: 'var(--color-feedback-error-dark)' }}
+                      className="ds-small-bold text-center text-feedback-error-dark"
                     >
                       {calcCompFeedback}
                     </p>
@@ -1716,7 +1720,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                   <p className="ds-body-bold text-neutral-black text-center mt-micro">
                     Compare as probabilidades:
                   </p>
-                  <div className="flex items-center justify-center gap-x-micro flex-wrap">
+                  <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
                     <span className="ds-body-bold text-neutral-black inline-flex items-center gap-x-nano">P(A) = <Fraction num={String(favorable)} den="6" /></span>
                     <select
                       value={compOperator}
@@ -1760,7 +1764,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                     }}>Conferir</Button>
                   </div>
                   {compOperatorError && (
-                    <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                    <p className="ds-small-bold text-center text-feedback-error-dark">
                       Compare os numeradores: {favorable} e {6 - favorable}. Qual é maior?
                     </p>
                   )}
@@ -1806,7 +1810,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
             <div className="flex flex-col gap-y-micro mt-micro border-t border-neutral-lighter pt-micro">
               {/* Recap visual: resultado + aposta + P(A) */}
               <div className="flex flex-col items-center gap-y-micro">
-                <div className="flex gap-x-xs items-center justify-center flex-wrap">
+                <div className="flex gap-x-xs gap-y-nano items-center justify-center flex-wrap">
                   <div className="flex flex-col items-center">
                     <span className="ds-caption-bold text-neutral-dark">Resultado</span>
                     <DiceFaceIcon face={exDiceResult} size={48} color={currentColor()} />
@@ -1860,7 +1864,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                   <p className="ds-small-bold text-center text-neutral-darkest mb-micro">
                     Veja o caso especial deste exercício:
                   </p>
-                  <div className="flex items-center justify-center gap-x-xs flex-wrap mb-micro">
+                  <div className="flex items-center justify-center gap-x-xs gap-y-nano flex-wrap mb-micro">
                     <span className="ds-body-bold text-neutral-black inline-flex items-center gap-x-nano">
                       P(A) = <Fraction num="6" den="6" /> = 1
                     </span>
@@ -1961,8 +1965,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                     <p
                       role="alert"
                       aria-live="assertive"
-                      className="ds-small-bold text-center mt-micro"
-                      style={{ color: 'var(--color-feedback-error-dark)' }}
+                      className="ds-small-bold text-center mt-micro text-feedback-error-dark"
                     >
                       {certainNameAnswer === ''
                         ? 'Marque uma das opções antes de conferir.'
@@ -1973,8 +1976,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                     <p
                       role="status"
                       aria-live="polite"
-                      className="ds-small-bold text-center mt-micro"
-                      style={{ color: 'var(--color-feedback-success-dark)' }}
+                      className="ds-small-bold text-center mt-micro text-feedback-success-dark"
                     >
                       ✅ Correto! Quando A coincide com todo o espaço amostral S,
                       A é chamado <strong>evento certo</strong> e tem probabilidade 1.
@@ -1998,7 +2000,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                   <p className="ds-small-bold text-center text-neutral-darkest mb-micro">
                     Veja o caso especial deste exercício:
                   </p>
-                  <div className="flex items-center justify-center gap-x-xs flex-wrap mb-micro">
+                  <div className="flex items-center justify-center gap-x-xs gap-y-nano flex-wrap mb-micro">
                     <span className="ds-body-bold text-neutral-black inline-flex items-center gap-x-nano">
                       P(A) = <Fraction num="0" den="6" /> = 0
                     </span>
@@ -2100,8 +2102,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                     <p
                       role="alert"
                       aria-live="assertive"
-                      className="ds-small-bold text-center mt-micro"
-                      style={{ color: 'var(--color-feedback-error-dark)' }}
+                      className="ds-small-bold text-center mt-micro text-feedback-error-dark"
                     >
                       {impossibleNameAnswer === ''
                         ? 'Marque uma das opções antes de conferir.'
@@ -2112,8 +2113,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                     <p
                       role="status"
                       aria-live="polite"
-                      className="ds-small-bold text-center mt-micro"
-                      style={{ color: 'var(--color-feedback-success-dark)' }}
+                      className="ds-small-bold text-center mt-micro text-feedback-success-dark"
                     >
                       ✅ Correto! Quando A é o conjunto vazio (A = ∅) e nenhum
                       resultado lhe é favorável, A é chamado <strong>evento impossível</strong>{' '}
@@ -2148,15 +2148,14 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
 
       {/* ═══════ FINALIZAÇÃO — ponte para a Cena 6 (máquina automática) ═══════ */}
       {mainPhase === 'finished' && (
-        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             De um para dois dados
           </p>
           <p className="ds-body text-neutral-black text-justify">
             Você domina o experimento com <strong>um dado</strong>. Agora vamos lançar
-            {' '}<strong>dois</strong> — um <strong style={{ color: 'var(--color-feedback-success-dark)' }}>verde</strong>
-            {' '}e um <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong>.
+            {' '}<strong>dois</strong> — um <strong className="text-feedback-success-dark">verde</strong>
+            {' '}e um <strong className="text-brand-otimath-pure">azul</strong>.
           </p>
           <p className="ds-body text-neutral-black mt-micro text-justify">
             Antes de organizar tudo numa tabela, <strong>observe o fenômeno</strong>:

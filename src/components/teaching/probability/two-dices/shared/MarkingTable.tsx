@@ -121,7 +121,7 @@ export function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks, blink
         <thead className="flex justify-end bg-background-otimath sticky top-[-1px] z-1">
           <tr className="flex justify-end">
             {[1, 2, 3, 4, 5, 6].map(c => (
-              <th key={c} className="w-[100px] md:w-[130px] lg:w-[160px] xlg:w-[180px] h-[50px] flex justify-center items-center">
+              <th key={c} className="w-[78px] md:w-[100px] lg:w-[120px] xlg:w-[140px] h-[50px] flex justify-center items-center">
                 <DieFace face={c} size={32} color="blue" />
               </th>
             ))}
@@ -143,7 +143,7 @@ export function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks, blink
                 return (
                   <td
                     key={`cell-${r}-${c}`}
-                    className={`snap-start w-[100px] md:w-[130px] lg:w-[160px] xlg:w-[180px] border-solid border-neutral-lighter border-hairline h-[100px] flex justify-center items-center bg-background-otimath ${isAlternateRow ? 'bg-feedback-info-lightest' : ''}`}
+                    className={`snap-start w-[78px] md:w-[100px] lg:w-[120px] xlg:w-[140px] border-solid border-neutral-lighter border-hairline h-[100px] flex justify-center items-center bg-background-otimath ${isAlternateRow ? 'bg-feedback-info-lightest' : ''}`}
                   >
                     <div className="w-full flex flex-col items-center justify-center gap-y-nano">
                       {readOnlyMarks?.map(ro => {
@@ -184,6 +184,7 @@ export function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks, blink
                             style={{
                               width: 18, height: 18,
                               accentColor: activeColor,
+                              cursor: 'pointer',
                             }}
                           />
                           <span

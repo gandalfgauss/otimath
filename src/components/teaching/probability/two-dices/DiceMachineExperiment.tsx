@@ -183,19 +183,19 @@ function FacePicker({ color, selected, onPick, errorState, size = PICKER_PLACEHO
   const gridCols = color === 'green' ? 2 : 3;
   const cellSize = PICKER_CELL_SIZE;
 
-  // Click fora fecha
+  // Click fora fecha — pointerdown unifica mouse+touch+pen e evita race
+  // conditions entre mousedown/touchstart em Firefox mobile e Safari iOS.
+  // passive:true porque só consultamos o target; nunca preventDefault().
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent | TouchEvent) => {
+    const handler = (e: PointerEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('touchstart', handler);
+    document.addEventListener('pointerdown', handler, { passive: true });
     return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('pointerdown', handler);
     };
   }, [open]);
 
@@ -774,7 +774,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
       <p className="ds-body-bold text-neutral-black text-center">
         Registre o par ordenado{' '}
         <strong style={{ color: COLOR_GREEN_VIVID }}>(verde,</strong>{' '}
-        <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul)</strong>:
+        <strong className="text-brand-otimath-pure">azul)</strong>:
       </p>
       <div
         className="flex items-center justify-center"
@@ -868,12 +868,12 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
             animation: 'fadeInNumericPair 0.6s ease-in',
           }}
         >
-          <span aria-hidden style={{ color: 'var(--color-neutral-dark)' }}>=  </span>
-          <span style={{ color: 'var(--color-neutral-darkest)' }}>(</span>
+          <span aria-hidden className="text-neutral-dark">=  </span>
+          <span className="text-neutral-darkest">(</span>
           <span style={{ color: COLOR_GREEN_VIVID, fontWeight: 700 }}>{greenResult}</span>
-          <span style={{ color: 'var(--color-neutral-darkest)' }}>, </span>
-          <span style={{ color: 'var(--color-brand-otimath-pure)', fontWeight: 700 }}>{blueResult}</span>
-          <span style={{ color: 'var(--color-neutral-darkest)' }}>)</span>
+          <span className="text-neutral-darkest">, </span>
+          <span className="text-brand-otimath-pure font-bold">{blueResult}</span>
+          <span className="text-neutral-darkest">)</span>
         </p>
         {showSum && (
           <p className="ds-body-bold text-center mt-micro text-neutral-darkest">
@@ -949,7 +949,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
             Você domina o experimento com <strong>um dado</strong>. Agora vamos lançar{' '}
             <strong>dois</strong> — um{' '}
             <strong style={{ color: COLOR_GREEN_VIVID }}>verde</strong> e um{' '}
-            <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong>.
+            <strong className="text-brand-otimath-pure">azul</strong>.
           </p>
           <p className="ds-body text-neutral-black mt-micro text-justify">
             Antes de organizar tudo numa tabela, <strong>observe o fenômeno</strong>: o
@@ -990,7 +990,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 maxWidth: 560,
                 margin: '0 auto',
               }}>
-              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center mb-micro text-brand-otimath-pure">
                 Lançamento 1 de 3 — Observar
               </p>
               <p className="ds-body text-neutral-black mb-macro text-justify">
@@ -1033,7 +1033,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 maxWidth: 560,
                 margin: '0 auto',
               }}>
-              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center mb-micro text-brand-otimath-pure">
                 Lançamento 1 — Registrar
               </p>
               <p className="ds-body text-neutral-black mb-macro text-justify">
@@ -1093,7 +1093,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 maxWidth: 560,
                 margin: '0 auto',
               }}>
-              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center mb-micro text-brand-otimath-pure">
                 Lançamento 2 de 3 — Observar e somar
               </p>
               <p className="ds-body text-neutral-black mb-macro text-justify">
@@ -1122,7 +1122,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 maxWidth: 560,
                 margin: '0 auto',
               }}>
-              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center mb-micro text-brand-otimath-pure">
                 Lançamento 2 — Registrar o par
               </p>
               {renderPairPicker()}
@@ -1148,14 +1148,14 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 maxWidth: 560,
                 margin: '0 auto',
               }}>
-              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center mb-micro text-brand-otimath-pure">
                 Lançamento 2 — Calcular a soma
               </p>
               {renderResultCard(false)}
               <p className="ds-body text-neutral-black mb-micro text-center">
                 Some os valores das duas faces:
               </p>
-              <div className="flex items-center justify-center" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <div className="flex items-center justify-center gap-micro flex-wrap">
                 <span className="ds-body-bold text-neutral-black">Soma =</span>
                 <input
                   type="text"
@@ -1201,8 +1201,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
               {sumFeedback && (
                 <p
                   role="alert"
-                  className="ds-small-bold text-center mt-micro"
-                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                  className="ds-small-bold text-center mt-micro text-feedback-error-dark"
                 >
                   {sumFeedback}
                 </p>
@@ -1249,7 +1248,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 maxWidth: 560,
                 margin: '0 auto',
               }}>
-              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center mb-micro text-brand-otimath-pure">
                 Lançamento 3 de 3 — Fazer uma previsão
               </p>
               <p className="ds-body text-neutral-black mb-macro text-justify">
@@ -1258,7 +1257,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
               </p>
 
               {/* Input previsão */}
-              <div className="flex items-center justify-center mb-micro" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <div className="flex items-center justify-center mb-micro gap-micro flex-wrap">
                 <span className="ds-body-bold text-neutral-black">Sua previsão:</span>
                 <input
                   type="text"
@@ -1287,8 +1286,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
               {predictionError && (
                 <p
                   role="alert"
-                  className="ds-small-bold text-center mb-micro"
-                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                  className="ds-small-bold text-center mb-micro text-feedback-error-dark"
                 >
                   {predictionError}
                 </p>
@@ -1306,7 +1304,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                   marginBottom: 8,
                 }}
               >
-                <legend className="ds-body-bold text-neutral-black" style={{ padding: '0 6px' }}>
+                <legend className="ds-body-bold text-neutral-black px-[6px]">
                   Por que você escolheu esse número?
                 </legend>
                 {[
@@ -1374,7 +1372,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 maxWidth: 560,
                 margin: '0 auto',
               }}>
-              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center mb-micro text-brand-otimath-pure">
                 Lançamento 3 — Registrar o par
               </p>
               <p className="ds-body text-neutral-black mb-macro text-justify">
@@ -1408,14 +1406,14 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 maxWidth: 560,
                 margin: '0 auto',
               }}>
-              <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center mb-micro text-brand-otimath-pure">
                 Lançamento 3 — Calcular a soma
               </p>
               {renderResultCard(false)}
               <p className="ds-body text-neutral-black mb-micro text-center">
                 Some os valores das duas faces:
               </p>
-              <div className="flex items-center justify-center" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <div className="flex items-center justify-center gap-micro flex-wrap">
                 <span className="ds-body-bold text-neutral-black">Soma =</span>
                 <input
                   type="text"
@@ -1453,8 +1451,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
               {sumFeedback && (
                 <p
                   role="alert"
-                  className="ds-small-bold text-center mt-micro"
-                  style={{ color: 'var(--color-feedback-error-dark)' }}
+                  className="ds-small-bold text-center mt-micro text-feedback-error-dark"
                 >
                   {sumFeedback}
                 </p>
@@ -1471,18 +1468,18 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
               return (
                 <div className="bg-neutral-white rounded-lg p-xxs"
                   style={{ border: '1px solid var(--color-neutral-lighter)', maxWidth: 560, margin: '0 auto' }}>
-                  <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                  <p className="ds-body-bold text-center mb-micro text-brand-otimath-pure">
                     Lançamento 3 — Resultado
                   </p>
                   {renderResultCard(true)}
                   <p className="ds-body text-neutral-black text-center mb-micro">
                     Sua previsão foi <strong>{userPrediction}</strong>.{' '}
                     {occurred ? (
-                      <span style={{ color: 'var(--color-feedback-success-dark)' }}>
+                      <span className="text-feedback-success-dark">
                         Sua previsão <strong>ocorreu</strong>.
                       </span>
                     ) : (
-                      <span style={{ color: 'var(--color-feedback-warning-dark)' }}>
+                      <span className="text-feedback-warning-dark">
                         Sua previsão <strong>não ocorreu</strong>.
                       </span>
                     )}

@@ -7,9 +7,25 @@ import { TextBlock } from "@/components/global/TextBlock";
 import { Button } from "@/components/global/Button";
 import { Grid } from "@/components/global/Grid";
 import { GridItem } from "@/components/global/GridItem";
-import { ArrowRight, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { RouletteGame } from "@/components/teaching/probability/roulette/RouletteGame";
 import { TwoDicesPresentation } from "@/components/teaching/probability/two-dices/TwoDicesPresentation";
+import { StudyMenu } from "@/components/teaching/probability/two-dices/shared/StudyMenu";
+import {
+  DISCO_GLOSSARY,
+  DISCO_GROUPS,
+  DOIS_DADOS_GLOSSARY,
+  DOIS_DADOS_GROUPS,
+} from "@/components/teaching/probability/two-dices/shared/studyMenuContent";
+import { SequenceProgressBar } from "@/components/teaching/probability/SequenceProgressBar";
+import { SequenceStatsCard } from "@/components/teaching/probability/SequenceStatsCard";
+import {
+  startSequence,
+  setActiveOva,
+  endSequence,
+  getSequenceStats,
+  useSequenceTick,
+} from "@/hooks/teaching/probability/useSequenceSession";
 import { playSound } from "@/hooks/global/useSound";
 import heroBannerProbabilityImage from '@/images/teaching/probability/probabilityBanner.webp';
 
@@ -27,7 +43,51 @@ const STAGE_LABELS: Record<Stage, string> = {
 export default function DidacticSequencePage() {
   const [stage, setStage] = useState<Stage>('intro');
   const [devMode, setDevMode] = useState(false);
+  // Progresso interno do OVA ativo (0..1) — reportado pelos OVAs via
+  // callback `onProgressChange`. Mapeado para a faixa global do estágio
+  // (roulette: 0→0.25; twoDices: 0.5→0.75) na barra do topo.
+  const [rouletteProgress, setRouletteProgress] = useState(0);
+  const [twoDicesProgress, setTwoDicesProgress] = useState(0);
   const ovaContainerRef = useRef<HTMLDivElement>(null);
+
+  // Posição global na trilha (0..1) — combina o estágio atual com o
+  // progresso interno do OVA correspondente. Os 5 marcos da barra ficam
+  // em 0%, 25%, 50%, 75%, 100%. Cada OVA começa NO seu próprio marco e
+  // enche em direção ao próximo (Disco: 25→<50%; Dois Dados: 75→<100%).
+  // O `min(0.49, …)` / `min(0.99, …)` garante que o preenchimento
+  // visual NUNCA atinja o marco seguinte antes do aluno realmente sair
+  // do OVA — sem esse cap, no fim da Etapa 3 do Disco o progress=1.0
+  // mapeava para 50% global e parecia que o aluno já estava na
+  // "Transição" mesmo ainda dentro do OVA.
+  const stageIndex = STAGES.indexOf(stage);
+  const globalProgress = (() => {
+    switch (stage) {
+      case 'intro':      return 0;
+      case 'roulette':   return Math.min(0.49, 0.25 + rouletteProgress * 0.25);
+      case 'transition': return 0.5;
+      case 'twoDices':   return Math.min(0.99, 0.75 + twoDicesProgress * 0.25);
+      case 'complete':   return 1;
+    }
+  })();
+
+  // ── Desabilita o "puxar-para-recarregar" do mobile enquanto o aluno
+  // está na sequência didática. Sem isso, um arraste acidental pra baixo
+  // no topo da página recarrega tudo e o progresso é perdido. Aplicado
+  // em <html> e <body> porque navegadores diferentes ouvem em locais
+  // diferentes (Chrome Android: html; Safari iOS: body). Restaurado no
+  // unmount para não vazar o efeito para outras páginas do site.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overscrollBehaviorY;
+    const prevBody = body.style.overscrollBehaviorY;
+    html.style.overscrollBehaviorY = 'contain';
+    body.style.overscrollBehaviorY = 'contain';
+    return () => {
+      html.style.overscrollBehaviorY = prevHtml;
+      body.style.overscrollBehaviorY = prevBody;
+    };
+  }, []);
 
   // Ao entrar nas fases dos OVAs ou na transição, rola até o início do bloco
   useEffect(() => {
@@ -42,7 +102,37 @@ export default function DidacticSequencePage() {
     if (stage === 'complete') playSound('/sounds/gameFinished.mp3');
   }, [stage]);
 
+  // Lifecycle da sessão a nível de stage:
+  //  • `startSequence()` é idempotente — chamado defensivamente para
+  //    cobrir saltos via DEV que não passaram pelo botão "Iniciar".
+  //  • `endSequence()` ao entrar em 'complete' congela tudo.
+  //  • Para 'roulette'/'twoDices' NÃO chamamos `setActiveOva` aqui —
+  //    cada OVA reivindica/libera seu próprio cronômetro via prop
+  //    `isActiveStage`. Isso permite que `freezeOva` na tela final
+  //    do OVA não seja sobrescrito por um setActiveOva aqui.
+  useEffect(() => {
+    if (stage !== 'intro') startSequence();
+    if (stage === 'complete')                                  endSequence();
+    else if (stage === 'intro' || stage === 'transition')      setActiveOva(null);
+  }, [stage]);
+
   const goToStage = useCallback((target: Stage) => setStage(target), []);
+
+  // "Iniciar a sequência didática" — botão único que dispara o
+  // cronômetro global e limpa logs prévios para que as estatísticas
+  // da nova sessão fiquem isoladas.
+  const handleStartSequence = useCallback(() => {
+    startSequence();
+    goToStage('roulette');
+  }, [goToStage]);
+
+  // Callbacks dos OVAs memoizados — refs estáveis. Sem isso, a função
+  // lambda recriada a cada render alimentaria o `FinishedSignal` interno
+  // do OVA com uma nova referência a cada navegação DEV, disparando o
+  // efeito de finalização de novo e jogando o usuário de volta para a
+  // tela final, mesmo após pressionar a seta de voltar.
+  const handleRouletteFinished = useCallback(() => goToStage('transition'), [goToStage]);
+  const handleTwoDicesFinished = useCallback(() => goToStage('complete'), [goToStage]);
 
   // Renderização: enquanto o devMode estiver ativo, mantemos todas as cenas
   // montadas (com display:none nas que não são a atual) para preservar o
@@ -51,7 +141,7 @@ export default function DidacticSequencePage() {
   const renderStage = (s: Stage) => {
     switch (s) {
       case 'intro':
-        return <IntroSection onStart={() => goToStage('roulette')} />;
+        return <IntroSection onStart={handleStartSequence} />;
       case 'roulette':
         return (
           <Grid id="seq-roleta" paddings="pt-xl pb-xl" rowGaps="gap-y-xxs" backgroundColor="bg-brand-otimath-lightest">
@@ -61,7 +151,12 @@ export default function DidacticSequencePage() {
               />
             </GridItem>
             <GridItem cols="col-[1_/_13]">
-              <RouletteGame onFinished={() => goToStage('transition')} devMode={devMode} />
+              <RouletteGame
+                onFinished={handleRouletteFinished}
+                devMode={devMode}
+                onProgressChange={setRouletteProgress}
+                isActiveStage={stage === 'roulette'}
+              />
             </GridItem>
           </Grid>
         );
@@ -76,7 +171,12 @@ export default function DidacticSequencePage() {
               />
             </GridItem>
             <GridItem cols="col-[1_/_13]">
-              <TwoDicesPresentation onFinished={() => goToStage('complete')} devMode={devMode} />
+              <TwoDicesPresentation
+                onFinished={handleTwoDicesFinished}
+                devMode={devMode}
+                onProgressChange={setTwoDicesProgress}
+                isActiveStage={stage === 'twoDices'}
+              />
             </GridItem>
           </Grid>
         );
@@ -106,9 +206,16 @@ export default function DidacticSequencePage() {
         image={heroBannerProbabilityImage}
       />
 
+      {/* Barra de progresso da trilha — bloco normal, rola junto com a
+          página. Posicionada logo abaixo do banner para servir de
+          cabeçalho dos cinco marcos (Início → OVA do Disco → Transição →
+          OVA Dois Dados → Fim) e do preenchimento contínuo dentro de
+          cada OVA. */}
+      <SequenceProgressBar progress={globalProgress} currentStageIndex={stageIndex} />
+
       <div ref={ovaContainerRef}>
         {STAGES.map(s => (
-          <div key={s} style={{ display: stage === s ? 'block' : 'none' }}>
+          <div key={s} className={stage === s ? 'block' : 'hidden'}>
             {(stage === s || devMode) && renderStage(s)}
           </div>
         ))}
@@ -188,7 +295,7 @@ function DevPanel({
           <button
             onClick={handleClose}
             aria-label="Fechar painel de desenvolvimento"
-            className="text-neutral-dark hover:text-feedback-error-dark cursor-pointer transition-colors"
+            className="text-neutral-dark hover:text-feedback-error-dark cursor-pointer transition-colors duration-200 rounded-sm focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure"
           >
             <X size={16} aria-hidden="true" />
           </button>
@@ -204,7 +311,7 @@ function DevPanel({
             onClick={goPrev}
             disabled={currentIdx === 0}
             aria-label="Cena anterior"
-            className="flex items-center justify-center w-8 h-8 rounded-md border border-neutral-light text-brand-otimath-dark cursor-pointer hover:bg-brand-otimath-lightest disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-md border border-neutral-light text-brand-otimath-dark cursor-pointer hover:bg-brand-otimath-lightest disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure"
           >
             <ChevronLeft size={18} aria-hidden="true" />
           </button>
@@ -212,7 +319,7 @@ function DevPanel({
             onClick={goNext}
             disabled={currentIdx === total - 1}
             aria-label="Próxima cena"
-            className="flex items-center justify-center w-8 h-8 rounded-md border border-neutral-light text-brand-otimath-dark cursor-pointer hover:bg-brand-otimath-lightest disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-md border border-neutral-light text-brand-otimath-dark cursor-pointer hover:bg-brand-otimath-lightest disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure"
           >
             <ChevronRight size={18} aria-hidden="true" />
           </button>
@@ -234,7 +341,7 @@ function DevPanel({
           <button
             onClick={handleJump}
             disabled={!jumpInput}
-            className="px-micro py-quarck rounded-md bg-brand-otimath-pure text-neutral-white ds-small-bold cursor-pointer hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            className="px-micro py-quarck rounded-md bg-brand-otimath-pure text-neutral-white ds-small-bold cursor-pointer hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity duration-200 focus:outline-none focus:ring-2 focus:ring-brand-otimath-dark"
           >
             Ir
           </button>
@@ -260,7 +367,7 @@ function DevPanel({
       <button
         onClick={() => setInputVisible(v => !v)}
         aria-label="Acesso ao painel de desenvolvimento"
-        className="w-3 h-3 rounded-full bg-neutral-darkest opacity-15 hover:opacity-70 focus:opacity-70 cursor-pointer transition-opacity"
+        className="w-3 h-3 rounded-full bg-neutral-darkest opacity-15 hover:opacity-70 focus:opacity-70 cursor-pointer transition-opacity duration-200 focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure"
       />
     </div>
   );
@@ -538,6 +645,13 @@ function CompletionSection() {
               maxWidthParagraph="max-w-[640px]"
             />
           </div>
+
+          {/* Estatísticas consolidadas — três cards lado a lado no
+              desktop, empilhados no mobile. O card "Total" usa variante
+              destacada (`total`) para reforçar visualmente que é o
+              agregado da trilha inteira. */}
+          <CompletionStats />
+
           <div className="flex gap-x-micro flex-wrap justify-center">
             <Button type="link" href="/ensino/probabilidade" style="primary" size="medium">
               Ver outras aplicações
@@ -721,5 +835,66 @@ function CompletionIllustration() {
         <circle cx="125" cy="95" r="3" fill="#fbe46b" />
       </g>
     </svg>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CompletionStats — três cards (Disco, Dois Dados, Total) na tela
+// final da sequência. Pelo `endSequence()` já ter sido chamado, os
+// tempos estão congelados — `useSequenceTick` é dispensável aqui,
+// mas mantido por baixo custo e consistência com as outras telas.
+// ─────────────────────────────────────────────────────────────────
+function CompletionStats() {
+  useSequenceTick(1000);
+  const { roulette, twoDices, total } = getSequenceStats();
+  // Estado: qual OVA tem o modal de revisão aberto agora. Cada OVA tem
+  // SEU PRÓPRIO glossário — o do Disco usa exemplos com setores, o do
+  // Dois Dados usa pares ordenados (verde × azul).
+  const [studyMenuOpen, setStudyMenuOpen] = useState<null | 'roulette' | 'twoDices'>(null);
+  return (
+    <div className="w-full max-w-[1000px] flex flex-col gap-y-micro">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-micro gap-y-micro">
+        <SequenceStatsCard
+          title="OVA do Disco"
+          stats={roulette}
+          footer={
+            <Button
+              style="borderless"
+              size="small"
+              icon={<BookOpen />}
+              onClick={() => setStudyMenuOpen('roulette')}
+            >
+              Revisar conceitos
+            </Button>
+          }
+        />
+        <SequenceStatsCard
+          title="OVA Dois Dados"
+          stats={twoDices}
+          footer={
+            <Button
+              style="borderless"
+              size="small"
+              icon={<BookOpen />}
+              onClick={() => setStudyMenuOpen('twoDices')}
+            >
+              Revisar conceitos
+            </Button>
+          }
+        />
+        <SequenceStatsCard title="Total da Trilha" stats={total} variant="total" />
+      </div>
+      {/* Modal único — alterna glossário conforme qual botão foi
+          clicado. Usar duas instâncias separadas seria mais simples,
+          mas o StudyMenu é caro de montar (focus management +
+          listeners de Esc) — uma instância só, com entries trocadas
+          dinamicamente, é mais leve. */}
+      <StudyMenu
+        open={studyMenuOpen !== null}
+        onClose={() => setStudyMenuOpen(null)}
+        entries={studyMenuOpen === 'roulette' ? DISCO_GLOSSARY : DOIS_DADOS_GLOSSARY}
+        groups={studyMenuOpen === 'roulette' ? DISCO_GROUPS : DOIS_DADOS_GROUPS}
+      />
+    </div>
   );
 }

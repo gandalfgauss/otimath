@@ -1,11 +1,39 @@
 import { useCallback, useState} from 'react';
 import { AlertType, AlertInterface } from '@/components/global/Alert';
 
+/* ─────────────────────────────────────────────────────────────────
+   Observador global de alertas
+   ───────────────────────────────────────────────────────────────────
+   Permite que módulos transversais (ex.: `useSequenceSession`)
+   recebam notificação de TODO alerta criado, sem precisar envolver
+   cada `createAlert` espalhado pelos hooks dos OVAs. Útil para
+   registrar tentativas/erros/acertos no log persistente da sequência
+   didática sem auditar dezenas de validators.
+   ───────────────────────────────────────────────────────────────── */
+
+type AlertObserver = (type: AlertType, title: string) => void;
+const alertObservers: AlertObserver[] = [];
+
+/** Inscreve um observador para todos os alertas criados via
+ *  `useAlerts().createAlert`. Retorna função de desinscrição. */
+export function subscribeToAlerts(fn: AlertObserver): () => void {
+  alertObservers.push(fn);
+  return () => {
+    const i = alertObservers.indexOf(fn);
+    if (i >= 0) alertObservers.splice(i, 1);
+  };
+}
+
 export const useAlerts = () => {
   const [alerts, setAlerts] = useState<AlertInterface[]>([]);
-  
+
   const createAlert = useCallback((title: string, description: string, type: AlertType, timeout: number = 3000) => {
     setAlerts(prev => [...prev, {title: title, description:description, type: type, status: "show", timeout: timeout}]);
+    // Notifica observadores síncronos. Erros nos observers não devem
+    // quebrar a criação do alerta — engolimos defensivamente.
+    for (const obs of alertObservers) {
+      try { obs(type, title); } catch { /* ignorar */ }
+    }
   }, []);
 
   const deleteAlerts = useCallback(() => {

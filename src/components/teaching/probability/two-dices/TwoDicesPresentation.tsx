@@ -23,6 +23,7 @@ import type { DiceMachineSceneHandle } from './DiceMachineScene';
 import { TwoDicesPractice, type TwoDicesPracticeHandle } from './TwoDicesPractice';
 import { TwoDicesExperiment, type TwoDicesExperimentHandle } from './TwoDicesExperiment';
 import { DiceMachineExperiment, type DiceMachineExperimentHandle } from './DiceMachineExperiment';
+import { logOvaInteraction, setActiveOva } from '@/hooks/teaching/probability/useSequenceSession';
 
 // Skeleton exibido enquanto o chunk JS do componente 3D é baixado
 function Scene3DSkeleton({ label = 'Carregando cena 3D...' }: { label?: string }) {
@@ -181,9 +182,17 @@ function Fraction({ num, den }: { num: string; den: string }) {
 }
 
 // Sinaliza onFinished após o mount — evita setState em componente pai
-// durante o render do filho (anti-padrão React).
+// durante o render do filho (anti-padrão React). Guarda contra disparos
+// múltiplos: em devMode o componente permanece montado após o término,
+// e se a referência do `onFinished` mudar (lambda recriada a cada
+// re-render do pai), o efeito dispararia de novo a cada navegação DEV.
 function FinishedSignal({ onFinished }: { onFinished: () => void }) {
-  useEffect(() => { onFinished(); }, [onFinished]);
+  const fired = useRef(false);
+  useEffect(() => {
+    if (fired.current) return;
+    fired.current = true;
+    onFinished();
+  }, [onFinished]);
   return null;
 }
 
@@ -199,9 +208,19 @@ interface TwoDicesPresentationProps {
    *  interna de navegação entre as 7 cenas. Usado pelo painel de DEV
    *  da sequência didática. */
   devMode?: boolean;
+  /** Callback opcional disparado sempre que o progresso interno do OVA
+   *  muda (fração 0..1). Usado pela sequência didática para animar a
+   *  barra de progresso global. Heurístico baseado em (scene, subStep)
+   *  — não precisa ser exato, só monotônico. */
+  onProgressChange?: (fraction: number) => void;
+  /** Sinaliza que este OVA é a cena atualmente ativa da sequência. Em
+   *  devMode todos os OVAs ficam montados; sem este sinal, o cronômetro
+   *  do `setActiveOva` ficaria preso ao último OVA mexido mesmo após o
+   *  pai trocar de stage. */
+  isActiveStage?: boolean;
 }
 
-export function TwoDicesPresentation({ children, onFinished, devMode = false }: TwoDicesPresentationProps) {
+export function TwoDicesPresentation({ children, onFinished, devMode = false, onProgressChange, isActiveStage = true }: TwoDicesPresentationProps) {
   // Sistema de alerts toast — consistente com o restante do OVA dos dados
   // (ComplementaryEventsActivity, useComplementaryEventsHooks, etc.).
   const { alerts, createAlert, updateAlert, deleteAlerts } = useAlerts();
@@ -782,8 +801,79 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
     devHistoryRef.current.push(snap);
     devCursorRef.current = devHistoryRef.current.length - 1;
     setDevHistoryTick(c => c + 1);
+    // Toda mudança de devCenaId = uma interação (transição de cena/
+    // sub-fase). Loga no log persistente para alimentar a contagem
+    // de interações do card de estatísticas. Mais granular que o
+    // `logTransition` legado (que só dispara em mudança de phase pai).
+    logOvaInteraction('twoDices', devCenaId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [devCenaId]);
+
+  // ─────────────────────────────────────────────────────────────────
+  // Progresso interno do OVA (0..1) — reportado para a barra de
+  // progresso da sequência didática. Cada cena ocupa uma faixa fixa;
+  // a Cena 7 (a mais longa) usa um índice das fases internas naturais
+  // para granularidade extra. Heurístico — só precisa ser monotônico
+  // o suficiente para o aluno perceber avanço.
+  // ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!onProgressChange) return;
+    if (done) { onProgressChange(1); return; }
+
+    // Faixas por cena (start, end) — Cena 7 é a mais longa
+    const SCENE_RANGES: Record<number, [number, number]> = {
+      1: [0.00, 0.06],
+      2: [0.06, 0.12],
+      3: [0.12, 0.22],
+      4: [0.22, 0.30],
+      5: [0.30, 0.40],
+      6: [0.40, 0.50],
+      7: [0.50, 1.00],
+    };
+    const [start, end] = SCENE_RANGES[scene] ?? [0, 1];
+
+    // Progresso interno dentro da cena (0..1)
+    let within = 0;
+    if (scene === 3) within = Math.min(1, scene3Step / 6);
+    else if (scene === 4) within = Math.min(1, scene4Step / 3);
+    else if (scene === 7) {
+      // Ordem natural das fases da Cena 7 (TwoDicesExperiment) — usa
+      // como índice de progresso. Fases não listadas (como subfases de
+      // delegados) caem no índice da fase pai mais recente.
+      const PHASE_ORDER: string[] = [
+        'intro', 'tree', 'ready', 'rolling', 'landed',
+        'pickPair', 'pickConfirm', 'markTable', 'feedback',
+        'pairQuestion', 'pairExplain', 'colorQuestion', 'colorExplain',
+        'sumInput', 'sumMarkTable', 'sumComplete',
+        'sumAlienIntro', 'sumPredictMax', 'sumPredictMin', 'sumImpossible', 'sumReveal',
+        'probPair', 'probPairReveal', 'probSumTable', 'probSumReveal',
+        'raceBet', 'raceRunning', 'raceFinished',
+        'complementaryEvents',
+        'unionTheory',
+        'unionExercises', 'unionExercise2', 'unionExercise3', 'unionExercise4',
+        'unionExercise5', 'unionExercise6',
+        'twoDicesGameFree', 'unionExercise8',
+        'closing', 'finished',
+      ];
+      // Fase atual pode vir como 'unionTheory|sub=...' ou só 'unionTheory'
+      const base = scene7ExperimentPhase.split('|')[0];
+      const idx = PHASE_ORDER.indexOf(base);
+      within = idx >= 0 ? idx / (PHASE_ORDER.length - 1) : 0;
+    }
+
+    onProgressChange(start + within * (end - start));
+  }, [scene, scene3Step, scene4Step, scene7ExperimentPhase, done, onProgressChange]);
+
+  // ─────────────────────────────────────────────────────────────────
+  // Cronômetro do OVA: reivindica 'twoDices' enquanto é o estágio
+  // ativo. O congelamento na tela de Parabéns (Ex6 finalSynthesis) é
+  // tratado pelo próprio UnionExercise6Review via freezeOva/unfreezeOva
+  // — desacoplado deste componente.
+  // ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isActiveStage) return;
+    setActiveOva('twoDices');
+  }, [isActiveStage]);
 
   // Simula o avanço NATURAL para a próxima cena, como se o aluno
   // tivesse respondido corretamente. Cobre Cenas 1–4 (estado parent)
@@ -942,9 +1032,28 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
   // Se apresentação finalizada: dispara onFinished (se fornecido) ou
   // revela children no lugar das cenas. Em fluxos compostos (sequência
   // didática), onFinished é usado para passar o controle ao orquestrador
-  // sem renderizar nada local.
+  // sem renderizar nada local. Em devMode, mantemos a TwoDicesDevNav
+  // renderizada para que o usuário possa REBOBINAR o OVA via snapshot e
+  // voltar a etapas anteriores — caso contrário, navegar a partir do
+  // estado "concluído" deixaria a tela vazia.
   if (done) {
-    if (onFinished) return <FinishedSignal onFinished={onFinished} />;
+    if (onFinished) {
+      return (
+        <>
+          <FinishedSignal onFinished={onFinished} />
+          {devMode && (
+            <TwoDicesDevNav
+              historyRef={devHistoryRef}
+              cursorRef={devCursorRef}
+              restoringRef={devRestoringRef}
+              onCursorChange={() => setDevHistoryTick(c => c + 1)}
+              onSimulateAdvance={devSimulateAdvance}
+              applyDevSnapshot={applyDevSnapshot}
+            />
+          )}
+        </>
+      );
+    }
     return <>{children}</>;
   }
 
@@ -966,7 +1075,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
       )}
       <Grid id="apresentacao-dado" paddings="pt-xl">
         <GridItem cols="col-[1_/_13]">
-          <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && (scene7ExperimentPhase === 'complementaryEvents' || scene7ExperimentPhase === 'unionTheory' || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5' || scene7ExperimentPhase === 'unionExercise6' || scene7ExperimentPhase === 'twoDicesGameFree') ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
+          <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && (scene7ExperimentPhase.startsWith('complementaryEvents') || scene7ExperimentPhase.startsWith('unionTheory') || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5' || scene7ExperimentPhase === 'unionExercise6' || scene7ExperimentPhase === 'twoDicesGameFree' || scene7ExperimentPhase === 'unionExercise8') ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
 
             {/* Título da cena atual */}
             {scene === 1 && (
@@ -989,8 +1098,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
 
             {/* ═══════ CENA 1 — Texto informativo ═══════ */}
             {scene === 1 && (
-              <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[550px] text-center"
-                style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[550px] text-center shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
                 <p className="ds-body-bold text-neutral-black" style={{ lineHeight: '1.8', fontSize: '1.05rem', textAlign: 'justify' }}>
                   Um dado é um sólido geométrico na forma de <strong>cubo</strong>.
                   Possui <strong>6 faces</strong>, cada uma marcada com um número
@@ -1065,8 +1173,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
 
             {/* ═══════ CENA 3 — Dado equilibrado INTERATIVA ═══════ */}
             {scene === 3 && (
-              <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[580px] w-full"
-                style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[580px] w-full shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
 
                 {/* TEXTO — sempre visível */}
                 <p className="ds-body-bold text-neutral-black mb-macro" style={{ lineHeight: '1.8', fontSize: '1.05rem', textAlign: 'justify' }}>
@@ -1123,8 +1230,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                             id="scene3-sample-space-error"
                             role="alert"
                             aria-live="assertive"
-                            className="ds-small-bold"
-                            style={{ color: 'var(--color-feedback-error-dark)' }}
+                            className="ds-small-bold text-feedback-error-dark"
                           >
                             Verifique quais os resultados possíveis no lançamento de um dado.
                           </p>
@@ -1166,8 +1272,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                             id="scene3-ns-error"
                             role="alert"
                             aria-live="assertive"
-                            className="ds-small-bold"
-                            style={{ color: 'var(--color-feedback-error-dark)' }}
+                            className="ds-small-bold text-feedback-error-dark"
                           >
                             Conte quantos elementos você listou no espaço amostral S.
                           </p>
@@ -1213,8 +1318,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                             id="scene3-ps-error"
                             role="alert"
                             aria-live="assertive"
-                            className="ds-small-bold"
-                            style={{ color: 'var(--color-feedback-error-dark)' }}
+                            className="ds-small-bold text-feedback-error-dark"
                           >
                             Se o dado é lançado, algum resultado certamente ocorrerá. Qual probabilidade representa a certeza?
                           </p>
@@ -1229,8 +1333,9 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                           Calcule a probabilidade de ocorrer a <strong>face {scene3RandomFace}</strong>:
                         </p>
                         <div className="flex items-center gap-x-micro flex-wrap">
-                          <span className="ds-body-bold text-neutral-black">P(face {scene3RandomFace}) =</span>
-                          <div className="inline-flex flex-col items-center mx-nano">
+                          <div className="flex items-center gap-x-nano">
+                            <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(face {scene3RandomFace}) =</span>
+                            <div className="inline-flex flex-col items-center mx-nano">
                             <input
                               type="text" inputMode="numeric" value={scene3Num}
                               onChange={e => {
@@ -1262,6 +1367,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                                 borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
                               }}
                             />
+                            </div>
                           </div>
                           <span className="ds-body-bold text-neutral-black">≈</span>
                           <input
@@ -1357,15 +1463,15 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                 {/* ETAPA 6 — Fechamento */}
                 {scene3Step === 6 && (
                   <div className="mt-macro">
-                    <p className="ds-body-bold text-neutral-black" style={{ fontSize: '1.05rem', textAlign: 'justify' }}>
+                    <p className="ds-body-bold text-neutral-black text-[1.05rem] text-justify">
                       Como o dado é equilibrado, cada face tem probabilidade
                     </p>
-                    <p className="ds-body-bold text-neutral-black mt-micro text-center" style={{ fontSize: '1.05rem' }}>
+                    <p className="ds-body-bold text-neutral-black mt-micro text-center text-[1.05rem]">
                       <em>P</em>(face <em>i</em>) = <Fraction num="1" den="6" /> ≈ 16,7%, &nbsp; <em>i</em> = 1, 2, 3, 4, 5, 6
                     </p>
-                    <p className="ds-body-bold text-neutral-black mt-micro" style={{ fontSize: '1.05rem', textAlign: 'justify' }}>
+                    <p className="ds-body-bold text-neutral-black mt-micro text-[1.05rem] text-justify">
                       A soma de todas as probabilidades é{' '}
-                      <span style={{ whiteSpace: 'nowrap' }}>6 × <Fraction num="1" den="6" /> = 1.</span>
+                      <span className="whitespace-nowrap">6 × <Fraction num="1" den="6" /> = 1.</span>
                     </p>
                     <div className="flex justify-center mt-macro">
                       <Button
@@ -1388,8 +1494,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
               <>
                 <div className="flex gap-x-xs max-sm:flex-col max-sm:gap-y-xs w-full justify-center">
                   {/* Painel Equilibrado */}
-                  <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter flex-1 max-w-[370px] text-center"
-                    style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                  <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter flex-1 max-w-[370px] text-center shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
                     <p className="ds-heading-large text-brand-otimath-pure mb-macro">Dado Equilibrado</p>
                     <div className="flex justify-center items-end gap-x-xxxs" style={{ height: 170 }}>
                       {[1, 2, 3, 4, 5, 6].map((_, i) => (
@@ -1432,8 +1537,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
 
                 {/* Perguntas interativas */}
                 {scene4Step >= 1 && scene4Step < 2 && (
-                  <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[580px] w-full mt-xs"
-                    style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                  <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[580px] w-full mt-xs shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
                     <div className="flex flex-col gap-y-macro">
                       {/* Perguntas com ordem sorteada (perguntas e radios) */}
                       {(scene4RadioOrder[2]
@@ -1474,8 +1578,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                             <p
                               role="alert"
                               aria-live="assertive"
-                              className="ds-small-bold"
-                              style={{ color: 'var(--color-feedback-error-dark)' }}
+                              className="ds-small-bold text-feedback-error-dark"
                             >
                               Releia o texto apresentado e tente novamente.
                             </p>
@@ -1492,9 +1595,8 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
 
                 {/* Conclusão após acertar — etapa 2: texto + pergunta soma */}
                 {scene4Step >= 2 && (
-                  <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[580px] w-full mt-xs"
-                    style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                    <p className="ds-body-bold text-neutral-black" style={{ fontSize: '1.05rem', textAlign: 'justify' }}>
+                  <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[580px] w-full mt-xs shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+                    <p className="ds-body-bold text-neutral-black text-[1.05rem] text-justify">
                       Quando utilizamos dados <strong>equilibrados</strong>, o espaço amostral
                       é <strong>equiprovável</strong>. Quando utilizamos dados <strong>não
                       equilibrados</strong> (viciados), o espaço amostral
@@ -1538,8 +1640,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
                             id="scene4-sum-error"
                             role="alert"
                             aria-live="assertive"
-                            className="ds-small-bold"
-                            style={{ color: 'var(--color-feedback-error-dark)' }}
+                            className="ds-small-bold text-feedback-error-dark"
                           >
                             Lembre-se do valor que você calculou para P(S) na etapa anterior.
                           </p>
@@ -1549,7 +1650,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false }: 
 
                     {scene4Step === 3 && (
                       <>
-                        <p className="ds-body-bold text-neutral-black mt-macro" style={{ fontSize: '1.05rem', textAlign: 'justify' }}>
+                        <p className="ds-body-bold text-neutral-black mt-macro text-[1.05rem] text-justify">
                           Mas a soma das probabilidades de ocorrer cada um dos resultados possíveis do experimento aleatório é sempre igual a <strong>1</strong> (ou <strong>100%</strong>) para ambos os casos.
                         </p>
                         <div className="flex justify-center mt-macro">
@@ -1753,7 +1854,7 @@ function TwoDicesDevNav<TSnap>({
   const positionLabel = `Cena ${cursorRef.current + 1}`;
 
   return (
-    <div className="relative z-50 flex flex-wrap items-center justify-center gap-x-quarck gap-y-quarck p-quarck rounded-md bg-feedback-warning-lightest border border-feedback-warning-light text-neutral-darkest">
+    <div className="relative z-98 flex flex-wrap items-center justify-center gap-x-quarck gap-y-quarck p-quarck rounded-md bg-feedback-warning-lightest border border-feedback-warning-light text-neutral-darkest">
       <span className="ds-caption font-bold">DEV — Dois Dados:</span>
       <button
         type="button"

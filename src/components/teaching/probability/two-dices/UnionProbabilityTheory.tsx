@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState, useCallback, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
-import { VennLaboratory } from './venn/VennLaboratory';
+import { VennLaboratory, type VennLaboratoryHandle } from './venn/VennLaboratory';
 
 /* ═══════════════════════════════════════════════════════════════
    UnionProbabilityTheory — Fundamentação teórica de P(A ∪ B)
@@ -523,7 +523,7 @@ function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: MarkingTab
         <thead className="flex justify-end bg-background-otimath sticky top-[-1px] z-1">
           <tr className="flex justify-end">
             {[1, 2, 3, 4, 5, 6].map(c => (
-              <th key={c} className="w-[100px] md:w-[130px] lg:w-[160px] xlg:w-[180px] h-[50px] flex justify-center items-center">
+              <th key={c} className="w-[78px] md:w-[100px] lg:w-[120px] xlg:w-[140px] h-[50px] flex justify-center items-center">
                 <DieFace face={c} size={32} color="blue" />
               </th>
             ))}
@@ -547,7 +547,7 @@ function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: MarkingTab
                 return (
                   <td
                     key={`cell-${r}-${c}`}
-                    className={`snap-start w-[100px] md:w-[130px] lg:w-[160px] xlg:w-[180px] border-solid border-neutral-lighter border-hairline h-[100px] flex justify-center items-center bg-background-otimath ${isAlternateRow ? 'bg-feedback-info-lightest' : ''}`}
+                    className={`snap-start w-[78px] md:w-[100px] lg:w-[120px] xlg:w-[140px] border-solid border-neutral-lighter border-hairline h-[100px] flex justify-center items-center bg-background-otimath ${isAlternateRow ? 'bg-feedback-info-lightest' : ''}`}
                   >
                     <div className="w-full flex flex-col items-center justify-center gap-y-nano">
                       {/* Eventos anteriores — checkbox customizado colorido (não usa <input disabled>) */}
@@ -585,6 +585,7 @@ function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: MarkingTab
                             style={{
                               width: 18, height: 18,
                               accentColor: activeColor,
+                              cursor: 'pointer',
                             }}
                           />
                           <span
@@ -633,6 +634,11 @@ interface UnionProbabilityTheoryProps {
   /** Fase inicial ao montar. Default: 'intro'. Use 'done' para re-entrar
    *  no fim da teoria (via seta "voltar" do primeiro exercício). */
   initialPhase?: UnionPhase;
+  /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
+  /** Notifica o pai a cada transição interna — usado para o cenaId DEV
+   *  refletir cada sub-fase do UnionTheory como snapshot distinto. */
+  onPhaseChange?: (phaseId: string) => void;
 }
 
 export interface UnionTheoryHandle {
@@ -667,8 +673,22 @@ const PHASE_SEQUENCE: UnionPhase[] = [
   'done',
 ];
 
-export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabilityTheoryProps>(function UnionProbabilityTheory({ onFinished, initialPhase }, ref) {
+export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabilityTheoryProps>(function UnionProbabilityTheory({ onFinished, initialPhase, createAlert, onPhaseChange }, ref) {
   const [phase, setPhase] = useState<UnionPhase>(initialPhase ?? 'intro');
+  // Sub-step do VennLaboratory (notificado via onSubStepChange) — entra no
+  // cenaId composto para que o painel DEV capture cada sub-etapa do Venn.
+  const [vennSubStep, setVennSubStep] = useState<string>('intro');
+  // Ref do handle do Venn — usado pelo advance() do UnionTheoryHandle para
+  // delegar quando estamos na fase 'vennLab' (sem isso o DEV pula 20+ sub-etapas).
+  const vennLabRef = useRef<VennLaboratoryHandle>(null);
+
+  // Notifica o pai a cada mudança de fase (ou sub-step do Venn quando dentro
+  // do vennLab). Sem isso, o cenaId DEV ficaria estagnado em 'unionTheory'
+  // e o contador do painel DEV não andaria nas 25+ sub-fases internas.
+  const composedPhaseId = phase === 'vennLab' ? `vennLab|${vennSubStep}` : phase;
+  useEffect(() => {
+    onPhaseChange?.(composedPhaseId);
+  }, [composedPhaseId, onPhaseChange]);
   const [round, setRound] = useState(0);
   const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());
   // Gera o par inicial da rodada 0 via gerador algorítmico (lazy init para
@@ -822,75 +842,90 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     setFeedbackA(fb);
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', 'Marcação do evento A completa.', 'success', 3000);
       setTimeout(() => setPhase('countA'), 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
+      createAlert?.('Quase lá', 'As marcações feitas estão corretas, mas faltam pares.', 'warning', 4000);
     } else {
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Revise a marcação', 'Há marcações que não satisfazem o evento A.', 'error', 4000);
     }
-  }, [marksA, correctSets.A, evaluateMarks]);
+  }, [marksA, correctSets.A, evaluateMarks, createAlert]);
 
   const validateCountA = useCallback(() => {
     const v = parseInt(nAInput.trim(), 10);
     if (v === correctSets.nA) {
       setNAError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `n(A) = ${correctSets.nA}.`, 'success', 3000);
       setPhase('markB');
     } else {
       setNAError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'Conte de novo os pares marcados na tabela.', 'error', 4000);
     }
-  }, [nAInput, correctSets.nA]);
+  }, [nAInput, correctSets.nA, createAlert]);
 
   const validateMarkB = useCallback(() => {
     const fb = evaluateMarks(marksB, correctSets.B);
     setFeedbackB(fb);
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', 'Marcação do evento B completa.', 'success', 3000);
       setTimeout(() => setPhase('countB'), 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
+      createAlert?.('Quase lá', 'As marcações feitas estão corretas, mas faltam pares.', 'warning', 4000);
     } else {
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Revise a marcação', 'Há marcações que não satisfazem o evento B.', 'error', 4000);
     }
-  }, [marksB, correctSets.B, evaluateMarks]);
+  }, [marksB, correctSets.B, evaluateMarks, createAlert]);
 
   const validateCountB = useCallback(() => {
     const v = parseInt(nBInput.trim(), 10);
     if (v === correctSets.nB) {
       setNBError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `n(B) = ${correctSets.nB}.`, 'success', 3000);
       setPhase('defineIntersection');
     } else {
       setNBError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'Conte de novo os pares marcados de B.', 'error', 4000);
     }
-  }, [nBInput, correctSets.nB]);
+  }, [nBInput, correctSets.nB, createAlert]);
 
   const validateMarkIntersection = useCallback(() => {
     const fb = evaluateMarks(marksIntersection, correctSets.I);
     setFeedbackIntersection(fb);
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', 'Marcação de A ∩ B completa.', 'success', 3000);
       setTimeout(() => setPhase('countIntersection'), 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
+      createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de A ∩ B.', 'warning', 4000);
     } else {
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Revise a marcação', 'Verifique se cada par satisfaz A e B ao mesmo tempo.', 'error', 4000);
     }
-  }, [marksIntersection, correctSets.I, evaluateMarks]);
+  }, [marksIntersection, correctSets.I, evaluateMarks, createAlert]);
 
   const validateCountIntersection = useCallback(() => {
     const v = parseInt(nIntersectionInput.trim(), 10);
     if (v === correctSets.nI) {
       setNIntersectionError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `n(A ∩ B) = ${correctSets.nI}.`, 'success', 3000);
       setPhase('enumDisplay');
     } else {
       setNIntersectionError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'Conte de novo os pares marcados na interseção.', 'error', 4000);
     }
-  }, [nIntersectionInput, correctSets.nI]);
+  }, [nIntersectionInput, correctSets.nI, createAlert]);
 
   // ═══════════════════════════════════════════════════════════════
   // TOGGLES DE MARCAÇÃO
@@ -954,40 +989,47 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     setFeedbackUnion(fb);
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', 'Marcação de A ∪ B completa.', 'success', 3000);
       setTimeout(() => setPhase('countUnion'), 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
+      createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de A ∪ B.', 'warning', 4000);
     } else {
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Revise a marcação', 'Alguma marcação não satisfaz nem A nem B.', 'error', 4000);
     }
-  }, [marksUnion, correctSets.U, evaluateMarks]);
+  }, [marksUnion, correctSets.U, evaluateMarks, createAlert]);
 
   const validateCountUnion = useCallback(() => {
     const v = parseInt(nUnionInput.trim(), 10);
     if (v === correctSets.nU) {
       setNUnionError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `n(A ∪ B) = ${correctSets.nU}.`, 'success', 3000);
       // Reordenação: após contar n(A∪B), aluno calcula P(A∪B) direto por Laplace
       setPhase('probTransfer');
     } else {
       setNUnionError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'Conte de novo os pares marcados de A ∪ B.', 'error', 4000);
     }
-  }, [nUnionInput, correctSets.nU]);
+  }, [nUnionInput, correctSets.nU, createAlert]);
 
   const validatePrediction = useCallback(() => {
     if (!predictionOp || !predictionReason) {
       setPredictionError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Faltam respostas', 'Escolha uma operação e uma justificativa antes de continuar.', 'error', 4000);
       return;
     }
     // A previsão é metacognitiva — qualquer resposta é aceita, apenas registra
     setPredictionError(false);
     playSound('/sounds/correct.mp3');
+    createAlert?.('Previsão registrada', 'Vamos verificar agora no laboratório Venn.', 'info', 3000);
     // Após confirmar a previsão, aluno entra no laboratório Venn (construção
     // topológica) antes da confrontação numérica em sumCompareVisual.
     setPhase('vennLab');
-  }, [predictionOp, predictionReason]);
+  }, [predictionOp, predictionReason, createAlert]);
 
   const validateSumInput = useCallback(() => {
     const v = parseInt(nSumInput.trim(), 10);
@@ -995,11 +1037,13 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     if (v === expected) {
       setNSumError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `n(A) + n(B) = ${expected}.`, 'success', 3000);
     } else {
       setNSumError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', `Some n(A) e n(B). Recalcule.`, 'error', 4000);
     }
-  }, [nSumInput, correctSets.nA, correctSets.nB]);
+  }, [nSumInput, correctSets.nA, correctSets.nB, createAlert]);
 
   const validateCompareOp = useCallback(() => {
     const sum = correctSets.nA + correctSets.nB;
@@ -1008,12 +1052,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     if (compareOp === correct) {
       setCompareError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `n(A) + n(B) ${correct} n(A ∪ B).`, 'success', 3000);
       setPhase('formulaReveal');
     } else {
       setCompareError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', `Compare ${sum} e ${union}. Qual é maior?`, 'error', 4000);
     }
-  }, [compareOp, correctSets.nA, correctSets.nB, correctSets.nU]);
+  }, [compareOp, correctSets.nA, correctSets.nB, correctSets.nU, createAlert]);
 
   // ═══════════════════════════════════════════════════════════════
   // VALIDAÇÕES MACRO 3 (probabilidade)
@@ -1032,43 +1078,51 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     if (isEquivalentFraction(pAUBNum, pAUBDen, correctSets.nU, 36)) {
       setPAUBError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `P(A ∪ B) = ${correctSets.nU}/36.`, 'success', 3000);
       // Não avança aqui — o avanço é controlado pelo ProbTransferScreen
       // (que mostra as conversões decimal/percentual antes de prosseguir).
     } else {
       setPAUBError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'P(A ∪ B) = n(A ∪ B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
     }
-  }, [pAUBNum, pAUBDen, correctSets.nU, isEquivalentFraction]);
+  }, [pAUBNum, pAUBDen, correctSets.nU, isEquivalentFraction, createAlert]);
 
   const validatePA = useCallback(() => {
     if (isEquivalentFraction(pANum, pADen, correctSets.nA, 36)) {
       setPAError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `P(A) = ${correctSets.nA}/36.`, 'success', 3000);
     } else {
       setPAError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'P(A) = n(A) / 36. Frações equivalentes são aceitas.', 'error', 4500);
     }
-  }, [pANum, pADen, correctSets.nA, isEquivalentFraction]);
+  }, [pANum, pADen, correctSets.nA, isEquivalentFraction, createAlert]);
 
   const validatePB = useCallback(() => {
     if (isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36)) {
       setPBError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `P(B) = ${correctSets.nB}/36.`, 'success', 3000);
     } else {
       setPBError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'P(B) = n(B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
     }
-  }, [pBNum, pBDen, correctSets.nB, isEquivalentFraction]);
+  }, [pBNum, pBDen, correctSets.nB, isEquivalentFraction, createAlert]);
 
   const validatePAB = useCallback(() => {
     if (isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36)) {
       setPABError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `P(A ∩ B) = ${correctSets.nI}/36.`, 'success', 3000);
     } else {
       setPABError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'P(A ∩ B) = n(A ∩ B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
     }
-  }, [pABNum, pABDen, correctSets.nI, isEquivalentFraction]);
+  }, [pABNum, pABDen, correctSets.nI, isEquivalentFraction, createAlert]);
 
   // Todas as 3 probabilidades individuais foram validadas?
   const allIndividualProbsValid = useMemo(() => {
@@ -1083,20 +1137,46 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     if (institutionalAnswer === 'correct') {
       setInstitutionalError(false);
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', 'Você dominou a fórmula da união.', 'success', 3000);
       setPhase('done');
     } else if (institutionalAnswer === '') {
       setInstitutionalError(true);
+      createAlert?.('Falta escolher', 'Selecione uma alternativa antes de conferir.', 'error', 3500);
     } else {
       setInstitutionalError(true);
       playSound('/sounds/incorrect.mp3');
+      createAlert?.('Tente novamente', 'Releia a fórmula geral e reconsidere a resposta.', 'error', 4000);
     }
-  }, [institutionalAnswer]);
+  }, [institutionalAnswer, createAlert]);
 
   // ═══════════════════════════════════════════════════════════════
   // NAVEGAÇÃO DEV (setinhas) — avança/volta 1 fase na sequência linear
   // ═══════════════════════════════════════════════════════════════
 
+  // Callback estável para o `onComplete` do VennLaboratory — sem
+  // useCallback, a lambda nova a cada render entrava nas deps do
+  // useImperativeHandle do Venn, ficando re-registrada toda hora.
+  const onVennLabComplete = useCallback(() => {
+    setPhase('sumCompareVisual');
+  }, []);
+
+  // Guarda de re-entrada — DEV pode disparar advance() múltiplas vezes
+  // no mesmo commit do React (cascata de setState entre pai-filho), o que
+  // levava o setPhase a empilhar updates e estourar "Maximum update depth".
+  // O ref bloqueia a 2ª chamada até o próximo microtask, mantendo a UX
+  // (usuário pode clicar de novo logo em seguida).
+  const advancingRef = useRef(false);
   const advancePhase = useCallback(() => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
+    queueMicrotask(() => { advancingRef.current = false; });
+
+    // Delegação: quando estamos no Venn lab, avança pelas sub-etapas
+    // internas dele (20+) em vez de pular tudo para 'sumCompareVisual'.
+    if (phase === 'vennLab' && vennLabRef.current) {
+      vennLabRef.current.advance();
+      return;
+    }
     const idx = PHASE_SEQUENCE.indexOf(phase);
     if (idx < 0) return;
     if (idx === PHASE_SEQUENCE.length - 1) {
@@ -1104,6 +1184,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       return;
     }
     const nextPhase = PHASE_SEQUENCE[idx + 1];
+    if (nextPhase === phase) return; // proteção extra contra loop
     playSound('/sounds/nextChallenge.mp3');
     setPhase(nextPhase);
   }, [phase, onFinished]);
@@ -1168,7 +1249,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                 border: '1px solid var(--color-brand-otimath-light)',
               }}
             >
-              <p className="ds-caption-bold text-brand-otimath-dark mb-nano" style={{ fontSize: '0.82rem' }}>
+              <p className="ds-caption-bold text-brand-otimath-dark mb-nano text-[0.82rem]">
                 O problema que vamos resolver
               </p>
               <p className="ds-body text-neutral-black text-justify">
@@ -1202,9 +1283,9 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             {/* Ancoragem no Disco */}
             <p className="ds-body text-neutral-black text-justify">
               No OVA do <strong>Disco Probabilístico</strong>, você aprendeu que{' '}
-              <strong style={{ whiteSpace: 'nowrap' }}>P(A ∪ B) = P(A) + P(B)</strong> — mas{' '}
+              <strong className="whitespace-nowrap">P(A ∪ B) = P(A) + P(B)</strong> — mas{' '}
               <strong>apenas</strong> quando A e B são <strong>mutuamente exclusivos</strong>{' '}
-              (<span style={{ whiteSpace: 'nowrap' }}>A ∩ B = ∅</span>). Será que essa fórmula
+              (<span className="whitespace-nowrap">A ∩ B = ∅</span>). Será que essa fórmula
               ainda funciona aqui?
             </p>
 
@@ -1239,12 +1320,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <Button style="primary" size="small" onClick={validateMarkA}>Conferir</Button>
           </div>
           {feedbackA === 'incomplete' && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-success-dark">
               Correto! Mas ainda não terminou — faltam pares.
             </p>
           )}
           {feedbackA === 'wrong' && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-error-dark">
               Revise a marcação do evento A. Alguma marcação não satisfaz o evento.
             </p>
           )}
@@ -1263,9 +1344,8 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             readOnlyMarks={[{ label: 'A', matrix: marksA }]}
           />
           <div
-            className="bg-brand-otimath-lightest rounded-md p-micro border border-brand-otimath-light mx-auto"
+            className="bg-brand-otimath-lightest rounded-md p-micro border border-brand-otimath-light mx-auto max-w-[720px]"
             aria-live="polite"
-            style={{ maxWidth: 720 }}
           >
             <p className="ds-small-bold text-neutral-darkest">
               A = {'{'}{enumerateKeys(correctSets.A)}{'}'}
@@ -1275,7 +1355,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Quantos pares tem o conjunto A?
           </p>
           <div className="flex items-center justify-center gap-x-micro">
-            <span className="ds-body-bold text-neutral-black">n(A) =</span>
+            <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A) =</span>
             <input
               type="number"
               inputMode="numeric"
@@ -1294,7 +1374,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <Button style="primary" size="extra-small" onClick={validateCountA}>Conferir</Button>
           </div>
           {nAError && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-error-dark">
               Conte novamente os pares marcados na tabela.
             </p>
           )}
@@ -1326,12 +1406,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <Button style="primary" size="small" onClick={validateMarkB}>Conferir</Button>
           </div>
           {feedbackB === 'incomplete' && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-success-dark">
               Correto! Mas ainda não terminou — faltam pares.
             </p>
           )}
           {feedbackB === 'wrong' && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-error-dark">
               Revise a marcação do evento B.
             </p>
           )}
@@ -1352,9 +1432,8 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             ]}
           />
           <div
-            className="bg-brand-otimath-lightest rounded-md p-micro border border-brand-otimath-light mx-auto"
+            className="bg-brand-otimath-lightest rounded-md p-micro border border-brand-otimath-light mx-auto max-w-[720px]"
             aria-live="polite"
-            style={{ maxWidth: 720 }}
           >
             <p className="ds-small-bold text-neutral-darkest">
               B = {'{'}{enumerateKeys(correctSets.B)}{'}'}
@@ -1364,7 +1443,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Quantos pares tem o conjunto B?
           </p>
           <div className="flex items-center justify-center gap-x-micro">
-            <span className="ds-body-bold text-neutral-black">n(B) =</span>
+            <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(B) =</span>
             <input
               type="number"
               inputMode="numeric"
@@ -1383,7 +1462,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <Button style="primary" size="extra-small" onClick={validateCountB}>Conferir</Button>
           </div>
           {nBError && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-error-dark">
               Conte novamente os pares marcados de B na tabela.
             </p>
           )}
@@ -1443,12 +1522,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <Button style="primary" size="small" onClick={validateMarkIntersection}>Conferir</Button>
           </div>
           {feedbackIntersection === 'incomplete' && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-success-dark">
               Correto! Mas ainda não terminou — faltam pares.
             </p>
           )}
           {feedbackIntersection === 'wrong' && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-error-dark">
               Revise a marcação. Verifique se cada par satisfaz A e B ao mesmo tempo.
             </p>
           )}
@@ -1472,9 +1551,8 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             ]}
           />
           <div
-            className="bg-brand-otimath-lightest rounded-md p-micro border border-brand-otimath-light mx-auto"
+            className="bg-brand-otimath-lightest rounded-md p-micro border border-brand-otimath-light mx-auto max-w-[720px]"
             aria-live="polite"
-            style={{ maxWidth: 720 }}
           >
             <p className="ds-small-bold text-neutral-darkest">
               A ∩ B = {correctSets.I.size === 0 ? '∅' : `{${enumerateKeys(correctSets.I)}}`}
@@ -1484,7 +1562,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Quantos pares tem o conjunto A ∩ B?
           </p>
           <div className="flex items-center justify-center gap-x-micro">
-            <span className="ds-body-bold text-neutral-black">n(A ∩ B) =</span>
+            <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A ∩ B) =</span>
             <input
               type="number"
               inputMode="numeric"
@@ -1503,7 +1581,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <Button style="primary" size="extra-small" onClick={validateCountIntersection}>Conferir</Button>
           </div>
           {nIntersectionError && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-error-dark">
               Conte novamente os pares marcados de A ∩ B na tabela.
             </p>
           )}
@@ -1710,12 +1788,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <Button style="primary" size="small" onClick={validateMarkUnion}>Conferir</Button>
           </div>
           {feedbackUnion === 'incomplete' && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-success-dark">
               Correto! Mas ainda não terminou — faltam pares.
             </p>
           )}
           {feedbackUnion === 'wrong' && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-error-dark">
               Revise a marcação de A ∪ B. Alguma marcação não satisfaz nem A nem B.
             </p>
           )}
@@ -1740,9 +1818,8 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             ]}
           />
           <div
-            className="bg-brand-otimath-lightest rounded-md p-micro border border-brand-otimath-light mx-auto"
+            className="bg-brand-otimath-lightest rounded-md p-micro border border-brand-otimath-light mx-auto max-w-[720px]"
             aria-live="polite"
-            style={{ maxWidth: 720 }}
           >
             <p className="ds-small-bold text-neutral-darkest">
               A ∪ B = {'{'}{enumerateKeys(correctSets.U)}{'}'}
@@ -1752,7 +1829,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Quantos pares tem o conjunto A ∪ B?
           </p>
           <div className="flex items-center justify-center gap-x-micro">
-            <span className="ds-body-bold text-neutral-black">n(A ∪ B) =</span>
+            <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A ∪ B) =</span>
             <input
               type="number"
               inputMode="numeric"
@@ -1771,7 +1848,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <Button style="primary" size="extra-small" onClick={validateCountUnion}>Conferir</Button>
           </div>
           {nUnionError && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-error-dark">
               Conte novamente os pares marcados de A ∪ B na tabela.
             </p>
           )}
@@ -1789,7 +1866,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             e <strong>n(A ∪ B) = {correctSets.nU}</strong>. Sem calcular, o que você acha?
           </p>
           <fieldset style={{ border: '1px solid var(--color-neutral-lighter)', borderRadius: 10, padding: 12, marginBottom: 8 }}>
-            <legend className="ds-body-bold text-neutral-black" style={{ padding: '0 6px' }}>
+            <legend className="ds-body-bold text-neutral-black px-[6px]">
               n(A) + n(B):
             </legend>
             {[
@@ -1811,7 +1888,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             ))}
           </fieldset>
           <fieldset style={{ border: '1px solid var(--color-neutral-lighter)', borderRadius: 10, padding: 12 }}>
-            <legend className="ds-body-bold text-neutral-black" style={{ padding: '0 6px' }}>
+            <legend className="ds-body-bold text-neutral-black px-[6px]">
               Por quê?
             </legend>
             {[
@@ -1833,7 +1910,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             ))}
           </fieldset>
           {predictionError && (
-            <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center mt-micro text-feedback-error-dark">
               Escolha uma opção em cada bloco antes de continuar.
             </p>
           )}
@@ -1846,13 +1923,16 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       {/* ═══════ vennLab — laboratório construcionista de Venn (Commit 1: esqueleto) ═══════ */}
       {phase === 'vennLab' && (
         <VennLaboratory
+          ref={vennLabRef}
           eventADescription={currentPair.eventA.description}
           eventBDescription={currentPair.eventB.description}
           nA={correctSets.nA}
           nB={correctSets.nB}
           nI={correctSets.nI}
           nU={correctSets.nU}
-          onComplete={() => setPhase('sumCompareVisual')}
+          onSubStepChange={setVennSubStep}
+          createAlert={createAlert}
+          onComplete={onVennLabComplete}
         />
       )}
 
@@ -1888,7 +1968,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             )}
           </div>
           {nSumError && (
-            <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center text-feedback-error-dark">
               Some n(A) e n(B) novamente.
             </p>
           )}
@@ -1903,10 +1983,10 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                 nU={correctSets.nU}
               />
               <p className="ds-body text-neutral-black text-center mt-micro">
-                Compare: <strong>n(A) + n(B) = {correctSets.nA + correctSets.nB}</strong>{' '}
-                e <strong>n(A ∪ B) = {correctSets.nU}</strong>.
+                Compare: <strong className="whitespace-nowrap">n(A) + n(B) = {correctSets.nA + correctSets.nB}</strong>{' '}
+                e <strong className="whitespace-nowrap">n(A ∪ B) = {correctSets.nU}</strong>.
               </p>
-              <div className="flex items-center justify-center gap-x-micro mt-micro flex-wrap">
+              <div className="flex items-center justify-center gap-x-micro gap-y-nano mt-micro flex-wrap">
                 <span className="ds-body-bold text-neutral-black">{correctSets.nA + correctSets.nB}</span>
                 <select
                   value={compareOp}
@@ -1927,7 +2007,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                 <Button style="primary" size="extra-small" onClick={validateCompareOp}>Conferir</Button>
               </div>
               {compareError && (
-                <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                <p className="ds-small-bold text-center mt-micro text-feedback-error-dark">
                   Observe a barra apresentada: a barra de n(A) + n(B) inclui os pares de A ∩ B duas vezes.
                 </p>
               )}
@@ -1948,20 +2028,19 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Para obter a contagem correta da união, precisamos subtrair n(A ∩ B):
           </p>
           <div
-            className="bg-neutral-white rounded-md p-micro text-center mt-micro"
-            style={{ border: '2px solid var(--color-brand-otimath-pure)' }}
+            className="bg-neutral-white rounded-md p-micro text-center mt-micro border-2 border-brand-otimath-pure"
           >
-            <p className="ds-heading-large" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+            <p className="ds-heading-large text-brand-otimath-dark whitespace-nowrap">
               n(A ∪ B) = n(A) + n(B) − n(A ∩ B)
             </p>
           </div>
           <p className="ds-body text-neutral-black mt-micro text-center">
             Verificação numérica:
           </p>
-          <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)', fontSize: '1.1rem' }}>
+          <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)', fontSize: '1.1rem', whiteSpace: 'nowrap' }}>
             {correctSets.nU} = {correctSets.nA} + {correctSets.nB} − {correctSets.nI}
           </p>
-          <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+          <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)', whiteSpace: 'nowrap' }}>
             ✓ {correctSets.nU} = {correctSets.nA + correctSets.nB - correctSets.nI}
           </p>
           <div className="flex justify-center mt-macro">
@@ -1990,7 +2069,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <strong>Mas há outra rota.</strong> No OVA do <strong>Disco Probabilístico</strong>,
             você aprendeu que, para eventos <strong>mutuamente exclusivos</strong> (A ∩ B = ∅):
           </p>
-          <p className="ds-body-bold text-center mt-micro" style={{ color: 'var(--color-brand-otimath-pure)', fontSize: '1.05rem' }}>
+          <p className="ds-body-bold text-center mt-micro" style={{ color: 'var(--color-brand-otimath-pure)', fontSize: '1.05rem', whiteSpace: 'nowrap' }}>
             P(A ∪ B) = P(A) + P(B)
           </p>
           <p className="ds-body text-neutral-black mt-micro text-justify">
@@ -2037,7 +2116,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-body text-neutral-black mb-nano text-justify">
             No lançamento simultâneo de dois dados honestos, calcule a probabilidade de ocorrer os eventos:
           </p>
-          <ul className="mb-micro" style={{ paddingLeft: '1.5rem', listStyle: 'disc' }}>
+          <ul className="mb-micro pl-[1.5rem] list-disc">
             <li className="ds-body text-neutral-black mb-quarck">
               <strong style={{ color: EVENT_COLORS['A'] }}>Evento A</strong>: {formatForProblem(predA)}
             </li>
@@ -2050,43 +2129,49 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           </ul>
           <ValuesRecallPanel nA={correctSets.nA} nB={correctSets.nB} nI={correctSets.nI} nU={correctSets.nU} />
           <p className="ds-body text-neutral-black mb-micro text-justify">
-            Aplique P(X) = n(X) / n(S) para cada evento:
+            Aplique <span className="whitespace-nowrap">P(X) = n(X) / n(S)</span> para cada evento:
           </p>
           <div className="flex flex-col gap-y-micro">
-            <div className="flex items-center justify-center gap-x-micro flex-wrap">
-              <span className="ds-body-bold text-neutral-black">P(A) =</span>
-              <FractionInput num={pANum} den={pADen} setNum={setPANum} setDen={setPADen} error={pAError} onEnter={validatePA} />
+            <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
+              <div className="flex items-center gap-x-nano">
+                <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(A) =</span>
+                <FractionInput num={pANum} den={pADen} setNum={setPANum} setDen={setPADen} error={pAError} onEnter={validatePA} />
+              </div>
               {!isEquivalentFraction(pANum, pADen, correctSets.nA, 36) && (
                 <Button style="primary" size="extra-small" onClick={validatePA}>Conferir</Button>
               )}
               {isEquivalentFraction(pANum, pADen, correctSets.nA, 36) && (
-                <span className="ds-body-bold" style={{ color: 'var(--color-feedback-success-dark)' }}>✓</span>
+                <span className="ds-body-bold text-feedback-success-dark">✓</span>
               )}
             </div>
-            <div className="flex items-center justify-center gap-x-micro flex-wrap">
-              <span className="ds-body-bold text-neutral-black">P(B) =</span>
-              <FractionInput num={pBNum} den={pBDen} setNum={setPBNum} setDen={setPBDen} error={pBError} onEnter={validatePB} />
+            <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
+              <div className="flex items-center gap-x-nano">
+                <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(B) =</span>
+                <FractionInput num={pBNum} den={pBDen} setNum={setPBNum} setDen={setPBDen} error={pBError} onEnter={validatePB} />
+              </div>
               {!isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36) && (
                 <Button style="primary" size="extra-small" onClick={validatePB}>Conferir</Button>
               )}
               {isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36) && (
-                <span className="ds-body-bold" style={{ color: 'var(--color-feedback-success-dark)' }}>✓</span>
+                <span className="ds-body-bold text-feedback-success-dark">✓</span>
               )}
             </div>
-            <div className="flex items-center justify-center gap-x-micro flex-wrap">
-              <span className="ds-body-bold text-neutral-black">P(A ∩ B) =</span>
-              <FractionInput num={pABNum} den={pABDen} setNum={setPABNum} setDen={setPABDen} error={pABError} onEnter={validatePAB} />
+            <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
+              <div className="flex items-center gap-x-nano">
+                <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(A ∩ B) =</span>
+                <FractionInput num={pABNum} den={pABDen} setNum={setPABNum} setDen={setPABDen} error={pABError} onEnter={validatePAB} />
+              </div>
               {!isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36) && (
                 <Button style="primary" size="extra-small" onClick={validatePAB}>Conferir</Button>
               )}
               {isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36) && (
-                <span className="ds-body-bold" style={{ color: 'var(--color-feedback-success-dark)' }}>✓</span>
+                <span className="ds-body-bold text-feedback-success-dark">✓</span>
               )}
             </div>
           </div>
           {(pAError || pBError || pABError) && (
-            <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)' }}>
-              Aplique P(X) = n(X)/n(S) onde n(S) = 36. Frações equivalentes são aceitas.
+            <p className="ds-small-bold text-center mt-micro text-feedback-error-dark">
+              Aplique <span className="whitespace-nowrap">P(X) = n(X)/n(S)</span> onde <span className="whitespace-nowrap">n(S) = 36</span>. Frações equivalentes são aceitas.
             </p>
           )}
           {allIndividualProbsValid && (
@@ -2160,7 +2245,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             ))}
           </div>
           {institutionalError && (
-            <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center mt-micro text-feedback-error-dark">
               {institutionalAnswer === '' ? 'Escolha uma das alternativas.' : 'Não é essa. Pense na fórmula que acabamos de construir.'}
             </p>
           )}
@@ -2171,7 +2256,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           )}
           {institutionalAnswer === 'correct' && (
             <>
-              <p className="ds-body-bold text-center mt-macro" style={{ color: 'var(--color-feedback-success-dark)' }}>
+              <p className="ds-body-bold text-center mt-macro text-feedback-success-dark">
                 ✓ Correto! Você construiu a fórmula geral.
               </p>
               <div className="flex justify-center mt-micro">
@@ -2191,10 +2276,9 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             🎯 Fórmula geral da probabilidade da união
           </p>
           <div
-            className="bg-neutral-white rounded-md p-micro text-center"
-            style={{ border: '2px solid var(--color-brand-otimath-pure)' }}
+            className="bg-neutral-white rounded-md p-micro text-center border-2 border-brand-otimath-pure"
           >
-            <p className="ds-heading-large" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+            <p className="ds-heading-large text-brand-otimath-dark whitespace-nowrap">
               P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
             </p>
           </div>
@@ -2280,7 +2364,7 @@ function StackedBarComparison({ nA, nB, nI, nU }: { nA: number; nB: number; nI: 
   const iPctOfTotal = (nI / total) * 100;
 
   return (
-    <div className="mt-micro" style={{ maxWidth: 560, margin: '0 auto' }}>
+    <div className="mt-micro max-w-[560px] mx-auto">
       <p className="ds-small-bold text-center text-neutral-dark mb-nano">Barra 1: n(A) + n(B) empilhados</p>
       <div style={{ display: 'flex', width: '100%', height: 36, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--color-neutral-lighter)' }}>
         <div style={{ width: `${aPct}%`, background: EVENT_COLORS['A'], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.78rem' }}>
@@ -2290,7 +2374,7 @@ function StackedBarComparison({ nA, nB, nI, nU }: { nA: number; nB: number; nI: 
           B = {nB}
         </div>
       </div>
-      <p className="ds-small text-center mt-nano" style={{ color: 'var(--color-neutral-dark)' }}>
+      <p className="ds-small text-center mt-nano text-neutral-dark">
         Total empilhado = {total}
       </p>
 
@@ -2303,7 +2387,7 @@ function StackedBarComparison({ nA, nB, nI, nU }: { nA: number; nB: number; nI: 
           ← diferença = {total - nU}
         </div>
       </div>
-      <p className="ds-small text-center mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+      <p className="ds-small text-center mt-nano text-feedback-error-dark font-medium">
         A diferença ({total - nU}) corresponde a <strong>2 × n(A ∩ B) − n(A ∩ B) = n(A ∩ B) = {nI}</strong>{' '}
         que foi contada <strong>duas vezes</strong> em n(A) + n(B).
       </p>
@@ -2508,7 +2592,7 @@ function ProbTransferScreen({
           border: '1px solid var(--color-brand-otimath-light)',
         }}
       >
-        <p className="ds-caption-bold text-brand-otimath-dark mb-nano" style={{ fontSize: '0.82rem' }}>
+        <p className="ds-caption-bold text-brand-otimath-dark mb-nano text-[0.82rem]">
           Problema
         </p>
         <p className="ds-body text-neutral-black text-justify">
@@ -2524,7 +2608,7 @@ function ProbTransferScreen({
           animadas em sequência. Após o aluno acertar a fração, as legendas
           e setas desaparecem (fade out). */}
       <div className="mt-micro">
-        <p className="ds-caption-bold text-neutral-dark mb-nano" style={{ fontSize: '0.82rem' }}>
+        <p className="ds-caption-bold text-neutral-dark mb-nano text-[0.82rem]">
           Resolução
         </p>
 
@@ -2608,7 +2692,7 @@ function ProbTransferScreen({
                         flex: 1,
                       }}
                     >
-                      <span className="ds-small-bold" style={{ color: 'var(--color-neutral-dark)' }}>
+                      <span className="ds-small-bold text-neutral-dark">
                         n(S)
                       </span>
                       <span className="ds-small text-neutral-darkest"> = total de casos possíveis no lançamento de dois dados</span>
@@ -2661,15 +2745,17 @@ function ProbTransferScreen({
               border: '1px solid var(--color-neutral-lighter)',
             }}
           >
-            <div className="flex items-center justify-center gap-x-micro flex-wrap">
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'], fontSize: '1.15rem' }}>
-                P(A ∪ B) =
-              </span>
-              <FractionInput
-                num={pAUBNum} den={pAUBDen}
-                setNum={setPAUBNum} setDen={setPAUBDen}
-                error={pAUBError} onEnter={validatePAUB}
-              />
+            <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
+              <div className="flex items-center gap-x-nano">
+                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'], fontSize: '1.15rem', whiteSpace: 'nowrap' }}>
+                  P(A ∪ B) =
+                </span>
+                <FractionInput
+                  num={pAUBNum} den={pAUBDen}
+                  setNum={setPAUBNum} setDen={setPAUBDen}
+                  error={pAUBError} onEnter={validatePAUB}
+                />
+              </div>
               {!isCorrect && (
                 <Button style="primary" size="extra-small" onClick={validatePAUB}>Conferir</Button>
               )}
@@ -2694,21 +2780,21 @@ function ProbTransferScreen({
               }}
             >
               {errorType === 'num' && (
-                <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                <p className="ds-small-bold text-center text-feedback-error-dark">
                   Quantos resultados ocorrem apenas em A, apenas em B ou em ambos?
                 </p>
               )}
               {errorType === 'den' && (
-                <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                <p className="ds-small-bold text-center text-feedback-error-dark">
                   Lançando dois dados, quantos pares ordenados podem ocorrer?
                 </p>
               )}
               {errorType === 'both' && (
                 <>
-                  <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                  <p className="ds-small-bold text-center text-feedback-error-dark">
                     <strong>Numerador:</strong> quantos resultados ocorrem apenas em A, apenas em B ou em ambos?
                   </p>
-                  <p className="ds-small-bold text-center mt-nano" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                  <p className="ds-small-bold text-center mt-nano text-feedback-error-dark">
                     <strong>Denominador:</strong> lançando dois dados, quantos pares ordenados podem ocorrer?
                   </p>
                 </>
@@ -2721,7 +2807,7 @@ function ProbTransferScreen({
       {/* Conversões decimal e percentual após acerto */}
       {isCorrect && (
         <div className="mt-micro">
-          <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+          <p className="ds-body-bold text-center text-feedback-success-dark">
             ✓ Correto!
           </p>
           <div
@@ -2748,12 +2834,12 @@ function ProbTransferScreen({
               </div>
               <span className="ds-body-bold text-neutral-dark">=</span>
               {/* Decimal (sem rótulo) */}
-              <span className="ds-body-bold text-neutral-darkest" style={{ fontSize: '1.05rem' }}>
+              <span className="ds-body-bold text-neutral-darkest text-[1.05rem]">
                 {decimal}
               </span>
               <span className="ds-body-bold text-neutral-dark">=</span>
               {/* Percentual (sem rótulo) */}
-              <span className="ds-body-bold text-neutral-darkest" style={{ fontSize: '1.05rem' }}>
+              <span className="ds-body-bold text-neutral-darkest text-[1.05rem]">
                 {percent}%
               </span>
             </div>
@@ -2806,10 +2892,10 @@ function ValuesRecallPanel({
         border: '1px solid var(--color-brand-otimath-light)',
       }}
     >
-      <p className="ds-caption-bold text-center text-neutral-dark mb-nano" style={{ fontSize: '0.78rem' }}>
+      <p className="ds-caption-bold text-center text-neutral-dark mb-nano text-[0.78rem]">
         Valores calculados nas etapas anteriores
       </p>
-      <div className="flex items-center justify-center" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <div className="flex items-center justify-center gap-micro flex-wrap">
         {nA !== undefined && item('n(A) =', nA, EVENT_COLORS['A'])}
         {nB !== undefined && item('n(B) =', nB, EVENT_COLORS['B'])}
         {nI !== undefined && item('n(A ∩ B) =', nI, EVENT_COLORS['A∩B'])}
@@ -2963,11 +3049,11 @@ function ProbFormulaRevealAnimation({
           border: '1px solid var(--color-brand-otimath-light)',
         }}
       >
-        <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+        <p className="ds-body-bold text-center text-brand-otimath-dark">
           Sabemos que:
         </p>
 
-        <div className="flex flex-col gap-y-nano mt-nano" style={{ alignItems: 'center' }}>
+        <div className="flex flex-col gap-y-nano mt-nano items-center">
           {step >= 0 && (
             <div style={slideFadeIn} className="flex items-center" aria-live="polite">
               <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
@@ -3027,16 +3113,16 @@ function ProbFormulaRevealAnimation({
             border: '1px solid var(--color-brand-otimath-light)',
           }}
         >
-          <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+          <p className="ds-body-bold text-center mb-nano text-brand-otimath-dark">
             Substituindo passo a passo:
           </p>
 
-          <div className="flex flex-col gap-y-micro" style={{ alignItems: 'center' }}>
+          <div className="flex flex-col gap-y-micro items-center">
             {/* Linha 1: P(A∪B) = n(A∪B)/n(S) — n(A∪B) pisca quando sendo substituído (step→6) */}
             {step >= 5 && (
-              <div style={slideFadeIn} className="flex items-center flex-wrap" aria-live="polite">
+              <div style={slideFadeIn} className="flex items-center flex-wrap gap-y-nano" aria-live="polite">
                 <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
-                <span className={flashTarget === 'nU' ? 'flash-sub' : undefined} style={{ display: 'inline-block' }}>
+                <span className={`inline-block ${flashTarget === 'nU' ? 'flash-sub' : ''}`}>
                   <FracH top={<span>n(A ∪ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∪B']} />
                 </span>
               </div>
@@ -3045,9 +3131,9 @@ function ProbFormulaRevealAnimation({
                 Numerador pisca tanto ao ENTRAR (nU — destaca o novo valor substituído)
                 quanto ao DISTRIBUIR a divisão (distrib — destaca o que será dividido). */}
             {step >= 6 && (
-              <div style={slideFadeIn} className="flex items-center flex-wrap" aria-live="polite">
+              <div style={slideFadeIn} className="flex items-center flex-wrap gap-y-nano" aria-live="polite">
                 <span className="ds-body-bold text-neutral-darkest">=&nbsp;</span>
-                <span className={flashTarget === 'nU' || flashTarget === 'distrib' ? 'flash-sub' : undefined} style={{ display: 'inline-block' }}>
+                <span className={`inline-block ${flashTarget === 'nU' || flashTarget === 'distrib' ? 'flash-sub' : ''}`}>
                   <FracH
                     top={<span>n(A) + n(B) − n(A ∩ B)</span>}
                     bottom={<span>n(S)</span>}
@@ -3060,26 +3146,17 @@ function ProbFormulaRevealAnimation({
                 Cada fração pisca individualmente quando sua sub-etapa ativa (probsA/B/I)
                 e todas juntas quando a distribuição ocorre (distrib). */}
             {step >= 7 && (
-              <div style={slideFadeIn} className="flex items-center flex-wrap" aria-live="polite">
+              <div style={slideFadeIn} className="flex items-center flex-wrap gap-y-nano" aria-live="polite">
                 <span className="ds-body-bold text-neutral-darkest">=&nbsp;</span>
-                <span
-                  className={flashTarget === 'probsA' || flashTarget === 'distrib' ? 'flash-sub' : undefined}
-                  style={{ display: 'inline-block' }}
-                >
+                <span className={`inline-block ${flashTarget === 'probsA' || flashTarget === 'distrib' ? 'flash-sub' : ''}`}>
                   <FracH top={<span>n(A)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A']} />
                 </span>
                 <span className="ds-body-bold text-neutral-darkest">&nbsp;+&nbsp;</span>
-                <span
-                  className={flashTarget === 'probsB' || flashTarget === 'distrib' ? 'flash-sub' : undefined}
-                  style={{ display: 'inline-block' }}
-                >
+                <span className={`inline-block ${flashTarget === 'probsB' || flashTarget === 'distrib' ? 'flash-sub' : ''}`}>
                   <FracH top={<span>n(B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['B']} />
                 </span>
                 <span className="ds-body-bold text-neutral-darkest">&nbsp;−&nbsp;</span>
-                <span
-                  className={flashTarget === 'probsI' || flashTarget === 'distrib' ? 'flash-sub' : undefined}
-                  style={{ display: 'inline-block' }}
-                >
+                <span className={`inline-block ${flashTarget === 'probsI' || flashTarget === 'distrib' ? 'flash-sub' : ''}`}>
                   <FracH top={<span>n(A ∩ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∩B']} />
                 </span>
               </div>
@@ -3087,7 +3164,7 @@ function ProbFormulaRevealAnimation({
             {/* Linha 4: = P(A) + P(B) − P(A∩B)
                 Cada P pisca quando sua sub-etapa gradativa está ativa. */}
             {step >= 8 && (
-              <div style={slideFadeIn} className="flex items-center flex-wrap" aria-live="polite">
+              <div style={slideFadeIn} className="flex items-center flex-wrap gap-y-nano" aria-live="polite">
                 <span className="ds-body-bold text-neutral-darkest">=&nbsp;</span>
                 <span
                   className={`ds-body-bold ${flashTarget === 'probsA' ? 'flash-sub' : ''}`}
@@ -3119,7 +3196,7 @@ function ProbFormulaRevealAnimation({
               className="bg-brand-otimath-lightest rounded-md p-micro text-center mt-micro"
               style={{ border: '2px solid var(--color-brand-otimath-pure)', ...slideFadeIn }}
             >
-              <p className="ds-heading-large" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-heading-large text-brand-otimath-dark">
                 P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
               </p>
             </div>
@@ -3174,7 +3251,7 @@ function ProbFormulaApplyScreen({
         className="rounded-md p-micro mb-micro"
         style={{ background: 'var(--color-neutral-white)', border: '1px solid var(--color-brand-otimath-light)' }}
       >
-        <div className="flex flex-col gap-y-micro" style={{ alignItems: 'center' }}>
+        <div className="flex flex-col gap-y-micro items-center">
           <div className="flex items-center">
             <span className="ds-body-bold" style={{ color: EVENT_COLORS['A'] }}>P(A)&nbsp;=&nbsp;</span>
             <FracH top={<span>{nA}</span>} bottom={<span>36</span>} color={EVENT_COLORS['A']} size="1.15rem" />
@@ -3206,7 +3283,7 @@ function ProbFormulaApplyScreen({
         className="bg-neutral-white rounded-md p-micro text-center mt-micro"
         style={{ border: `2px solid ${EVENT_COLORS['A∪B']}` }}
       >
-        <p className="ds-heading-large" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+        <p className="ds-heading-large text-brand-otimath-dark">
           P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
         </p>
       </div>
@@ -3243,9 +3320,9 @@ function ProbFormulaVerifyScreen({
         className="rounded-md p-micro mb-micro"
         style={{ background: 'var(--color-neutral-white)', border: `2px solid ${EVENT_COLORS['A∪B']}` }}
       >
-        <div className="flex flex-col gap-y-micro" style={{ alignItems: 'center' }}>
+        <div className="flex flex-col gap-y-micro items-center">
           {/* Linha 1: fórmula simbólica */}
-          <div className="flex items-center flex-wrap">
+          <div className="flex items-center flex-wrap gap-y-nano">
             <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
             <span className="ds-body-bold" style={{ color: EVENT_COLORS['A'] }}>P(A)</span>
             <span className="ds-body-bold text-neutral-darkest">&nbsp;+&nbsp;</span>
@@ -3255,7 +3332,7 @@ function ProbFormulaVerifyScreen({
           </div>
 
           {/* Linha 2: substituindo os valores */}
-          <div className="flex items-center flex-wrap">
+          <div className="flex items-center flex-wrap gap-y-nano">
             <span className="ds-body-bold text-neutral-darkest">=&nbsp;</span>
             <FracH top={<span>{nA}</span>} bottom={<span>36</span>} color={EVENT_COLORS['A']} size="1.15rem" />
             <span className="ds-body-bold text-neutral-darkest">&nbsp;+&nbsp;</span>
@@ -3265,7 +3342,7 @@ function ProbFormulaVerifyScreen({
           </div>
 
           {/* Linha 3: resultado da soma */}
-          <div className="flex items-center flex-wrap">
+          <div className="flex items-center flex-wrap gap-y-nano">
             <span className="ds-body-bold text-neutral-darkest">=&nbsp;</span>
             <FracH top={<span>{nA + nB - nI}</span>} bottom={<span>36</span>} color={EVENT_COLORS['A∪B']} size="1.2rem" />
           </div>
@@ -3277,7 +3354,7 @@ function ProbFormulaVerifyScreen({
         className="rounded-md p-micro mb-micro"
         style={{ background: 'rgba(74, 222, 128, 0.12)', border: '1px solid var(--color-feedback-success-dark)' }}
       >
-        <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-feedback-success-dark)' }}>
+        <p className="ds-body-bold text-center mb-nano text-feedback-success-dark">
           ✓ Duas rotas — mesmo resultado
         </p>
         <div className="flex items-center justify-center flex-wrap" style={{ gap: 10 }}>
@@ -3291,7 +3368,7 @@ function ProbFormulaVerifyScreen({
             <FracH top={<span>{nA + nB - nI}</span>} bottom={<span>36</span>} color={EVENT_COLORS['A∪B']} size="1rem" />
           </div>
         </div>
-        <p className="ds-small text-center mt-nano" style={{ color: 'var(--color-neutral-darkest)' }}>
+        <p className="ds-small text-center mt-nano text-neutral-darkest">
           As duas rotas são equivalentes — a matemática é consistente!
         </p>
       </div>
@@ -3301,7 +3378,7 @@ function ProbFormulaVerifyScreen({
         className="rounded-md p-micro"
         style={{ background: 'var(--color-brand-otimath-lightest)', border: '1px solid var(--color-brand-otimath-light)' }}
       >
-        <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+        <p className="ds-body-bold text-center mb-nano text-brand-otimath-dark">
           Generalização do caso que você já conhecia
         </p>
         <p className="ds-body text-neutral-black text-justify">

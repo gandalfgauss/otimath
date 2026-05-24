@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
 import {
@@ -48,7 +48,42 @@ interface VennLaboratoryProps {
   nI: number;
   nU: number;
   onComplete: () => void;
+  /** Notifica o pai a cada mudança de sub-etapa interna — usado para o
+   *  cenaId DEV refletir cada uma das ~17 sub-etapas do laboratório Venn. */
+  onSubStepChange?: (subStep: string) => void;
+  /** Toast alert do OVA. Disparado em validações erradas e acertos
+   *  relevantes para feedback consistente com o resto do OVA. */
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
 }
+
+// Handle exposto ao painel DEV — permite avançar pelas sub-etapas internas
+// do laboratório Venn.
+export interface VennLaboratoryHandle {
+  getCurrentSubStep: () => string;
+  advance: () => void;
+}
+
+// Sequência linear das sub-etapas — usada por advance() do handle DEV.
+const VENN_SUBSTEP_SEQUENCE = [
+  'intro',
+  'createIntersection',
+  'clickIntersection',
+  'fillIntersection',
+  'identifyAMinusB',
+  'fillAMinusB',
+  'identifyBMinusA',
+  'fillBMinusA',
+  'markUnion',
+  'unionCount',
+  'countAFromDiagram',
+  'countBFromDiagram',
+  'sumAB',
+  'doubleCountQuestion',
+  'numericConclusion',
+  'placeExpressions',
+  'writeUnionFormula',
+  'conclusion',
+] as const;
 
 const COLOR_A = '#2f6fea';
 const COLOR_B = '#22a155';
@@ -72,7 +107,10 @@ export function VennLaboratory({
   eventADescription, eventBDescription,
   nA, nB, nI, nU,
   onComplete,
-}: Readonly<VennLaboratoryProps>) {
+  onSubStepChange,
+  createAlert,
+  ref,
+}: Readonly<VennLaboratoryProps> & { ref?: React.Ref<VennLaboratoryHandle> }) {
   const sets = useMemo<VennSetSpec[]>(() => [
     { label: 'A', description: eventADescription, cardinality: nA, color: COLOR_A, fill: FILL_A },
     { label: 'B', description: eventBDescription, cardinality: nB, color: COLOR_B, fill: FILL_B },
@@ -102,10 +140,17 @@ export function VennLaboratory({
   // Sub-etapas novas: escrita de operações a partir do diagrama
   const [unionCountInput, setUnionCountInput] = useState('');
   const [unionCountAccepted, setUnionCountAccepted] = useState(false);
+  const [unionCountError, setUnionCountError] = useState(false);
   const [countAInput, setCountAInput] = useState('');
   const [countAAccepted, setCountAAccepted] = useState(false);
+  const [countAError, setCountAError] = useState(false);
   const [countBInput, setCountBInput] = useState('');
   const [countBAccepted, setCountBAccepted] = useState(false);
+  const [countBError, setCountBError] = useState(false);
+  // Estados de erro para os inputs aritméticos dentro do SVG (A−B, B−A).
+  // Sinalizam visualmente (borda vermelha) quando a operação foi validada e está incorreta.
+  const [aMinusBInputError, setAMinusBInputError] = useState(false);
+  const [bMinusAInputError, setBMinusAInputError] = useState(false);
   // sumAB: controla quais chips foram clicados (0 = nenhum, 1 = só n(A), 2 = ambos)
   const [sumABFilledA, setSumABFilledA] = useState(false);
   const [sumABFilledB, setSumABFilledB] = useState(false);
@@ -130,6 +175,101 @@ export function VennLaboratory({
     setStep(next);
   }, []);
 
+  // Notifica o pai a cada mudança de sub-etapa — entra no cenaId DEV.
+  useEffect(() => {
+    onSubStepChange?.(step);
+  }, [step, onSubStepChange]);
+
+  // Handle DEV — avança 1 sub-etapa na sequência linear.
+  // Quando aplicável, também preenche estados "de aceito" para que a UI
+  // da próxima sub-etapa não dependa de cliques anteriores do aluno.
+  useImperativeHandle(ref, () => ({
+    getCurrentSubStep: () => step,
+    advance: () => {
+      const idx = VENN_SUBSTEP_SEQUENCE.indexOf(step as typeof VENN_SUBSTEP_SEQUENCE[number]);
+      if (idx < 0) return;
+      // Última sub-etapa → conclui o laboratório.
+      if (idx === VENN_SUBSTEP_SEQUENCE.length - 1) {
+        onComplete();
+        return;
+      }
+      const next = VENN_SUBSTEP_SEQUENCE[idx + 1];
+      // Marca estados de aceitação correspondentes para que a UI da próxima
+      // sub-etapa apareça como se o aluno tivesse acertado a anterior.
+      switch (step) {
+        case 'createIntersection':
+          setGeometry(defaultGeometry2Intersected());
+          setDescriptionsOutside(true);
+          break;
+        case 'clickIntersection':
+          setIntersectionClicked(true);
+          break;
+        case 'fillIntersection':
+          setIntersectionValueDeposited(true);
+          break;
+        case 'identifyAMinusB':
+          setAMinusBClicked(true);
+          break;
+        case 'fillAMinusB':
+          setAMinusBFormulaAccepted(true);
+          setAMinusBValueDeposited(true);
+          setAMinusBInput(String(nA - nI));
+          break;
+        case 'identifyBMinusA':
+          setBMinusAClicked(true);
+          break;
+        case 'fillBMinusA':
+          setBMinusAFormulaAccepted(true);
+          setBMinusAValueDeposited(true);
+          setBMinusAInput(String(nB - nI));
+          break;
+        case 'markUnion':
+          setUnionSelection(new Set([
+            maskKey([true, false]),
+            maskKey([true, true]),
+            maskKey([false, true]),
+          ]));
+          break;
+        case 'unionCount':
+          setUnionCountAccepted(true);
+          setUnionCountInput(String(nU));
+          break;
+        case 'countAFromDiagram':
+          setCountAAccepted(true);
+          setCountAInput(String(nA));
+          break;
+        case 'countBFromDiagram':
+          setCountBAccepted(true);
+          setCountBInput(String(nB));
+          break;
+        case 'sumAB':
+          setSumABFilledA(true);
+          setSumABFilledB(true);
+          break;
+        case 'doubleCountQuestion':
+          setDoubleCountConfirmed(true);
+          setDoubleCountChoice('once');
+          break;
+        case 'placeExpressions':
+          setPlacedExpressions({
+            [maskKey([true, false])]: 'AMinusB',
+            [maskKey([true, true])]: 'intersection',
+            [maskKey([false, true])]: 'BMinusA',
+          });
+          break;
+        case 'writeUnionFormula':
+          setFormulaSlots(['n(A − B)', 'n(A ∩ B)', 'n(B − A)']);
+          setFormulaUsedRegions(new Set([
+            maskKey([true, false]),
+            maskKey([true, true]),
+            maskKey([false, true]),
+          ]));
+          break;
+      }
+      setStep(next);
+    },
+  }), [step, onComplete, nA, nB, nI, nU]);
+
   // --- Sub-etapa 2: createIntersection ---
   const moveCircleB = useCallback((direction: 'left' | 'right') => {
     setGeometry(prev => {
@@ -147,10 +287,11 @@ export function VennLaboratory({
 
   const confirmIntersection = useCallback(() => {
     playSound('/sounds/correct.mp3');
+    createAlert?.('Interseção criada', 'Os círculos agora se sobrepõem — formando A ∩ B.', 'success', 3000);
     setGeometry(defaultGeometry2Intersected());
     setTimeout(() => setDescriptionsOutside(true), 400);
     setTimeout(() => goTo('clickIntersection'), 800);
-  }, [goTo]);
+  }, [goTo, createAlert]);
 
   // --- Sub-etapa 3/5/7: clique em região ---
   const handleRegionClick = useCallback((mask: MembershipMask) => {
@@ -159,16 +300,20 @@ export function VennLaboratory({
         setIntersectionClicked(true);
         playSound('/sounds/correct.mp3');
         setFeedback({ type: 'ok', msg: 'Correto!' });
+        createAlert?.('Correto!', 'A ∩ B é a região onde A e B se sobrepõem.', 'success', 3000);
         setTimeout(() => goTo('fillIntersection'), 800);
       } else {
         playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'Essa não é a região de A ∩ B. Clique onde A e B se sobrepõem.' });
+        createAlert?.('Tente novamente', 'Essa não é a região de A ∩ B. Clique onde A e B se sobrepõem.', 'error', 4000);
       }
       return;
     }
     if (step === 'fillIntersection') {
       if (!armedChip) {
+        playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'Primeiro clique no valor n(A ∩ B) no topo da tela.' });
+        createAlert?.('Falta armar', 'Primeiro clique no valor n(A ∩ B) no topo da tela.', 'error', 4000);
         return;
       }
       if (masksEqual(mask, [true, true])) {
@@ -176,9 +321,11 @@ export function VennLaboratory({
         setArmedChip(null);
         playSound('/sounds/correct.mp3');
         setFeedback({ type: 'ok', msg: 'Correto!' });
+        createAlert?.('Correto!', `n(A ∩ B) = ${nI} depositado em A ∩ B.`, 'success', 3000);
       } else {
         playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'A ∩ B satisfaz A e B ao mesmo tempo.' });
+        createAlert?.('Tente novamente', 'A ∩ B satisfaz A e B ao mesmo tempo.', 'error', 4000);
       }
       return;
     }
@@ -187,10 +334,12 @@ export function VennLaboratory({
         setAMinusBClicked(true);
         playSound('/sounds/correct.mp3');
         setFeedback({ type: 'ok' });
+        createAlert?.('Correto!', 'A − B: região onde A ocorre e B não ocorre.', 'success', 3000);
         setTimeout(() => goTo('fillAMinusB'), 800);
       } else {
         playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'Clique na região em que ocorre A e NÃO ocorre B.' });
+        createAlert?.('Tente novamente', 'Clique na região em que ocorre A e NÃO ocorre B.', 'error', 4000);
       }
       return;
     }
@@ -199,10 +348,12 @@ export function VennLaboratory({
         setBMinusAClicked(true);
         playSound('/sounds/correct.mp3');
         setFeedback({ type: 'ok' });
+        createAlert?.('Correto!', 'B − A: região onde B ocorre e A não ocorre.', 'success', 3000);
         setTimeout(() => goTo('fillBMinusA'), 800);
       } else {
         playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'Clique na região em que ocorre B e NÃO ocorre A.' });
+        createAlert?.('Tente novamente', 'Clique na região em que ocorre B e NÃO ocorre A.', 'error', 4000);
       }
       return;
     }
@@ -221,14 +372,41 @@ export function VennLaboratory({
     if (step === 'placeExpressions') {
       const k = maskKey(mask);
       if (k === maskKey([false, false])) return;  // ignora região externa
+      // Sem expressão armada: se a região já tem uma colocada, REMOVE — permite
+      // ao aluno desfazer/trocar sem precisar dum botão extra de "limpar".
+      // Caso contrário, avisa que precisa armar antes.
       if (!armedExpression) {
+        if (placedExpressions[k]) {
+          setPlacedExpressions(prev => {
+            const next = { ...prev };
+            delete next[k];
+            return next;
+          });
+          playSound('/sounds/clear.mp3');
+          setFeedback({ type: 'none' });
+          return;
+        }
+        playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'Primeiro clique em uma das expressões disponíveis para armá-la.' });
+        createAlert?.('Falta armar', 'Primeiro clique em uma das expressões disponíveis para armá-la.', 'error', 4000);
         return;
       }
-      setPlacedExpressions(prev => ({ ...prev, [k]: armedExpression }));
+      // Sobrescreve: se já havia outra expressão na região, é trocada — e a
+      // expressão recém-colocada deixa de estar "usada" em outras regiões para
+      // evitar duplicação na fórmula final.
+      setPlacedExpressions(prev => {
+        const next = { ...prev };
+        // Remove a expressão armada de qualquer outra região onde estava.
+        for (const key of Object.keys(next)) {
+          if (next[key] === armedExpression && key !== k) delete next[key];
+        }
+        next[k] = armedExpression;
+        return next;
+      });
       setArmedExpression(null);
       setFeedback({ type: 'none' });
       playSound('/sounds/correct.mp3');
+      createAlert?.('Expressão depositada', 'Continue até preencher as 3 regiões.', 'success', 2500);
       return;
     }
     if (step === 'writeUnionFormula') {
@@ -248,9 +426,10 @@ export function VennLaboratory({
       });
       setFormulaUsedRegions(prev => new Set(prev).add(k));
       playSound('/sounds/correct.mp3');
+      createAlert?.('Bom!', `${expr} adicionado à fórmula.`, 'success', 2500);
       return;
     }
-  }, [step, armedChip, armedExpression, formulaSlots, formulaUsedRegions, goTo]);
+  }, [step, armedChip, armedExpression, placedExpressions, formulaSlots, formulaUsedRegions, goTo, createAlert]);
 
 
 
@@ -258,12 +437,14 @@ export function VennLaboratory({
   const handleFormulaChoice = useCallback((choice: string, expected: string, onCorrect: () => void) => {
     if (choice === expected) {
       playSound('/sounds/correct.mp3');
+      createAlert?.('Correto!', `Operação ${expected} selecionada.`, 'success', 3000);
       onCorrect();
     } else {
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Não é essa operação. Pense: quantos elementos estão em A e ainda não foram contados na interseção?' });
+      createAlert?.('Tente novamente', 'Não é essa operação. Pense: quantos elementos estão em A e ainda não foram contados na interseção?', 'error', 5000);
     }
-  }, []);
+  }, [createAlert]);
 
   // Valida a operação numérica digitada (ex: "30-9") na região A-B ou B-A.
   // Aceita espaços e os traços '-' e '−'.
@@ -275,26 +456,34 @@ export function VennLaboratory({
   const validateAMinusBArithmetic = useCallback(() => {
     if (matchesSubtraction(aMinusBInput, nA, nI)) {
       setAMinusBValueDeposited(true);
+      setAMinusBInputError(false);
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
+      createAlert?.('Correto!', `n(A − B) = ${nA} − ${nI} = ${nA - nI}.`, 'success', 3000);
       setTimeout(() => goTo('identifyBMinusA'), 1200);
     } else {
+      setAMinusBInputError(true);
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Preencha com a operação correta em A − B no diagrama.' });
+      createAlert?.('Tente novamente', 'Preencha com a operação correta em A − B no diagrama.', 'error', 4500);
     }
-  }, [aMinusBInput, nA, nI, matchesSubtraction, goTo]);
+  }, [aMinusBInput, nA, nI, matchesSubtraction, goTo, createAlert]);
 
   const validateBMinusAArithmetic = useCallback(() => {
     if (matchesSubtraction(bMinusAInput, nB, nI)) {
       setBMinusAValueDeposited(true);
+      setBMinusAInputError(false);
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
+      createAlert?.('Correto!', `n(B − A) = ${nB} − ${nI} = ${nB - nI}.`, 'success', 3000);
       setTimeout(() => goTo('markUnion'), 1200);
     } else {
+      setBMinusAInputError(true);
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Preencha com a operação correta em B − A no diagrama.' });
+      createAlert?.('Tente novamente', 'Preencha com a operação correta em B − A no diagrama.', 'error', 4500);
     }
-  }, [bMinusAInput, nB, nI, matchesSubtraction, goTo]);
+  }, [bMinusAInput, nB, nI, matchesSubtraction, goTo, createAlert]);
 
   // --- Validadores das operações escritas a partir do diagrama ---
 
@@ -314,25 +503,33 @@ export function VennLaboratory({
     const bMinusA = nB - nI;
     if (matchesSum(unionCountInput, [aMinusB, nI, bMinusA])) {
       setUnionCountAccepted(true);
+      setUnionCountError(false);
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
+      createAlert?.('Correto!', `n(A ∪ B) = ${aMinusB} + ${nI} + ${bMinusA} = ${nU}.`, 'success', 3500);
     } else {
+      setUnionCountError(true);
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Casos em que ocorre apenas A, apenas B ou ambos.' });
+      createAlert?.('Tente novamente', 'Some os valores das três regiões que compõem A ∪ B.', 'error', 4500);
     }
-  }, [unionCountInput, nA, nB, nI, matchesSum]);
+  }, [unionCountInput, nA, nB, nI, matchesSum, createAlert]);
 
   const validateCountAFromDiagram = useCallback(() => {
     const aMinusB = nA - nI;
     if (matchesSum(countAInput, [aMinusB, nI])) {
       setCountAAccepted(true);
+      setCountAError(false);
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
+      createAlert?.('Correto!', `n(A) = ${aMinusB} + ${nI} = ${nA}.`, 'success', 3000);
     } else {
+      setCountAError(true);
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Some os valores das regiões do diagrama que compõem o evento A.' });
+      createAlert?.('Tente novamente', 'Some os valores das regiões do diagrama que compõem o evento A.', 'error', 4500);
     }
-  }, [countAInput, nA, nI, matchesSum]);
+  }, [countAInput, nA, nI, matchesSum, createAlert]);
 
   // --- placeExpressions: clica expressão (arma) + clica região (deposita) ---
   const toggleArmedExpression = useCallback((expr: ExpressionId) => {
@@ -352,24 +549,30 @@ export function VennLaboratory({
     if (allPlaced && allCorrect) {
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
+      createAlert?.('Correto!', 'As 3 expressões estão na região certa.', 'success', 3000);
       setTimeout(() => goTo('writeUnionFormula'), 900);
     } else {
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Verifique as regiões e sua expressão correspondente.' });
+      createAlert?.('Tente novamente', 'Verifique as regiões e sua expressão correspondente.', 'error', 4500);
     }
-  }, [placedExpressions, goTo]);
+  }, [placedExpressions, goTo, createAlert]);
 
   const validateCountBFromDiagram = useCallback(() => {
     const bMinusA = nB - nI;
     if (matchesSum(countBInput, [bMinusA, nI])) {
       setCountBAccepted(true);
+      setCountBError(false);
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
+      createAlert?.('Correto!', `n(B) = ${bMinusA} + ${nI} = ${nB}.`, 'success', 3000);
     } else {
+      setCountBError(true);
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Some os valores das regiões do diagrama que compõem o evento B.' });
+      createAlert?.('Tente novamente', 'Some os valores das regiões do diagrama que compõem o evento B.', 'error', 4500);
     }
-  }, [countBInput, nB, nI, matchesSum]);
+  }, [countBInput, nB, nI, matchesSum, createAlert]);
 
   // --- Sub-etapa 9: confirmação de markUnion ---
   const confirmMarkUnion = useCallback(() => {
@@ -379,16 +582,17 @@ export function VennLaboratory({
     if (correct) {
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok' });
+      createAlert?.('Correto!', 'A ∪ B é formada pelas 3 regiões internas.', 'success', 3000);
       setTimeout(() => goTo('unionCount'), 800);
     } else {
       playSound('/sounds/incorrect.mp3');
-      if (unionSelection.size < 3) {
-        setFeedback({ type: 'err', msg: 'Faltam regiões. A ∪ B inclui pares de A, pares de B ou de ambos.' });
-      } else {
-        setFeedback({ type: 'err', msg: 'Revise: A ∪ B é formada pelas 3 regiões internas.' });
-      }
+      const msg = unionSelection.size < 3
+        ? 'Faltam regiões. A ∪ B inclui pares de A, pares de B ou de ambos.'
+        : 'Revise: A ∪ B é formada pelas 3 regiões internas.';
+      setFeedback({ type: 'err', msg });
+      createAlert?.('Tente novamente', msg, 'error', 4500);
     }
-  }, [unionSelection, goTo]);
+  }, [unionSelection, goTo, createAlert]);
 
   // Avança automaticamente quando os 3 slots de writeUnionFormula são preenchidos
   useEffect(() => {
@@ -400,11 +604,12 @@ export function VennLaboratory({
       if (ok) {
         playSound('/sounds/correct.mp3');
         setFeedback({ type: 'ok', msg: 'Correto!' });
+        createAlert?.('Excelente!', 'Fórmula da união por regiões disjuntas concluída.', 'success', 3500);
         const t = setTimeout(() => goTo('conclusion'), 1200);
         return () => clearTimeout(t);
       }
     }
-  }, [step, formulaSlots, goTo]);
+  }, [step, formulaSlots, goTo, createAlert]);
 
   // Destaque dinâmico no doubleCountQuestion: quando o aluno escolhe uma
   // região no dropdown, ela é destacada no diagrama. A cor do destaque
@@ -456,14 +661,19 @@ export function VennLaboratory({
       playSound('/sounds/correct.mp3');
       setDoubleCountConfirmed(true);
       setFeedback({ type: 'ok' });
+      createAlert?.('Correto!', 'Os pares de A ∩ B são contados duas vezes (uma em A, outra em B).', 'success', 3500);
       setTimeout(() => goTo('numericConclusion'), 900);
     } else if (doubleCountChoice === '') {
+      playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Escolha uma região.' });
+      createAlert?.('Falta escolher', 'Selecione uma região antes de confirmar.', 'error', 3500);
     } else {
       playSound('/sounds/incorrect.mp3');
-      setFeedback({ type: 'err', msg: 'Pense: alguns pares pertencem a A e também a B. Quando você conta A e depois B, quais aparecem duas vezes?' });
+      const msg = 'Pense: alguns pares pertencem a A e também a B. Quando você conta A e depois B, quais aparecem duas vezes?';
+      setFeedback({ type: 'err', msg });
+      createAlert?.('Tente novamente', msg, 'error', 5500);
     }
-  }, [doubleCountChoice, goTo]);
+  }, [doubleCountChoice, goTo, createAlert]);
 
   // Determina quais regiões têm cardinalidade revelada até o momento
   const revealed = useMemo(() => {
@@ -482,14 +692,20 @@ export function VennLaboratory({
     return null;
   }, [step, intersectionClicked, aMinusBClicked, bMinusAClicked]);
 
+  // Cliques no diagrama só são válidos enquanto a sub-etapa não foi "completada".
+  // Depois que o aluno acerta (e o botão Continuar aparece), o SVG fica inerte —
+  // sem isso, um clique acidental durante a espera dispara mensagem de erro.
+  // Exceção: 'placeExpressions' permanece sempre clicável (o aluno precisa
+  // poder corrigir/trocar a atribuição depois de um Conferir errado).
+  const writeUnionFormulaSlotsFilled = formulaSlots.every(s => s !== '');
   const svgClickable =
-    step === 'clickIntersection' ||
-    step === 'fillIntersection' ||
-    step === 'identifyAMinusB' ||
-    step === 'identifyBMinusA' ||
+    (step === 'clickIntersection' && !intersectionClicked) ||
+    (step === 'fillIntersection' && !intersectionValueDeposited) ||
+    (step === 'identifyAMinusB' && !aMinusBClicked) ||
+    (step === 'identifyBMinusA' && !bMinusAClicked) ||
     step === 'markUnion' ||
     step === 'placeExpressions' ||
-    step === 'writeUnionFormula';
+    (step === 'writeUnionFormula' && !writeUnionFormulaSlotsFilled);
 
   return (
     <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[860px] mx-auto">
@@ -539,7 +755,7 @@ export function VennLaboratory({
             margin: '0 auto 12px',
           }}
         >
-          <span className="ds-body-bold text-neutral-black">n(A) + n(B) =</span>
+          <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A) + n(B) =</span>
           <span style={{ color: '#1e40af', fontWeight: 700 }}>({countAInput})</span>
           <span className="ds-body-bold text-neutral-black">+</span>
           <span style={{ color: '#166534', fontWeight: 700 }}>({countBInput})</span>
@@ -607,19 +823,22 @@ export function VennLaboratory({
         let arithmeticMask: MembershipMask | null = null;
         let arithmeticValue = '';
         let arithmeticPlaceholder = '';
+        let arithmeticError = false;
         let onArithmeticChange: ((v: string) => void) | undefined;
         let onArithmeticSubmit: (() => void) | undefined;
         if (step === 'fillAMinusB' && aMinusBFormulaAccepted && !aMinusBValueDeposited) {
           arithmeticMask = [true, false];
           arithmeticValue = aMinusBInput;
           arithmeticPlaceholder = 'operação';
-          onArithmeticChange = setAMinusBInput;
+          arithmeticError = aMinusBInputError;
+          onArithmeticChange = (v) => { setAMinusBInput(v); setAMinusBInputError(false); };
           onArithmeticSubmit = validateAMinusBArithmetic;
         } else if (step === 'fillBMinusA' && bMinusAFormulaAccepted && !bMinusAValueDeposited) {
           arithmeticMask = [false, true];
           arithmeticValue = bMinusAInput;
           arithmeticPlaceholder = 'operação';
-          onArithmeticChange = setBMinusAInput;
+          arithmeticError = bMinusAInputError;
+          onArithmeticChange = (v) => { setBMinusAInput(v); setBMinusAInputError(false); };
           onArithmeticSubmit = validateBMinusAArithmetic;
         }
         return (
@@ -637,6 +856,7 @@ export function VennLaboratory({
             arithmeticMask={arithmeticMask}
             arithmeticValue={arithmeticValue}
             arithmeticPlaceholder={arithmeticPlaceholder}
+            arithmeticError={arithmeticError}
             onArithmeticChange={onArithmeticChange}
             onArithmeticSubmit={onArithmeticSubmit}
             placedExpressions={
@@ -688,16 +908,19 @@ export function VennLaboratory({
         unionSelectionSize={unionSelection.size}
         confirmMarkUnion={confirmMarkUnion}
         unionCountInput={unionCountInput}
-        setUnionCountInput={setUnionCountInput}
+        setUnionCountInput={(v) => { setUnionCountInput(v); setUnionCountError(false); }}
         unionCountAccepted={unionCountAccepted}
+        unionCountError={unionCountError}
         validateUnionCount={validateUnionCount}
         countAInput={countAInput}
-        setCountAInput={setCountAInput}
+        setCountAInput={(v) => { setCountAInput(v); setCountAError(false); }}
         countAAccepted={countAAccepted}
+        countAError={countAError}
         validateCountAFromDiagram={validateCountAFromDiagram}
         countBInput={countBInput}
-        setCountBInput={setCountBInput}
+        setCountBInput={(v) => { setCountBInput(v); setCountBError(false); }}
         countBAccepted={countBAccepted}
+        countBError={countBError}
         validateCountBFromDiagram={validateCountBFromDiagram}
         sumABFilledA={sumABFilledA}
         sumABFilledB={sumABFilledB}
@@ -734,6 +957,7 @@ interface VennSVGProps {
   arithmeticMask: MembershipMask | null;
   arithmeticValue: string;
   arithmeticPlaceholder: string;
+  arithmeticError?: boolean;
   onArithmeticChange?: (v: string) => void;
   onArithmeticSubmit?: () => void;
   placedExpressions?: Record<string, ExpressionId>;
@@ -746,7 +970,7 @@ function VennSVG({
   descriptionsOutside, revealedCardinalities,
   highlightedMask, selectedMasks,
   clickable, armedCursor, onRegionClick,
-  arithmeticMask, arithmeticValue, arithmeticPlaceholder,
+  arithmeticMask, arithmeticValue, arithmeticPlaceholder, arithmeticError,
   onArithmeticChange, onArithmeticSubmit,
   placedExpressions, flashingMask, flashUnionRegions,
 }: Readonly<VennSVGProps>) {
@@ -1005,11 +1229,12 @@ function VennSVG({
                 onKeyDown={(e) => { if (e.key === 'Enter') onArithmeticSubmit?.(); }}
                 placeholder={arithmeticPlaceholder}
                 aria-label="Digite a operação"
+                aria-invalid={arithmeticError}
                 style={{
                   width: '100%', height: '100%', boxSizing: 'border-box',
                   textAlign: 'center',
                   fontSize: 14, fontWeight: 700,
-                  border: '2px solid var(--color-brand-otimath-pure)',
+                  border: `2px solid ${arithmeticError ? 'var(--color-feedback-error-dark)' : 'var(--color-brand-otimath-pure)'}`,
                   borderRadius: 6,
                   background: 'var(--color-neutral-white)',
                   outline: 'none',
@@ -1103,7 +1328,7 @@ function StepInstruction({
         <p className="ds-body text-neutral-black text-justify">
           Neste laboratório, você irá construir e analisar dois eventos no lançamento de dois dados:
         </p>
-        <ul className="mt-nano mb-micro" style={{ paddingLeft: '1.5rem', listStyle: 'disc' }}>
+        <ul className="mt-nano mb-micro pl-[1.5rem] list-disc">
           <li className="ds-body text-neutral-black mb-quarck">
             <strong>Evento A:</strong> {toLowercaseArticle(eventADescription)}
           </li>
@@ -1114,7 +1339,7 @@ function StepInstruction({
         <p className="ds-body text-neutral-black text-justify">
           A partir desses eventos, observe:
         </p>
-        <ul className="mt-nano mb-micro" style={{ paddingLeft: '1.5rem', listStyle: 'disc' }}>
+        <ul className="mt-nano mb-micro pl-[1.5rem] list-disc">
           <li className="ds-body text-neutral-black mb-quarck">quais resultados pertencem ao evento A;</li>
           <li className="ds-body text-neutral-black mb-quarck">quais pertencem ao evento B;</li>
           <li className="ds-body text-neutral-black mb-quarck">quais resultados pertencem aos <strong>dois eventos ao mesmo tempo</strong> (interseção);</li>
@@ -1313,14 +1538,17 @@ interface StepControlsProps {
   unionCountInput: string;
   setUnionCountInput: (s: string) => void;
   unionCountAccepted: boolean;
+  unionCountError: boolean;
   validateUnionCount: () => void;
   countAInput: string;
   setCountAInput: (s: string) => void;
   countAAccepted: boolean;
+  countAError: boolean;
   validateCountAFromDiagram: () => void;
   countBInput: string;
   setCountBInput: (s: string) => void;
   countBAccepted: boolean;
+  countBError: boolean;
   validateCountBFromDiagram: () => void;
   sumABFilledA: boolean;
   sumABFilledB: boolean;
@@ -1345,9 +1573,9 @@ function StepControls(props: Readonly<StepControlsProps>) {
     aMinusBFormulaAccepted, aMinusBValueDeposited, onAMinusBFormula, validateAMinusBArithmetic,
     bMinusAFormulaAccepted, bMinusAValueDeposited, onBMinusAFormula, validateBMinusAArithmetic,
     unionSelectionSize, confirmMarkUnion,
-    unionCountInput, setUnionCountInput, unionCountAccepted, validateUnionCount,
-    countAInput, setCountAInput, countAAccepted, validateCountAFromDiagram,
-    countBInput, setCountBInput, countBAccepted, validateCountBFromDiagram,
+    unionCountInput, setUnionCountInput, unionCountAccepted, unionCountError, validateUnionCount,
+    countAInput, setCountAInput, countAAccepted, countAError, validateCountAFromDiagram,
+    countBInput, setCountBInput, countBAccepted, countBError, validateCountBFromDiagram,
     sumABFilledA, sumABFilledB, onSumABClickA, onSumABClickB,
     placedExpressionsCount, confirmPlaceExpressions, formulaSlots,
     conclusionPhase,
@@ -1462,13 +1690,14 @@ function StepControls(props: Readonly<StepControlsProps>) {
     return (
       <div className="flex flex-col items-center gap-y-nano mt-micro">
         <div className="flex items-center gap-x-xxxs">
-          <span className="ds-body-bold text-neutral-black">n(A ∪ B) =</span>
+          <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A ∪ B) =</span>
           <ExpressionInput
             value={unionCountInput}
             onChange={setUnionCountInput}
             onSubmit={validateUnionCount}
             disabled={unionCountAccepted}
             placeholder="operação"
+            error={unionCountError}
           />
         </div>
         {!unionCountAccepted ? (
@@ -1477,7 +1706,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
           </Button>
         ) : (
           <>
-            <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+            <p className="ds-body-bold text-center text-feedback-success-dark">
               ✓ n(A ∪ B) = {unionCountInput} = <strong>{aMinusB + nI + bMinusA}</strong>
             </p>
             <Button style="primary" size="small" onClick={() => goTo('countAFromDiagram')}>
@@ -1493,13 +1722,14 @@ function StepControls(props: Readonly<StepControlsProps>) {
     return (
       <div className="flex flex-col items-center gap-y-nano mt-micro">
         <div className="flex items-center gap-x-xxxs">
-          <span className="ds-body-bold text-neutral-black">n(A) =</span>
+          <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A) =</span>
           <ExpressionInput
             value={countAInput}
             onChange={setCountAInput}
             onSubmit={validateCountAFromDiagram}
             disabled={countAAccepted}
             placeholder="operação"
+            error={countAError}
           />
         </div>
         {!countAAccepted ? (
@@ -1508,7 +1738,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
           </Button>
         ) : (
           <>
-            <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+            <p className="ds-body-bold text-center text-feedback-success-dark">
               ✓ n(A) = {countAInput} = <strong>{nA}</strong>
             </p>
             <Button style="primary" size="small" onClick={() => goTo('countBFromDiagram')}>
@@ -1524,13 +1754,14 @@ function StepControls(props: Readonly<StepControlsProps>) {
     return (
       <div className="flex flex-col items-center gap-y-nano mt-micro">
         <div className="flex items-center gap-x-xxxs">
-          <span className="ds-body-bold text-neutral-black">n(B) =</span>
+          <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(B) =</span>
           <ExpressionInput
             value={countBInput}
             onChange={setCountBInput}
             onSubmit={validateCountBFromDiagram}
             disabled={countBAccepted}
             placeholder="operação"
+            error={countBError}
           />
         </div>
         {!countBAccepted ? (
@@ -1539,7 +1770,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
           </Button>
         ) : (
           <>
-            <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+            <p className="ds-body-bold text-center text-feedback-success-dark">
               ✓ n(B) = {countBInput} = <strong>{nB}</strong>
             </p>
             <Button style="primary" size="small" onClick={() => goTo('sumAB')}>
@@ -1568,7 +1799,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
     };
     return (
       <div className="flex flex-col items-center gap-y-micro mt-micro">
-        <div className="flex items-center gap-x-micro flex-wrap justify-center">
+        <div className="flex items-center gap-x-micro gap-y-nano flex-wrap justify-center">
           <span className="ds-body-bold text-neutral-black">Expressões disponíveis:</span>
           <button
             type="button"
@@ -1590,7 +1821,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
           </button>
         </div>
         <div
-          className="flex items-center flex-wrap justify-center"
+          className="flex items-center justify-center overflow-x-auto"
           style={{
             gap: 4,
             padding: '10px 14px',
@@ -1599,7 +1830,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
             border: '1px solid var(--color-brand-otimath-light)',
           }}
         >
-          <span className="ds-body-bold text-neutral-black">n(A) + n(B) =</span>
+          <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A) + n(B) =</span>
           <span style={{
             padding: '2px 8px',
             borderRadius: 6,
@@ -1695,7 +1926,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
             border: '2px solid var(--color-brand-otimath-pure)',
           }}
         >
-          <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+          <p className="ds-body-bold text-center mb-nano text-brand-otimath-dark">
             Logo:
           </p>
           <p className="ds-body-bold text-center text-neutral-black">
@@ -1704,7 +1935,7 @@ function StepControls(props: Readonly<StepControlsProps>) {
             {' '}+{' '}
             <span style={{ color: '#166534' }}>({countBInput})</span>
             {' '}−{' '}
-            <span style={{ color: 'var(--color-brand-otimath-dark)' }}>{nI}</span>
+            <span className="text-brand-otimath-dark">{nI}</span>
           </p>
           <p className="ds-body-bold text-center mt-nano text-neutral-black">
             n(A ∪ B) = {aMinusB} + {nI} + {bMinusA} = <strong>{nU}</strong>
@@ -1744,27 +1975,27 @@ function StepControls(props: Readonly<StepControlsProps>) {
             border: '2px solid var(--color-brand-otimath-pure)',
           }}
         >
-          <p className="ds-body-bold mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+          <p className="ds-body-bold mb-nano text-brand-otimath-dark">
             Sabemos que:
           </p>
           <p className="ds-body text-neutral-black text-justify">
             <strong>(i)</strong>&nbsp; n(A ∪ B) ={' '}
-            <strong style={{ color: '#1e40af' }}>n(A − B)</strong>
+            <strong style={{ color: '#1e40af', whiteSpace: 'nowrap' }}>n(A − B)</strong>
             {' '}+ n(A ∩ B) +{' '}
-            <strong style={{ color: '#166534' }}>n(B − A)</strong>.
+            <strong style={{ color: '#166534', whiteSpace: 'nowrap' }}>n(B − A)</strong>.
           </p>
 
           {conclusionPhase >= 1 && (
             <p className="ds-body text-neutral-black mt-nano venn-fade-in text-justify">
               <strong>(ii)</strong>&nbsp;{' '}
-              <span style={{ color: '#1e40af' }}>n(A − B) = n(A) − n(A ∩ B)</span>
+              <span style={{ color: '#1e40af', whiteSpace: 'nowrap' }}>n(A − B) = n(A) − n(A ∩ B)</span>
             </p>
           )}
 
           {conclusionPhase >= 2 && (
             <p className="ds-body text-neutral-black mt-nano venn-fade-in text-justify">
               <strong>(iii)</strong>&nbsp;{' '}
-              <span style={{ color: '#166534' }}>n(B − A) = n(B) − n(A ∩ B)</span>
+              <span style={{ color: '#166534', whiteSpace: 'nowrap' }}>n(B − A) = n(B) − n(A ∩ B)</span>
             </p>
           )}
 
@@ -1777,9 +2008,9 @@ function StepControls(props: Readonly<StepControlsProps>) {
           {conclusionPhase >= 4 && (
             <p className="ds-body-bold text-center mt-nano text-neutral-black venn-fade-in">
               n(A ∪ B) ={' '}
-              <span style={{ color: '#1e40af' }}>n(A) − n(A ∩ B)</span>
+              <span style={{ color: '#1e40af', whiteSpace: 'nowrap' }}>n(A) − n(A ∩ B)</span>
               {' '}+ n(A ∩ B) +{' '}
-              <span style={{ color: '#166534' }}>n(B) − n(A ∩ B)</span>
+              <span style={{ color: '#166534', whiteSpace: 'nowrap' }}>n(B) − n(A ∩ B)</span>
             </p>
           )}
 
@@ -1993,7 +2224,7 @@ function ExpressionChipsRow({
 function FormulaSlotsRow({ slots }: { slots: string[] }) {
   return (
     <div
-      className="flex justify-center items-center flex-wrap mb-micro"
+      className="flex justify-center items-center mb-micro overflow-x-auto"
       style={{
         gap: 6,
         padding: '6px 12px',
@@ -2004,7 +2235,7 @@ function FormulaSlotsRow({ slots }: { slots: string[] }) {
         margin: '0 auto 12px',
       }}
     >
-      <span className="ds-body-bold" style={{ color: COLOR_U }}>n(A ∪ B) =</span>
+      <span className="ds-body-bold" style={{ color: COLOR_U, whiteSpace: 'nowrap' }}>n(A ∪ B) =</span>
       {slots.map((slot, i) => (
         <React.Fragment key={i}>
           <span
@@ -2032,13 +2263,14 @@ function FormulaSlotsRow({ slots }: { slots: string[] }) {
 // Usado nas sub-etapas unionCount / countAFromDiagram / countBFromDiagram
 // ═══════════════════════════════════════════════════════════════
 function ExpressionInput({
-  value, onChange, onSubmit, disabled, placeholder,
+  value, onChange, onSubmit, disabled, placeholder, error,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   disabled: boolean;
   placeholder: string;
+  error?: boolean;
 }) {
   return (
     <input
@@ -2050,10 +2282,11 @@ function ExpressionInput({
       placeholder={placeholder}
       disabled={disabled}
       aria-label="Digite a operação"
+      aria-invalid={error}
       style={{
         padding: '8px 12px',
         borderRadius: 8,
-        border: '2px solid var(--color-brand-otimath-pure)',
+        border: `2px solid ${error ? 'var(--color-feedback-error-dark)' : 'var(--color-brand-otimath-pure)'}`,
         background: disabled ? 'var(--color-neutral-lightest)' : 'var(--color-neutral-white)',
         textAlign: 'center',
         fontSize: '1rem',
@@ -2100,7 +2333,7 @@ function FormulaDropdown({
         </Button>
       )}
       {disabled && computedDisplay && (
-        <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+        <p className="ds-body-bold text-center text-feedback-success-dark">
           ✓ {computedDisplay}
         </p>
       )}

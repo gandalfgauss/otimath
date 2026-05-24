@@ -44,10 +44,10 @@ export function ValuesRecallPanel({
         border: '1px solid var(--color-brand-otimath-light)',
       }}
     >
-      <p className="ds-caption-bold text-center text-neutral-dark mb-nano" style={{ fontSize: '0.78rem' }}>
+      <p className="ds-caption-bold text-center text-neutral-dark mb-nano text-[0.78rem]">
         Valores calculados nas etapas anteriores
       </p>
-      <div className="flex items-center justify-center" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <div className="flex items-center justify-center gap-micro flex-wrap">
         {nA !== undefined && item('n(A) =', nA, EVENT_COLORS['A'])}
         {nB !== undefined && item('n(B) =', nB, EVENT_COLORS['B'])}
         {nI !== undefined && item('n(A ∩ B) =', nI, EVENT_COLORS['A∩B'])}

@@ -24,7 +24,8 @@
    Acessibilidade:
      • Fechamento por Escape, clique fora, botão Fechar.
      • role="dialog" + aria-modal="true" + aria-labelledby.
-     • Foco volta ao botão que abriu o modal (gerenciado pelo pai).
+     • Foco inicial no botão "Li!"; ao fechar, foco retorna ao
+       elemento que o disparou (capturado em previouslyFocused).
    ═══════════════════════════════════════════════════════════════ */
 
 import React, { useCallback, useEffect, useRef } from 'react';
@@ -38,16 +39,30 @@ interface ComplementaryReviewModalProps {
 
 export function ComplementaryReviewModal({ open, onClose }: ComplementaryReviewModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
   const scrollPositionRef = useRef<number>(0);
 
-  // Tecla Escape fecha
+  // Escape fecha + gerenciamento de foco (captura antes, restaura depois).
+  // Sem isso, ao fechar o modal o foco caía no <body> e o usuário de
+  // teclado perdia o lugar; agora retorna ao botão que abriu o modal.
   useEffect(() => {
     if (!open) return;
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
     };
     document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
+    // Foco inicial no próprio dialog (tabIndex=-1) para que leitores de
+    // tela anunciem o título e o Tab subsequente leve ao primeiro
+    // elemento focável dentro do diálogo (X de fechar).
+    requestAnimationFrame(() => dialogRef.current?.focus());
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+      previouslyFocused.current?.focus?.();
+    };
   }, [open, onClose]);
 
   // Trava scroll do body enquanto modal está aberto
@@ -71,31 +86,26 @@ export function ComplementaryReviewModal({ open, onClose }: ComplementaryReviewM
     <div
       ref={dialogRef}
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-opacity-modal"
-      style={{ background: 'rgba(0, 0, 0, 0.55)' }}
+      tabIndex={-1}
+      // `bg-opacity-modal` é o token padrão de overlay do DS (≈ 0.8 black).
+      className="fixed inset-0 z-50 flex items-center justify-center bg-opacity-modal outline-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="comp-review-title"
     >
       <div
-        className="bg-neutral-white rounded-md flex flex-col max-h-[calc(100vh-32px)]"
-        style={{
-          width: 720,
-          maxWidth: 'calc(100% - 32px)',
-          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.25)',
-        }}
+        // `w-[720px] max-w-[calc(100%-32px)]` — largura fixa em desktop,
+        // margem segura em telas estreitas. `shadow-level-4` dá elevação
+        // condizente com modais críticos.
+        className="bg-neutral-white rounded-md flex flex-col max-h-[calc(100vh-32px)] w-[720px] max-w-[calc(100%-32px)] shadow-level-4"
       >
         {/* Header */}
         <div className="flex items-start justify-between p-xxs border-b border-neutral-lightest">
           <div>
-            <p className="ds-overline" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+            <p className="ds-overline text-brand-otimath-pure">
               Revisão
             </p>
-            <h2
-              id="comp-review-title"
-              className="ds-body-large-bold"
-              style={{ color: 'var(--color-brand-otimath-darkest)' }}
-            >
+            <h2 id="comp-review-title" className="ds-body-large-bold text-brand-otimath-darkest">
               Conceitos do Disco Probabilístico
             </h2>
           </div>
@@ -111,17 +121,8 @@ export function ComplementaryReviewModal({ open, onClose }: ComplementaryReviewM
         {/* Conteúdo — 3 seções */}
         <div className="overflow-y-auto p-xxs flex flex-col gap-xs">
           {/* Seção 1 — Eventos Complementares */}
-          <section
-            className="rounded-md p-xxs"
-            style={{
-              background: 'var(--color-brand-otimath-lightest)',
-              borderLeft: '4px solid var(--color-brand-otimath-pure)',
-            }}
-          >
-            <h3
-              className="ds-body-bold mb-micro"
-              style={{ color: 'var(--color-brand-otimath-darkest)' }}
-            >
+          <section className="rounded-md p-xxs bg-brand-otimath-lightest border-l-4 border-brand-otimath-pure">
+            <h3 className="ds-body-bold mb-micro text-brand-otimath-darkest">
               1. Evento complementar
             </h3>
             <p className="ds-body text-neutral-darkest mb-micro">
@@ -131,66 +132,45 @@ export function ComplementaryReviewModal({ open, onClose }: ComplementaryReviewM
             </p>
             <p className="ds-body text-neutral-darkest">
               Exemplo do disco:{' '}
-              <span style={{ color: '#CC8800', fontWeight: 700 }}>A em dourado</span>
+              {/* Cores literais do disco (dourado/ciano) — não há token de
+                  marca equivalente para esses dois matizes específicos
+                  usados na cena visual. */}
+              <span className="font-bold text-[#CC8800]">A em dourado</span>
               {' '}e{' '}
-              <span style={{ color: '#00838F', fontWeight: 700 }}>Ā em ciano</span>
+              <span className="font-bold text-[#00838F]">Ā em ciano</span>
               {' '}cobriam o disco inteiro, sem sobreposição.
             </p>
           </section>
 
           {/* Seção 2 — Soma das probabilidades = 1 */}
-          <section
-            className="rounded-md p-xxs"
-            style={{
-              background: 'var(--color-feedback-success-lighter)',
-              borderLeft: '4px solid var(--color-feedback-success-dark)',
-            }}
-          >
-            <h3
-              className="ds-body-bold mb-micro"
-              style={{ color: 'var(--color-feedback-success-darkest)' }}
-            >
+          <section className="rounded-md p-xxs bg-feedback-success-lighter border-l-4 border-feedback-success-dark">
+            <h3 className="ds-body-bold mb-micro text-feedback-success-darkest">
               2. Soma das probabilidades complementares
             </h3>
             <p className="ds-body text-neutral-darkest mb-micro">
               Como A e Ā <strong>cobrem todo o espaço amostral sem sobreposição</strong>:
             </p>
-            <ul className="ds-body text-neutral-darkest mb-micro" style={{ listStyle: 'none', paddingLeft: 0 }}>
-              <li>• <strong>A ∪ Ā = S</strong> (cobre o espaço amostral)</li>
-              <li>• <strong>A ∩ Ā = ∅</strong> (não se sobrepõem)</li>
+            <ul className="ds-body text-neutral-darkest mb-micro list-none pl-0">
+              <li>• <strong className="whitespace-nowrap">A ∪ Ā = S</strong> (cobre o espaço amostral)</li>
+              <li>• <strong className="whitespace-nowrap">A ∩ Ā = ∅</strong> (não se sobrepõem)</li>
             </ul>
             <p className="ds-body text-neutral-darkest mb-micro">
               Logo:
             </p>
-            <p
-              className="ds-body-large-bold text-center my-micro"
-              style={{ color: 'var(--color-feedback-success-darkest)' }}
-            >
+            <p className="ds-body-large-bold text-center my-micro text-feedback-success-darkest whitespace-nowrap">
               P(A) + P(Ā) = 1
             </p>
             <p className="ds-body text-neutral-darkest">
               Isolando, obtemos a fórmula que vamos usar nesta seção:
             </p>
-            <p
-              className="ds-body-large-bold text-center my-micro"
-              style={{ color: 'var(--color-feedback-success-darkest)' }}
-            >
+            <p className="ds-body-large-bold text-center my-micro text-feedback-success-darkest whitespace-nowrap">
               P(A) = 1 − P(Ā)
             </p>
           </section>
 
           {/* Seção 3 — Eventos Mutuamente Exclusivos */}
-          <section
-            className="rounded-md p-xxs"
-            style={{
-              background: 'var(--color-feedback-info-lighter)',
-              borderLeft: '4px solid var(--color-feedback-info-dark)',
-            }}
-          >
-            <h3
-              className="ds-body-bold mb-micro"
-              style={{ color: 'var(--color-feedback-info-darkest)' }}
-            >
+          <section className="rounded-md p-xxs bg-feedback-info-lighter border-l-4 border-feedback-info-dark">
+            <h3 className="ds-body-bold mb-micro text-feedback-info-darkest">
               3. Eventos mutuamente exclusivos (disjuntos)
             </h3>
             <p className="ds-body text-neutral-darkest mb-micro">
@@ -202,23 +182,17 @@ export function ComplementaryReviewModal({ open, onClose }: ComplementaryReviewM
               Em outras palavras: se A acontece, B não acontece — e vice-versa. Eles{' '}
               <strong>não têm resultados em comum</strong>.
             </p>
-            <p
-              className="ds-body-large-bold text-center my-micro"
-              style={{ color: 'var(--color-feedback-info-darkest)' }}
-            >
+            <p className="ds-body-large-bold text-center my-micro text-feedback-info-darkest whitespace-nowrap">
               A ∩ B = ∅
             </p>
             <p className="ds-body text-neutral-darkest">
               <strong>Importante:</strong> A e Ā são, por definição, mutuamente exclusivos —
-              é por isso que P(A ∪ Ā) = P(A) + P(Ā).
+              é por isso que <span className="whitespace-nowrap">P(A ∪ Ā) = P(A) + P(Ā)</span>.
             </p>
           </section>
 
           {/* Aviso de reuso conceitual */}
-          <p
-            className="ds-caption text-center mt-micro"
-            style={{ color: 'var(--color-neutral-dark)', fontStyle: 'italic' }}
-          >
+          <p className="ds-caption text-center mt-micro text-neutral-dark italic">
             Estes conceitos foram trabalhados no OVA Disco Probabilístico Aleatório
             e serão reusados nesta seção do OVA Dois Dados.
           </p>
@@ -226,9 +200,14 @@ export function ComplementaryReviewModal({ open, onClose }: ComplementaryReviewM
 
         {/* Footer — botão "Li!" segue convenção do OVA Disco
              (RouletteGame.tsx, fase definition). Ao clicar, fecha o
-             modal e devolve o foco ao enunciado da atividade. */}
+             modal e devolve o foco ao elemento que o disparou. */}
         <div className="p-xxs border-t border-neutral-lightest flex justify-end">
-          <Button style="primary" size="small" icon={<Check aria-hidden="true" />} onClick={onClose}>
+          <Button
+            style="primary"
+            size="small"
+            icon={<Check aria-hidden="true" />}
+            onClick={onClose}
+          >
             Li!
           </Button>
         </div>

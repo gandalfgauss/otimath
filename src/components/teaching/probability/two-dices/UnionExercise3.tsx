@@ -79,6 +79,8 @@ interface UnionExercise3Props {
   onRequestPreviousPhase?: () => void;
   /** Passo inicial ao montar. Default: 'intro'. */
   initialStep?: ExStep;
+  /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
 }
 
 export interface UnionExercise3Handle {
@@ -111,7 +113,7 @@ function HistoryChip({
 }: { label: string; num: number; den: number; color: string }) {
   return (
     <div
-      className="flex items-center flex-wrap gap-x-nano"
+      className="flex items-center flex-wrap gap-x-nano gap-y-nano"
       style={{
         padding: '5px 10px',
         borderRadius: 8,
@@ -124,10 +126,10 @@ function HistoryChip({
         {label} =
       </span>
       <FracH top={num} bottom={den} color={color} size="0.9rem" />
-      <span style={{ color: 'var(--color-neutral-darkest)', fontSize: '0.8rem' }}>
+      <span className="text-neutral-darkest text-[0.8rem]">
         ≈ {formatDecimal(num, den, 3)}
       </span>
-      <span style={{ color: 'var(--color-neutral-darkest)', fontSize: '0.8rem' }}>
+      <span className="text-neutral-darkest text-[0.8rem]">
         ≈ {formatPercent(num, den, 1)}
       </span>
     </div>
@@ -147,8 +149,7 @@ function ProgressIndicator({ step }: { step: ExStep }) {
   const currentIdx = STEP_SEQUENCE.indexOf(step);
   return (
     <div
-      className="flex items-center justify-center gap-x-micro mb-micro"
-      style={{ flexWrap: 'wrap', rowGap: 6 }}
+      className="flex items-center justify-center gap-x-micro mb-micro flex-wrap gap-y-[6px]"
       aria-label="Progresso do exercício"
     >
       {PROGRESS_LABELS.map(({ step: s, label }) => {
@@ -231,7 +232,7 @@ function validateFractionSeparate(
 // ═══════════════════════════════════════════════════════════════
 
 export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Props>(
-  function UnionExercise3({ onFinished, onRequestPreviousPhase, initialStep }, ref) {
+  function UnionExercise3({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
     const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
     const [round, setRound] = useState(0);
     const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());
@@ -353,16 +354,34 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
     const validateMarkA = useCallback(() => {
       const fb = evaluateMarks(marksA, correctSets.A);
       setFeedbackA(fb);
-      if (fb === 'none') { playSound('/sounds/correct.mp3'); setStep('markB'); }
-      else { playSound('/sounds/incorrect.mp3'); }
-    }, [marksA, correctSets.A, evaluateMarks]);
+      if (fb === 'none') {
+        playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Marcação do evento A completa.', 'success', 3000);
+        setStep('markB');
+      } else if (fb === 'incomplete') {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares.', 'warning', 4000);
+      } else {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Revise a marcação', 'Há marcações que não satisfazem o evento A.', 'error', 4000);
+      }
+    }, [marksA, correctSets.A, evaluateMarks, createAlert]);
 
     const validateMarkB = useCallback(() => {
       const fb = evaluateMarks(marksB, correctSets.B);
       setFeedbackB(fb);
-      if (fb === 'none') { playSound('/sounds/correct.mp3'); setStep('markAmB'); }
-      else { playSound('/sounds/incorrect.mp3'); }
-    }, [marksB, correctSets.B, evaluateMarks]);
+      if (fb === 'none') {
+        playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Marcação do evento B completa.', 'success', 3000);
+        setStep('markAmB');
+      } else if (fb === 'incomplete') {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares.', 'warning', 4000);
+      } else {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Revise a marcação', 'Há marcações que não satisfazem o evento B.', 'error', 4000);
+      }
+    }, [marksB, correctSets.B, evaluateMarks, createAlert]);
 
     const validateMarkAmB = useCallback(() => {
       // Caso A∩B=∅: A−B = A. Ainda assim a validação funciona (correctSets.AmB é calculado).
@@ -372,18 +391,29 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
         if (markedCount === 0) {
           setFeedbackAmB('none');
           playSound('/sounds/correct.mp3');
+          createAlert?.('Correto!', 'A − B = ∅ (A está contido em B).', 'success', 3500);
           setStep('markBmA');
         } else {
           setFeedbackAmB('wrong');
           playSound('/sounds/incorrect.mp3');
+          createAlert?.('Tente novamente', 'A − B é vazio neste caso — não marque nenhuma célula.', 'error', 5000);
         }
         return;
       }
       const fb = evaluateMarks(marksAmB, correctSets.AmB);
       setFeedbackAmB(fb);
-      if (fb === 'none') { playSound('/sounds/correct.mp3'); setStep('markBmA'); }
-      else { playSound('/sounds/incorrect.mp3'); }
-    }, [marksAmB, correctSets.AmB, correctSets.nAmB, evaluateMarks]);
+      if (fb === 'none') {
+        playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Marcação de A − B completa.', 'success', 3000);
+        setStep('markBmA');
+      } else if (fb === 'incomplete') {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de A − B.', 'warning', 4000);
+      } else {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Revise a marcação', 'A − B: pares que satisfazem A mas NÃO satisfazem B.', 'error', 4500);
+      }
+    }, [marksAmB, correctSets.AmB, correctSets.nAmB, evaluateMarks, createAlert]);
 
     const validateMarkBmA = useCallback(() => {
       const markedCount = matrixToKeySet(marksBmA).size;
@@ -391,27 +421,44 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
         if (markedCount === 0) {
           setFeedbackBmA('none');
           playSound('/sounds/correct.mp3');
+          createAlert?.('Correto!', 'B − A = ∅ (B está contido em A).', 'success', 3500);
           setStep('calcPAmB');
         } else {
           setFeedbackBmA('wrong');
           playSound('/sounds/incorrect.mp3');
+          createAlert?.('Tente novamente', 'B − A é vazio neste caso — não marque nenhuma célula.', 'error', 5000);
         }
         return;
       }
       const fb = evaluateMarks(marksBmA, correctSets.BmA);
       setFeedbackBmA(fb);
-      if (fb === 'none') { playSound('/sounds/correct.mp3'); setStep('calcPAmB'); }
-      else { playSound('/sounds/incorrect.mp3'); }
-    }, [marksBmA, correctSets.BmA, correctSets.nBmA, evaluateMarks]);
+      if (fb === 'none') {
+        playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Marcação de B − A completa.', 'success', 3000);
+        setStep('calcPAmB');
+      } else if (fb === 'incomplete') {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de B − A.', 'warning', 4000);
+      } else {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Revise a marcação', 'B − A: pares que satisfazem B mas NÃO satisfazem A.', 'error', 4500);
+      }
+    }, [marksBmA, correctSets.BmA, correctSets.nBmA, evaluateMarks, createAlert]);
 
     // ── Validações de cálculo ────────────────────────────────────
     const validatePAmB = useCallback(() => {
       const v = validateFractionSeparate(pAmBNum, pAmBDen, correctSets.nAmB, 36);
       setPAmBNumError(v.numError);
       setPAmBDenError(v.denError);
-      if (v.ok) { playSound('/sounds/correct.mp3'); setStep('calcPBmA'); }
-      else { playSound('/sounds/incorrect.mp3'); }
-    }, [pAmBNum, pAmBDen, correctSets.nAmB]);
+      if (v.ok) {
+        playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', `P(A − B) = ${correctSets.nAmB}/36.`, 'success', 3000);
+        setStep('calcPBmA');
+      } else {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'P(A − B) = n(A − B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+      }
+    }, [pAmBNum, pAmBDen, correctSets.nAmB, createAlert]);
 
     const validatePBmA = useCallback(() => {
       const v = validateFractionSeparate(pBmANum, pBmADen, correctSets.nBmA, 36);
@@ -420,9 +467,13 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
       if (v.ok) {
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
+        createAlert?.('Excelente!', `P(B − A) = ${correctSets.nBmA}/36. Exercício concluído.`, 'success', 4000);
         setStep('done');
-      } else { playSound('/sounds/incorrect.mp3'); }
-    }, [pBmANum, pBmADen, correctSets.nBmA]);
+      } else {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'P(B − A) = n(B − A) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+      }
+    }, [pBmANum, pBmADen, correctSets.nBmA, createAlert]);
 
     // ── Reset ────────────────────────────────────────────────────
     const resetForNewRound = useCallback((newRound: number) => {
@@ -515,14 +566,14 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
       if (fb === 'none') return null;
       if (fb === 'wrong') {
         return (
-          <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+          <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
             Há células marcadas que <strong>não pertencem</strong> ao evento. Revise sua seleção.
           </p>
         );
       }
       const diff = expected - marked;
       return (
-        <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-warning-dark)', fontWeight: 600 }}>
+        <p className="ds-small mt-nano text-center text-feedback-warning-dark font-medium">
           Faltam <strong>{diff}</strong> {diff === 1 ? 'célula' : 'células'} para completar a marcação.
         </p>
       );
@@ -578,7 +629,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
         {/* Enunciado fixo */}
         {step !== 'intro' && step !== 'done' && (
           <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter mb-micro" data-ex-panel>
-            <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+            <p className="ds-body-bold text-center mb-nano text-brand-otimath-dark">
               No lançamento simultâneo de dois dados equilibrados, considere os eventos:
             </p>
             <div className="flex flex-col md:flex-row gap-micro justify-center items-stretch">
@@ -597,14 +648,14 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-body text-neutral-black mb-micro text-justify">
               Neste exercício você vai identificar dois eventos derivados de A e B:
             </p>
-            <ul className="ds-body text-neutral-black mb-micro" style={{ paddingLeft: 24, listStyle: 'disc', lineHeight: 1.7 }}>
+            <ul className="ds-body text-neutral-black mb-micro pl-xxs list-disc leading-relaxed">
               <li><strong style={{ color: EVENT_COLORS['A-B'] }}>A − B</strong>: casos em que <em>A ocorre</em> e <em>B não ocorre</em></li>
               <li><strong style={{ color: EVENT_COLORS['B-A'] }}>B − A</strong>: casos em que <em>B ocorre</em> e <em>A não ocorre</em></li>
             </ul>
             <p className="ds-body text-neutral-black mb-micro text-justify">
               As marcações de A e B servem apenas para você visualizar a estrutura.
-              Depois você calculará apenas <strong>P(A − B)</strong> e{' '}
-              <strong>P(B − A)</strong>.
+              Depois você calculará apenas <strong className="whitespace-nowrap">P(A − B)</strong> e{' '}
+              <strong className="whitespace-nowrap">P(B − A)</strong>.
             </p>
             <div className="flex justify-center mt-macro">
               <Button
@@ -647,7 +698,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
               aria-expanded={!historyCollapsed}
             >
-              <span className="ds-caption-bold" style={{ fontSize: '0.78rem' }}>
+              <span className="ds-caption-bold text-[0.78rem]">
                 Valores já calculados ({historyChips.length} conquistas)
               </span>
               <span aria-hidden style={{ fontWeight: 700 }}>
@@ -726,8 +777,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             </p>
             {feedbackAmB !== 'none' && (
               <p
-                className="ds-small mt-micro text-center"
-                style={{ color: 'var(--color-feedback-warning-dark)', fontWeight: 600 }}
+                className="ds-small mt-micro text-center text-feedback-warning-dark font-medium"
               >
                 Estamos marcando os casos em que <strong>A ocorre</strong> mas{' '}
                 <strong>B não ocorre</strong>.
@@ -757,8 +807,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             </p>
             {feedbackBmA !== 'none' && (
               <p
-                className="ds-small mt-micro text-center"
-                style={{ color: 'var(--color-feedback-warning-dark)', fontWeight: 600 }}
+                className="ds-small mt-micro text-center text-feedback-warning-dark font-medium"
               >
                 Estamos marcando os casos em que <strong>B ocorre</strong> mas{' '}
                 <strong>A não ocorre</strong>.
@@ -785,8 +834,8 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-body text-neutral-black mt-nano text-justify">
               Qual é a probabilidade de ocorrer A e não ocorrer B?
             </p>
-            <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['A-B'] }}>P(A − B) =</span>
+            <div className="flex items-center justify-center gap-x-micro mt-micro">
+              <span className="ds-body-bold" style={{ color: EVENT_COLORS['A-B'], whiteSpace: 'nowrap' }}>P(A − B) =</span>
               <FractionInput
                 num={pAmBNum} den={pAmBDen}
                 setNum={setPAmBNum} setDen={setPAmBDen}
@@ -795,12 +844,12 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
               />
             </div>
             {pAmBNumError && (
-              <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+              <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                 Digite corretamente o número de casos favoráveis ao evento.
               </p>
             )}
             {pAmBDenError && (
-              <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+              <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                 Digite o total de casos possíveis no lançamento de dois dados.
               </p>
             )}
@@ -819,8 +868,8 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-body text-neutral-black mt-nano text-justify">
               Qual é a probabilidade de ocorrer B e não ocorrer A?
             </p>
-            <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['B-A'] }}>P(B − A) =</span>
+            <div className="flex items-center justify-center gap-x-micro mt-micro">
+              <span className="ds-body-bold" style={{ color: EVENT_COLORS['B-A'], whiteSpace: 'nowrap' }}>P(B − A) =</span>
               <FractionInput
                 num={pBmANum} den={pBmADen}
                 setNum={setPBmANum} setDen={setPBmADen}
@@ -829,12 +878,12 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
               />
             </div>
             {pBmANumError && (
-              <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+              <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                 Digite corretamente o número de casos favoráveis ao evento.
               </p>
             )}
             {pBmADenError && (
-              <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+              <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                 Digite o total de casos possíveis no lançamento de dois dados.
               </p>
             )}
@@ -850,8 +899,8 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
               🎯 Exercício 3 concluído
             </p>
-            <div className="bg-neutral-white rounded-md p-micro mb-micro" style={{ border: '2px solid var(--color-brand-otimath-pure)' }}>
-              <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+            <div className="bg-neutral-white rounded-md p-micro mb-micro border-2 border-brand-otimath-pure">
+              <p className="ds-body-bold text-center mb-nano text-brand-otimath-dark">
                 Resumo das probabilidades
               </p>
               <div className="flex flex-wrap gap-x-micro gap-y-nano justify-center mt-nano">

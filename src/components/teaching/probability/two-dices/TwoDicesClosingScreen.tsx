@@ -354,12 +354,12 @@ export function TwoDicesClosingScreen({
             </p>
           ) : (
             <ul className="flex flex-col gap-y-quarck">
-              {biases.map((b: BiasOccurrence) => (
+              {biases.map((b: BiasOccurrence, i: number) => (
                 <li
-                  key={b.code + b.name}
+                  key={`${b.code}-${b.name}-${i}`}
                   className="p-micro rounded-sm border-thin border-feedback-warning-darkest bg-feedback-warning-lighter"
                 >
-                  <div className="flex items-center justify-between gap-x-micro flex-wrap">
+                  <div className="flex items-center justify-between gap-x-micro gap-y-nano flex-wrap">
                     <span className="ds-body-bold text-feedback-warning-darkest">
                       {b.code} — {b.name}
                     </span>
@@ -428,7 +428,7 @@ export function TwoDicesClosingScreen({
                 className="flex flex-col gap-y-quarck p-micro rounded-md border-hairline border-neutral-lightest bg-neutral-white"
                 aria-labelledby={`perf-title-${phase.id}`}
               >
-                <header className="flex items-center justify-between gap-x-micro flex-wrap">
+                <header className="flex items-center justify-between gap-x-micro gap-y-nano flex-wrap">
                   <h4 id={`perf-title-${phase.id}`} className="ds-body-bold text-brand-otimath-darker">
                     {phase.title}
                   </h4>
@@ -509,8 +509,10 @@ export function TwoDicesClosingScreen({
         )}
         <a
           href={nextOvaHref}
-          className="ds-body-bold inline-flex items-center gap-x-quarck bg-brand-otimath-pure text-neutral-white rounded-md no-underline"
-          style={{ padding: '12px 24px', textDecoration: 'none' }}
+          // CTA primário — mesma paleta e geometria do <Button style="primary">,
+          // porém renderizado como <a> para navegação real (não JS).
+          // Inclui transição, hover e focus ring para paridade de UX.
+          className="ds-body-bold inline-flex items-center gap-x-quarck bg-brand-otimath-pure text-neutral-white rounded-md no-underline px-xxs py-macro transition-colors duration-200 hover:bg-brand-otimath-medium focus:outline-none focus:ring-2 focus:ring-brand-otimath-dark focus:ring-offset-2"
         >
           Ir para o próximo OVA da sequência
           <ArrowRight size={18} aria-hidden="true" />

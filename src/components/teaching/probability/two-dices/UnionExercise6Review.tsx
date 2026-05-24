@@ -29,11 +29,12 @@ import React, {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { TextBlock } from '@/components/global/TextBlock';
-import { TwoDicesGameSingleShot } from './TwoDicesGameSingleShot';
+import { TwoDicesGameSingleShot, type TwoDicesGameSingleShotHandle } from './TwoDicesGameSingleShot';
 import { StudyMenu } from './shared/StudyMenu';
 import {
   buildEx6Session,
@@ -48,7 +49,9 @@ import {
 import type { SingleShotStepKind } from '@/hooks/teaching/probability/two-dices/useTwoDicesSingleShotHooks';
 import { playSound } from '@/hooks/global/useSound';
 import { logStudyMenuOpened } from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Check } from 'lucide-react';
+import { SequenceStatsCard } from '@/components/teaching/probability/SequenceStatsCard';
+import { freezeOva, getSequenceStats, unfreezeOva, useSequenceTick } from '@/hooks/teaching/probability/useSequenceSession';
 
 type Step = 'intro' | 'round1' | 'transition' | 'round2' | 'finalSynthesis';
 
@@ -66,6 +69,11 @@ interface UnionExercise6Props {
   onRequestAdvancedFreePlay?: () => void;
   onRequestPreviousPhase?: () => void;
   initialStep?: Step;
+  /** Quando true, o botão "Ex7" aparece desabilitado com indicador de
+   *  conclusão. O estudante já realizou esse exercício opcional. */
+  ex7Completed?: boolean;
+  /** Análogo para o Ex8. */
+  ex8Completed?: boolean;
 }
 
 export interface UnionExercise6Handle {
@@ -84,7 +92,15 @@ interface RoundOutcome {
 
 export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExercise6Props>(
   function UnionExercise6Review(
-    { onFinished, onRequestFreePlay, onRequestAdvancedFreePlay, onRequestPreviousPhase, initialStep = 'intro' },
+    {
+      onFinished,
+      onRequestFreePlay,
+      onRequestAdvancedFreePlay,
+      onRequestPreviousPhase,
+      initialStep = 'intro',
+      ex7Completed = false,
+      ex8Completed = false,
+    },
     ref,
   ) {
     const [step, setStep] = useState<Step>(initialStep);
@@ -93,6 +109,13 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
     const [studyMenuOpen, setStudyMenuOpen] = useState(false);
     const [lastErrorStep, setLastErrorStep] = useState<SingleShotStepKind | null>(null);
     const [pulseHelp, setPulseHelp] = useState(false);
+
+    // Refs dos sub-componentes single-shot (rodadas 1 e 2) — permitem ao
+    // DEV avançar pelos 5 sub-passos internos (mark-A → mark-B → mark-D →
+    // identify-operation → compute-probability) em vez de pular a rodada
+    // inteira via STEP_SEQUENCE.
+    const round1ShotRef = useRef<TwoDicesGameSingleShotHandle>(null);
+    const round2ShotRef = useRef<TwoDicesGameSingleShotHandle>(null);
 
     const [round1Outcome, setRound1Outcome] = useState<RoundOutcome>({
       candidateId: session[0].candidate.id,
@@ -115,6 +138,20 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       ref,
       () => ({
         advance: () => {
+          // Durante rodada 1 ou 2, delega para o handle do TwoDicesGameSingleShot
+          // — assim o DEV percorre cada sub-passo (mark-A → mark-B → mark-D →
+          // identify-operation → compute-probability) antes de transitar. Quando
+          // o último sub-passo é alcançado, o próprio SingleShot chama
+          // onChallengeFinished, que faz handleRound1Finished/handleRound2Finished
+          // mover o STEP_SEQUENCE adiante.
+          if (step === 'round1' && round1ShotRef.current) {
+            round1ShotRef.current.advance();
+            return;
+          }
+          if (step === 'round2' && round2ShotRef.current) {
+            round2ShotRef.current.advance();
+            return;
+          }
           const idx = STEP_SEQUENCE.indexOf(step);
           if (idx >= 0 && idx < STEP_SEQUENCE.length - 1) {
             setStep(STEP_SEQUENCE[idx + 1]);
@@ -148,6 +185,18 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       const t = setTimeout(() => setPulseHelp(false), 3000);
       return () => clearTimeout(t);
     }, [lastErrorStep]);
+
+    /* ──────────────────────────────────────────────────────────────
+       Congela o cronômetro do OVA Dois Dados quando o aluno chega na
+       tela de "Parabéns" (finalSynthesis) — onde aparece o card de
+       estatísticas. Descongela se ele voltar para uma rodada via DEV
+       ou via "Voltar". Sem isso, o tempo continuaria avançando dentro
+       do card enquanto o aluno permanece ali considerando Ex7/Ex8.
+       ──────────────────────────────────────────────────────────── */
+    useEffect(() => {
+      if (step === 'finalSynthesis') freezeOva('twoDices');
+      else                            unfreezeOva('twoDices');
+    }, [step]);
 
     const handleStepError = useCallback((stepKind: SingleShotStepKind) => {
       setLastErrorStep(stepKind);
@@ -248,7 +297,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
         {/* ─── RODADA 1 ─── */}
         {step === 'round1' && (
           <div className="flex flex-col gap-y-xxs">
-            <div className="flex justify-between items-center gap-x-micro flex-wrap">
+            <div className="flex justify-between items-center gap-x-micro gap-y-nano flex-wrap">
               <h3 className="ds-heading-large text-brand-otimath-darker">
                 Rodada 1 de 2 — {session[0].operation === 'Union' ? 'União (∪)' : 'Interseção (∩)'}
               </h3>
@@ -256,6 +305,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
             </div>
             <FeedbackBanner />
             <TwoDicesGameSingleShot
+              ref={round1ShotRef}
               candidate={session[0].candidate}
               onChallengeFinished={handleRound1Finished}
               onStepError={handleStepError}
@@ -285,7 +335,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
         {/* ─── RODADA 2 ─── */}
         {step === 'round2' && (
           <div className="flex flex-col gap-y-xxs">
-            <div className="flex justify-between items-center gap-x-micro flex-wrap">
+            <div className="flex justify-between items-center gap-x-micro gap-y-nano flex-wrap">
               <h3 className="ds-heading-large text-brand-otimath-darker">
                 Rodada 2 de 2 — {session[1].operation === 'Union' ? 'União (∪)' : 'Interseção (∩)'}
               </h3>
@@ -293,6 +343,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
             </div>
             <FeedbackBanner />
             <TwoDicesGameSingleShot
+              ref={round2ShotRef}
               candidate={session[1].candidate}
               onChallengeFinished={handleRound2Finished}
               onStepError={handleStepError}
@@ -307,11 +358,11 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
               Parabéns! Você concluiu o OVA Probabilidade Dois Dados
             </h2>
             <TextBlock
-              paragraph={`<p class="ds-body">Os conceitos centrais — <strong>espaço amostral 6×6 equiprovável</strong>, <strong>eventos compostos</strong> por união e interseção, e <strong>cálculo de P(D) = n(D)/36</strong> — foram exercitados.</p><p class="ds-body">Resumo:</p><ul class="ds-body" style="text-align:left; max-width:560px; margin: 0 auto; padding-left: 24px;"><li>Rodada 1 (${session[0].operation === 'Union' ? 'União' : 'Interseção'}): ${round1Outcome.errorsCount === 0 ? 'sem erros' : `${round1Outcome.errorsCount} ${round1Outcome.errorsCount === 1 ? 'erro' : 'erros'} antes do acerto`}.</li><li>Rodada 2 (${session[1].operation === 'Union' ? 'União' : 'Interseção'}): ${round2Outcome.errorsCount === 0 ? 'sem erros' : `${round2Outcome.errorsCount} ${round2Outcome.errorsCount === 1 ? 'erro' : 'erros'} antes do acerto`}.</li></ul><p class="ds-body">Você pode <strong>finalizar o OVA agora</strong> ou seguir para uma das duas vias opcionais de Fixação: o <strong>Ex7 — Fixação básica</strong> (jogo completo com 12 eventos fixos) ou o <strong>Ex8 — Fixação avançada</strong> (pool ampliado de ~50 eventos parametrizados, com progressão de dificuldade e marcação sequencial A → B → D). Use a fixação para consolidar o que aprendeu antes de fechar.</p>`}
+              paragraph={`<p class="ds-body">Você pode <strong>finalizar o OVA agora</strong> ou seguir para uma das duas vias opcionais de Fixação: o <strong>Ex7 — Fixação básica</strong> (jogo completo com 12 eventos fixos) ou o <strong>Ex8 — Fixação avançada</strong> (pool ampliado de ~50 eventos parametrizados, com progressão de dificuldade e marcação sequencial A → B → D). Use a fixação para consolidar o que aprendeu antes de finalizar.</p>`}
               maxWidthParagraph="max-w-[700px]"
               centralize={true}
             />
-            <div className="flex gap-x-micro flex-wrap justify-center">
+            <div className="flex gap-x-micro gap-y-micro flex-wrap justify-center">
               <Button style="borderless" size="small" onClick={() => {
                 logStudyMenuOpened('unionExercise6', step, initialGlossaryEntryId);
                 setStudyMenuOpen(true);
@@ -319,18 +370,46 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
                 Revisar conceitos
               </Button>
               {onRequestFreePlay && (
-                <Button style="secondary" size="small" onClick={onRequestFreePlay}>
-                  Ex7 — Fixação básica (Opcional)
-                </Button>
+                ex7Completed ? (
+                  <span
+                    className="ds-small-bold inline-flex items-center gap-x-quarck px-micro py-quarck rounded-md bg-feedback-success-lighter text-feedback-success-darkest border-hairline border-feedback-success-dark"
+                    aria-label="Exercício 7 concluído"
+                    title="Exercício 7 concluído"
+                  >
+                    <Check size={16} strokeWidth={3} aria-hidden="true" />
+                    Ex7 — Concluído
+                  </span>
+                ) : (
+                  <Button style="secondary" size="small" onClick={onRequestFreePlay}>
+                    Ex7 — Fixação básica (Opcional)
+                  </Button>
+                )
               )}
               {onRequestAdvancedFreePlay && (
-                <Button style="secondary" size="small" onClick={onRequestAdvancedFreePlay}>
-                  Ex8 — Fixação avançada (Opcional)
-                </Button>
+                ex8Completed ? (
+                  <span
+                    className="ds-small-bold inline-flex items-center gap-x-quarck px-micro py-quarck rounded-md bg-feedback-success-lighter text-feedback-success-darkest border-hairline border-feedback-success-dark"
+                    aria-label="Exercício 8 concluído"
+                    title="Exercício 8 concluído"
+                  >
+                    <Check size={16} strokeWidth={3} aria-hidden="true" />
+                    Ex8 — Concluído
+                  </span>
+                ) : (
+                  <Button style="secondary" size="small" onClick={onRequestAdvancedFreePlay}>
+                    Ex8 — Fixação avançada (Opcional)
+                  </Button>
+                )
               )}
               <Button style="primary" size="medium" onClick={onFinished}>
                 Finalizar OVA
               </Button>
+            </div>
+
+            {/* Card de estatísticas do OVA Dois Dados — mesma estrutura
+                do card que aparece na tela final da sequência. */}
+            <div className="w-full max-w-[760px] mt-xxs">
+              <TwoDicesFinalStats />
             </div>
           </div>
         )}
@@ -346,3 +425,14 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
     );
   },
 );
+
+// ─────────────────────────────────────────────────────────────────
+// Card de estatísticas do OVA Dois Dados — exibido na tela final
+// (finalSynthesis). Hook `useSequenceTick` mantém o cronômetro vivo
+// caso o aluno permaneça aqui antes de finalizar o OVA.
+// ─────────────────────────────────────────────────────────────────
+function TwoDicesFinalStats() {
+  useSequenceTick(1000);
+  const { twoDices } = getSequenceStats();
+  return <SequenceStatsCard title="OVA Dois Dados" stats={twoDices} />;
+}

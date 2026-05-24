@@ -11,6 +11,7 @@
      • Display mostra expressão + resultado quando calculado
      • Avaliação por parser manual (nunca eval — segurança)
      • Colapsável via botão toggle
+     • Botões com transição, hover e focus ring (a11y)
    ═══════════════════════════════════════════════════════════════ */
 
 import React, { useState } from 'react';
@@ -27,12 +28,31 @@ function safeEvaluate(expr: string): number {
   if (!tokens) return NaN;
   let result = 0;
   for (const t of tokens) {
-    const n = parseInt(t, 10);
+    const n = Number.parseInt(t, 10);
     if (Number.isNaN(n)) return NaN;
     result += n;
   }
   return result;
 }
+
+// Classe base para todas as teclas do teclado da calculadora.
+// Mantém uma única fonte de verdade para padding, borda, cursor,
+// transição e focus ring — evitando duplicar o style inline em cada
+// botão (anti-padrão anterior). Botões de operação herdam essa base
+// e sobrescrevem cor/fundo via `KEY_OP_CLASSES`.
+const KEY_BASE_CLASSES =
+  'px-micro py-quarck rounded-sm border-hairline cursor-pointer text-base font-bold min-w-[40px] ' +
+  'transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure ' +
+  'disabled:opacity-40 disabled:cursor-not-allowed';
+
+const KEY_DIGIT_CLASSES =
+  KEY_BASE_CLASSES + ' border-neutral-lighter bg-neutral-white text-neutral-darkest hover:bg-neutral-lightest';
+
+const KEY_OP_CLASSES =
+  KEY_BASE_CLASSES + ' border-brand-otimath-light bg-brand-otimath-lightest text-brand-otimath-dark hover:bg-brand-otimath-lighter';
+
+const KEY_CLEAR_CLASSES =
+  KEY_BASE_CLASSES + ' border-neutral-lighter bg-neutral-white text-feedback-error-dark hover:bg-feedback-error-lightest';
 
 export function SimpleCalculator() {
   const [open, setOpen] = useState(false);
@@ -75,106 +95,66 @@ export function SimpleCalculator() {
     );
   }
 
-  const keyBtnStyle: React.CSSProperties = {
-    padding: '8px 12px',
-    borderRadius: 6,
-    border: '1px solid var(--color-neutral-lighter)',
-    background: 'var(--color-neutral-white)',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: 700,
-    color: 'var(--color-neutral-darkest)',
-    minWidth: 40,
-  };
-  const opBtnStyle: React.CSSProperties = {
-    ...keyBtnStyle,
-    background: 'var(--color-brand-otimath-lightest)',
-    color: 'var(--color-brand-otimath-dark)',
-    border: '1px solid var(--color-brand-otimath-light)',
-  };
-
   return (
     <div
-      className="my-micro mx-auto rounded-md"
-      style={{
-        background: 'var(--color-neutral-lightest)',
-        border: '2px solid var(--color-neutral-lighter)',
-        padding: 12,
-        maxWidth: 280,
-      }}
+      className="my-micro mx-auto rounded-md bg-neutral-lightest border-thin border-neutral-lighter p-micro max-w-[280px]"
       role="region"
       aria-label="Calculadora de adição e subtração"
     >
       <div className="flex justify-between items-center mb-micro">
-        <span className="ds-caption-bold" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+        <span className="ds-caption-bold text-brand-otimath-dark">
           🧮 Calculadora
         </span>
         <button
           type="button"
           onClick={() => setOpen(false)}
           aria-label="Fechar calculadora"
-          style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: 'var(--color-neutral-dark)', fontSize: '1.2rem', padding: '0 6px',
-          }}
+          className="bg-transparent border-none cursor-pointer text-neutral-dark px-quarck text-md hover:text-brand-otimath-pure focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure rounded-sm transition-colors duration-200"
         >
           ×
         </button>
       </div>
 
-      {/* Display */}
+      {/* Display — usa `font-mono` para alinhamento de dígitos e
+          `aria-live="polite"` para que leitores de tela anunciem o
+          resultado quando o aluno aperta "=". */}
       <div
         aria-live="polite"
-        style={{
-          background: 'var(--color-neutral-white)',
-          border: '1px solid var(--color-neutral-lighter)',
-          borderRadius: 6,
-          padding: '8px 10px',
-          minHeight: 54,
-          textAlign: 'right',
-          marginBottom: 8,
-          fontFamily: 'monospace',
-        }}
+        className="bg-neutral-white border-hairline border-neutral-lighter rounded-sm px-micro py-quarck min-h-[54px] text-right mb-quarck font-mono"
       >
-        <div
-          style={{ color: 'var(--color-neutral-dark)', fontSize: '0.9rem', wordWrap: 'break-word' }}
-        >
+        <div className="text-neutral-dark text-sm break-words">
           {expression || '0'}
         </div>
         {result !== null && (
-          <div
-            style={{
-              color: 'var(--color-brand-otimath-dark)',
-              fontSize: '1.1rem',
-              fontWeight: 700,
-            }}
-          >
+          <div className="text-brand-otimath-dark text-base font-bold">
             = {result}
           </div>
         )}
       </div>
 
-      {/* Teclado */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-        <button type="button" onClick={clearAll} style={{ ...keyBtnStyle, color: 'var(--color-feedback-error-dark)' }} aria-label="Limpar">C</button>
-        <button type="button" onClick={backspace} style={keyBtnStyle} aria-label="Apagar último dígito">⌫</button>
-        <button type="button" onClick={() => append('-')} style={opBtnStyle} aria-label="Subtração">−</button>
-        <button type="button" onClick={() => append('+')} style={opBtnStyle} aria-label="Adição">+</button>
+      {/* Teclado — grid 4 colunas. Botões usam classes derivadas
+          (KEY_DIGIT_CLASSES / KEY_OP_CLASSES / KEY_CLEAR_CLASSES)
+          em vez de objetos de style inline. */}
+      <div className="grid grid-cols-4 gap-quarck">
+        <button type="button" onClick={clearAll} className={KEY_CLEAR_CLASSES} aria-label="Limpar">C</button>
+        <button type="button" onClick={backspace} className={KEY_DIGIT_CLASSES} aria-label="Apagar último dígito">⌫</button>
+        <button type="button" onClick={() => append('-')} className={KEY_OP_CLASSES} aria-label="Subtração">−</button>
+        <button type="button" onClick={() => append('+')} className={KEY_OP_CLASSES} aria-label="Adição">+</button>
 
         {['7', '8', '9'].map(d => (
-          <button type="button" key={d} onClick={() => append(d)} style={keyBtnStyle} aria-label={d}>{d}</button>
+          <button type="button" key={d} onClick={() => append(d)} className={KEY_DIGIT_CLASSES} aria-label={d}>{d}</button>
         ))}
-        <button type="button" onClick={calculate} style={{ ...opBtnStyle, gridRow: 'span 3' }} aria-label="Igual">=</button>
+        <button type="button" onClick={calculate} className={`${KEY_OP_CLASSES} row-span-3`} aria-label="Igual">=</button>
 
         {['4', '5', '6'].map(d => (
-          <button type="button" key={d} onClick={() => append(d)} style={keyBtnStyle} aria-label={d}>{d}</button>
+          <button type="button" key={d} onClick={() => append(d)} className={KEY_DIGIT_CLASSES} aria-label={d}>{d}</button>
         ))}
 
         {['1', '2', '3'].map(d => (
-          <button type="button" key={d} onClick={() => append(d)} style={keyBtnStyle} aria-label={d}>{d}</button>
+          <button type="button" key={d} onClick={() => append(d)} className={KEY_DIGIT_CLASSES} aria-label={d}>{d}</button>
         ))}
 
-        <button type="button" onClick={() => append('0')} style={{ ...keyBtnStyle, gridColumn: 'span 3' }} aria-label="0">0</button>
+        <button type="button" onClick={() => append('0')} className={`${KEY_DIGIT_CLASSES} col-span-3`} aria-label="0">0</button>
       </div>
     </div>
   );

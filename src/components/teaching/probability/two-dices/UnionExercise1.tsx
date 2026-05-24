@@ -100,6 +100,8 @@ interface UnionExercise1Props {
   /** Passo inicial ao montar. Default: 'intro'. Use 'done' para re-entrar
    *  no fim do exercício (via seta "voltar" do próximo exercício). */
   initialStep?: ExStep;
+  /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
 }
 
 export interface UnionExercise1Handle {
@@ -121,7 +123,7 @@ function HistoryChip({
 }: { label: string; num: number; den: number; color: string }) {
   return (
     <div
-      className="flex items-center flex-wrap gap-x-nano"
+      className="flex items-center flex-wrap gap-x-nano gap-y-nano"
       style={{
         padding: '5px 10px',
         borderRadius: 8,
@@ -134,10 +136,10 @@ function HistoryChip({
         {label} =
       </span>
       <FracH top={num} bottom={den} color={color} size="0.9rem" />
-      <span style={{ color: 'var(--color-neutral-darkest)', fontSize: '0.8rem' }}>
+      <span className="text-neutral-darkest text-[0.8rem]">
         ≈ {formatDecimal(num, den, 3)}
       </span>
-      <span style={{ color: 'var(--color-neutral-darkest)', fontSize: '0.8rem' }}>
+      <span className="text-neutral-darkest text-[0.8rem]">
         ≈ {formatPercent(num, den, 1)}
       </span>
     </div>
@@ -268,8 +270,7 @@ function ProgressIndicator({ step }: { step: ExStep }) {
   const currentIdx = STEP_SEQUENCE.indexOf(step);
   return (
     <div
-      className="flex items-center justify-center gap-x-micro mb-micro"
-      style={{ flexWrap: 'wrap', rowGap: 6 }}
+      className="flex items-center justify-center gap-x-micro mb-micro flex-wrap gap-y-[6px]"
       aria-label="Progresso do exercício"
     >
       {PROGRESS_LABELS.map(({ step: s, label }) => {
@@ -307,7 +308,7 @@ function ProgressIndicator({ step }: { step: ExStep }) {
 // ═══════════════════════════════════════════════════════════════
 
 export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Props>(
-  function UnionExercise1({ onFinished, onRequestPreviousPhase, initialStep }, ref) {
+  function UnionExercise1({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
     // ── Estado de rodada e par ───────────────────────────────────
     const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
     const [round, setRound] = useState(0);
@@ -483,33 +484,48 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       setFeedbackA(fb);
       if (fb === 'none') {
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Marcação do evento A completa.', 'success', 3000);
         setStep('markB');
+      } else if (fb === 'incomplete') {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares.', 'warning', 4000);
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Revise a marcação', 'Há marcações que não satisfazem o evento A.', 'error', 4000);
       }
-    }, [marksA, correctSets.A, evaluateMarks]);
+    }, [marksA, correctSets.A, evaluateMarks, createAlert]);
 
     const validateMarkB = useCallback(() => {
       const fb = evaluateMarks(marksB, correctSets.B);
       setFeedbackB(fb);
       if (fb === 'none') {
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Marcação do evento B completa.', 'success', 3000);
         setStep('markI');
+      } else if (fb === 'incomplete') {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares.', 'warning', 4000);
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Revise a marcação', 'Há marcações que não satisfazem o evento B.', 'error', 4000);
       }
-    }, [marksB, correctSets.B, evaluateMarks]);
+    }, [marksB, correctSets.B, evaluateMarks, createAlert]);
 
     const validateMarkI = useCallback(() => {
       const fb = evaluateMarks(marksI, correctSets.I);
       setFeedbackI(fb);
       if (fb === 'none') {
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Marcação de A ∩ B completa.', 'success', 3000);
         setStep('calcPA');
+      } else if (fb === 'incomplete') {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de A ∩ B.', 'warning', 4000);
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Revise a marcação', 'Verifique se cada par satisfaz A e B ao mesmo tempo.', 'error', 4000);
       }
-    }, [marksI, correctSets.I, evaluateMarks]);
+    }, [marksI, correctSets.I, evaluateMarks, createAlert]);
 
     const validatePA = useCallback(() => {
       const num = parseInt(pANum.trim(), 10);
@@ -529,6 +545,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
         setPANumError(false);
         setPADenError(false);
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', `P(A) = ${correctSets.nA}/36.`, 'success', 3000);
         setStep('calcPB');
         return;
       }
@@ -540,7 +557,8 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       setPANumError(numFailed || !numValid);
       setPADenError(denFailed);
       playSound('/sounds/incorrect.mp3');
-    }, [pANum, pADen, correctSets.nA]);
+      createAlert?.('Tente novamente', 'P(A) = n(A) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+    }, [pANum, pADen, correctSets.nA, createAlert]);
 
     const validatePB = useCallback(() => {
       const num = parseInt(pBNum.trim(), 10);
@@ -561,6 +579,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
         setPBNumError(false);
         setPBDenError(false);
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', `P(B) = ${correctSets.nB}/36.`, 'success', 3000);
         setStep('calcPAB');
         return;
       }
@@ -573,24 +592,28 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       setPBNumError(numFailed || !numValid);
       setPBDenError(denFailed);
       playSound('/sounds/incorrect.mp3');
-    }, [pBNum, pBDen, correctSets.nB]);
+      createAlert?.('Tente novamente', 'P(B) = n(B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+    }, [pBNum, pBDen, correctSets.nB, createAlert]);
 
     const validatePAB = useCallback(() => {
       if (pABExpr !== 'AnB') {
         setPABExprError(true);
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Escolha a expressão correta para a interseção.', 'error', 4000);
         return;
       }
       setPABExprError(false);
       if (isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36)) {
         setPABError(false);
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', `P(A ∩ B) = ${correctSets.nI}/36.`, 'success', 3000);
         setStep('calcPAUB');
       } else {
         setPABError(true);
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'P(A ∩ B) = n(A ∩ B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
       }
-    }, [pABExpr, pABNum, pABDen, correctSets.nI]);
+    }, [pABExpr, pABNum, pABDen, correctSets.nI, createAlert]);
 
     const validatePAUB = useCallback(() => {
       // 1. Checa que as 3 substituições equivalem às probabilidades calculadas
@@ -601,6 +624,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
         setSubError(true);
         setPAUBError(false);
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Substitua P(A), P(B) e P(A ∩ B) pelos valores que você calculou.', 'error', 5000);
         return;
       }
       setSubError(false);
@@ -609,15 +633,18 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
         setPAUBError(false);
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
+        createAlert?.('Excelente!', `P(A ∪ B) = ${correctSets.nU}/36. Exercício concluído.`, 'success', 4000);
         setStep('done');
       } else {
         setPAUBError(true);
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Aplique P(A ∪ B) = P(A) + P(B) − P(A ∩ B).', 'error', 4500);
       }
     }, [
       subANum, subADen, subBNum, subBDen, subINum, subIDen,
       pAUBNum, pAUBDen,
       correctSets.nA, correctSets.nB, correctSets.nI, correctSets.nU,
+      createAlert,
     ]);
 
     // ── Reset para nova rodada ───────────────────────────────────
@@ -766,8 +793,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       if (fb === 'wrong') {
         return (
           <p
-            className="ds-small mt-nano text-center"
-            style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+            className="ds-small mt-nano text-center text-feedback-error-dark font-medium"
           >
             Há células marcadas que <strong>não pertencem</strong> ao evento. Revise sua
             seleção na tabela.
@@ -777,8 +803,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       const diff = expected - marked;
       return (
         <p
-          className="ds-small mt-nano text-center"
-          style={{ color: 'var(--color-feedback-warning-dark)', fontWeight: 600 }}
+          className="ds-small mt-nano text-center text-feedback-warning-dark font-medium"
         >
           Faltam <strong>{diff}</strong> {diff === 1 ? 'célula' : 'células'} para completar
           a marcação.
@@ -833,7 +858,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter mb-micro"
             data-ex-panel
           >
-            <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+            <p className="ds-body-bold text-center mb-nano text-brand-otimath-dark">
               No lançamento simultâneo de dois dados equilibrados, considere os eventos:
             </p>
             <div className="flex flex-col md:flex-row gap-micro justify-center items-stretch">
@@ -860,10 +885,10 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             <p className="ds-body text-neutral-black mb-micro text-justify">
               A sequência é:
             </p>
-            <ul className="ds-body text-neutral-black mb-micro" style={{ paddingLeft: 24, listStyle: 'disc', lineHeight: 1.7 }}>
-              <li>Marcar os casos favoráveis a <strong>A</strong>, <strong>B</strong> e <strong>A ∩ B</strong> na tabela 6×6</li>
-              <li>Calcular <strong>P(A)</strong>, <strong>P(B)</strong> e <strong>P(A ∩ B)</strong></li>
-              <li>Aplicar a fórmula: <strong>P(A ∪ B) = P(A) + P(B) − P(A ∩ B)</strong></li>
+            <ul className="ds-body text-neutral-black mb-micro pl-xxs list-disc leading-relaxed">
+              <li>Marcar os casos favoráveis a <strong>A</strong>, <strong>B</strong> e <strong className="whitespace-nowrap">A ∩ B</strong> na tabela 6×6</li>
+              <li>Calcular <strong className="whitespace-nowrap">P(A)</strong>, <strong className="whitespace-nowrap">P(B)</strong> e <strong className="whitespace-nowrap">P(A ∩ B)</strong></li>
+              <li>Aplicar a fórmula: <strong className="whitespace-nowrap">P(A ∪ B) = P(A) + P(B) − P(A ∩ B)</strong></li>
             </ul>
             <p className="ds-small text-neutral-dark mb-micro text-justify italic">
               Sugestão: sempre que for calcular, consulte os <em>n</em>s congelados no histórico
@@ -919,7 +944,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               }}
               aria-expanded={!historyCollapsed}
             >
-              <span className="ds-caption-bold" style={{ fontSize: '0.78rem' }}>
+              <span className="ds-caption-bold text-[0.78rem]">
                 Valores já calculados ({
                   (step === 'markB' ? 0 : 0) +
                   (['markI','calcPA','calcPB','calcPAB','calcPAUB'].includes(step) ? 0 : 0)
@@ -1053,8 +1078,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             </p>
             {feedbackI !== 'none' && (
               <p
-                className="ds-small mt-micro text-center"
-                style={{ color: 'var(--color-feedback-warning-dark)', fontWeight: 600 }}
+                className="ds-small mt-micro text-center text-feedback-warning-dark font-medium"
               >
                 Estamos marcando elementos de A ∩ B, ou seja, casos que satisfazem A e B ao
                 mesmo tempo.
@@ -1092,8 +1116,8 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             <p className="ds-body text-neutral-black mt-nano text-justify">
               Qual é a probabilidade de ocorrer o evento A?
             </p>
-            <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['A'] }}>
+            <div className="flex items-center justify-center gap-x-micro mt-micro">
+              <span className="ds-body-bold" style={{ color: EVENT_COLORS['A'], whiteSpace: 'nowrap' }}>
                 P(A) =
               </span>
               <FractionInput
@@ -1105,16 +1129,14 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             </div>
             {pANumError && (
               <p
-                className="ds-small mt-nano text-center"
-                style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                className="ds-small mt-nano text-center text-feedback-error-dark font-medium"
               >
                 Digite corretamente o número de casos favoráveis ao evento.
               </p>
             )}
             {pADenError && (
               <p
-                className="ds-small mt-nano text-center"
-                style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                className="ds-small mt-nano text-center text-feedback-error-dark font-medium"
               >
                 Digite o total de casos possíveis no lançamento de dois dados.
               </p>
@@ -1139,8 +1161,8 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             <p className="ds-body text-neutral-black mt-nano text-justify">
               Qual é a probabilidade de ocorrer o evento B?
             </p>
-            <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['B'] }}>
+            <div className="flex items-center justify-center gap-x-micro mt-micro">
+              <span className="ds-body-bold" style={{ color: EVENT_COLORS['B'], whiteSpace: 'nowrap' }}>
                 P(B) =
               </span>
               <FractionInput
@@ -1152,16 +1174,14 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             </div>
             {pBNumError && (
               <p
-                className="ds-small mt-nano text-center"
-                style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                className="ds-small mt-nano text-center text-feedback-error-dark font-medium"
               >
                 Digite corretamente o número de casos favoráveis ao evento.
               </p>
             )}
             {pBDenError && (
               <p
-                className="ds-small mt-nano text-center"
-                style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                className="ds-small mt-nano text-center text-feedback-error-dark font-medium"
               >
                 Digite o total de casos possíveis no lançamento de dois dados.
               </p>
@@ -1193,7 +1213,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               Antes de calcular, escolha dentro dos parênteses qual evento você vai usar.
             </p>
 
-            <div className="flex items-center justify-center flex-wrap gap-x-nano mt-micro">
+            <div className="flex items-center justify-center gap-x-nano mt-micro overflow-x-auto">
               <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], fontSize: '1.05rem' }}>
                 P(
               </span>
@@ -1239,8 +1259,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
 
             {pABExprError && pABExpr && pABExpr !== 'AnB' && (
               <p
-                className="ds-small text-center mt-nano"
-                style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                className="ds-small text-center mt-nano text-feedback-error-dark font-medium"
               >
                 Reflita: o enunciado pede <strong>A ∩ B</strong> — a probabilidade de A e B
                 ocorrerem <em>simultaneamente</em>.
@@ -1254,8 +1273,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
 
             {pABError && (
               <p
-                className="ds-small mt-nano text-center"
-                style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                className="ds-small mt-nano text-center text-feedback-error-dark font-medium"
               >
                 Fração não equivalente à probabilidade correta.
               </p>
@@ -1284,8 +1302,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               .
             </p>
             <p
-              className="ds-body text-neutral-black mt-nano"
-              style={{ textAlign: 'justify', lineHeight: 1.7 }}
+              className="ds-body text-neutral-black mt-nano text-justify leading-relaxed"
             >
               Esse problema pode ser resolvido aplicando a fórmula da probabilidade{' '}
               <OperationSelect
@@ -1305,7 +1322,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               }}
             >
               <div
-                className="flex items-center justify-center flex-wrap gap-x-nano"
+                className="flex items-center justify-center gap-x-nano overflow-x-auto"
                 style={{
                   color: operationExpr === 'union'
                     ? 'var(--color-brand-otimath-dark)'
@@ -1348,8 +1365,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
 
               {operationExpr !== 'union' && (
                 <p
-                  className="ds-small text-center mt-nano"
-                  style={{ color: 'var(--color-neutral-dark)', fontStyle: 'italic' }}
+                  className="ds-small text-center mt-nano text-neutral-dark italic"
                 >
                   Escolha primeiro a fórmula correta para liberar a montagem.
                 </p>
@@ -1358,8 +1374,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               {/* Dica progressiva para o placeholder de P(A∪B) */}
               {p1Hint && (
                 <p
-                  className="ds-small text-center mt-nano"
-                  style={{ color: 'var(--color-feedback-warning-dark)', fontWeight: 600 }}
+                  className="ds-small text-center mt-nano text-feedback-warning-dark font-medium"
                 >
                   💡 {p1Hint}
                 </p>
@@ -1383,7 +1398,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                         border: '2px dashed var(--color-brand-otimath-pure)',
                       }}
                     >
-                      <p className="ds-body-bold" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+                      <p className="ds-body-bold text-brand-otimath-dark">
                         P(X ∪ Y) = P(X) + P(Y) − P(X ∩ Y)
                       </p>
                       <p className="ds-small text-neutral-dark mt-nano italic">
@@ -1427,16 +1442,14 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
 
               {!p1Hint && !isFormulaCorrect && anyFormulaAttempted && (
                 <p
-                  className="ds-small text-center mt-nano"
-                  style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                  className="ds-small text-center mt-nano text-feedback-error-dark font-medium"
                 >
                   Revise os eventos marcados em vermelho — a fórmula ainda não está correta.
                 </p>
               )}
               {isFormulaCorrect && (
                 <p
-                  className="ds-small text-center mt-nano"
-                  style={{ color: 'var(--color-feedback-success-dark)', fontWeight: 600 }}
+                  className="ds-small text-center mt-nano text-feedback-success-dark font-medium"
                 >
                   ✓ Fórmula correta. Agora substitua os valores e calcule.
                 </p>
@@ -1449,8 +1462,8 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                   Substitua cada probabilidade pela fração correspondente e some:
                 </p>
 
-                <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
-                  <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>
+                <div className="flex items-center justify-center gap-x-micro mt-micro overflow-x-auto">
+                  <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'], whiteSpace: 'nowrap' }}>
                     P(A ∪ B) =
                   </span>
                   <FractionInput
@@ -1458,13 +1471,13 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                     setNum={setSubANum} setDen={setSubADen}
                     error={subError}
                   />
-                  <span className="ds-body-bold" style={{ color: 'var(--color-neutral-darkest)' }}>+</span>
+                  <span className="ds-body-bold text-neutral-darkest">+</span>
                   <FractionInput
                     num={subBNum} den={subBDen}
                     setNum={setSubBNum} setDen={setSubBDen}
                     error={subError}
                   />
-                  <span className="ds-body-bold" style={{ color: 'var(--color-neutral-darkest)' }}>−</span>
+                  <span className="ds-body-bold text-neutral-darkest">−</span>
                   <FractionInput
                     num={subINum} den={subIDen}
                     setNum={setSubINum} setDen={setSubIDen}
@@ -1473,16 +1486,15 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                 </div>
                 {subError && (
                   <p
-                    className="ds-small mt-nano text-center"
-                    style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                    className="ds-small mt-nano text-center text-feedback-error-dark font-medium"
                   >
                     Alguma fração não confere com as probabilidades calculadas nos passos
                     anteriores. Revise os valores.
                   </p>
                 )}
 
-                <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
-                  <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>
+                <div className="flex items-center justify-center gap-x-micro mt-micro">
+                  <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'], whiteSpace: 'nowrap' }}>
                     P(A ∪ B) =
                   </span>
                   <FractionInput
@@ -1497,8 +1509,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                 </p>
                 {pAUBError && (
                   <p
-                    className="ds-small mt-nano text-center"
-                    style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                    className="ds-small mt-nano text-center text-feedback-error-dark font-medium"
                   >
                     Fração não equivalente ao resultado esperado.
                   </p>
@@ -1524,10 +1535,9 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             </p>
 
             <div
-              className="bg-neutral-white rounded-md p-micro mb-micro"
-              style={{ border: '2px solid var(--color-brand-otimath-pure)' }}
+              className="bg-neutral-white rounded-md p-micro mb-micro border-2 border-brand-otimath-pure"
             >
-              <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center mb-nano text-brand-otimath-dark">
                 Resumo das probabilidades
               </p>
               <div className="flex flex-wrap gap-x-micro gap-y-nano justify-center mt-nano">
@@ -1539,7 +1549,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             </div>
 
             <p className="ds-body text-neutral-black mt-micro text-justify">
-              Você aplicou a fórmula geral <strong>P(A ∪ B) = P(A) + P(B) − P(A ∩ B)</strong>{' '}
+              Você aplicou a fórmula geral <strong className="whitespace-nowrap">P(A ∪ B) = P(A) + P(B) − P(A ∩ B)</strong>{' '}
               em um problema completo, com marcação explícita dos três eventos, cálculo
               independente de cada probabilidade e substituição na fórmula.
             </p>

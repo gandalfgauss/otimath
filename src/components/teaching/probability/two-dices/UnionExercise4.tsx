@@ -70,6 +70,8 @@ interface UnionExercise4Props {
   onFinished: () => void;
   onRequestPreviousPhase?: () => void;
   initialStep?: Step;
+  /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
 }
 
 export interface UnionExercise4Handle {
@@ -290,7 +292,7 @@ const CARD_OPTIONS = [
 // ═══════════════════════════════════════════════════════════════
 
 export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Props>(
-  function UnionExercise4({ onFinished, onRequestPreviousPhase, initialStep }, ref) {
+  function UnionExercise4({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
     const [step, setStep] = useState<Step>(initialStep ?? 'intro');
     const [round, setRound] = useState(0);
     const [data, setData] = useState<Exercise4Data>(() => selectExercise4Data(0));
@@ -488,10 +490,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     const validateCard1 = () => {
       if (card1Ok) {
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Fórmula montada: n(A ∪ B) = n(A) + n(B) − n(A ∩ B).', 'success', 3500);
         setStep('lapCard2');
         setShowHint(false);
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Reposicione as cartas para formar a fórmula da cardinalidade.', 'error', 4500);
       }
     };
 
@@ -503,11 +507,13 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       if (cOk && bOk && dOk) {
         setCard2Error(false);
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Valores substituídos na fórmula.', 'success', 3000);
         setStep('lapCard3');
         setShowHint(false);
       } else {
         setCard2Error(true);
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Releia o enunciado e substitua n(A ∪ B), n(A) e n(B) pelos valores numéricos.', 'error', 5000);
       }
     };
 
@@ -517,12 +523,14 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       if (parsed === data.e) {
         setCard3Error(false);
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', `n(A ∩ B) = ${data.e}.`, 'success', 3000);
         // Se há inversão (A ou B), precisa etapa 3b; senão, vai direto ao Laplace
         setStep((data.invertA || data.invertB) ? 'lapCard3b' : 'lapCard4');
         setShowHint(false);
       } else {
         setCard3Error(true);
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Isole n(A ∩ B) na equação da etapa anterior.', 'error', 4500);
       }
     };
 
@@ -536,11 +544,13 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       if (parsed === data.targetCardinality) {
         setCard3bError(false);
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', `n(${data.targetLabel}) = ${data.targetCardinality}.`, 'success', 3000);
         setStep('lapCard4');
         setShowHint(false);
       } else {
         setCard3bError(true);
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', `Calcule n(${data.targetLabel}) a partir de n(A ∩ B) que você acabou de obter.`, 'error', 5000);
       }
     };
 
@@ -551,10 +561,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       if (v.ok) {
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
+        createAlert?.('Excelente!', `P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}. Caminho concluído.`, 'success', 4000);
         setCompletedPaths(prev => new Set(prev).add('lapCard'));
         setStep('correct');
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', `Aplique Laplace: n(${data.targetLabel}) sobre n(S). Frações equivalentes são aceitas.`, 'error', 5000);
       }
     };
 
@@ -618,10 +630,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
         setVennVar(xVar!);       // propaga a letra escolhida para lapVenn2
         setVennLocked(true);
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', `Diagrama modelado com a variável "${xVar!}".`, 'success', 3500);
         setStep('lapVenn2');
         setShowHint(false);
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Use uma letra para n(A ∩ B) e expresse as outras regiões em função dela.', 'error', 5500);
       }
     };
 
@@ -702,10 +716,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
       if (unionOk && eqAmBOk && eqAnBOk && eqBmAOk && eqLhsOk && eqSimplOk && exprOk && xValueOk) {
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', `Equação resolvida: ${v} = ${data.e}.`, 'success', 3500);
         setStep('lapVenn3');
         setShowHint(false);
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Confira as expressões, a substituição e o valor da variável.', 'error', 5000);
       }
     };
 
@@ -724,10 +740,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       if (nsOk && v.ok) {
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
+        createAlert?.('Excelente!', `P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}. Caminho do Venn concluído.`, 'success', 4000);
         setCompletedPaths(prev => new Set(prev).add('lapVenn'));
         setStep('correct');
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Identifique n(S) e aplique Laplace.', 'error', 5000);
       }
     };
 
@@ -739,11 +757,13 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       if (cOk && bOk && dOk) {
         setG1Error(false);
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'As 3 probabilidades foram substituídas na fórmula.', 'success', 3500);
         setStep('general2');
         setShowHint(false);
       } else {
         setG1Error(true);
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', `Substitua P(A ∪ B), P(A) e P(B) por valores sobre ${data.S}.`, 'error', 5000);
       }
     };
 
@@ -756,15 +776,18 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
         playSound('/sounds/correct.mp3');
         // Se há inversão, faz passo 3; senão, finaliza
         if (data.invertA || data.invertB) {
+          createAlert?.('Correto!', `P(A ∩ B) = ${data.e}/${data.S}. Falta ajustar para o evento pedido.`, 'success', 3500);
           setStep('general3');
         } else {
           playSound('/sounds/challengeFinished.mp3');
+          createAlert?.('Excelente!', `P(A ∪ B) = ${data.e}/${data.S}. Caminho geral concluído.`, 'success', 4000);
           setCompletedPaths(prev => new Set(prev).add('general'));
           setStep('correct');
         }
         setShowHint(false);
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Isole P(A ∩ B) na equação e simplifique.', 'error', 4500);
       }
     };
 
@@ -779,10 +802,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       if (v.ok) {
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
+        createAlert?.('Excelente!', `P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}. Caminho geral concluído.`, 'success', 4000);
         setCompletedPaths(prev => new Set(prev).add('general'));
         setStep('correct');
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', `Use a relação entre P(A ∩ B) e P(${data.targetLabel}).`, 'error', 5000);
       }
     };
 
@@ -867,21 +892,21 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     const Enunciado = (
       <>
       <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter mb-micro">
-        <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+        <p className="ds-body-bold text-center mb-nano text-brand-otimath-dark">
           Problema
         </p>
-        <p className="ds-body text-neutral-black" style={{ textAlign: 'justify', lineHeight: 1.7 }}>
+        <p className="ds-body text-neutral-black text-justify leading-relaxed">
           Em dia de jogo entre o <strong>Clube Atlético Mineiro</strong> e o{' '}
           <strong>Cruzeiro Esporte Clube</strong>, <strong>{data.S}</strong> torcedores se
           reúnem em um bar para assistir à partida no telão. Sabe-se que:
         </p>
-        <ul className="ds-body text-neutral-black" style={{ paddingLeft: 24, listStyle: 'disc', lineHeight: 1.7 }}>
+        <ul className="ds-body text-neutral-black pl-xxs list-disc leading-relaxed">
           <li><strong>{data.b} pessoas</strong> <em>{data.descA}</em>;</li>
           <li><strong>{data.d} pessoas</strong> <em>{data.descB}</em>;</li>
           <li><strong>{data.c} pessoas</strong> pertencem a pelo menos um desses dois grupos.</li>
         </ul>
         {data.hasOthers && (
-          <p className="ds-body text-neutral-black mt-nano" style={{ textAlign: 'justify', lineHeight: 1.7 }}>
+          <p className="ds-body text-neutral-black mt-nano text-justify leading-relaxed">
             Além disso, <strong>{data.w} pessoas</strong> torcem para outros times que não
             fazem parte dessa partida.
           </p>
@@ -905,7 +930,9 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           .)
         </p>
       </div>
-      <SimpleCalculator />
+      {/* key={round} força remount a cada nova rodada — fecha a calculadora
+          se o aluno terminou a rodada anterior com ela aberta. */}
+      <SimpleCalculator key={round} />
       </>
     );
 
@@ -1001,7 +1028,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[760px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Você decide: qual estratégia quer usar?
               </p>
               <div className="flex flex-col gap-y-micro mt-micro items-center">
@@ -1031,7 +1058,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[760px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Abordagem Laplaciana — escolha a ferramenta
               </p>
               <div className="flex flex-col gap-y-micro mt-micro items-center">
@@ -1066,10 +1093,10 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[860px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 1 — Complete a fórmula da cardinalidade da união
               </p>
-              <div className="flex items-center justify-center flex-wrap gap-x-nano mt-micro" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+              <div className="flex items-center justify-center gap-x-nano mt-micro overflow-x-auto text-[1.1rem] font-bold">
                 <span>n(</span>
                 <ExprSelect value={card1Pos1} onChange={setCard1Pos1} expected="AuB" options={CARD_OPTIONS} />
                 <span>) = n(</span>
@@ -1092,22 +1119,22 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[860px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 2 — Substitua pelos valores do problema
               </p>
-              <p className="ds-small text-center text-neutral-dark mt-nano italic">
+              <p className="ds-small text-center text-neutral-dark mt-nano italic whitespace-nowrap">
                 n(A ∪ B) = n(A) + n(B) − n(A ∩ B)
               </p>
-              <div className="flex items-center justify-center flex-wrap gap-x-nano mt-micro" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+              <div className="flex items-center justify-center gap-x-nano mt-micro overflow-x-auto text-[1.1rem] font-bold">
                 <NumberBox value={card2CInput} setValue={setCard2CInput} error={card2Error} ariaLabel="n(A ∪ B)" />
                 <span>= </span>
                 <NumberBox value={card2BInput} setValue={setCard2BInput} error={card2Error} ariaLabel="n(A)" />
                 <span> + </span>
                 <NumberBox value={card2DInput} setValue={setCard2DInput} error={card2Error} ariaLabel="n(B)" />
-                <span> − n(A ∩ B)</span>
+                <span className="whitespace-nowrap"> − n(A ∩ B)</span>
               </div>
               {card2Error && (
-                <p className="ds-small text-center mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small text-center mt-nano text-feedback-error-dark font-medium">
                   Confira os valores do enunciado.
                 </p>
               )}
@@ -1123,14 +1150,14 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[860px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 3 — Isole n(A ∩ B) e calcule
               </p>
               <p className="ds-small text-center text-neutral-dark mt-nano italic">
-                Da equação {data.c} = {data.b} + {data.d} − n(A ∩ B), obtemos n(A ∩ B) = b + d − c.
+                Da equação <span className="whitespace-nowrap">{data.c} = {data.b} + {data.d} − n(A ∩ B)</span>, obtemos <span className="whitespace-nowrap">n(A ∩ B) = b + d − c</span>.
               </p>
-              <div className="flex items-center justify-center flex-wrap gap-x-nano mt-micro" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-                <span>n(A ∩ B) = </span>
+              <div className="flex items-center justify-center gap-x-nano mt-micro text-[1.1rem] font-bold">
+                <span className="whitespace-nowrap">n(A ∩ B) = </span>
                 <NumberBox value={card3Num} setValue={setCard3Num} error={card3Error} ariaLabel="n(A ∩ B)" onEnter={validateCard3} />
               </div>
               <div className="flex justify-center mt-micro">
@@ -1146,20 +1173,20 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[860px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 4 — Calcule n({data.targetLabel})
               </p>
               <p className="ds-body text-neutral-black mt-nano text-justify">
-                Você já encontrou <strong>n(A ∩ B) = {data.e}</strong>. Agora relacione
+                Você já encontrou <strong className="whitespace-nowrap">n(A ∩ B) = {data.e}</strong>. Agora relacione
                 esse valor com os dados do enunciado para obter o que a pergunta realmente
                 pede.
               </p>
-              <div className="flex items-center justify-center flex-wrap gap-x-nano mt-micro" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-                <span>n({data.targetLabel}) = </span>
+              <div className="flex items-center justify-center gap-x-nano mt-micro text-[1.1rem] font-bold">
+                <span className="whitespace-nowrap">n({data.targetLabel}) = </span>
                 <NumberBox value={card3bNum} setValue={setCard3bNum} error={card3bError} onEnter={validateCard3b} ariaLabel={`Cardinalidade de ${data.targetLabel}`} />
               </div>
               {card3bError && (
-                <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                   Valor incorreto. Pense: como obter n({data.targetLabel}) a partir de n(A ∩ B) e dos dados?
                 </p>
               )}
@@ -1175,14 +1202,14 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[860px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa {(data.invertA || data.invertB) ? '5' : '4'} — Aplique Laplace para obter P({data.targetLabel})
               </p>
               <p className="ds-small text-center text-neutral-dark mt-nano italic">
-                P(E) = n(E) / n(S), com n(S) = {data.S}.
+                <span className="whitespace-nowrap">P(E) = n(E) / n(S)</span>, com <span className="whitespace-nowrap">n(S) = {data.S}</span>.
               </p>
-              <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P({data.targetLabel}) =</span>
+              <div className="flex items-center justify-center gap-x-micro mt-micro">
+                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], whiteSpace: 'nowrap' }}>P({data.targetLabel}) =</span>
                 <FractionInput
                   num={card4Num} den={card4Den}
                   setNum={setCard4Num} setDen={setCard4Den}
@@ -1191,12 +1218,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 />
               </div>
               {card4NumError && (
-                <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                   Numerador incorreto — use o valor de n({data.targetLabel}) calculado.
                 </p>
               )}
               {card4DenError && (
-                <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                   Denominador incorreto — o espaço amostral tem S pessoas.
                 </p>
               )}
@@ -1213,7 +1240,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[860px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 1 — Modele o diagrama de Venn com expressões
               </p>
               <p className="ds-small text-center text-neutral-dark mt-nano italic">
@@ -1250,7 +1277,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
             <div data-ex-panel>
               {Enunciado}
               <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[900px] mx-auto">
-                <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+                <p className="ds-body-bold text-center text-brand-otimath-dark">
                   Etapa 2 — Monte a equação e resolva
                 </p>
 
@@ -1265,12 +1292,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 </div>
 
                 {/* ── Sub-passo A: n(A ∪ B) ───────────────────────── */}
-                <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
+                <div className="mt-micro p-micro rounded-md bg-neutral-lightest">
                   <p className="ds-body text-neutral-black text-justify">
                     Quantas pessoas <em>{data.descA}</em> ou <em>{data.descB}</em>?
                   </p>
-                  <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
-                    <span style={{ color: EVENT_COLORS['A∪B'] }}>n(A ∪ B) =</span>
+                  <div className="flex items-center justify-center gap-x-nano mt-nano text-[1.05rem] font-bold">
+                    <span style={{ color: EVENT_COLORS['A∪B'], whiteSpace: 'nowrap' }}>n(A ∪ B) =</span>
                     <NumberBox
                       value={vennAUnionB}
                       setValue={setVennAUnionB}
@@ -1280,19 +1307,19 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                     />
                   </div>
                   {vennAUnionBError && (
-                    <p className="ds-small text-center mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                    <p className="ds-small text-center mt-nano text-feedback-error-dark font-medium">
                       Esse valor está no enunciado — procure por &quot;pertencem a pelo menos um desses dois grupos&quot;.
                     </p>
                   )}
                 </div>
 
                 {/* ── Sub-passo B: equação com 3 placeholders ─────── */}
-                <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
+                <div className="mt-micro p-micro rounded-md bg-neutral-lightest">
                   <p className="ds-body text-neutral-black text-justify">
                     Observando o diagrama apresentado, escreva a equação que permite calcular n(A ∪ B):
                   </p>
-                  <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
-                    <span style={{ color: EVENT_COLORS['A∪B'] }}>n(A ∪ B) =</span>
+                  <div className="flex items-center justify-center gap-x-nano mt-nano overflow-x-auto text-[1.05rem] font-bold">
+                    <span style={{ color: EVENT_COLORS['A∪B'], whiteSpace: 'nowrap' }}>n(A ∪ B) =</span>
                     <TextBox value={vennEqAmB} setValue={setVennEqAmB} error={vennEqAmBError} ariaLabel="n(A − B)" />
                     <span>+</span>
                     <TextBox value={vennEqAnB} setValue={setVennEqAnB} error={vennEqAnBError} ariaLabel="n(A ∩ B)" width={70} />
@@ -1300,29 +1327,29 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                     <TextBox value={vennEqBmA} setValue={setVennEqBmA} error={vennEqBmAError} ariaLabel="n(B − A)" />
                   </div>
                   {vennEqAmBError && (
-                    <p className="ds-small mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                    <p className="ds-small mt-nano text-feedback-error-dark font-medium">
                       Primeira região: pessoas que <strong>torcem para o {teamName}</strong> e <strong>não são do sexo {sexAdj}</strong>.
                     </p>
                   )}
                   {vennEqAnBError && (
-                    <p className="ds-small mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                    <p className="ds-small mt-nano text-feedback-error-dark font-medium">
                       Região central: pessoas que <strong>torcem para o {teamName}</strong> e <strong>são do sexo {sexAdj}</strong> ao mesmo tempo — a variável que você escolheu.
                     </p>
                   )}
                   {vennEqBmAError && (
-                    <p className="ds-small mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                    <p className="ds-small mt-nano text-feedback-error-dark font-medium">
                       Terceira região: pessoas que <strong>são do sexo {sexAdj}</strong> e <strong>não torcem para o {teamName}</strong>.
                     </p>
                   )}
                 </div>
 
                 {/* ── Sub-passo B.2: substituir valor de n(A∪B) e simplificar ── */}
-                <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
+                <div className="mt-micro p-micro rounded-md bg-neutral-lightest">
                   <p className="ds-body text-neutral-black text-justify">
                     Substitua n(A ∪ B) pelo valor e escreva o lado direito da equação
                     (pode ser a soma direta ou já simplificada algebricamente):
                   </p>
-                  <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                  <div className="flex items-center justify-center gap-x-nano gap-y-nano flex-wrap mt-nano text-[1.05rem] font-bold">
                     <NumberBox
                       value={vennEqLhsValue}
                       setValue={setVennEqLhsValue}
@@ -1340,12 +1367,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                     />
                   </div>
                   {vennEqLhsValueError && (
-                    <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                    <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                       Substitua n(A ∪ B) pelo valor encontrado anteriormente (o número que você identificou no enunciado).
                     </p>
                   )}
                   {vennEqSimplifiedError && (
-                    <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                    <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                       Expressão não equivalente. Qualquer forma algébrica correta é aceita,
                       em qualquer ordem: por exemplo, {data.b}−{vennVar}+{vennVar}+{data.d}−{vennVar},
                       −{vennVar}+{data.d}+{vennVar}+{data.b}−{vennVar}, ou {data.b + data.d}−{vennVar}.
@@ -1354,15 +1381,15 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 </div>
 
                 {/* ── Sub-passo C: resolução (opcional) ───────────── */}
-                <div className="mt-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-lightest)' }}>
+                <div className="mt-micro p-micro rounded-md bg-neutral-lightest">
                   <p className="ds-body text-neutral-black text-justify">
                     Resolva a equação anterior para encontrar o valor de <strong>{vennVar}</strong>.
                     <span className="ds-caption text-neutral-dark" style={{ fontStyle: 'italic', marginLeft: 8 }}>
                       (opcional — pode ser deixado em branco se preferir ir direto ao valor)
                     </span>
                   </p>
-                  <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
-                    <span>{vennVar} =</span>
+                  <div className="flex items-center justify-center gap-x-nano gap-y-nano flex-wrap mt-nano text-[1.05rem] font-bold">
+                    <span className="whitespace-nowrap">{vennVar} =</span>
                     <TextBox
                       value={vennXExpr}
                       setValue={setVennXExpr}
@@ -1373,7 +1400,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                     />
                   </div>
                   {vennXExprError && (
-                    <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                    <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                       Expressão não confere. Tente b + d − c, ou os valores numéricos correspondentes.
                     </p>
                   )}
@@ -1384,8 +1411,8 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                   <p className="ds-body text-neutral-black text-justify">
                     Portanto, o valor da cardinalidade da interseção é:
                   </p>
-                  <div className="flex items-center justify-center flex-wrap gap-x-nano mt-nano" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-                    <span style={{ color: EVENT_COLORS['A∩B'] }}>n(A ∩ B) = {vennVar} =</span>
+                  <div className="flex items-center justify-center gap-x-nano mt-nano text-[1.1rem] font-bold">
+                    <span style={{ color: EVENT_COLORS['A∩B'], whiteSpace: 'nowrap' }}>n(A ∩ B) = {vennVar} =</span>
                     <NumberBox
                       value={vennXValue}
                       setValue={setVennXValue}
@@ -1396,7 +1423,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                     />
                   </div>
                   {vennXValueError && (
-                    <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                    <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                       Valor incorreto. Use a calculadora se precisar — o resultado é um inteiro não-negativo.
                     </p>
                   )}
@@ -1436,24 +1463,22 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                   n(A ∩ B) = {vennVar} = {data.e}
                 </p>
               </div>
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 3 — Aplique Laplace para obter P({data.targetLabel})
               </p>
 
               {/* Identificação do espaço amostral n(S) */}
               <div
-                className="mt-micro p-micro rounded-md"
-                style={{ background: 'var(--color-neutral-lightest)' }}
+                className="mt-micro p-micro rounded-md bg-neutral-lightest"
               >
                 <p className="ds-body text-neutral-black text-justify">
                   Quantos resultados são possíveis para o experimento aleatório de
                   sortear uma pessoa no bar e verificar o sexo e para qual time torce?
                 </p>
                 <div
-                  className="flex items-center justify-center flex-wrap gap-x-nano mt-nano"
-                  style={{ fontSize: '1.05rem', fontWeight: 700 }}
+                  className="flex items-center justify-center gap-x-nano mt-nano text-[1.05rem] font-bold"
                 >
-                  <span>n(S) =</span>
+                  <span className="whitespace-nowrap">n(S) =</span>
                   <NumberBox
                     value={vennNS}
                     setValue={setVennNS}
@@ -1464,8 +1489,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 </div>
                 {vennNSError && (
                   <p
-                    className="ds-small mt-nano text-center"
-                    style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}
+                    className="ds-small mt-nano text-center text-feedback-error-dark font-medium"
                   >
                     n(S) é o total de pessoas reunidas no bar — esse número está no
                     início do enunciado.
@@ -1481,10 +1505,10 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               />
               <p className="ds-small text-center text-neutral-dark mt-nano italic">
                 Identifique no diagrama apresentado a região que representa {data.targetLabel} e
-                aplique P(E) = n(E)/S.
+                aplique <span className="whitespace-nowrap">P(E) = n(E)/S</span>.
               </p>
-              <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P({data.targetLabel}) =</span>
+              <div className="flex items-center justify-center gap-x-micro mt-micro">
+                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], whiteSpace: 'nowrap' }}>P({data.targetLabel}) =</span>
                 <FractionInput
                   num={venn3Num} den={venn3Den}
                   setNum={setVenn3Num} setDen={setVenn3Den}
@@ -1493,12 +1517,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 />
               </div>
               {venn3NumError && (
-                <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                   Numerador incorreto — observe qual região no diagrama corresponde a {data.targetLabel}.
                 </p>
               )}
               {venn3DenError && (
-                <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                   Denominador incorreto — o total de pessoas é S.
                 </p>
               )}
@@ -1515,16 +1539,15 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[900px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 1 — Aplique a fórmula geral e substitua pelas probabilidades
               </p>
               <p
-                className="ds-heading-large text-center mt-micro"
-                style={{ color: 'var(--color-brand-otimath-dark)' }}
+                className="ds-heading-large text-center mt-micro text-brand-otimath-dark whitespace-nowrap"
               >
                 P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
               </p>
-              <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
+              <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap mt-micro">
                 <FractionInput
                   num={g1CNum} den={g1CDen}
                   setNum={setG1CNum} setDen={setG1CDen}
@@ -1542,10 +1565,10 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                   setNum={setG1DNum} setDen={setG1DDen}
                   error={g1Error}
                 />
-                <span className="ds-body-bold">− P(A ∩ B)</span>
+                <span className="ds-body-bold whitespace-nowrap">− P(A ∩ B)</span>
               </div>
               {g1Error && (
-                <p className="ds-small text-center mt-nano" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small text-center mt-nano text-feedback-error-dark font-medium">
                   Alguma fração não confere com os dados do enunciado.
                 </p>
               )}
@@ -1561,7 +1584,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[900px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 2 — Isole P(A ∩ B) e calcule
               </p>
 
@@ -1576,13 +1599,13 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 <p className="ds-caption-bold text-center mb-nano" style={{ color: 'var(--color-neutral-dark)', fontSize: '0.78rem' }}>
                   Você preencheu na etapa anterior:
                 </p>
-                <div className="flex items-center justify-center flex-wrap gap-x-nano">
+                <div className="flex items-center justify-center gap-x-nano gap-y-nano flex-wrap">
                   <FracH top={g1CNum || '?'} bottom={g1CDen || '?'} color={EVENT_COLORS['A∪B']} size="1rem" />
                   <span className="ds-body-bold">=</span>
                   <FracH top={g1BNum || '?'} bottom={g1BDen || '?'} color={EVENT_COLORS['A']} size="1rem" />
                   <span className="ds-body-bold">+</span>
                   <FracH top={g1DNum || '?'} bottom={g1DDen || '?'} color={EVENT_COLORS['B']} size="1rem" />
-                  <span className="ds-body-bold">− P(A ∩ B)</span>
+                  <span className="ds-body-bold whitespace-nowrap">− P(A ∩ B)</span>
                 </div>
               </div>
 
@@ -1592,8 +1615,8 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 sozinho. Some as frações no numerador comum e calcule o resultado.
               </p>
 
-              <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P(A ∩ B) =</span>
+              <div className="flex items-center justify-center gap-x-micro mt-micro">
+                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], whiteSpace: 'nowrap' }}>P(A ∩ B) =</span>
                 <FractionInput
                   num={g2Num} den={g2Den}
                   setNum={setG2Num} setDen={setG2Den}
@@ -1602,12 +1625,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 />
               </div>
               {g2NumError && (
-                <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                   Numerador incorreto.
                 </p>
               )}
               {g2DenError && (
-                <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                   Denominador incorreto — o total é S.
                 </p>
               )}
@@ -1624,7 +1647,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
           <div data-ex-panel>
             {Enunciado}
             <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[900px] mx-auto">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 3 — Calcule P({data.targetLabel}) a partir de P(A ∩ B)
               </p>
 
@@ -1639,8 +1662,8 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 <p className="ds-caption-bold text-center mb-nano" style={{ color: 'var(--color-neutral-dark)', fontSize: '0.78rem' }}>
                   Você já obteve:
                 </p>
-                <div className="flex items-center justify-center flex-wrap gap-x-nano">
-                  <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P(A ∩ B) =</span>
+                <div className="flex items-center justify-center gap-x-nano">
+                  <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], whiteSpace: 'nowrap' }}>P(A ∩ B) =</span>
                   <FracH top={g2Num || '?'} bottom={g2Den || '?'} color={EVENT_COLORS['A∩B']} size="1rem" />
                 </div>
               </div>
@@ -1650,8 +1673,8 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 P({data.targetLabel}).
               </p>
 
-              <div className="flex items-center justify-center flex-wrap gap-x-micro mt-micro">
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P({data.targetLabel}) =</span>
+              <div className="flex items-center justify-center gap-x-micro mt-micro">
+                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], whiteSpace: 'nowrap' }}>P({data.targetLabel}) =</span>
                 <FractionInput
                   num={g3Num} den={g3Den}
                   setNum={setG3Num} setDen={setG3Den}
@@ -1660,12 +1683,12 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 />
               </div>
               {g3NumError && (
-                <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                   Numerador incorreto.
                 </p>
               )}
               {g3DenError && (
-                <p className="ds-small mt-nano text-center" style={{ color: 'var(--color-feedback-error-dark)', fontWeight: 600 }}>
+                <p className="ds-small mt-nano text-center text-feedback-error-dark font-medium">
                   Denominador incorreto — o total é S.
                 </p>
               )}
@@ -1706,13 +1729,13 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
             <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
               🎉 Parabéns!
             </p>
-            <div className="bg-neutral-white rounded-md p-micro mb-micro" style={{ border: '2px solid var(--color-brand-otimath-pure)' }}>
-              <p className="ds-body-bold text-center mb-nano" style={{ color: 'var(--color-brand-otimath-dark)' }}>
+            <div className="bg-neutral-white rounded-md p-micro mb-micro border-2 border-brand-otimath-pure">
+              <p className="ds-body-bold text-center mb-nano text-brand-otimath-dark">
                 Probabilidade da interseção encontrada
               </p>
               <div className="flex justify-center mt-nano">
                 <div
-                  className="flex items-center flex-wrap gap-x-nano"
+                  className="flex items-center flex-wrap gap-x-nano gap-y-nano"
                   style={{
                     padding: '5px 10px', borderRadius: 8,
                     background: 'var(--color-neutral-white)',
@@ -1724,10 +1747,10 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                     P({data.targetLabel}) =
                   </span>
                   <FracH top={data.targetCardinality} bottom={data.S} color={EVENT_COLORS['A∩B']} size="0.9rem" />
-                  <span style={{ color: 'var(--color-neutral-darkest)', fontSize: '0.8rem' }}>
+                  <span className="text-neutral-darkest text-[0.8rem]">
                     ≈ {formatDecimal(data.targetCardinality, data.S, 3)}
                   </span>
-                  <span style={{ color: 'var(--color-neutral-darkest)', fontSize: '0.8rem' }}>
+                  <span className="text-neutral-darkest text-[0.8rem]">
                     ≈ {formatPercent(data.targetCardinality, data.S, 1)}
                   </span>
                 </div>

@@ -16,8 +16,8 @@ import { UnionExercise5, type UnionExercise5Handle } from './UnionExercise5';
 import { UnionExercise6Review, type UnionExercise6Handle } from './UnionExercise6Review';
 import { TwoDicesGame } from './TwoDicesGame';
 import { TwoDicesGameAdvanced } from './TwoDicesGameAdvanced';
-import { ComplementaryEventsActivity } from './ComplementaryEventsActivity';
-import { TwoDicesClosingScreen } from './TwoDicesClosingScreen';
+import { ComplementaryEventsActivity, type ComplementaryEventsActivityHandle } from './ComplementaryEventsActivity';
+// TwoDicesClosingScreen importação removida — tela de fechamento foi removida do fluxo.
 import {
   logTransition,
   logBet,
@@ -397,6 +397,25 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   // de pular tudo de uma vez.
   const sampleSpaceTreeRef = useRef<SampleSpaceTreeHandle>(null);
   const [sampleSpaceTreePhase, setSampleSpaceTreePhase] = useState<string>('select1');
+  // Handle do ComplementaryEventsActivity — permite ao DEV avançar pelas
+  // ~7 sub-fases internas (strategyChoice → marking → ... → complete).
+  const complementaryEventsRef = useRef<ComplementaryEventsActivityHandle>(null);
+  // Sub-fase atual de complementaryEvents — entra no cenaId para que cada
+  // transição interna capture um snapshot DEV distinto (sem isso, o contador
+  // do painel não anda apesar da seta avançar a sub-fase).
+  const [complementaryEventsPhase, setComplementaryEventsPhase] = useState<string>('strategyChoice');
+  // Mesma ideia para unionTheory (25+ sub-fases + 17 sub-etapas do Venn).
+  const [unionTheoryPhase, setUnionTheoryPhase] = useState<string>('intro');
+
+  // ── Exercícios opcionais Ex7/Ex8: rastreio de conclusão ──
+  // Quando o aluno finaliza Ex7 ou Ex8, voltamos à tela de "Parabéns" do
+  // Ex6 (finalSynthesis) com o botão correspondente marcado como concluído.
+  // Apenas o botão "Finalizar OVA" do Ex6 efetivamente encerra o OVA.
+  const [ex7Completed, setEx7Completed] = useState(false);
+  const [ex8Completed, setEx8Completed] = useState(false);
+  // Step em que o Ex6Review deve montar: 'intro' no fluxo natural;
+  // 'finalSynthesis' ao retornar de Ex7/Ex8 para a tela de Parabéns.
+  const [ex6InitialStep, setEx6InitialStep] = useState<'intro' | 'finalSynthesis'>('intro');
 
   const [round, setRound] = useState(0);
   const [greenResult, setGreenResult] = useState(0);
@@ -1320,15 +1339,20 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   }, [phase, onHideAllDice]);
 
   useEffect(() => {
-    // Notifica o pai com fase + sub-fase (quando aplicável). Para 'tree',
-    // inclui a sub-fase interna do SampleSpaceTree para o cenaId DEV
-    // refletir cada uma das 7 sub-cenas como snapshot distinto.
+    // Notifica o pai com fase + sub-fase (quando aplicável). Inclui sub-fase
+    // interna de SampleSpaceTree (7), ComplementaryEventsActivity (~7) e
+    // UnionProbabilityTheory (25+ incluindo Venn) para o cenaId DEV refletir
+    // cada transição como snapshot distinto (contador do painel anda direito).
     if (phase === 'tree') {
       onPhaseChange?.(`tree|${sampleSpaceTreePhase}` as Phase);
+    } else if (phase === 'complementaryEvents') {
+      onPhaseChange?.(`complementaryEvents|${complementaryEventsPhase}` as Phase);
+    } else if (phase === 'unionTheory') {
+      onPhaseChange?.(`unionTheory|${unionTheoryPhase}` as Phase);
     } else {
       onPhaseChange?.(phase);
     }
-  }, [phase, sampleSpaceTreePhase, onPhaseChange]);
+  }, [phase, sampleSpaceTreePhase, complementaryEventsPhase, unionTheoryPhase, onPhaseChange]);
 
   // Log de transição de phase — instrumentação invisível para análise
   // a posteriori. Cada mudança de phase do Experiment vira um entry de
@@ -1733,8 +1757,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                             fontWeight: 800,
                             textShadow: '0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 1px 0 #fff',
                           }}>
-                            (<span style={{ color: 'var(--color-feedback-success-dark)' }}>{r}</span>
-                            ,<span style={{ color: 'var(--color-brand-otimath-pure)' }}>{c}</span>)
+                            (<span className="text-feedback-success-dark">{r}</span>
+                            ,<span className="text-brand-otimath-pure">{c}</span>)
                           </span>
                         )}
                         {/* Celebração de acerto — passo 0: V grande branco com animação de pop */}
@@ -1885,12 +1909,29 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   useImperativeHandle(ref, () => ({
     getCurrentPhaseId: () => {
       if (phase === 'tree') return `tree|${sampleSpaceTreePhase}`;
+      if (phase === 'complementaryEvents') return `complementaryEvents|${complementaryEventsPhase}`;
+      if (phase === 'unionTheory') return `unionTheory|${unionTheoryPhase}`;
       return phase;
     },
     advance: () => {
       // Delegação para o SampleSpaceTree (Cena "tree" tem 7 sub-fases internas).
       if (phase === 'tree' && sampleSpaceTreeRef.current) {
         sampleSpaceTreeRef.current.advance();
+        return;
+      }
+      // Delegação para o ComplementaryEventsActivity — avança pelas
+      // sub-fases internas (strategyChoice → marking → ... → complete).
+      // Quando o handle interno terminar a sequência, o próximo .advance()
+      // (que cai aqui novamente) faz setPhase('unionTheory') pela via natural.
+      if (phase === 'complementaryEvents' && complementaryEventsRef.current) {
+        const sub = complementaryEventsRef.current.getCurrentPhaseId();
+        if (sub !== 'complete') {
+          complementaryEventsRef.current.advance();
+          return;
+        }
+        // sub === 'complete' → chama advance() do filho, que chama onContinue,
+        // que faz setPhase('unionTheory').
+        complementaryEventsRef.current.advance();
         return;
       }
       // Delegação para filhos com handle próprio.
@@ -1958,21 +1999,66 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         case 'intro':       setPhase('tree'); return;
         case 'ready':
         case 'rolling':
-        case 'landed':
-        case 'pickPair':
-        case 'pickConfirm':
-          // Rodadas 0 e 1: pula direto para feedback (skip animação 3D + markTable).
-          // Rodada 2: pula direto para sumInput (rodada 2 não tem markTable).
+        case 'landed': {
+          // Simula launchDice: define resultados (aleatórios para não viciar
+          // o teste) e abre o picker. Reseta estado do picker antes de entrar.
+          const g = greenResult || (1 + Math.floor(Math.random() * 6));
+          const b = blueResult || (1 + Math.floor(Math.random() * 6));
+          setGreenResult(g);
+          setBlueResult(b);
+          setPickedGreen(null);
+          setPickedBlue(null);
+          setPickGreenError(false);
+          setPickBlueError(false);
+          setPickFeedback('');
+          setPickAttempts(0);
+          setPhase('pickPair');
+          return;
+        }
+        case 'pickPair': {
+          // Simula respostas corretas no picker e confirma o par.
+          setPickedGreen(greenResult || 1);
+          setPickedBlue(blueResult || 1);
+          setPickGreenError(false);
+          setPickBlueError(false);
+          setPickFeedback('');
+          setPhase('pickConfirm');
+          return;
+        }
+        case 'pickConfirm': {
+          // Rodada 2 → sumInput (e registra o par no histórico, como no
+          // fluxo natural); rodadas 0/1 → markTable.
           if (round === 2) {
+            setSumAnswer('');
+            setSumAnswerError(false);
+            setSumMarks(new Set());
+            setSumWrongMarks(new Set());
+            setSumFeedbackState('none');
+            setHistory(h => [...h, { green: greenResult || 1, blue: blueResult || 1 }]);
             setPhase('sumInput');
           } else {
-            setPhase('feedback');
+            setPhase('markTable');
           }
           return;
-        case 'markTable':
-          // markTable só existe nas rodadas 0 e 1. Vai para feedback.
+        }
+        case 'markTable': {
+          // Simula clique correto: marca a célula, registra no histórico,
+          // vai para feedback (rodadas 0 e 1 apenas — rodada 2 não passa aqui).
+          const r = (greenResult || 1) - 1;
+          const c = (blueResult || 1) - 1;
+          setHistory(h => [...h, { green: greenResult || 1, blue: blueResult || 1 }]);
+          setTableMarks(prev => {
+            const next = prev.map(row => [...row]);
+            if (r >= 0 && r < 6 && c >= 0 && c < 6) next[r][c] = true;
+            return next;
+          });
+          setMarkError(false);
+          setMarkAttempts(0);
+          setMarkSolvedCell(null);
+          setMarkCelebStep(null);
           setPhase('feedback');
           return;
+        }
         case 'feedback':
           simulateNextRound();
           return;
@@ -2006,10 +2092,28 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         case 'unionExercise3':    setPhase('unionExercise4'); return;
         case 'unionExercise4':    setPhase('unionExercise5'); return;
         case 'unionExercise5':    setPhase('unionExercise6'); return;
-        case 'unionExercise6':    setPhase('twoDicesGameFree'); return;
-        case 'twoDicesGameFree':  setPhase('unionExercise8'); return;
-        case 'unionExercise8':    setPhase('closing'); return;
-        case 'closing':           setPhase('finished'); return;
+        case 'unionExercise6':
+          // No Ex6, ao pressionar DEV →, percorrer os exercícios opcionais
+          // que faltam para demonstrar o comportamento de botões marcados;
+          // se ambos já foram concluídos, encerra o OVA via onFinished.
+          if (!ex7Completed) { setPhase('twoDicesGameFree'); return; }
+          if (!ex8Completed) { setPhase('unionExercise8');   return; }
+          onFinished();
+          return;
+        case 'twoDicesGameFree':
+          // Pular Ex7 via DEV: marca como concluído e volta à tela de
+          // Parabéns do Ex6 (mesma rota do botão "Concluir Ex7").
+          setEx7Completed(true);
+          setEx6InitialStep('finalSynthesis');
+          setPhase('unionExercise6');
+          return;
+        case 'unionExercise8':
+          // Pular Ex8 via DEV: marca como concluído e volta ao Ex6.
+          setEx8Completed(true);
+          setEx6InitialStep('finalSynthesis');
+          setPhase('unionExercise6');
+          return;
+        case 'closing':           onFinished(); return;
         case 'finished':
           onFinished();
           return;
@@ -2017,16 +2121,25 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     },
     setCurrentPhaseId: (phaseId: string) => {
       // Sincroniza a fase do componente a partir do snapshot DEV.
-      // Aceita 'tree|<sub>' (sincroniza phase='tree' E SampleSpaceTree).
       if (phaseId.startsWith('tree|')) {
         const sub = phaseId.slice('tree|'.length);
         setPhase('tree');
         sampleSpaceTreeRef.current?.setCurrentPhaseId?.(sub);
         return;
       }
+      if (phaseId.startsWith('complementaryEvents|')) {
+        // Sub-phase do hook não tem setter público — restaura só o phase pai.
+        setPhase('complementaryEvents');
+        return;
+      }
+      if (phaseId.startsWith('unionTheory|')) {
+        // Idem: UnionProbabilityTheory mantém seu próprio phase + Venn sub-step.
+        setPhase('unionTheory');
+        return;
+      }
       setPhase(phaseId as Phase);
     },
-  }), [phase, round, pedagogicDone, sampleSpaceTreePhase, onFinished, unionTheoryRef, unionExercise1Ref, unionExercise2Ref, unionExercise3Ref, unionExercise4Ref, unionExercise5Ref, unionExercise6Ref]);
+  }), [phase, round, pedagogicDone, greenResult, blueResult, sampleSpaceTreePhase, complementaryEventsPhase, unionTheoryPhase, onFinished, ex7Completed, ex8Completed, unionTheoryRef, unionExercise1Ref, unionExercise2Ref, unionExercise3Ref, unionExercise4Ref, unionExercise5Ref, unionExercise6Ref]);
 
   return (
     <div className={`w-full ${phase === 'complementaryEvents' || phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' || phase === 'unionExercise5' || phase === 'unionExercise6' || phase === 'twoDicesGameFree' || phase === 'unionExercise8' || phase === 'closing' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
@@ -2085,28 +2198,37 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
       {/* ═══════ RODADA ATIVA ═══════ */}
       {phase !== 'intro' && phase !== 'tree' && phase !== 'finished' && phase !== 'pairQuestion' && phase !== 'pairExplain' && phase !== 'colorQuestion' && phase !== 'colorExplain' && (
-        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
 
-          {/* Indicador de rodada */}
-          <div className="flex justify-center gap-x-micro mb-macro">
-            {Array.from({ length: TOTAL_ROUNDS }, (_, i) => (
-              <div key={i} className="flex flex-col items-center gap-y-nano">
-                <div className="rounded-full" style={{
-                  width: 14, height: 14,
-                  background: i < round ? 'var(--color-feedback-success-dark)'
-                    : i === round ? 'var(--color-brand-otimath-pure)'
-                    : 'var(--color-neutral-lighter)',
-                  transition: 'background 0.3s',
-                }} />
-                <span className="ds-caption text-neutral-dark">{i + 1}</span>
+          {/* Indicador de rodada — só aparece nas fases ligadas ao lançamento
+              em si (ready até sumComplete). A partir do alienígena (sumAlienIntro)
+              o foco da cena muda para a soma/probabilidade, e o contador de
+              rodadas deixa de fazer sentido. */}
+          {(phase === 'ready' || phase === 'rolling' || phase === 'landed'
+            || phase === 'pickPair' || phase === 'pickConfirm' || phase === 'markTable'
+            || phase === 'feedback' || phase === 'sumInput' || phase === 'sumMarkTable'
+            || phase === 'sumComplete') && (
+            <>
+              <div className="flex justify-center gap-x-micro mb-macro">
+                {Array.from({ length: TOTAL_ROUNDS }, (_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-y-nano">
+                    <div className="rounded-full" style={{
+                      width: 14, height: 14,
+                      background: i < round ? 'var(--color-feedback-success-dark)'
+                        : i === round ? 'var(--color-brand-otimath-pure)'
+                        : 'var(--color-neutral-lighter)',
+                      transition: 'background 0.3s',
+                    }} />
+                    <span className="ds-caption text-neutral-dark">{i + 1}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <p className="ds-body-bold text-center mb-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
-            Lançamento {round + 1} de {TOTAL_ROUNDS}
-          </p>
+              <p className="ds-body-bold text-center mb-micro text-brand-otimath-pure">
+                Lançamento {round + 1} de {TOTAL_ROUNDS}
+              </p>
+            </>
+          )}
 
           {/* Botão lançar */}
           {phase === 'ready' && (
@@ -2116,7 +2238,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   Agora vamos organizar os 36 pares numa <strong>tabela 6×6</strong>.
                   A cada lançamento, leia o resultado dos dados{' '}
                   <strong style={{ color: '#1a5c2e' }}>verde</strong> (linhas) e{' '}
-                  <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong> (colunas)
+                  <strong className="text-brand-otimath-pure">azul</strong> (colunas)
                   e marque o par na célula correspondente.
                 </p>
               )}
@@ -2194,7 +2316,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 </p>
               )}
               {markRetryMsg && (
-                <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                <p className="ds-small-bold text-center mt-micro text-brand-otimath-pure">
                   Tente de novo. Vou te dar dados novos.
                 </p>
               )}
@@ -2207,16 +2329,16 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               Reforça a cadeia semiótica: ícone → símbolo → tabela. */}
           {phase === 'pickConfirm' && (
             <div className="flex flex-col items-center gap-y-micro mb-micro">
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+              <p className="ds-body-bold text-center text-feedback-success-dark">
                 ✓ Par registrado corretamente
               </p>
               <p className="ds-heading-extra text-center" style={{
                 textShadow: '0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 1px 0 #fff',
               }}>
                 (
-                <span style={{ color: 'var(--color-feedback-success-dark)' }}>{greenResult}</span>
+                <span className="text-feedback-success-dark">{greenResult}</span>
                 ,{' '}
-                <span style={{ color: 'var(--color-brand-otimath-pure)' }}>{blueResult}</span>
+                <span className="text-brand-otimath-pure">{blueResult}</span>
                 )
               </p>
               <p className="ds-body text-neutral-black text-center" style={{ maxWidth: 440 }}>
@@ -2259,11 +2381,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <div className="flex flex-col gap-y-micro">
               <div className="flex gap-x-xs items-center justify-center mb-micro">
                 <div className="flex flex-col items-center">
-                  <span className="ds-caption-bold" style={{ color: 'var(--color-feedback-success-dark)' }}>Verde</span>
+                  <span className="ds-caption-bold text-feedback-success-dark">Verde</span>
                   <DiceFaceIcon face={greenResult} size={40} color="green" />
                 </div>
                 <div className="flex flex-col items-center">
-                  <span className="ds-caption-bold" style={{ color: 'var(--color-brand-otimath-pure)' }}>Azul</span>
+                  <span className="ds-caption-bold text-brand-otimath-pure">Azul</span>
                   <DiceFaceIcon face={blueResult} size={40} color="blue" />
                 </div>
               </div>
@@ -2273,9 +2395,9 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   textShadow: '0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 1px 0 #fff',
                 }}>
                   (
-                  <span style={{ color: 'var(--color-feedback-success-dark)' }}>{greenResult}</span>
+                  <span className="text-feedback-success-dark">{greenResult}</span>
                   ,{' '}
-                  <span style={{ color: 'var(--color-brand-otimath-pure)' }}>{blueResult}</span>
+                  <span className="text-brand-otimath-pure">{blueResult}</span>
                   )
                 </strong>{' '}
                 na tabela:
@@ -2283,12 +2405,12 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               {renderTable()}
               <div className="flex flex-col items-center gap-y-micro mt-micro">
                 {markError && !markRetryMsg && (
-                  <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
-                    O primeiro elemento do par (abcissa) é o resultado do dado <strong style={{ color: 'var(--color-feedback-success-dark)' }}>verde</strong> e o segundo (ordenada) é o do dado <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>azul</strong>.
+                  <p className="ds-small-bold text-center text-feedback-error-dark">
+                    O primeiro elemento do par (abcissa) é o resultado do dado <strong className="text-feedback-success-dark">verde</strong> e o segundo (ordenada) é o do dado <strong className="text-brand-otimath-pure">azul</strong>.
                   </p>
                 )}
                 {markRetryMsg && (
-                  <p className="ds-small-bold text-center" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                  <p className="ds-small-bold text-center text-brand-otimath-pure">
                     Tente de novo. Vou te dar dados novos.
                   </p>
                 )}
@@ -2301,12 +2423,12 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <div className="flex flex-col gap-y-micro items-center mb-micro">
               <div className="flex gap-x-xs items-center justify-center mb-micro">
                 <div className="flex flex-col items-center">
-                  <span className="ds-caption-bold" style={{ color: 'var(--color-feedback-success-dark)' }}>Verde</span>
+                  <span className="ds-caption-bold text-feedback-success-dark">Verde</span>
                   <DiceFaceIcon face={greenResult} size={40} color="green" />
                 </div>
                 <span className="ds-heading-large text-neutral-dark">+</span>
                 <div className="flex flex-col items-center">
-                  <span className="ds-caption-bold" style={{ color: 'var(--color-brand-otimath-pure)' }}>Azul</span>
+                  <span className="ds-caption-bold text-brand-otimath-pure">Azul</span>
                   <DiceFaceIcon face={blueResult} size={40} color="blue" />
                 </div>
                 <span className="ds-heading-large text-neutral-dark">=</span>
@@ -2342,7 +2464,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 </Button>
               </div>
               {sumAnswerError && (
-                <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                <p className="ds-small-bold text-center mt-micro text-feedback-error-dark">
                   Some os valores dos dois dados e tente novamente.
                 </p>
               )}
@@ -2364,12 +2486,12 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   Conferir
                 </Button>
                 {sumFeedbackState === 'incomplete' && (
-                  <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                  <p className="ds-small-bold text-center text-feedback-success-dark">
                     Correto! Mas ainda não completou!
                   </p>
                 )}
                 {sumFeedbackState === 'wrong' && (
-                  <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                  <p className="ds-small-bold text-center text-feedback-error-dark">
                     Há marcações incorretas (em vermelho). Corrija e tente novamente.
                   </p>
                 )}
@@ -2384,15 +2506,15 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               explicitamente, preparando a fórmula P(A) = n(A)/n(Ω). */}
           {phase === 'sumComplete' && (
             <div className="flex flex-col gap-y-micro">
-              <p className="ds-heading-extra text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+              <p className="ds-heading-extra text-center text-feedback-success-dark">
                 ✓ Correto!
               </p>
               {renderTable()}
               {!sumCountValidated ? (
                 <div className="flex flex-col items-center gap-y-micro mt-micro">
-                  <p className="ds-body-bold text-neutral-black text-center" style={{ fontSize: '1.05rem' }}>
+                  <p className="ds-body-bold text-neutral-black text-center text-[1.05rem]">
                     A soma{' '}
-                    <strong style={{ color: 'var(--color-feedback-warning-dark)' }}>
+                    <strong className="text-feedback-warning-dark">
                       {greenResult + blueResult}
                     </strong>{' '}
                     ocorre{' '}
@@ -2425,20 +2547,20 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                     Conferir
                   </Button>
                   {sumCountError && (
-                    <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                    <p className="ds-small-bold text-center text-feedback-error-dark">
                       Conte na tabela quantas ocorrências da soma {greenResult + blueResult}.
                     </p>
                   )}
                 </div>
               ) : (
                 <>
-                  <p className="ds-body-bold text-neutral-black text-center mt-micro" style={{ fontSize: '1.05rem' }}>
+                  <p className="ds-body-bold text-neutral-black text-center mt-micro text-[1.05rem]">
                     A soma{' '}
-                    <strong style={{ color: 'var(--color-feedback-warning-dark)' }}>
+                    <strong className="text-feedback-warning-dark">
                       {greenResult + blueResult}
                     </strong>{' '}
                     ocorre{' '}
-                    <strong style={{ color: 'var(--color-feedback-success-dark)' }}>
+                    <strong className="text-feedback-success-dark">
                       {getPairsForSum(greenResult + blueResult).size}
                     </strong>{' '}
                     {getPairsForSum(greenResult + blueResult).size === 1 ? 'vez' : 'vezes'}.
@@ -2465,7 +2587,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               traduzido. Para ganhar, aluno responde 3 perguntas sobre a
               distribuição das somas. Contexto NÃO-JOGO-DE-AZAR. */}
           {phase === 'sumAlienIntro' && (
-            <div className="flex flex-col items-center gap-y-micro mb-micro" style={{ maxWidth: 520, margin: '0 auto' }}>
+            <div className="flex flex-col items-center gap-y-micro mb-micro max-w-[520px] mx-auto">
               <div style={{ fontSize: '3.5rem', lineHeight: 1 }} aria-hidden>🛸</div>
               <p className="ds-body text-neutral-black" style={{ textAlign: 'justify', fontSize: '0.98rem' }}>
                 Um <strong>alienígena brincalhão</strong> surgiu na sua tela. Debaixo do braço,
@@ -2497,13 +2619,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
           {/* ═══════ MOMENTO B — Pergunta 1/3: soma mais frequente ═══════ */}
           {phase === 'sumPredictMax' && (
-            <div className="flex flex-col items-center gap-y-micro mb-micro" style={{ maxWidth: 520, margin: '0 auto' }}>
+            <div className="flex flex-col items-center gap-y-micro mb-micro max-w-[520px] mx-auto">
               <div className="flex items-center gap-x-micro">
-                <span style={{ fontSize: '1.8rem' }} aria-hidden>🛸</span>
+                <span className="text-[1.8rem]" aria-hidden>🛸</span>
                 <span className="ds-caption-bold text-brand-otimath-pure">Pergunta 1 de 3</span>
               </div>
-              <p className="ds-body-bold text-neutral-black text-center" style={{ fontSize: '1.05rem' }}>
-                Qual soma você acha que ocorre <strong style={{ color: 'var(--color-feedback-success-dark)' }}>MAIS</strong> vezes no lançamento de dois dados?
+              <p className="ds-body-bold text-neutral-black text-center text-[1.05rem]">
+                Qual soma você acha que ocorre <strong className="text-feedback-success-dark">MAIS</strong> vezes no lançamento de dois dados?
               </p>
               <div className="flex items-center gap-x-micro">
                 <select
@@ -2540,13 +2662,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
           {/* ═══════ MOMENTO B — Pergunta 2/3: soma menos frequente ═══════ */}
           {phase === 'sumPredictMin' && (
-            <div className="flex flex-col items-center gap-y-micro mb-micro" style={{ maxWidth: 520, margin: '0 auto' }}>
+            <div className="flex flex-col items-center gap-y-micro mb-micro max-w-[520px] mx-auto">
               <div className="flex items-center gap-x-micro">
-                <span style={{ fontSize: '1.8rem' }} aria-hidden>🛸</span>
+                <span className="text-[1.8rem]" aria-hidden>🛸</span>
                 <span className="ds-caption-bold text-brand-otimath-pure">Pergunta 2 de 3</span>
               </div>
-              <p className="ds-body-bold text-neutral-black text-center" style={{ fontSize: '1.05rem' }}>
-                E qual soma você acha que ocorre <strong style={{ color: 'var(--color-feedback-error-dark)' }}>MENOS</strong> vezes?
+              <p className="ds-body-bold text-neutral-black text-center text-[1.05rem]">
+                E qual soma você acha que ocorre <strong className="text-feedback-error-dark">MENOS</strong> vezes?
               </p>
               <div className="flex items-center gap-x-micro">
                 <select
@@ -2583,13 +2705,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
           {/* ═══════ MOMENTO B — Pergunta 3/3: somas impossíveis ═══════ */}
           {phase === 'sumImpossible' && (
-            <div className="flex flex-col items-center gap-y-micro mb-micro" style={{ maxWidth: 520, margin: '0 auto' }}>
+            <div className="flex flex-col items-center gap-y-micro mb-micro max-w-[520px] mx-auto">
               <div className="flex items-center gap-x-micro">
-                <span style={{ fontSize: '1.8rem' }} aria-hidden>🛸</span>
+                <span className="text-[1.8rem]" aria-hidden>🛸</span>
                 <span className="ds-caption-bold text-brand-otimath-pure">Pergunta 3 de 3</span>
               </div>
               <p className="ds-body-bold text-neutral-black text-center" style={{ fontSize: '1.02rem' }}>
-                Quais destas somas são <strong style={{ color: 'var(--color-feedback-error-dark)' }}>impossíveis</strong> de ocorrer no lançamento de dois dados? (Marque todas.)
+                Quais destas somas são <strong className="text-feedback-error-dark">impossíveis</strong> de ocorrer no lançamento de dois dados? (Marque todas.)
               </p>
               <div className="flex justify-center" style={{ gap: 10, flexWrap: 'wrap' }}>
                 {sumImpossibleOptions.map(opt => {
@@ -2658,7 +2780,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               <div className="flex flex-col gap-y-micro" style={{ maxWidth: 640, margin: '0 auto' }}>
                 <div className="flex items-center justify-center gap-x-micro">
                   <span style={{ fontSize: '2.2rem' }} aria-hidden>🛸</span>
-                  <p className="ds-heading-extra" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+                  <p className="ds-heading-extra text-brand-otimath-pure">
                     Revelação!
                   </p>
                 </div>
@@ -2667,7 +2789,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 {!animDone && currentSum !== null && (
                   <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-warning-dark)', fontSize: '1.05rem' }}>
                     Soma <strong>{currentSum}</strong> → ocorre{' '}
-                    <strong style={{ color: 'var(--color-feedback-success-dark)' }}>
+                    <strong className="text-feedback-success-dark">
                       {currentCount}
                     </strong>{' '}
                     {currentCount === 1 ? 'vez' : 'vezes'}
@@ -2809,7 +2931,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                       }}>
                         {sumPredictedMaxCorrect ? '✓' : '✗'}{' '}
                         Mais frequente — você disse <strong>{sumPredictedMax}</strong>.
-                        Resposta: <strong style={{ color: 'var(--color-feedback-success-dark)' }}>7</strong> (ocorre 6 vezes).
+                        Resposta: <strong className="text-feedback-success-dark">7</strong> (ocorre 6 vezes).
                       </div>
                       <div style={{
                         padding: '10px 14px',
@@ -2819,7 +2941,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                       }}>
                         {sumPredictedMinCorrect ? '✓' : '✗'}{' '}
                         Menos frequentes — você disse <strong>{sumPredictedMin}</strong>.
-                        Resposta: <strong style={{ color: 'var(--color-feedback-error-dark)' }}>2</strong> e <strong style={{ color: 'var(--color-feedback-error-dark)' }}>12</strong> (cada uma ocorre apenas 1 vez).
+                        Resposta: <strong className="text-feedback-error-dark">2</strong> e <strong className="text-feedback-error-dark">12</strong> (cada uma ocorre apenas 1 vez).
                       </div>
                       <div style={{
                         padding: '10px 14px',
@@ -2834,7 +2956,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                     {/* Mensagem curta de transição — o livro é entregue apenas
                         no card final de probSumReveal, depois do cálculo de todas
                         as probabilidades. Aqui é só celebração do histograma. */}
-                    <p className="ds-body-bold text-center mt-micro" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                    <p className="ds-body-bold text-center mt-micro text-feedback-success-dark">
                       {(sumPredictedMaxCorrect && sumPredictedMinCorrect)
                         ? '🎯 Você entendeu a distribuição das somas!'
                         : '📊 Agora você conhece a distribuição real das somas.'}
@@ -2860,8 +2982,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
           {/* ═══════ FASE probPair — pergunta sobre P((x,y)) ═══════ */}
           {phase === 'probPair' && (
-            <div className="flex flex-col items-center gap-y-micro mb-micro" style={{ maxWidth: 560, margin: '0 auto' }}>
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+            <div className="flex flex-col items-center gap-y-micro mb-micro max-w-[560px] mx-auto">
+              <p className="ds-body-bold text-center text-brand-otimath-pure">
                 Cálculo de probabilidade
               </p>
               <p className="ds-body text-neutral-black" style={{ textAlign: 'justify', fontSize: '0.98rem' }}>
@@ -2941,17 +3063,17 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 Conferir
               </Button>
               {probPairError && probPairErrorType === 'denominator' && (
-                <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)', maxWidth: 440 }}>
+                <p className="ds-small-bold text-center mt-micro text-feedback-error-dark max-w-[440px]">
                   No lançamento de dois dados, quantos resultados são possíveis?
                 </p>
               )}
               {probPairError && probPairErrorType === 'numerator' && (
-                <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)', maxWidth: 440 }}>
+                <p className="ds-small-bold text-center mt-micro text-feedback-error-dark max-w-[440px]">
                   Os dados são honestos e portanto estamos diante de um espaço amostral equiprovável.
                 </p>
               )}
               {probPairError && probPairErrorType === 'both' && (
-                <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)', maxWidth: 440 }}>
+                <p className="ds-small-bold text-center mt-micro text-feedback-error-dark max-w-[440px]">
                   No lançamento de dois dados, quantos resultados são possíveis? Lembre-se: os dados são honestos, e portanto estamos diante de um espaço amostral equiprovável.
                 </p>
               )}
@@ -2967,7 +3089,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               <p className="ds-body text-neutral-black text-center" style={{ maxWidth: 560 }}>
                 Como todos os elementos de <strong>simetria</strong> estão presentes num{' '}
                 <strong>dado equilibrado</strong>, cada par ordenado tem a mesma probabilidade{' '}
-                <strong style={{ color: 'var(--color-brand-otimath-pure)' }}>1/36</strong>{' '}
+                <strong className="text-brand-otimath-pure">1/36</strong>{' '}
                 de ocorrer.
               </p>
               {renderTable()}
@@ -2988,7 +3110,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {/* ═══════ FASE probSumTable — tabela com 11 linhas para P(soma=k) ═══════ */}
           {phase === 'probSumTable' && (
             <div className="flex flex-col items-center gap-y-micro mb-micro" style={{ maxWidth: 680, margin: '0 auto' }}>
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-pure">
                 Probabilidade de cada soma
               </p>
               <p className="ds-body text-neutral-black" style={{ textAlign: 'justify', fontSize: '0.96rem' }}>
@@ -3018,9 +3140,9 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 }}
               >
                 <span className="ds-caption-bold" style={{ color: 'var(--color-neutral-dark)', textAlign: 'right' }}>Soma</span>
-                <span className="ds-caption-bold" style={{ color: 'var(--color-neutral-dark)' }}>Probabilidade</span>
+                <span className="ds-caption-bold text-neutral-dark">Probabilidade</span>
                 <span className="ds-caption-bold" style={{ color: 'var(--color-neutral-dark)', textAlign: 'right' }}>Soma</span>
-                <span className="ds-caption-bold" style={{ color: 'var(--color-neutral-dark)' }}>Probabilidade</span>
+                <span className="ds-caption-bold text-neutral-dark">Probabilidade</span>
                 {/* Intercala P(k) e P(k+6) para formar as 2 colunas:
                     linha 0: P(2) | P(8), linha 1: P(3) | P(9), ..., linha 5: P(7) | — */}
                 {(() => {
@@ -3100,12 +3222,12 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 Conferir
               </Button>
               {probSumFeedback === 'missing' && (
-                <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)', maxWidth: 440 }}>
+                <p className="ds-small-bold text-center text-feedback-error-dark max-w-[440px]">
                   Preencha todas as linhas (numerador e denominador) antes de conferir.
                 </p>
               )}
               {probSumFeedback === 'wrong' && (
-                <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)', maxWidth: 440 }}>
+                <p className="ds-small-bold text-center text-feedback-error-dark max-w-[440px]">
                   Algumas linhas estão incorretas (marcadas em vermelho). Pense: quantos pares produzem cada soma? E qual o total de pares no espaço amostral?
                 </p>
               )}
@@ -3114,7 +3236,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
           {/* ═══════ FASE probSumReveal — fechamento com axioma da soma + alien ═══════ */}
           {phase === 'probSumReveal' && (
-            <div className="flex flex-col items-center gap-y-micro mb-micro" style={{ maxWidth: 560, margin: '0 auto' }}>
+            <div className="flex flex-col items-center gap-y-micro mb-micro max-w-[560px] mx-auto">
               <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)', fontSize: '1.1rem' }}>
                 ✓ Todas corretas!
               </p>
@@ -3133,7 +3255,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               }}>
                 1/36 + 2/36 + 3/36 + 4/36 + 5/36 + 6/36 + 5/36 + 4/36 + 3/36 + 2/36 + 1/36
                 <br />
-                = <strong style={{ color: 'var(--color-feedback-success-dark)' }}>36/36 = 1</strong>
+                = <strong className="text-feedback-success-dark">36/36 = 1</strong>
               </div>
               <p className="ds-body text-neutral-black" style={{ textAlign: 'justify', fontSize: '0.94rem' }}>
                 Esse é um dos princípios fundamentais da probabilidade: a soma das probabilidades
@@ -3156,7 +3278,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {/* ═══════ CORRIDA DE CARRINHOS — sub-fase raceBet (aposta obrigatória) ═══════ */}
           {phase === 'raceBet' && (
             <div className="flex flex-col gap-y-micro" style={{ maxWidth: 720, margin: '0 auto' }}>
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-pure">
                 Corrida dos carrinhos
               </p>
               <p className="ds-body text-neutral-black" style={{ textAlign: 'justify', fontSize: '0.95rem' }}>
@@ -3164,7 +3286,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 Para jogar, você deve clicar em <strong>&ldquo;Sortear&rdquo;</strong> e dois dados serão sorteados.
                 A soma dos resultados definirá qual carrinho irá se deslocar. Vence o carrinho que chegar primeiro.
               </p>
-              <p className="ds-small text-center" style={{ color: 'var(--color-neutral-dark)', fontStyle: 'italic' }}>
+              <p className="ds-small text-center text-neutral-dark italic">
                 Clique no carrinho em que você quer apostar. Lembre-se do que você descobriu sobre somas possíveis.
               </p>
               {/* Pista da corrida — 13 linhas, cada uma com carrinho à esquerda
@@ -3265,10 +3387,10 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                     borderRadius: 12,
                   }}
                 >
-                  <p id="impossible-bet-title" className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-warning-dark)' }}>
+                  <p id="impossible-bet-title" className="ds-body-bold text-center text-feedback-warning-dark">
                     Tem certeza que quer apostar no carrinho {raceImpossibleConfirm}?
                   </p>
-                  <p className="ds-small text-center mt-micro" style={{ color: 'var(--color-neutral-darkest)' }}>
+                  <p className="ds-small text-center mt-micro text-neutral-darkest">
                     Essa é uma das somas que você identificou como <strong>impossível</strong>{' '}
                     na etapa anterior. Quer apostar mesmo assim?
                   </p>
@@ -3283,7 +3405,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 </div>
               )}
               {raceBet !== null && raceImpossibleConfirm === null && (
-                <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                <p className="ds-body-bold text-center text-feedback-success-dark">
                   Você apostou no carrinho <strong>{raceBet}</strong>. Clique em Sortear para começar a corrida!
                 </p>
               )}
@@ -3304,7 +3426,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {/* ═══════ CORRIDA DE CARRINHOS — sub-fase raceRunning (corrida em andamento) ═══════ */}
           {phase === 'raceRunning' && (
             <div className="flex flex-col gap-y-micro" style={{ maxWidth: 720, margin: '0 auto' }}>
-              <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+              <p className="ds-body-bold text-center text-brand-otimath-pure">
                 Corrida em andamento
               </p>
               {racePendingSum === null && raceWinner === null && (
@@ -3318,7 +3440,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 </p>
               )}
               {raceClickError && (
-                <p className="ds-small-bold text-center" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                <p className="ds-small-bold text-center text-feedback-error-dark">
                   Some os resultados dos dados e clique no carrinho correspondente.
                 </p>
               )}
@@ -3440,14 +3562,14 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {/* ═══════ CORRIDA DE CARRINHOS — sub-fase raceFinished (celebração) ═══════ */}
           {phase === 'raceFinished' && (
             <div className="flex flex-col gap-y-micro" style={{ maxWidth: 640, margin: '0 auto' }}>
-              <p className="ds-heading-extra text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+              <p className="ds-heading-extra text-center text-feedback-success-dark">
                 🏁 Chegada!
               </p>
               <p className="ds-body-bold text-center" style={{ fontSize: '1.1rem' }}>
-                O carrinho <strong style={{ color: 'var(--color-feedback-warning-dark)' }}>{raceWinner}</strong> venceu a corrida!
+                O carrinho <strong className="text-feedback-warning-dark">{raceWinner}</strong> venceu a corrida!
               </p>
               {raceBet !== null && raceWinner === raceBet && (
-                <p className="ds-body text-center" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                <p className="ds-body text-center text-feedback-success-dark">
                   🎉 Parabéns! Você apostou no vencedor.
                 </p>
               )}
@@ -3458,11 +3580,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 </p>
               )}
               {raceBet !== null && (raceBet === 1 || raceBet === 13) && (
-                <p className="ds-body text-center" style={{ color: 'var(--color-feedback-warning-dark)' }}>
-                  Você apostou no carrinho <strong>{raceBet}</strong>, que é uma soma <strong>impossível</strong>. Ele nunca saiu da largada porque <strong>P({raceBet}) = 0</strong>.
+                <p className="ds-body text-center text-feedback-warning-dark">
+                  Você apostou no carrinho <strong>{raceBet}</strong>, que é uma soma <strong>impossível</strong>. Ele nunca saiu da largada porque <strong className="whitespace-nowrap">P({raceBet}) = 0</strong>.
                 </p>
               )}
-              <p className="ds-small text-center" style={{ color: 'var(--color-neutral-dark)', fontStyle: 'italic' }}>
+              <p className="ds-small text-center text-neutral-dark italic">
                 Repare que os carrinhos <strong>1</strong> e <strong>13</strong> ficaram parados o tempo todo.
                 Isso é porque P(1) = 0 e P(13) = 0 — <strong>eventos impossíveis</strong> nunca ocorrem.
                 A menor soma possível é 2 (1+1) e a maior é 12 (6+6).
@@ -3520,6 +3642,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                em vermelho; A auto-revelado em verde; Ω = A ⊔ Ā). */}
           {phase === 'complementaryEvents' && (
             <ComplementaryEventsActivity
+              ref={complementaryEventsRef}
+              onPhaseChange={setComplementaryEventsPhase}
               onContinue={() => {
                 playSound('/sounds/challengeFinished.mp3');
                 setPhase('unionTheory');
@@ -3532,6 +3656,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <UnionProbabilityTheory
               ref={unionTheoryRef}
               initialPhase={unionTheoryInitialPhase}
+              createAlert={createAlert}
+              onPhaseChange={setUnionTheoryPhase}
               onFinished={() => {
                 playSound('/sounds/challengeFinished.mp3');
                 setUnionTheoryInitialPhase(undefined);
@@ -3545,6 +3671,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <UnionExercise1
               ref={unionExercise1Ref}
               initialStep={unionExercise1InitialStep}
+              createAlert={createAlert}
               onFinished={() => {
                 playSound('/sounds/challengeFinished.mp3');
                 setUnionExercise1InitialStep(undefined);
@@ -3562,6 +3689,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <UnionExercise2
               ref={unionExercise2Ref}
               initialStep={unionExercise2InitialStep}
+              createAlert={createAlert}
               onFinished={() => {
                 playSound('/sounds/challengeFinished.mp3');
                 setUnionExercise2InitialStep(undefined);
@@ -3579,6 +3707,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <UnionExercise3
               ref={unionExercise3Ref}
               initialStep={unionExercise3InitialStep}
+              createAlert={createAlert}
               onFinished={() => {
                 playSound('/sounds/challengeFinished.mp3');
                 setUnionExercise3InitialStep(undefined);
@@ -3595,6 +3724,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {phase === 'unionExercise4' && (
             <UnionExercise4
               ref={unionExercise4Ref}
+              createAlert={createAlert}
               onFinished={() => {
                 playSound('/sounds/challengeFinished.mp3');
                 setPhase('unionExercise5');
@@ -3610,6 +3740,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {phase === 'unionExercise5' && (
             <UnionExercise5
               ref={unionExercise5Ref}
+              createAlert={createAlert}
               onFinished={() => {
                 playSound('/sounds/challengeFinished.mp3');
                 setPhase('unionExercise6');
@@ -3622,13 +3753,18 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
           {/* ═══════ EXERCÍCIO 6 — REVISÃO (2 rodadas: ∪ e ∩, ordem sorteada) ═══════
                Fechamento conceitual do OVA. Após Ex6, o estudante pode finalizar
-               o OVA OU optar pelo Ex7 (jogo livre completo). */}
+               o OVA OU optar pelos exercícios opcionais Ex7/Ex8. Ao retornar
+               de Ex7/Ex8, este componente remonta com initialStep='finalSynthesis'
+               e os botões correspondentes ficam marcados como concluídos. */}
           {phase === 'unionExercise6' && (
             <UnionExercise6Review
               ref={unionExercise6Ref}
+              initialStep={ex6InitialStep}
+              ex7Completed={ex7Completed}
+              ex8Completed={ex8Completed}
               onFinished={() => {
                 playSound('/sounds/gameFinished.mp3');
-                setPhase('closing');
+                onFinished();
               }}
               onRequestFreePlay={() => {
                 playSound('/sounds/nextChallenge.mp3');
@@ -3647,7 +3783,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {/* ═══════ EXERCÍCIO 7 (OPCIONAL) — JOGO LIVRE COM 12 EVENTOS ═══════
                Reuso integral do TwoDicesGame da seção introdutória. Estudante
                revisita os 12 eventos sob 7 desafios sorteados (2 puros + 5
-               com operação) com plena autonomia. Botão "Finalizar" sai. */}
+               com operação) com plena autonomia. Botão "Concluir Ex7" retorna
+               à tela de Parabéns do Ex6, com Ex7 marcado como concluído. */}
           {phase === 'twoDicesGameFree' && (
             <div className="flex flex-col gap-y-xxs">
               <div className="flex justify-between items-center gap-x-micro flex-wrap">
@@ -3658,16 +3795,19 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   onClick={() => {
-                    playSound('/sounds/gameFinished.mp3');
-                    onFinished();
+                    playSound('/sounds/challengeFinished.mp3');
+                    setEx7Completed(true);
+                    setEx6InitialStep('finalSynthesis');
+                    setPhase('unionExercise6');
                   }}
                 >
-                  Finalizar OVA
+                  Concluir Ex7
                 </Button>
               </div>
               <p className="ds-small text-neutral-dark italic">
                 Continue praticando o jogo completo dos dois dados — 12 eventos
-                sorteados em 7 desafios. Você pode finalizar o OVA quando quiser.
+                sorteados em 7 desafios. Ao concluir, você volta à tela de
+                Parabéns do OVA.
               </p>
               <TwoDicesGame enableMarkAll />
             </div>
@@ -3678,7 +3818,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                restrições matemáticas R1–R4, progressão de dificuldade,
                balanceamento por família, marcação sequencial A → B → D
                (Opção i) e StudyMenu integrado. Coexiste com Ex7 (Leitura β):
-               Ex7 e Ex8 são duas vias opcionais distintas pós-Ex6. */}
+               Ex7 e Ex8 são duas vias opcionais distintas pós-Ex6. Botão
+               "Concluir Ex8" retorna à tela de Parabéns do Ex6 com marca. */}
           {phase === 'unionExercise8' && (
             <div className="flex flex-col gap-y-xxs">
               <div className="flex justify-between items-center gap-x-micro flex-wrap">
@@ -3689,17 +3830,20 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   onClick={() => {
-                    playSound('/sounds/gameFinished.mp3');
-                    onFinished();
+                    playSound('/sounds/challengeFinished.mp3');
+                    setEx8Completed(true);
+                    setEx6InitialStep('finalSynthesis');
+                    setPhase('unionExercise6');
                   }}
                 >
-                  Finalizar OVA
+                  Concluir Ex8
                 </Button>
               </div>
               <p className="ds-small text-neutral-dark italic">
                 Pool ampliado de eventos parametrizados (~50), com progressão
                 de dificuldade, balanceamento por família e marcação sequencial
-                A → B → D nos compostos. Você pode finalizar o OVA quando quiser.
+                A → B → D nos compostos. Ao concluir, você volta à tela de
+                Parabéns do OVA.
               </p>
               <TwoDicesGameAdvanced />
             </div>
@@ -3710,7 +3854,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <div className="flex flex-col gap-y-micro">
               <div className="flex gap-x-xs items-center justify-center mb-micro">
                 <div className="flex flex-col items-center">
-                  <span className="ds-caption-bold" style={{ color: 'var(--color-feedback-success-dark)' }}>Verde</span>
+                  <span className="ds-caption-bold text-feedback-success-dark">Verde</span>
                   <DiceFaceIcon face={greenResult} size={40} color="green" />
                   <span className="ds-body-bold text-neutral-black">{greenResult}</span>
                 </div>
@@ -3721,7 +3865,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 </div>
                 <span className="ds-heading-large text-neutral-dark">←</span>
                 <div className="flex flex-col items-center">
-                  <span className="ds-caption-bold" style={{ color: 'var(--color-brand-otimath-pure)' }}>Azul</span>
+                  <span className="ds-caption-bold text-brand-otimath-pure">Azul</span>
                   <DiceFaceIcon face={blueResult} size={40} color="blue" />
                   <span className="ds-body-bold text-neutral-black">{blueResult}</span>
                 </div>
@@ -3745,9 +3889,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         const pair = cachedPair ?? getPairForQuestion();
         const { original: o } = pair;
         return (
-          <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <p className="ds-body-bold text-neutral-black text-center mb-micro" style={{ fontSize: '1.05rem' }}>
+          <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+            <p className="ds-body-bold text-neutral-black text-center mb-micro text-[1.05rem]">
               Considere o par ordenado <strong>({o.green}, {o.blue})</strong> que você registrou.
             </p>
             <p className="ds-body-bold text-neutral-black text-center mb-micro">
@@ -3796,7 +3939,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             )}
             {pairAnswerError && (
               <>
-                <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)' }}>
+                <p className="ds-small-bold text-center mt-micro text-feedback-error-dark">
                   Observe a posição de cada resultado na tabela. Tente novamente.
                 </p>
                 <div className="mt-micro">
@@ -3812,19 +3955,18 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         const pair = cachedPair ?? getPairForQuestion();
         const o = pair?.original ?? { green: 3, blue: 5 };
         return (
-          <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <p className="ds-body-bold text-neutral-black mb-micro" style={{ textAlign: 'justify', fontSize: '1.05rem' }}>
+          <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+            <p className="ds-body-bold text-neutral-black mb-micro text-justify text-[1.05rem]">
               Os pares <strong>({o.green}, {o.blue})</strong> e <strong>({o.blue}, {o.green})</strong> são
               resultados <strong>diferentes</strong>.
             </p>
             <p className="ds-body-bold text-neutral-black mb-micro text-justify">
               Em <strong>({o.green}, {o.blue})</strong>, o dado
-              <strong style={{ color: 'var(--color-feedback-success-dark)' }}> verde</strong> saiu {o.green} e o dado
-              <strong style={{ color: 'var(--color-brand-otimath-pure)' }}> azul</strong> saiu {o.blue}.
+              <strong className="text-feedback-success-dark"> verde</strong> saiu {o.green} e o dado
+              <strong className="text-brand-otimath-pure"> azul</strong> saiu {o.blue}.
               Em <strong>({o.blue}, {o.green})</strong>, o dado
-              <strong style={{ color: 'var(--color-feedback-success-dark)' }}> verde</strong> saiu {o.blue} e o dado
-              <strong style={{ color: 'var(--color-brand-otimath-pure)' }}> azul</strong> saiu {o.green}.
+              <strong className="text-feedback-success-dark"> verde</strong> saiu {o.blue} e o dado
+              <strong className="text-brand-otimath-pure"> azul</strong> saiu {o.green}.
               São posições diferentes na tabela:
             </p>
             {renderTable(false)}
@@ -3839,9 +3981,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
       {/* ═══════ PERGUNTA SOBRE DADOS DA MESMA COR ═══════ */}
       {phase === 'colorQuestion' && (
-        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <p className="ds-body-bold text-neutral-black text-center mb-micro" style={{ fontSize: '1.05rem' }}>
+        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+          <p className="ds-body-bold text-neutral-black text-center mb-micro text-[1.05rem]">
             E se os dois dados fossem da <strong>mesma cor</strong>? Ainda seria possível distinguir os pares?
           </p>
           {whiteThrowCount < 2 && (
@@ -3874,7 +4015,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             </div>
           )}
           {whiteThrowCount === 0 && (
-            <p className="ds-small text-center mb-micro" style={{ color: 'var(--color-neutral-dark)', fontStyle: 'italic' }}>
+            <p className="ds-small text-center mb-micro text-neutral-dark italic">
               Lance os dados pelo menos uma vez antes de responder.
             </p>
           )}
@@ -3920,7 +4061,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             </div>
           )}
           {colorAnswerError && (
-            <p className="ds-small-bold text-center mt-micro" style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p className="ds-small-bold text-center mt-micro text-feedback-error-dark">
               Lembre-se: os dois dados são objetos separados, mesmo que tenham a mesma cor. Tente novamente.
             </p>
           )}
@@ -3928,9 +4069,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       )}
 
       {phase === 'colorExplain' && (
-        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <p className="ds-body-bold text-neutral-black mb-micro" style={{ textAlign: 'justify', fontSize: '1.05rem' }}>
+        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+          <p className="ds-body-bold text-neutral-black mb-micro text-justify text-[1.05rem]">
             Mesmo escondidos pelo copo, sem as cores e sem você conseguir rastrear qual dado era qual,
             os pares <strong>(x, y)</strong> e <strong>(y, x)</strong> continuam sendo resultados diferentes.
             A <strong>ordem mora no par</strong>, não nos dados.
@@ -3951,23 +4091,19 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         </div>
       )}
 
-      {/* ═══════ TELA DE FECHAMENTO REFLEXIVA ═══════
-           Apresenta espelho metacognitivo do percurso após Finalizar OVA
-           (vieses cognitivos detectados, dificuldades, desempenho por
-           exercício com habilidades operacionais e BNCC, transição para
-           o próximo OVA). Render delegado ao TwoDicesClosingScreen. */}
-      {phase === 'closing' && (
-        <TwoDicesClosingScreen
-          onRestart={() => setPhase('intro')}
-          onConclude={onFinished}
-        />
-      )}
+      {/* ═══════ TELA DE FECHAMENTO REFLEXIVA — REMOVIDA ═══════
+           Antes, ao terminar o Ex6/Ex8 o OVA mostrava uma tela com métricas
+           da sessão e botão de baixar JSON. A pedido do professor, essa tela
+           foi removida — o Ex6/Ex8 chama onFinished() direto e o controle volta
+           para a sequência didática, que mostra sua tela "complete" própria.
+           A fase 'closing' continua no Phase union por compat. com snapshots
+           DEV antigos, mas não tem mais render aqui — se for alcançada, o
+           advance() do handle a converte em onFinished(). */}
 
       {/* ═══════ FINALIZAÇÃO ═══════ */}
       {phase === 'finished' && (
-        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter"
-          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <p className="ds-body-bold text-neutral-black mb-micro" style={{ fontSize: '1.05rem', textAlign: 'justify' }}>
+        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+          <p className="ds-body-bold text-neutral-black mb-micro text-[1.05rem] text-justify">
             Você realizou {TOTAL_ROUNDS} lançamentos e registrou os resultados como pares ordenados na tabela.
             Cada célula representa um resultado possível do experimento aleatório de lançar dois dados.
           </p>

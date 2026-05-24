@@ -338,10 +338,10 @@ function checkProperty(num: number, property: string, valueP?: number): boolean 
       // canônico pelo valor sorteado para fins de exibição). Sem isso a
       // validação em 6.66/6.67/6.68 sempre retorna false para a condição
       // numérica e a resposta correta do aluno é rejeitada.
-      const matchMaior = property.match(/^maior que (\d+)$/);
-      if (matchMaior) return num > parseInt(matchMaior[1], 10);
-      const matchMenor = property.match(/^menor que (\d+)$/);
-      if (matchMenor) return num < parseInt(matchMenor[1], 10);
+      const matchGreaterThan = property.match(/^maior que (\d+)$/);
+      if (matchGreaterThan) return num > parseInt(matchGreaterThan[1], 10);
+      const matchLessThan = property.match(/^menor que (\d+)$/);
+      if (matchLessThan) return num < parseInt(matchLessThan[1], 10);
       return false;
     }
   }
@@ -3892,17 +3892,15 @@ export const useRouletteHooks = () => {
   // de mudar a cor selecionada enquanto a transição para 1.5 ainda não ocorreu.
   const s3BetLockedRef = useRef(false);
 
-  // Melhoria 12 — Wrapper de createAlert que loga tentativas automaticamente
+  // Wrapper de createAlert mantido apenas por compatibilidade — o log
+  // de tentativas (sucesso/erro) agora é capturado pelo observador
+  // global em `useSequenceSession`, que escuta TODOS os createAlert
+  // via `subscribeToAlerts` no `useAlerts`. Manter a chamada
+  // duplicada aqui geraria contagem dobrada de tentativas no OVA do
+  // Disco quando executado dentro da sequência didática.
   const gameStateRef = useRef<{ stage: number; subStep: number }>({ stage: 1, subStep: 0 });
   const createAlert = useCallback((title: string, message: string, type: AlertType, duration?: number) => {
     _createAlert(title, message, type, duration);
-    // Logar tentativas baseado no tipo de alerta
-    const s = gameStateRef.current;
-    if (type === 'error') {
-      logAttempt(s.stage, s.subStep, false, title);
-    } else if (type === 'success') {
-      logAttempt(s.stage, s.subStep, true, title);
-    }
   }, [_createAlert]);
 
   // Refs
@@ -3933,8 +3931,10 @@ export const useRouletteHooks = () => {
 
   // Função para iniciar o jogo
   const startGame = useCallback(() => {
-    // Sortear número de setores (2 a 6)
-    const targetCount = Math.floor(Math.random() * 5) + 2; // 2 a 6
+    // Sortear número de setores (3 a 6). Discos de apenas 2 setores
+    // trivializam o experimento aleatório — caem fora do espírito da
+    // aplicação. Mantemos o limite superior em 6 (paleta + ergonomia).
+    const targetCount = Math.floor(Math.random() * 4) + 3; // 3 a 6
 
     setGameState(prev => ({
       ...prev,
@@ -6241,7 +6241,9 @@ export const useRouletteHooks = () => {
         if (nextIdx >= colors.length) {
           // Todos P(cor) preenchidos → iniciar fase de treinos (inline)
           const origK = gameState.s2K;
-          const availKs = [2, 3, 4, 5, 6].filter(kv => kv !== origK);
+          // Pool de treino: k ∈ {3..6}. Discos de 2 setores foram banidos
+          // do OVA para preservar a riqueza do experimento.
+          const availKs = [3, 4, 5, 6].filter(kv => kv !== origK);
           const trainK = availKs[Math.floor(Math.random() * availKs.length)];
           const result = generateNonEquiprobableAngles(trainK);
           const shuffColors = [...AVAILABLE_COLORS].sort(() => Math.random() - 0.5);
@@ -6351,7 +6353,8 @@ export const useRouletteHooks = () => {
         if (nextIdx >= colors.length) {
           // Ir para Treinos de Fração θ/360
           const savedSectors = [...gameState.sectors];
-          const trainK = [2, 3, 4, 5, 6][Math.floor(Math.random() * 5)];
+          // Treino de fração θ/360 — k ∈ {3..6} (sem 2 setores).
+          const trainK = [3, 4, 5, 6][Math.floor(Math.random() * 4)];
           const result = generateNonEquiprobableAngles(trainK);
           const shuffledColors = [...AVAILABLE_COLORS].sort(() => Math.random() - 0.5);
           const trainColors = shuffledColors.slice(0, trainK);
@@ -7888,13 +7891,13 @@ export const useRouletteHooks = () => {
     const nextTraining = trainingState.currentTraining + 1;
     if (nextTraining > 4) return;
 
-    // Sortear novo k não usado
-    const availableKs = [2, 3, 4, 5, 6].filter(k => !trainingState.usedKValues.includes(k));
+    // Sortear novo k não usado — pool k ∈ {3..6} (sem 2 setores).
+    const availableKs = [3, 4, 5, 6].filter(k => !trainingState.usedKValues.includes(k));
     let trainK: number;
     if (availableKs.length > 0) {
       trainK = availableKs[Math.floor(Math.random() * availableKs.length)];
     } else {
-      const fallback = [2, 3, 4, 5, 6].filter(k => k !== trainingState.originalK);
+      const fallback = [3, 4, 5, 6].filter(k => k !== trainingState.originalK);
       trainK = fallback[Math.floor(Math.random() * fallback.length)];
     }
 
@@ -7948,12 +7951,13 @@ export const useRouletteHooks = () => {
     if (fracTraining.currentTraining >= 5) return;
 
     const next = fracTraining.currentTraining + 1;
-    const availableKs = [2, 3, 4, 5, 6].filter(k => !fracTraining.usedKValues.includes(k));
+    // Pool de treino de fração — k ∈ {3..6} (sem 2 setores).
+    const availableKs = [3, 4, 5, 6].filter(k => !fracTraining.usedKValues.includes(k));
     let trainK: number;
     if (availableKs.length > 0) {
       trainK = availableKs[Math.floor(Math.random() * availableKs.length)];
     } else {
-      trainK = [2, 3, 4, 5, 6][Math.floor(Math.random() * 5)];
+      trainK = [3, 4, 5, 6][Math.floor(Math.random() * 4)];
     }
     const result = generateNonEquiprobableAngles(trainK);
     const shuffledColors = [...AVAILABLE_COLORS].sort(() => Math.random() - 0.5);
@@ -9824,8 +9828,9 @@ export const useRouletteHooks = () => {
 
   // Função para iniciar Etapa 2
   const startStage2 = useCallback(() => {
-    // Sortear k ∈ {2,3,4,5,6}
-    const targetK = Math.floor(Math.random() * 5) + 2;
+    // Sortear k ∈ {3,4,5,6}. Discos de 2 setores foram excluídos —
+    // trivializam o experimento. Limite superior preserva paleta de cores.
+    const targetK = Math.floor(Math.random() * 4) + 3;
 
     // Libera locks da fase de investigação (caso restando de uma rodada anterior)
     s2BetLockedRef.current = false;

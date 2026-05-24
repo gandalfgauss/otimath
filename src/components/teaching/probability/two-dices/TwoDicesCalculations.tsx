@@ -35,7 +35,7 @@ export function TwoDicesCalculations({
       <div className="flex flex-col pt-micro pb-micro pl-quarck pr-quarck gap-xxxs">
         {selectInputs?.eventsA &&
           <div className="flex gap-micro items-center">
-            <span className="ds-body-bold text-brand-otimath-medium">D = </span>
+            <span className="ds-body-bold text-brand-otimath-medium whitespace-nowrap">D = </span>
             <SelectInput
               selectInput={{
                 styles: "w-[50px] h-[40px] text-center",
@@ -80,7 +80,7 @@ export function TwoDicesCalculations({
             <div className="flex gap-micro items-center">
               <span
                 className="ds-body-bold"
-                style={{ color: mainColor ?? 'var(--color-brand-otimath-medium)' }}
+                style={{ color: mainColor ?? 'var(--color-brand-otimath-medium)', whiteSpace: 'nowrap' }}
               >
                 P({mainLabel ?? mainEventName}) ={' '}
               </span>
@@ -118,7 +118,7 @@ export function TwoDicesCalculations({
               <div className="flex gap-micro items-center">
                 <span
                   className="ds-body-bold"
-                  style={{ color: complementColor ?? 'var(--color-brand-otimath-medium)' }}
+                  style={{ color: complementColor ?? 'var(--color-brand-otimath-medium)', whiteSpace: 'nowrap' }}
                 >
                   P({complementLabel ?? complementName}) ={' '}
                 </span>

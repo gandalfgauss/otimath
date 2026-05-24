@@ -73,6 +73,8 @@ interface UnionExercise5Props {
   onFinished: () => void;
   onRequestPreviousPhase?: () => void;
   initialStep?: Step;
+  /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
 }
 
 export interface UnionExercise5Handle {
@@ -82,8 +84,19 @@ export interface UnionExercise5Handle {
   canBack: () => boolean;
 }
 
+// Sequência completa que o DEV percorre — inclui todos os Steps do fluxo
+// natural (intro → fillTotals → enunciadoView → spiralOpen → goalAnim →
+// reasoningPlayback → conditionalGlimpse[rd1] → roundFinished). Sem
+// listar todos, o advance() caía em onFinished() e pulava a 2ª rodada.
 const STEP_SEQUENCE: Step[] = [
-  'intro', 'fillTotals', 'enunciadoView', 'roundFinished',
+  'intro',
+  'fillTotals',
+  'enunciadoView',
+  'spiralOpen',
+  'goalAnim',
+  'reasoningPlayback',
+  'conditionalGlimpse',
+  'roundFinished',
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -179,7 +192,7 @@ function buildReasoningLines(data: Exercise5Data): ReasoningLine[] {
 // ═══════════════════════════════════════════════════════════════
 
 export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Props>(
-  function UnionExercise5({ onFinished, onRequestPreviousPhase, initialStep }, ref) {
+  function UnionExercise5({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
     const [step, setStep] = useState<Step>(initialStep ?? 'intro');
     const [round, setRound] = useState(0);
     const [data, setData] = useState<Exercise5Data>(() => selectExercise5Data(0));
@@ -226,15 +239,51 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
     }, [data]);
 
     // ── Navegação dev ────────────────────────────────────────────
+    // Fluxo natural por rodada:
+    //   intro → fillTotals → enunciadoView → spiralOpen → goalAnim
+    //          → [conditionalGlimpse SE round===1] → roundFinished
+    // Em 'roundFinished':
+    //   • round===0 → próxima rodada (reseta tudo, volta para 'intro')
+    //   • round===1 → onFinished() (sai do exercício)
     const advanceStep = useCallback(() => {
-      const idx = STEP_SEQUENCE.indexOf(step);
-      if (idx < 0 || idx === STEP_SEQUENCE.length - 1) {
-        onFinished();
-        return;
-      }
       playSound('/sounds/nextChallenge.mp3');
-      setStep(STEP_SEQUENCE[idx + 1]);
-    }, [step, onFinished]);
+      switch (step) {
+        case 'intro':           setStep('fillTotals'); return;
+        case 'fillTotals':      setStep('enunciadoView'); return;
+        case 'enunciadoView':   setStep('spiralOpen'); return;
+        case 'wrongFeedback':   setStep('enunciadoView'); return;
+        case 'spiralOpen':      setStep('goalAnim'); return;
+        case 'goalAnim':
+          // round 1: passa pelo glimpse condicional; outras rodadas pulam.
+          setStep(round === 1 ? 'conditionalGlimpse' : 'roundFinished');
+          return;
+        case 'reasoningPlayback':
+          // Caminho do "Não tenho ideia" — depois também encerra a rodada.
+          setStep(round === 1 ? 'conditionalGlimpse' : 'roundFinished');
+          return;
+        case 'conditionalGlimpse':
+          setStep('roundFinished');
+          return;
+        case 'roundFinished':
+          if (round < 1) {
+            // Próxima rodada obrigatória — reseta como advanceToNextRound.
+            const nextRound = round + 1;
+            setRound(nextRound);
+            setData(selectExercise5Data(nextRound));
+            setTotals(EMPTY_TOTALS);
+            setValidation({});
+            setTotalsLocked(false);
+            setHintLevel(0);
+            setShowNoIdeaButton(false);
+            setWrongAttempts(0);
+            setCalcOpen(false);
+            setStep('intro');
+            return;
+          }
+          onFinished();
+          return;
+      }
+    }, [step, round, onFinished]);
 
     const backStep = useCallback(() => {
       const idx = STEP_SEQUENCE.indexOf(step);
@@ -262,12 +311,14 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
       setValidation(v);
       if (allTotalsCorrect(v)) {
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Totais da tabela de contingência conferidos.', 'success', 3500);
         setTotalsLocked(true);
         setStep('enunciadoView');
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Some as linhas e colunas — algum total não confere.', 'error', 4500);
       }
-    }, [data, totals]);
+    }, [data, totals, createAlert]);
 
     const onResponderClick = useCallback(() => {
       setStep('spiralOpen');
@@ -276,9 +327,11 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
     const onSpiralSubmit = useCallback((selectedId: string) => {
       if (selectedId === 'correct') {
         playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', 'Resposta certa — siga para o gol!', 'success', 3500);
         setStep('goalAnim');
       } else {
         playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', 'Releia o enunciado e reconsidere as alternativas.', 'error', 4500);
         setWrongAttempts(w => {
           const next = w + 1;
           if (next >= 1 && hintLevel === 0) setHintLevel(1);
@@ -288,7 +341,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
         });
         setStep('wrongFeedback');
       }
-    }, [hintLevel]);
+    }, [hintLevel, createAlert]);
 
     const onSpiralCancel = useCallback(() => {
       setStep('enunciadoView');
@@ -321,6 +374,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
       setHintLevel(0);
       setShowNoIdeaButton(false);
       setWrongAttempts(0);
+      setCalcOpen(false);
       setStep('intro');
     }, [round]);
 
@@ -546,14 +600,14 @@ function IntroPanel({
         display: 'flex', flexDirection: 'column', gap: 12,
       }}
     >
-      <p className="ds-body-large" style={{ margin: 0, color: 'var(--color-neutral-darkest)' }}>
+      <p className="ds-body-large m-0 text-neutral-darkest">
         Você está na <strong>{roundLabel}</strong>. Imagine que uma pesquisa
         entrevistou torcedores presentes no estádio durante o jogo
         <strong> {data.team1.name} × {data.team2.name}</strong>. A tabela apresentada
         mostra quantos torcedores de cada time são do <strong>sexo masculino</strong> (<SexSymbol s="m" />)
         {' '}e do <strong>sexo feminino</strong> (<SexSymbol s="f" />).
       </p>
-      <p className="ds-body" style={{ margin: 0, color: 'var(--color-neutral-darkest)' }}>
+      <p className="ds-body m-0 text-neutral-darkest">
         Antes de calcular qualquer probabilidade, você precisa
         <strong> calcular os 5 totais</strong> da tabela (margens das linhas,
         margens das colunas e total geral). A calculadora está disponível
@@ -668,8 +722,7 @@ function StatementPanel({
         }}
       >
         <p
-          className="ds-body-large"
-          style={{ margin: 0, color: 'var(--color-neutral-darkest)' }}
+          className="ds-body-large m-0 text-neutral-darkest"
         >
           {data.statement}
         </p>
@@ -764,7 +817,7 @@ function ConditionalGlimpsePanel({
       >
         🔮 Antecipação — uma nova pergunta sobre a mesma tabela
       </h3>
-      <p className="ds-body" style={{ margin: 0, color: 'var(--color-neutral-darkest)' }}>
+      <p className="ds-body m-0 text-neutral-darkest">
         Suponha que sabemos que a pessoa entrevistada
         <strong> torce pelo {data.team1.name}</strong> (já restringimos o
         espaço amostral à linha do Time1, que tem {totalA} torcedores).
@@ -820,7 +873,7 @@ function RoundFinishedPanel({
       >
         🎉 Rodada concluída!
       </h3>
-      <p className="ds-body" style={{ margin: 0, color: 'var(--color-neutral-darkest)' }}>
+      <p className="ds-body m-0 text-neutral-darkest">
         A resposta foi <strong>{data.targetLabel} = {answerFraction}</strong> ≈ {answerDecimal} ≈ {answerPercent}.
       </p>
       <div

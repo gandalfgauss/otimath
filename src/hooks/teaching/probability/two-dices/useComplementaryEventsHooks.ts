@@ -694,14 +694,20 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             playSound('/sounds/incorrect.mp3');
           }
         } else if (formStep === 1) {
-          const v = parseInt(formStep1Value.trim(), 10);
-          if (v === 1) {
+          // Aceita "1", "1,0", "1.0", "100%", "100 %" — qualquer forma
+          // numericamente equivalente a 1. Normaliza vírgula decimal pt-BR.
+          const raw = formStep1Value.trim().toLowerCase();
+          const hasPercent = raw.endsWith('%');
+          const numericPart = (hasPercent ? raw.slice(0, -1) : raw).replace(',', '.').trim();
+          const v = parseFloat(numericPart);
+          const equivalent = Number.isFinite(v) && (hasPercent ? v === 100 : v === 1);
+          if (equivalent) {
             createAlert('Correto!', 'P(S) = 1.', 'success', 2500);
             playSound('/sounds/correct.mp3');
             setFormStep(2);
           } else {
             setFormStep1Error(true);
-            createAlert('Ops!', 'A probabilidade do espaço amostral S é 1, pois S é o evento certo!', 'error', 4500);
+            createAlert('Ops!', 'A probabilidade do espaço amostral S é 1 (ou, equivalentemente, 100%), pois S é o evento certo!', 'error', 4500);
             playSound('/sounds/incorrect.mp3');
           }
         } else if (formStep === 2) {
@@ -867,6 +873,126 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     });
   };
 
+  // ════════════════════════════════════════════════════════════
+  // DEV — Avanço inline (simula a próxima ação correta do aluno)
+  // ════════════════════════════════════════════════════════════
+  // Atalho para o painel DEV: cada chamada move para a próxima sub-fase
+  // como se o aluno tivesse respondido corretamente. Inlinearizamos a
+  // lógica de sucesso (sem chamar checkOnClick) para evitar closure stale
+  // após múltiplas setState dentro da mesma transição.
+  const devAdvance = () => {
+    if (!data) return;
+    switch (subPhase) {
+      case 'strategyChoice': {
+        if (!strategyChoice) setStrategyChoiceState(COMPLEMENT_LABEL);
+        goToMarking(data);
+        return;
+      }
+      case 'marking': {
+        const layer = buildLayerFromValidation(data.eventComplement.validation, false);
+        setEventsCheckboxes({ [COMPLEMENT_LABEL]: layer });
+        goToReveal(data);
+        return;
+      }
+      case 'reveal': {
+        // Pula a animação e vai direto para o confronto.
+        goToStrategyReview(data);
+        return;
+      }
+      case 'strategyReview': {
+        if (!reviewChoice) setReviewChoiceState('keep');
+        if (!confrontMessage) {
+          setConfrontMessage(buildConfrontMessage());
+          return;
+        }
+        goToComputeComplementProb(data);
+        return;
+      }
+      case 'computeComplementProb': {
+        // Preenche P(Ā) com nE/36 e avança.
+        setProbabilitiesTextInputs(prev => ({
+          ...prev,
+          numerator:   { ...prev.numerator,   value: String(data.nE),           error: false },
+          denominator: { ...prev.denominator, value: String(SAMPLE_SPACE),      error: false },
+        }));
+        if (roundRef.current === 0) goToFormalization(data);
+        else goToProbabilities(data);
+        return;
+      }
+      case 'formalization': {
+        if (formStep === 0) {
+          setFormStep0ValueState('S');
+          setFormStep0Error(false);
+          setFormStep(1);
+          return;
+        }
+        if (formStep === 1) {
+          setFormStep1ValueState('1');
+          setFormStep1Error(false);
+          setFormStep(2);
+          return;
+        }
+        if (formStep === 2) {
+          setFormStep2ValueState(String(SAMPLE_SPACE));
+          setFormStep2DenValueState(String(SAMPLE_SPACE));
+          setFormStep2Error(false);
+          setFormStep(3);
+          return;
+        }
+        if (formStep === 3) {
+          setFormStep3NumValueState(String(data.nE));
+          setFormStep3DenValueState(String(SAMPLE_SPACE));
+          setFormStep3Error(false);
+          setFormStep(4);
+          return;
+        }
+        if (formStep === 4) {
+          setFormStep4NumValueState(String(data.nA));
+          setFormStep4DenValueState(String(SAMPLE_SPACE));
+          setFormStep4Error(false);
+          setFormStep(5);
+          return;
+        }
+        if (formStep === 5) {
+          if (!formStep5Validated) {
+            const g = gcdNat(data.nA, SAMPLE_SPACE);
+            const irrNum = data.nA / g;
+            const irrDen = SAMPLE_SPACE / g;
+            setFormStep5NumValueState(String(irrNum));
+            setFormStep5DenValueState(String(irrDen));
+            const { decimal, percent } = decimalAndPercent(irrNum, irrDen);
+            setFormStep5Decimal(decimal);
+            setFormStep5Percent(percent);
+            setFormStep5Validated(true);
+            setFormStep5Error(false);
+            return;
+          }
+          goToComplete(data);
+          return;
+        }
+        return;
+      }
+      case 'probabilities': {
+        setProbabilitiesTextInputs(prev => ({
+          ...prev,
+          numerator:   { ...prev.numerator,   value: String(data.nA),      error: false },
+          denominator: { ...prev.denominator, value: String(SAMPLE_SPACE), error: false },
+        }));
+        goToComplete(data);
+        return;
+      }
+      case 'complete': {
+        // Última rodada → continua para a próxima cena; senão começa outra rodada.
+        if (roundRef.current < MANDATORY_ROUNDS - 1) {
+          startRound(roundRef.current + 1);
+        } else {
+          onContinue();
+        }
+        return;
+      }
+    }
+  };
+
   // ─── Inicialização ────────────────────────────────────────────
   useEffect(() => {
     startRound(0);
@@ -924,5 +1050,8 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     // Progressão
     disabledTrainAgainButton, trainAgainOnClick,
     disabledContinueButton, continueOnClick,
+
+    // DEV — avança para a próxima sub-fase como se o aluno tivesse acertado.
+    devAdvance,
   };
 };

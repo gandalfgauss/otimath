@@ -108,85 +108,69 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
     };
   }, [boundsRef, size.w, size.h]);
 
-  // ── Drag handlers ────────────────────────────────────────────
-  const startDrag = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    const point = 'touches' in e ? e.touches[0] : e;
+  // ── Drag/Resize handlers (Pointer Events — unifica mouse+touch+pen)
+  // Antes usávamos mouse* + touch* misturados — funcionava no Chrome mas
+  // dava problema em Safari iOS (drag escapava do elemento) e Firefox
+  // mobile (race condition entre mouse e touch). Com Pointer Events +
+  // setPointerCapture, o navegador roteia TODOS os eventos seguintes da
+  // sequência para o elemento alvo, mesmo se o cursor/dedo sair dele. ────
+  const startDrag = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     dragRef.current = {
-      mx: point.clientX, my: point.clientY,
+      mx: e.clientX, my: e.clientY,
       sx: pos.x, sy: pos.y,
     };
     setDragging(true);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* old browsers */ }
     if (e.cancelable) e.preventDefault();
   }, [pos.x, pos.y]);
 
-  useEffect(() => {
+  const onDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-    function onMove(e: MouseEvent | TouchEvent) {
-      const point = 'touches' in e ? e.touches[0] : e;
-      const dx = point.clientX - dragRef.current.mx;
-      const dy = point.clientY - dragRef.current.my;
-      const b = readBounds(boundsRef);
-      const nx = Math.max(b.left, Math.min(b.right - size.w, dragRef.current.sx + dx));
-      const ny = Math.max(b.top, Math.min(b.bottom - size.h, dragRef.current.sy + dy));
-      setPos({ x: nx, y: ny });
-      if (e.cancelable) e.preventDefault();
-    }
-    function onEnd() { setDragging(false); }
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onEnd);
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onEnd);
-    window.addEventListener('touchcancel', onEnd);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onEnd);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onEnd);
-      window.removeEventListener('touchcancel', onEnd);
-    };
-  }, [dragging, size.w, size.h, boundsRef]);
+    const dx = e.clientX - dragRef.current.mx;
+    const dy = e.clientY - dragRef.current.my;
+    const b = readBounds(boundsRef);
+    const nx = Math.max(b.left, Math.min(b.right - size.w, dragRef.current.sx + dx));
+    const ny = Math.max(b.top, Math.min(b.bottom - size.h, dragRef.current.sy + dy));
+    setPos({ x: nx, y: ny });
+    if (e.cancelable) e.preventDefault();
+  }, [dragging, boundsRef, size.w, size.h]);
 
-  // ── Resize handlers ──────────────────────────────────────────
-  const startResize = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    const point = 'touches' in e ? e.touches[0] : e;
+  const endDrag = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return;
+    setDragging(false);
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* old browsers */ }
+  }, [dragging]);
+
+  const startResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     resizeRef.current = {
-      mx: point.clientX, my: point.clientY,
+      mx: e.clientX, my: e.clientY,
       sw: size.w, sh: size.h,
       sx: pos.x, sy: pos.y,
     };
     setResizing(true);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* old browsers */ }
     if (e.cancelable) e.preventDefault();
     e.stopPropagation();
   }, [size.w, size.h, pos.x, pos.y]);
 
-  useEffect(() => {
+  const onResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!resizing) return;
-    function onMove(e: MouseEvent | TouchEvent) {
-      const point = 'touches' in e ? e.touches[0] : e;
-      const dx = point.clientX - resizeRef.current.mx;
-      const dy = point.clientY - resizeRef.current.my;
-      const b = readBounds(boundsRef);
-      const maxW = b.right - resizeRef.current.sx;
-      const maxH = b.bottom - resizeRef.current.sy;
-      const newW = Math.max(MIN_W, Math.min(MAX_W, Math.min(maxW, resizeRef.current.sw + dx)));
-      const newH = Math.max(MIN_H, Math.min(MAX_H, Math.min(maxH, resizeRef.current.sh + dy)));
-      setSize({ w: newW, h: newH });
-      if (e.cancelable) e.preventDefault();
-    }
-    function onEnd() { setResizing(false); }
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onEnd);
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onEnd);
-    window.addEventListener('touchcancel', onEnd);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onEnd);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onEnd);
-      window.removeEventListener('touchcancel', onEnd);
-    };
+    const dx = e.clientX - resizeRef.current.mx;
+    const dy = e.clientY - resizeRef.current.my;
+    const b = readBounds(boundsRef);
+    const maxW = b.right - resizeRef.current.sx;
+    const maxH = b.bottom - resizeRef.current.sy;
+    const newW = Math.max(MIN_W, Math.min(MAX_W, Math.min(maxW, resizeRef.current.sw + dx)));
+    const newH = Math.max(MIN_H, Math.min(MAX_H, Math.min(maxH, resizeRef.current.sh + dy)));
+    setSize({ w: newW, h: newH });
+    if (e.cancelable) e.preventDefault();
   }, [resizing, boundsRef]);
+
+  const endResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizing) return;
+    setResizing(false);
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* old browsers */ }
+  }, [resizing]);
 
   // ── Lógica de cálculo ────────────────────────────────────────
   const fmt = (n: number): string => {
@@ -253,11 +237,21 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
     setDisplay(display.slice(0, -1));
   }, [display, justEval]);
 
-  // Atalhos de teclado
+  // Atalhos de teclado — só ativos quando o foco NÃO está num input do exercício.
+  // Sem essa guarda, digitar num <input> da tabela duplicava a tecla na calculadora
+  // (o listener global capturava antes do input). Esc continua fechando em qualquer
+  // foco — é convencional para modal/overlay.
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
       const k = e.key;
+      if (k === 'Escape') { onClose(); return; }
+      const active = document.activeElement as HTMLElement | null;
+      const tag = active?.tagName?.toLowerCase();
+      const isEditable =
+        tag === 'input' || tag === 'textarea' || tag === 'select' ||
+        (active?.isContentEditable ?? false);
+      if (isEditable) return;
       if (k >= '0' && k <= '9') { inputDigit(k); return; }
       if (k === '.' || k === ',') { inputDot(); return; }
       if (k === '+') { setOperator('+'); return; }
@@ -265,7 +259,6 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
       if (k === '/') { setOperator('÷'); return; }
       if (k === 'Enter' || k === '=') { e.preventDefault(); evaluate(); return; }
       if (k === 'Backspace') { backspace(); return; }
-      if (k === 'Escape') { onClose(); return; }
       if (k === 'Delete' || k.toLowerCase() === 'c') { clearAll(); return; }
     }
     window.addEventListener('keydown', onKey);
@@ -283,7 +276,7 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
     height: size.h,
     minWidth: MIN_W,
     minHeight: MIN_H,
-    zIndex: 8500,
+    zIndex: 97,
     background: 'var(--color-neutral-white)',
     border: '2px solid var(--color-brand-otimath-darker)',
     borderRadius: 12,
@@ -397,8 +390,10 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
     >
       <div
         style={headerStyle}
-        onMouseDown={startDrag}
-        onTouchStart={startDrag}
+        onPointerDown={startDrag}
+        onPointerMove={onDragMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
         aria-label="Barra de arrastar"
       >
         <span
@@ -416,14 +411,19 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
             background: 'transparent',
             border: '1px solid rgba(255,255,255,0.4)',
             color: 'var(--color-neutral-white)',
-            width: 26, height: 26, minWidth: 26,
-            borderRadius: 5,
+            // 36×36 atende ao mínimo WCAG 2.5.5 (AA: 24px, AAA: 44px).
+            // Antes (26px) era difícil de tocar no mobile.
+            width: 36, height: 36, minWidth: 36,
+            borderRadius: 6,
             cursor: 'pointer',
             fontWeight: 700,
-            fontSize: '0.9rem',
+            fontSize: '1rem',
             lineHeight: 1,
             padding: 0,
+            // Impede que o pointerdown do header capture o evento de clique.
+            touchAction: 'manipulation',
           }}
+          onPointerDown={(e) => e.stopPropagation()}
         >✕</button>
       </div>
 
@@ -465,14 +465,17 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
         aria-valuemax={MAX_W}
         aria-valuenow={size.w}
         title="Arraste para redimensionar"
-        onMouseDown={startResize}
-        onTouchStart={startResize}
+        onPointerDown={startResize}
+        onPointerMove={onResizeMove}
+        onPointerUp={endResize}
+        onPointerCancel={endResize}
         style={{
           position: 'absolute',
           right: 0,
           bottom: 0,
-          width: 22,
-          height: 22,
+          // Alvo de toque maior (32×32) — 22px era pequeno demais para dedo no mobile.
+          width: 32,
+          height: 32,
           cursor: 'nwse-resize',
           touchAction: 'none',
           zIndex: 5,

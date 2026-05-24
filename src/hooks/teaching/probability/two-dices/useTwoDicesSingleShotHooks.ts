@@ -693,5 +693,10 @@ export const useTwoDicesSingleShotHooks = ({
     markAllOnClick,
     /** Acessível apenas em sub-fases de marcação ainda não validadas. */
     disabledMarkAllButton,
+    /** DEV — avança para o próximo sub-passo simulando a interação correta.
+     *  Não valida; apenas reaproveita advanceToNextStep para fast-forward
+     *  por marking → identify-operation → compute-probability. Quando
+     *  estamos no último, chama onChallengeFinished. */
+    devAdvance: advanceToNextStep,
   };
 };

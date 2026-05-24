@@ -26,53 +26,86 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { ArrowLeft, Menu, X } from 'lucide-react';
 import { Button } from '@/components/global/Button';
-import { GLOSSARY_ENTRIES, type GlossaryEntry, type GlossaryEntryId } from './studyMenuContent';
+import {
+  DOIS_DADOS_GLOSSARY,
+  DOIS_DADOS_GROUPS,
+  type GlossaryEntry,
+  type GlossaryGroupDef,
+} from './studyMenuContent';
 
 interface StudyMenuProps {
   open: boolean;
   onClose: () => void;
-  suggestedGlossaryEntryIds?: readonly GlossaryEntryId[];
-  initialGlossaryEntryId?: GlossaryEntryId;
+  /** Glossário a exibir. Default: DOIS_DADOS_GLOSSARY (Ex6/Ex8 não passam
+   *  prop e mantêm o comportamento atual). RouletteGame e CompletionStats
+   *  passam glossários específicos (Disco) ou alternativos. */
+  entries?: readonly GlossaryEntry[];
+  /** Ordem dos grupos (e seus rótulos) no menu lateral. Default:
+   *  DOIS_DADOS_GROUPS. */
+  groups?: readonly GlossaryGroupDef[];
+  /** IDs de verbetes destacados com badge ★ (sugeridos pelo erro do
+   *  aluno). Aceita string livre — os IDs do glossário ativo no momento. */
+  suggestedGlossaryEntryIds?: readonly string[];
+  /** ID do verbete pré-selecionado ao abrir o menu. */
+  initialGlossaryEntryId?: string;
 }
-
-const GROUP_ORDER: ReadonlyArray<{ key: GlossaryEntry['group']; title: string }> = [
-  { key: 'operacoes',         title: 'Operações entre eventos' },
-  { key: 'eventos-especiais', title: 'Eventos especiais' },
-  { key: 'probabilidade',     title: 'Probabilidade' },
-];
 
 export function StudyMenu({
   open,
   onClose,
+  entries = DOIS_DADOS_GLOSSARY,
+  groups = DOIS_DADOS_GROUPS,
   suggestedGlossaryEntryIds = [],
   initialGlossaryEntryId,
 }: StudyMenuProps) {
-  const [activeId, setActiveId] = useState<GlossaryEntryId>(
-    initialGlossaryEntryId ?? GLOSSARY_ENTRIES[0].id,
+  const [activeId, setActiveId] = useState<string>(
+    initialGlossaryEntryId ?? entries[0]?.id ?? '',
+  );
+  // Estado mobile: master ('list') ou detail ('detail'). No desktop é
+  // ignorado (sempre mostra os dois lados via media queries). Ao abrir
+  // o menu, default = 'list' se NÃO houver `initialGlossaryEntryId`
+  // (aluno explora a partir do índice); = 'detail' se houver (aluno
+  // veio direto de um erro com sugestão de verbete).
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>(
+    initialGlossaryEntryId ? 'detail' : 'list',
   );
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
+  // Reset do mobileView a cada nova abertura do menu — sem isso, a
+  // próxima abertura herdaria o estado da sessão anterior.
+  useEffect(() => {
+    if (open) setMobileView(initialGlossaryEntryId ? 'detail' : 'list');
+  }, [open, initialGlossaryEntryId]);
+
+  // Re-sincroniza o verbete ativo quando o glossário muda (ex.: usuário
+  // alterna entre menu do Disco e do Dois Dados sem fechar o componente).
+  useEffect(() => {
+    if (!entries.some((v) => v.id === activeId)) {
+      setActiveId(entries[0]?.id ?? '');
+    }
+  }, [entries, activeId]);
+
   const entriesByGroup = useMemo(() => {
-    const groups: Record<GlossaryEntry['group'], GlossaryEntry[]> = {
-      'operacoes': [],
-      'eventos-especiais': [],
-      'probabilidade': [],
-    };
-    GLOSSARY_ENTRIES.forEach((v) => groups[v.group].push(v));
-    return groups;
-  }, []);
+    const map: Record<string, GlossaryEntry[]> = {};
+    for (const g of groups) map[g.key] = [];
+    for (const v of entries) {
+      if (!map[v.group]) map[v.group] = [];
+      map[v.group].push(v);
+    }
+    return map;
+  }, [entries, groups]);
 
   const activeEntry = useMemo(
-    () => GLOSSARY_ENTRIES.find((v) => v.id === activeId) ?? GLOSSARY_ENTRIES[0],
-    [activeId],
+    () => entries.find((v) => v.id === activeId) ?? entries[0],
+    [entries, activeId],
   );
 
   const suggestedSet = useMemo(
-    () => new Set<GlossaryEntryId>(suggestedGlossaryEntryIds),
+    () => new Set<string>(suggestedGlossaryEntryIds),
     [suggestedGlossaryEntryIds],
   );
 
@@ -114,7 +147,12 @@ export function StudyMenu({
   return (
     <div
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-20 flex items-center justify-center bg-opacity-modal"
+      // items-start + padding-top garante que o modal NUNCA fique escondido
+      // atrás do header fixo do site, mesmo em telas baixas (mobile landscape,
+      // notebooks pequenos). Antes usávamos items-center + max-h-[82vh] — em
+      // telas curtas o "centro vertical" caía dentro da área do header.
+      // O `pb-xs` mantém respiro embaixo para sombras e barra inferior do iOS.
+      className="fixed inset-0 z-20 flex items-start justify-center bg-opacity-modal pt-[88px] pb-xs px-quarck"
       role="presentation"
     >
       <div
@@ -123,32 +161,77 @@ export function StudyMenu({
         aria-modal="true"
         aria-labelledby="study-menu-title"
         aria-describedby="study-menu-active-content"
-        className="bg-neutral-white rounded-md w-[calc(100%-32px)] max-w-[920px] max-h-[calc(100%-32px)] flex flex-col"
+        // max-h subtrai 104px (header ~88px + breathing 16px) — assegura que
+        // o conteúdo cabe SEM esconder o cabeçalho do próprio modal.
+        className="bg-neutral-white rounded-md w-full max-w-[920px] max-h-[calc(100vh-104px)] flex flex-col"
         style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.18)' }}
       >
-        {/* Cabeçalho */}
-        <div className="flex justify-between items-center p-xxxs border-b-hairline border-neutral-lightest">
-          <h2 id="study-menu-title" className="ds-body-large-bold text-brand-otimath-pure">
-            Menu de Revisão
-          </h2>
+        {/* Cabeçalho.
+            • Desktop: título à esquerda, X à direita (layout original).
+            • Mobile em 'list': ícone de menu (decorativo) + título "Menu
+              de Revisão" + X. Aluno escolhe um verbete na lista abaixo.
+            • Mobile em 'detail': botão "voltar" (←) + título do verbete
+              ativo + X. Voltar leva à lista; X fecha o menu. Padrão
+              master/detail típico do iOS/Android. */}
+        <div className="flex justify-between items-center gap-x-quarck p-xxxs border-b-hairline border-neutral-lightest">
+          {/* Lado esquerdo: hamburguer/voltar no mobile, ícone fixo no desktop */}
+          <div className="flex items-center gap-x-quarck min-w-0 flex-1">
+            {/* Mobile em detail: botão voltar */}
+            {mobileView === 'detail' && (
+              <button
+                type="button"
+                onClick={() => setMobileView('list')}
+                aria-label="Voltar à lista de verbetes"
+                className="md:hidden cursor-pointer p-quarck rounded-sm text-brand-otimath-pure transition-colors duration-200 hover:bg-brand-otimath-lightest focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure flex-shrink-0"
+              >
+                <ArrowLeft size={20} aria-hidden="true" />
+              </button>
+            )}
+            {/* Mobile em list: ícone de hamburguer decorativo (visual) */}
+            {mobileView === 'list' && (
+              <Menu size={20} aria-hidden="true" className="md:hidden text-brand-otimath-pure flex-shrink-0" />
+            )}
+            <h2
+              id="study-menu-title"
+              className="ds-body-large-bold text-brand-otimath-pure truncate"
+              title={mobileView === 'detail' ? activeEntry?.title : 'Menu de Revisão'}
+            >
+              {/* Desktop sempre mostra "Menu de Revisão"; mobile alterna
+                  entre "Menu de Revisão" (list) e o título do verbete
+                  ativo (detail), para servir de "breadcrumb" do que está
+                  sendo lido. */}
+              <span className="hidden md:inline">Menu de Revisão</span>
+              <span className="md:hidden">
+                {mobileView === 'detail' && activeEntry ? activeEntry.title : 'Menu de Revisão'}
+              </span>
+            </h2>
+          </div>
           <button
             ref={closeBtnRef}
             onClick={onClose}
             aria-label="Fechar Menu de Revisão (Esc)"
-            className="p-quarck rounded-sm text-neutral-dark hover:text-brand-otimath-pure focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure"
+            className="cursor-pointer p-quarck rounded-sm text-neutral-dark transition-colors duration-200 hover:text-brand-otimath-pure focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure flex-shrink-0"
           >
             <X size={20} aria-hidden="true" />
           </button>
         </div>
 
-        {/* Corpo: nav + conteúdo */}
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-          {/* Navegação */}
+        {/* Corpo: nav + conteúdo.
+            • Desktop (≥md): split horizontal — nav à esquerda com scroll
+              próprio, conteúdo à direita com scroll próprio.
+            • Mobile: padrão master/detail — só UMA das duas colunas
+              fica visível por vez. `mobileView === 'list'` mostra a
+              navegação; `'detail'` mostra o artigo. O scroll fica
+              naturalmente na coluna visível. */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* Navegação — visível no mobile só em 'list'; sempre no desktop */}
           <nav
             aria-label="Lista de verbetes"
-            className="md:w-[280px] md:max-w-[280px] flex-shrink-0 overflow-y-auto border-b-hairline md:border-b-0 md:border-r-hairline border-neutral-lightest p-xxxs"
+            className={`${
+              mobileView === 'list' ? 'flex' : 'hidden'
+            } md:flex flex-col w-full md:w-[280px] md:max-w-[280px] flex-shrink-0 overflow-y-auto md:border-r-hairline border-neutral-lightest p-xxxs`}
           >
-            {GROUP_ORDER.map((g) => (
+            {groups.map((g) => (
               <div key={g.key} className="mb-micro">
                 <h3 className="ds-caption-bold text-neutral-dark uppercase mb-quarck">
                   {g.title}
@@ -160,9 +243,14 @@ export function StudyMenu({
                     return (
                       <li key={v.id}>
                         <button
-                          onClick={() => setActiveId(v.id)}
+                          onClick={() => {
+                            setActiveId(v.id);
+                            // Mobile: ao escolher um verbete, vai para o
+                            // detail. Desktop ignora (sempre split).
+                            setMobileView('detail');
+                          }}
                           aria-current={isActive ? 'true' : undefined}
-                          className={`w-full text-left p-quarck rounded-sm focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure transition-colors ${
+                          className={`w-full text-left p-quarck rounded-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure transition-colors ${
                             isActive
                               ? 'bg-brand-otimath-lightest text-brand-otimath-darker ds-small-bold'
                               : 'text-neutral-darkest hover:bg-neutral-lightest ds-small'
@@ -189,10 +277,13 @@ export function StudyMenu({
             ))}
           </nav>
 
-          {/* Painel de conteúdo */}
+          {/* Painel de conteúdo — visível no mobile só em 'detail';
+              sempre no desktop. Scroll próprio em ambos os casos. */}
           <article
             id="study-menu-active-content"
-            className="flex-1 overflow-y-auto p-xxs"
+            className={`${
+              mobileView === 'detail' ? 'block' : 'hidden'
+            } md:block flex-1 overflow-y-auto p-xxs`}
             tabIndex={-1}
           >
             <header className="mb-xxs">

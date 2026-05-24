@@ -15,7 +15,7 @@
    Em R≥2 (treino): pula para marking → probabilities.
    ═══════════════════════════════════════════════════════════════ */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { Alerts } from '@/components/global/Alerts';
 import { Modal } from '@/components/global/Modal';
@@ -34,11 +34,39 @@ const COLOR_A_MARK = '#0050FF';       // azul royal — A (marcação automátic
 
 interface ComplementaryEventsActivityProps {
   onContinue: () => void;
+  /** Notifica o pai (TwoDicesExperiment) quando a sub-fase muda — usado
+   *  para o cenaId DEV refletir cada transição interna como snapshot. */
+  onPhaseChange?: (phaseId: string) => void;
 }
 
-export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsActivityProps) {
+// Handle exposto ao painel DEV para avançar pelas sub-fases internas
+// (strategyChoice → marking → reveal → strategyReview → ... → complete).
+export interface ComplementaryEventsActivityHandle {
+  getCurrentPhaseId: () => string;
+  advance: () => void;
+}
+
+export const ComplementaryEventsActivity = forwardRef<
+  ComplementaryEventsActivityHandle,
+  ComplementaryEventsActivityProps
+>(function ComplementaryEventsActivity({ onContinue, onPhaseChange }, ref) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const h = useComplementaryEventsHooks({ onContinue });
+
+  // Computa o phaseId composto (inclui formStep durante a formalização) e
+  // notifica o pai a cada mudança. Sem isso, o pai mantém scene7ExperimentPhase
+  // em 'complementaryEvents' o tempo todo e o painel DEV não captura snapshots
+  // das sub-fases internas — o contador não anda mesmo a seta funcionando.
+  const composedPhaseId =
+    h.subPhase === 'formalization' ? `formalization|step=${h.formStep}` : h.subPhase;
+  useEffect(() => {
+    onPhaseChange?.(composedPhaseId);
+  }, [composedPhaseId, onPhaseChange]);
+
+  useImperativeHandle(ref, () => ({
+    getCurrentPhaseId: () => composedPhaseId,
+    advance: () => h.devAdvance(),
+  }), [composedPhaseId, h]);
 
   // ─── Cores e rótulos customizados passados aos componentes ───
   const eventColors: Record<string, string> = {
@@ -81,7 +109,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
           border: '2px solid transparent',
         }}
       >
-        <p className="ds-body-bold mb-micro" style={{ color: 'var(--color-brand-otimath-darkest)' }}>
+        <p className="ds-body-bold mb-micro text-brand-otimath-darkest">
           Qual caminho será mais rápido?
         </p>
         <div className="flex flex-col gap-micro">
@@ -134,7 +162,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
       >
         {/* Escolha congelada */}
         <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)', border: '1px solid var(--color-neutral-lighter)' }}>
-          <p className="ds-caption-bold mb-nano" style={{ color: 'var(--color-neutral-dark)' }}>
+          <p className="ds-caption-bold mb-nano text-neutral-dark">
             Sua escolha inicial foi:
           </p>
           <p className="ds-body" style={{ color: chooseColor, fontWeight: 700 }}>
@@ -142,25 +170,43 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
           </p>
         </div>
 
-        <p className="ds-body-bold mb-micro" style={{ color: 'var(--color-brand-otimath-darkest)' }}>
+        <p className="ds-body-bold mb-micro text-brand-otimath-darkest">
           Com o que você observou, você mantém ou muda sua escolha?
         </p>
+        {/* Após o Conferir, h.confrontMessage é preenchida e a resposta
+            do aluno fica congelada — sem isso, ele podia alternar entre
+            "mantenho/mudo" depois do confronto e a UI ficava incoerente
+            com a mensagem exibida. */}
         <div className="flex flex-col gap-micro">
-          <label className="flex items-center gap-micro cursor-pointer p-micro">
+          <label
+            className="flex items-center gap-micro p-micro"
+            style={{
+              cursor: h.confrontMessage ? 'not-allowed' : 'pointer',
+              opacity: h.confrontMessage && reviewed !== 'keep' ? 0.5 : 1,
+            }}
+          >
             <input
               type="radio"
               name="comp-review"
               checked={reviewed === 'keep'}
+              disabled={!!h.confrontMessage}
               onChange={() => h.setReviewChoice('keep')}
               style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
             />
             <span className="ds-body">Mantenho minha escolha.</span>
           </label>
-          <label className="flex items-center gap-micro cursor-pointer p-micro">
+          <label
+            className="flex items-center gap-micro p-micro"
+            style={{
+              cursor: h.confrontMessage ? 'not-allowed' : 'pointer',
+              opacity: h.confrontMessage && reviewed !== 'change' ? 0.5 : 1,
+            }}
+          >
             <input
               type="radio"
               name="comp-review"
               checked={reviewed === 'change'}
+              disabled={!!h.confrontMessage}
               onChange={() => h.setReviewChoice('change')}
               style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
             />
@@ -199,12 +245,12 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
           border: '2px solid transparent',
         }}
       >
-        <p className="ds-body-bold mb-micro" style={{ color: 'var(--color-brand-otimath-darkest)' }}>
+        <p className="ds-body-bold mb-micro text-brand-otimath-darkest">
           Vamos formalizar a relação entre P(A) e P(Ā)
         </p>
 
         {/* Step 0 — Identificar a união */}
-        <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)' }}>
+        <div className="mb-micro p-micro rounded-md bg-neutral-white">
           <p className="ds-body mb-nano">
             Sendo <strong>S</strong> o espaço amostral do experimento e os eventos <strong>A</strong> e{' '}
             <strong>Ā</strong>, então:
@@ -238,33 +284,35 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
 
         {/* Step 1 — P(A) + P(Ā) = P(S) = ? */}
         {h.formStep >= 1 && (
-          <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)' }}>
+          <div className="mb-micro p-micro rounded-md bg-neutral-white">
             <p className="ds-body mb-nano">
-              Então <strong>P(A) + P(Ā) = P(S)</strong>. Logo:
+              Então <strong className="whitespace-nowrap">P(A) + P(Ā) = P(S)</strong>. Logo:
             </p>
             <div className="flex items-center gap-micro flex-wrap">
-              <span className="ds-body-bold">P(A) + P(Ā) =</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={h.formStep1Value}
-                onChange={e => h.setFormStep1Value(e.target.value)}
-                disabled={h.formStep > 1}
-                placeholder="?"
-                style={{
-                  width: 60,
-                  padding: '6px 10px',
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  textAlign: 'center',
-                  border: h.formStep1Error
-                    ? '2px solid var(--color-feedback-error-dark)'
-                    : '2px solid var(--color-neutral-lighter)',
-                  borderRadius: 6,
-                  background: h.formStep > 1 ? 'var(--color-neutral-lightest)' : 'var(--color-neutral-white)',
-                  color: h.formStep > 1 ? 'var(--color-feedback-success-dark)' : 'var(--color-neutral-darkest)',
-                }}
-              />
+              <div className="flex items-center gap-x-nano">
+                <span className="ds-body-bold whitespace-nowrap">P(A) + P(Ā) =</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={h.formStep1Value}
+                  onChange={e => h.setFormStep1Value(e.target.value)}
+                  disabled={h.formStep > 1}
+                  placeholder="?"
+                  style={{
+                    width: 60,
+                    padding: '6px 10px',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    border: h.formStep1Error
+                      ? '2px solid var(--color-feedback-error-dark)'
+                      : '2px solid var(--color-neutral-lighter)',
+                    borderRadius: 6,
+                    background: h.formStep > 1 ? 'var(--color-neutral-lightest)' : 'var(--color-neutral-white)',
+                    color: h.formStep > 1 ? 'var(--color-feedback-success-dark)' : 'var(--color-neutral-darkest)',
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -272,117 +320,121 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
         {/* Step 2 — Substitua 1 por 36/36. A fórmula explicita P(A) (a resposta
              do problema) em função de P(Ā) que já foi calculado no passo anterior. */}
         {h.formStep >= 2 && (
-          <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)' }}>
+          <div className="mb-micro p-micro rounded-md bg-neutral-white">
             <p className="ds-body mb-nano">
-              Temos <strong>P(A) = 1 − P(Ā)</strong>. Substitua <strong>1</strong> pela fração equivalente
+              Temos <strong className="whitespace-nowrap">P(A) = 1 − P(Ā)</strong>. Substitua <strong>1</strong> pela fração equivalente
               com denominador igual ao tamanho do espaço amostral:
             </p>
             <div className="flex items-center gap-micro flex-wrap">
-              <span className="ds-body-bold">P(A) =</span>
-              <div className="flex flex-col items-center">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={h.formStep2Value}
-                  onChange={e => h.setFormStep2Value(e.target.value)}
-                  placeholder="?"
-                  style={{
-                    width: 50,
-                    padding: '4px 8px',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    border: h.formStep2Error
-                      ? '2px solid var(--color-feedback-error-dark)'
-                      : '2px solid var(--color-neutral-lighter)',
-                    borderRadius: 4,
-                  }}
-                />
-                <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={h.formStep2DenValue}
-                  onChange={e => h.setFormStep2DenValue(e.target.value)}
-                  placeholder="?"
-                  style={{
-                    width: 50,
-                    padding: '4px 8px',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    border: h.formStep2Error
-                      ? '2px solid var(--color-feedback-error-dark)'
-                      : '2px solid var(--color-neutral-lighter)',
-                    borderRadius: 4,
-                  }}
-                />
+              <div className="flex items-center gap-x-nano">
+                <span className="ds-body-bold whitespace-nowrap">P(A) =</span>
+                <div className="flex flex-col items-center">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={h.formStep2Value}
+                    onChange={e => h.setFormStep2Value(e.target.value.replace(/\D/g, ''))}
+                    placeholder="?"
+                    style={{
+                      width: 50,
+                      padding: '4px 8px',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      border: h.formStep2Error
+                        ? '2px solid var(--color-feedback-error-dark)'
+                        : '2px solid var(--color-neutral-lighter)',
+                      borderRadius: 4,
+                    }}
+                  />
+                  <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={h.formStep2DenValue}
+                    onChange={e => h.setFormStep2DenValue(e.target.value.replace(/\D/g, ''))}
+                    placeholder="?"
+                    style={{
+                      width: 50,
+                      padding: '4px 8px',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      border: h.formStep2Error
+                        ? '2px solid var(--color-feedback-error-dark)'
+                        : '2px solid var(--color-neutral-lighter)',
+                      borderRadius: 4,
+                    }}
+                  />
+                </div>
+                <span className="ds-body-bold whitespace-nowrap">− P(<BarA color="#FF6A00" bold thickness={3} />)</span>
               </div>
-              <span className="ds-body-bold">− P(<BarA color="#FF6A00" bold thickness={3} />)</span>
             </div>
           </div>
         )}
 
         {/* Step 3 — Substituir P(Ā) pelo valor calculado anteriormente. */}
         {h.formStep >= 3 && (
-          <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)' }}>
+          <div className="mb-micro p-micro rounded-md bg-neutral-white">
             <p className="ds-body mb-nano">
-              Substitua <strong>P(<BarA color="#FF6A00" bold thickness={3} />)</strong>{' '}
+              Substitua <strong className="whitespace-nowrap">P(<BarA color="#FF6A00" bold thickness={3} />)</strong>{' '}
               pelo valor que você calculou:
             </p>
             <div className="flex items-center gap-micro flex-wrap">
-              <span className="ds-body-bold">P(A) =</span>
-              {/* Fração 36/36 com barra HORIZONTAL (não "/"). */}
-              <div className="flex flex-col items-center">
-                <span style={{ fontSize: '1rem', fontWeight: 700, padding: '4px 8px', minWidth: 40, textAlign: 'center' }}>36</span>
-                <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
-                <span style={{ fontSize: '1rem', fontWeight: 700, padding: '4px 8px', minWidth: 40, textAlign: 'center' }}>36</span>
-              </div>
-              <span className="ds-body-bold">−</span>
-              <div className="flex flex-col items-center">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={h.formStep3NumValue}
-                  onChange={e => h.setFormStep3NumValue(e.target.value)}
-                  disabled={h.formStep > 3}
-                  placeholder="?"
-                  style={{
-                    width: 50,
-                    padding: '4px 8px',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    border: h.formStep3Error
-                      ? '2px solid var(--color-feedback-error-dark)'
-                      : '2px solid var(--color-neutral-lighter)',
-                    borderRadius: 4,
-                    color: h.formStep > 3 ? 'var(--color-feedback-success-dark)' : undefined,
-                    background: h.formStep > 3 ? 'var(--color-neutral-lightest)' : undefined,
-                  }}
-                />
-                <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={h.formStep3DenValue}
-                  onChange={e => h.setFormStep3DenValue(e.target.value)}
-                  disabled={h.formStep > 3}
-                  placeholder="?"
-                  style={{
-                    width: 50,
-                    padding: '4px 8px',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    border: h.formStep3Error
-                      ? '2px solid var(--color-feedback-error-dark)'
-                      : '2px solid var(--color-neutral-lighter)',
-                    borderRadius: 4,
-                    color: h.formStep > 3 ? 'var(--color-feedback-success-dark)' : undefined,
-                    background: h.formStep > 3 ? 'var(--color-neutral-lightest)' : undefined,
-                  }}
-                />
+              <div className="flex items-center gap-x-nano">
+                <span className="ds-body-bold whitespace-nowrap">P(A) =</span>
+                {/* Fração 36/36 com barra HORIZONTAL (não "/"). */}
+                <div className="flex flex-col items-center">
+                  <span style={{ fontSize: '1rem', fontWeight: 700, padding: '4px 8px', minWidth: 40, textAlign: 'center' }}>36</span>
+                  <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
+                  <span style={{ fontSize: '1rem', fontWeight: 700, padding: '4px 8px', minWidth: 40, textAlign: 'center' }}>36</span>
+                </div>
+                <span className="ds-body-bold">−</span>
+                <div className="flex flex-col items-center">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={h.formStep3NumValue}
+                    onChange={e => h.setFormStep3NumValue(e.target.value.replace(/\D/g, ''))}
+                    disabled={h.formStep > 3}
+                    placeholder="?"
+                    style={{
+                      width: 50,
+                      padding: '4px 8px',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      border: h.formStep3Error
+                        ? '2px solid var(--color-feedback-error-dark)'
+                        : '2px solid var(--color-neutral-lighter)',
+                      borderRadius: 4,
+                      color: h.formStep > 3 ? 'var(--color-feedback-success-dark)' : undefined,
+                      background: h.formStep > 3 ? 'var(--color-neutral-lightest)' : undefined,
+                    }}
+                  />
+                  <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={h.formStep3DenValue}
+                    onChange={e => h.setFormStep3DenValue(e.target.value.replace(/\D/g, ''))}
+                    disabled={h.formStep > 3}
+                    placeholder="?"
+                    style={{
+                      width: 50,
+                      padding: '4px 8px',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      border: h.formStep3Error
+                        ? '2px solid var(--color-feedback-error-dark)'
+                        : '2px solid var(--color-neutral-lighter)',
+                      borderRadius: 4,
+                      color: h.formStep > 3 ? 'var(--color-feedback-success-dark)' : undefined,
+                      background: h.formStep > 3 ? 'var(--color-neutral-lightest)' : undefined,
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -392,55 +444,57 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
              Step 5 (quando formStep >= 5): adiciona "= [fração irredutível]"
              na MESMA linha. Após validar Step 5, também anexa "= decimal = percent". */}
         {h.formStep >= 4 && (
-          <div className="mb-micro p-micro rounded-md" style={{ background: 'var(--color-neutral-white)' }}>
+          <div className="mb-micro p-micro rounded-md bg-neutral-white">
             <p className="ds-body mb-nano">Calcule o resultado da subtração:</p>
             <div className="flex items-center gap-micro flex-wrap">
-              <span className="ds-body-bold">P(A) =</span>
-              {/* Primeira fração: resultado direto (nA/36 ou equivalente). */}
-              <div className="flex flex-col items-center">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={h.formStep4NumValue}
-                  onChange={e => h.setFormStep4NumValue(e.target.value)}
-                  disabled={h.formStep > 4}
-                  placeholder="?"
-                  style={{
-                    width: 50,
-                    padding: '4px 8px',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    border: h.formStep4Error
-                      ? '2px solid var(--color-feedback-error-dark)'
-                      : '2px solid var(--color-neutral-lighter)',
-                    borderRadius: 4,
-                    color: h.formStep > 4 ? 'var(--color-feedback-success-dark)' : undefined,
-                    background: h.formStep > 4 ? 'var(--color-neutral-lightest)' : undefined,
-                  }}
-                />
-                <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={h.formStep4DenValue}
-                  onChange={e => h.setFormStep4DenValue(e.target.value)}
-                  disabled={h.formStep > 4}
-                  placeholder="?"
-                  style={{
-                    width: 50,
-                    padding: '4px 8px',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    border: h.formStep4Error
-                      ? '2px solid var(--color-feedback-error-dark)'
-                      : '2px solid var(--color-neutral-lighter)',
-                    borderRadius: 4,
-                    color: h.formStep > 4 ? 'var(--color-feedback-success-dark)' : undefined,
-                    background: h.formStep > 4 ? 'var(--color-neutral-lightest)' : undefined,
-                  }}
-                />
+              <div className="flex items-center gap-x-nano">
+                <span className="ds-body-bold whitespace-nowrap">P(A) =</span>
+                {/* Primeira fração: resultado direto (nA/36 ou equivalente). */}
+                <div className="flex flex-col items-center">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={h.formStep4NumValue}
+                    onChange={e => h.setFormStep4NumValue(e.target.value.replace(/\D/g, ''))}
+                    disabled={h.formStep > 4}
+                    placeholder="?"
+                    style={{
+                      width: 50,
+                      padding: '4px 8px',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      border: h.formStep4Error
+                        ? '2px solid var(--color-feedback-error-dark)'
+                        : '2px solid var(--color-neutral-lighter)',
+                      borderRadius: 4,
+                      color: h.formStep > 4 ? 'var(--color-feedback-success-dark)' : undefined,
+                      background: h.formStep > 4 ? 'var(--color-neutral-lightest)' : undefined,
+                    }}
+                  />
+                  <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={h.formStep4DenValue}
+                    onChange={e => h.setFormStep4DenValue(e.target.value.replace(/\D/g, ''))}
+                    disabled={h.formStep > 4}
+                    placeholder="?"
+                    style={{
+                      width: 50,
+                      padding: '4px 8px',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      border: h.formStep4Error
+                        ? '2px solid var(--color-feedback-error-dark)'
+                        : '2px solid var(--color-neutral-lighter)',
+                      borderRadius: 4,
+                      color: h.formStep > 4 ? 'var(--color-feedback-success-dark)' : undefined,
+                      background: h.formStep > 4 ? 'var(--color-neutral-lightest)' : undefined,
+                    }}
+                  />
+                </div>
               </div>
 
               {/* Step 5: forma irredutível. Aparece com "=" quando desbloqueado. */}
@@ -452,7 +506,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
                       type="text"
                       inputMode="numeric"
                       value={h.formStep5NumValue}
-                      onChange={e => h.setFormStep5NumValue(e.target.value)}
+                      onChange={e => h.setFormStep5NumValue(e.target.value.replace(/\D/g, ''))}
                       disabled={h.formStep5Validated}
                       placeholder="?"
                       style={{
@@ -474,7 +528,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
                       type="text"
                       inputMode="numeric"
                       value={h.formStep5DenValue}
-                      onChange={e => h.setFormStep5DenValue(e.target.value)}
+                      onChange={e => h.setFormStep5DenValue(e.target.value.replace(/\D/g, ''))}
                       disabled={h.formStep5Validated}
                       placeholder="?"
                       style={{
@@ -498,10 +552,10 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
               {/* Após validar a forma irredutível, exibe decimal e percentagem automaticamente. */}
               {h.formStep5Validated && (
                 <>
-                  <span className="ds-body-bold" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                  <span className="ds-body-bold text-feedback-success-dark">
                     = {h.formStep5Decimal}
                   </span>
-                  <span className="ds-body-bold" style={{ color: 'var(--color-feedback-success-dark)' }}>
+                  <span className="ds-body-bold text-feedback-success-dark">
                     = {h.formStep5Percent}
                   </span>
                 </>
@@ -537,7 +591,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
           complementar precisou apenas de <strong>{h.data.nE}</strong>.
         </p>
         <p className="ds-body text-neutral-darkest">
-          Quando um evento tem <strong>muitos casos favoráveis</strong>, a estratégia P(A) = 1 − P(Ā){' '}
+          Quando um evento tem <strong>muitos casos favoráveis</strong>, a estratégia <span className="whitespace-nowrap">P(A) = 1 − P(Ā)</span>{' '}
           <strong>economiza trabalho</strong>.
         </p>
       </section>
@@ -590,7 +644,7 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
       {/* Título + botão Revisão */}
       <div className="flex items-center justify-between flex-wrap gap-micro">
         <div>
-          <p className="ds-overline" style={{ color: 'var(--color-brand-otimath-pure)' }}>
+          <p className="ds-overline text-brand-otimath-pure">
             Entre evento simples e união
           </p>
           <h2
@@ -686,31 +740,36 @@ export function ComplementaryEventsActivity({ onContinue }: ComplementaryEventsA
             eventLabels={eventLabels}
           />
 
-          <Alerts alerts={h.alerts} updateAlert={h.updateAlert} deleteAlerts={h.deleteAlerts} />
-          <Modal modal={h.modal} updateModal={h.updateModal} />
         </div>
       )}
 
       {/* Strategy choice — sem tabela, só botão Continuar */}
       {hideTable && (
-        <>
-          <div className="flex justify-center mt-micro">
-            <Button
-              style="primary"
-              size="small"
-              icon={<ArrowRight aria-hidden="true" />}
-              onClick={h.checkOnClick}
-            >
-              {checkButtonLabel}
-            </Button>
-          </div>
-          <Alerts alerts={h.alerts} updateAlert={h.updateAlert} deleteAlerts={h.deleteAlerts} />
-          <Modal modal={h.modal} updateModal={h.updateModal} />
-        </>
+        <div className="flex justify-center mt-micro">
+          <Button
+            style="primary"
+            size="small"
+            icon={<ArrowRight aria-hidden="true" />}
+            onClick={h.checkOnClick}
+          >
+            {checkButtonLabel}
+          </Button>
+        </div>
       )}
+
+      {/* Alerts e Modal montados UMA ÚNICA VEZ no topo do componente.
+          Antes ficavam dentro dos blocos {hideTable && ...} e {!hideTable && ...},
+          o que desmontava o Modal quando o subPhase mudava de 'marking' para
+          'strategyChoice' (após o aluno confirmar "Reiniciar seção"). O
+          transitionend handler do close não chegava a disparar, então o
+          updateModal({status:'hide'}) nunca rodava — e o Modal recém-montado
+          no outro bloco abria de novo com status='show'. */}
+      <Alerts alerts={h.alerts} updateAlert={h.updateAlert} deleteAlerts={h.deleteAlerts} />
+      <Modal modal={h.modal} updateModal={h.updateModal} />
 
       {/* Modal de Revisão */}
       <ComplementaryReviewModal open={reviewOpen} onClose={() => setReviewOpen(false)} />
     </div>
   );
-}
+});
+ComplementaryEventsActivity.displayName = 'ComplementaryEventsActivity';

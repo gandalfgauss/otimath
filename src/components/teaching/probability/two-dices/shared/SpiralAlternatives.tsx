@@ -67,10 +67,16 @@ export function SpiralAlternatives({
   // Detecta prefers-reduced-motion
   const reducedMotion = useReducedMotion();
 
+  // Ref espelhando t — evita travamento causado por agendar o próximo rAF
+  // DENTRO do callback do setT (em React 18+ strict mode o updater roda 2x
+  // por render, scheduleando rAF duplicado e queimando frames).
+  const tRef = useRef(0);
+
   // Reset ao abrir
   useEffect(() => {
     if (!open) return;
     setSelected(null);
+    tRef.current = 0;
     setT(0);
   }, [open]);
 
@@ -78,6 +84,7 @@ export function SpiralAlternatives({
   useEffect(() => {
     if (!open) return;
     if (reducedMotion) {
+      tRef.current = ANIM_TICKS;
       setT(ANIM_TICKS); // posição final imediata
       return;
     }
@@ -87,13 +94,13 @@ export function SpiralAlternatives({
       last = now;
       // ~120 ticks por segundo de delta normalizado para passo 2
       const inc = (dt / 1000) * 120;
-      setT(prev => {
-        const next = Math.min(prev + inc, ANIM_TICKS);
-        if (next < ANIM_TICKS) {
-          rafRef.current = requestAnimationFrame(tick);
-        }
-        return next;
-      });
+      tRef.current = Math.min(tRef.current + inc, ANIM_TICKS);
+      setT(tRef.current);
+      if (tRef.current < ANIM_TICKS) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+      }
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => {

@@ -188,6 +188,10 @@ export function Roulette({
             transform: `rotate(${currentRotation}deg)`,
             transformOrigin: 'center',
             transition: useTransition ? `transform ${spinDuration}ms linear` : 'none',
+            // `will-change` força camada de composição própria — sem isso
+            // Safari (especialmente iOS) repinta o SVG inteiro a cada frame
+            // e o giro fica travado/serrilhado. Em Firefox também ajuda.
+            willChange: 'transform',
           }}
         >
           {sectors.map((sector, index) => {

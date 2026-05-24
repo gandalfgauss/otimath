@@ -272,7 +272,10 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
     const container = containerRef.current;
     if (!container) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // `alpha: false` + `powerPreference: 'high-performance'` melhora compositing
+    // no Safari iOS — fundo é opaco, alpha desnecessária. Mesmo padrão do
+    // DiceMachineScene, sem o qual há jank na rolagem dos dois dados em iPhone.
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;

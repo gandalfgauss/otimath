@@ -353,3 +353,24 @@
 html {
   interpolate-size: allow-keywords;
 }
+
+/*==================================================
+  iOS Safari: prevent auto-zoom on input focus.
+  Safari mobile autossomáricamente dá zoom em <input> com font-size < 16px
+  quando o usuário foca o campo (comportamento de "acessibilidade"). Isso
+  jogou a interface fora do viewport em vários exercícios. Forçar mín. 16px
+  só na largura ≤ 768px (mobile) evita o zoom sem afetar o visual do desktop.
+==================================================*/
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}

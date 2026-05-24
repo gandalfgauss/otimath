@@ -109,6 +109,22 @@ export function downloadLog(): void {
   URL.revokeObjectURL(url);
 }
 
+/** Lê todas as entradas do log atual — usado pela sessão da sequência
+ *  didática para agregar interações/tentativas/erros do OVA do Disco. */
+export function getRouletteLogEntries(): readonly LogEntry[] {
+  return getLog().entries;
+}
+
+/** Limpa o log persistente e o id da sessão — usado pelo orquestrador
+ *  da sequência didática ao iniciar uma nova trilha (botão "Iniciar"),
+ *  para que as estatísticas da nova sessão não misturem dados antigos. */
+export function clearRouletteLog(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem('otimath_session_id');
+  } catch { /* ignorar — localStorage indisponível */ }
+}
+
 export function getLogSummary(): { totalTime: string; totalEntries: number; attempts: number; errors: number } {
   const log = getLog();
   const attempts = log.entries.filter(e => e.type === 'attempt');

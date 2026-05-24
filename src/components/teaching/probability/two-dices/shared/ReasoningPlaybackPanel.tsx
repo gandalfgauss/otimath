@@ -85,16 +85,14 @@ export function ReasoningPlaybackPanel({
       `}</style>
 
       <p
-        className="ds-body-bold text-center mb-micro"
-        style={{ color: 'var(--color-brand-otimath-dark)' }}
+        className="ds-body-bold text-center mb-micro text-brand-otimath-dark"
       >
         🎬 {title}
       </p>
 
       {strategy && (
         <p
-          className="ds-small text-center mb-micro"
-          style={{ color: 'var(--color-neutral-dark)', fontStyle: 'italic' }}
+          className="ds-small text-center mb-micro text-neutral-dark italic"
         >
           {strategy}
         </p>

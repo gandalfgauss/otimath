@@ -396,7 +396,10 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     if (!container) return;
 
     // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // `alpha: false` + `powerPreference: 'high-performance'` melhora compositing
+    // no Safari iOS (alpha desnecessária aqui — fundo já é opaco). Sem isso,
+    // alguns iPhones antigos têm jank visível ao girar o dado em betting mode.
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -723,17 +726,21 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       el.style.cursor = s.mode === 'betting' ? 'grab' : 'default';
     };
 
-    el.addEventListener('pointerdown', onPointerDown);
-    el.addEventListener('pointermove', onPointerMove);
-    el.addEventListener('pointerup', onPointerUp);
-    el.addEventListener('pointercancel', onPointerCancel);
     // touchAction: 'none' previne scroll/zoom enquanto arrasta o dado;
     // garantido pela CSS classe `touch-none` no container, e reforçado aqui.
+    // CRÍTICO: deve ser setado ANTES dos addEventListener — em algumas versões
+    // do Safari iOS a aplicação posterior do touch-action é ignorada.
     el.style.touchAction = 'none';
     // WebKit < 13 (iPhone antigo): impedir o gesto de "callout" do toque longo.
     el.style.webkitUserSelect = 'none';
     el.style.userSelect = 'none';
     (el.style as CSSStyleDeclaration & { webkitTouchCallout?: string }).webkitTouchCallout = 'none';
+    // { passive: false } explícito para garantir que preventDefault() funcione
+    // em Firefox/Safari (default mudou em 2019 — passive=true para scroll/touch).
+    el.addEventListener('pointerdown', onPointerDown, { passive: false });
+    el.addEventListener('pointermove', onPointerMove, { passive: false });
+    el.addEventListener('pointerup', onPointerUp);
+    el.addEventListener('pointercancel', onPointerCancel);
 
     return () => {
       cancelAnimationFrame(state.animId);

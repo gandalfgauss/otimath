@@ -138,16 +138,16 @@ export function FacePicker({
   // Click fora fecha
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent | TouchEvent) => {
+    // pointerdown unifica mouse+touch+pen e evita race conditions entre
+    // os dois handlers em Firefox mobile e Safari iOS.
+    const handler = (e: PointerEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('touchstart', handler);
+    document.addEventListener('pointerdown', handler, { passive: true });
     return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('pointerdown', handler);
     };
   }, [open]);
 

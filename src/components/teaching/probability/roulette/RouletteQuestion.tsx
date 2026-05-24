@@ -126,7 +126,7 @@ export function RouletteQuestion({
       )}
 
       {type === 'multiple-text' && textInputs && (
-        <div className="flex flex-wrap gap-macro">
+        <div className="flex flex-wrap gap-x-macro gap-y-micro">
           {Object.keys(textInputs).map((key) => (
             <div key={key} className="flex flex-col gap-y-nano">
               {textInputLabels?.[key] && (

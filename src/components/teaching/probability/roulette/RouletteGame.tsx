@@ -13,6 +13,11 @@ import { RouletteChart } from "./RouletteChart";
 import { RouletteQuestion } from "./RouletteQuestion";
 import { RouletteInfoBox } from "./RouletteInfoBox";
 import { useRouletteHooks } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
+import { SequenceStatsCard } from "@/components/teaching/probability/SequenceStatsCard";
+import { freezeOva, getSequenceStats, logOvaInteraction, setActiveOva, unfreezeOva, useSequenceTick } from "@/hooks/teaching/probability/useSequenceSession";
+import { StudyMenu } from "@/components/teaching/probability/two-dices/shared/StudyMenu";
+import { DISCO_GLOSSARY, DISCO_GROUPS } from "@/components/teaching/probability/two-dices/shared/studyMenuContent";
+import { BookOpen } from "lucide-react";
 
 // Snapshot opaco — round-trip entre getDevSnapshot/applyDevSnapshot do hook,
 // usado tanto pelo painel DEV (RouletteDevNav) quanto pela gravação contínua
@@ -43,9 +48,21 @@ interface RouletteGameProps {
    *  interna de navegação (próxima/anterior subStep + jump direto) usada
    *  pelo painel de DEV da sequência didática. */
   devMode?: boolean;
+  /** Callback opcional disparado sempre que o progresso interno do OVA
+   *  muda (fração 0..1). Usado pela sequência didática para animar a
+   *  barra de progresso global. A fração é uma estimativa heurística
+   *  baseada em (stage, subStep) — não precisa ser exata, só monotônica. */
+  onProgressChange?: (fraction: number) => void;
+  /** Sinaliza que este OVA é a cena atualmente ativa da sequência. Quando
+   *  true, o OVA reivindica/libera o cronômetro próprio via
+   *  `setActiveOva('roulette' | null)` em função de sua tela interna
+   *  (terminal vs. não-terminal). Em devMode, todos os OVAs ficam montados
+   *  simultaneamente, então sem este sinal o cronômetro ficaria preso ao
+   *  último OVA mexido. */
+  isActiveStage?: boolean;
 }
 
-export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteGameProps> = {}) {
+export function RouletteGame({ onFinished, devMode = false, onProgressChange, isActiveStage = true }: Readonly<RouletteGameProps> = {}) {
   const {
     // Game state
     gameState,
@@ -331,6 +348,10 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
   // Verificar se deve mostrar os botões de registro de cor
   const shouldShowColorRegistration = gameState.pendingRegistration && shouldShowSpinButton;
 
+  // Estado do modal "Revisar conceitos" da tela final — mesmo
+  // StudyMenu usado no OVA Dois Dados.
+  const [rouletteStudyMenuOpen, setRouletteStudyMenuOpen] = useState(false);
+
   // ─────────────────────────────────────────────────────────────────
   // Histórico DEV — vivo no escopo do RouletteGame para que continue
   // gravando snapshots mesmo quando o painel DEV está DESLIGADO. Sem
@@ -358,8 +379,55 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
     devHistoryRef.current.push(snap);
     devCursorRef.current = devHistoryRef.current.length - 1;
     setDevHistoryTick(c => c + 1);
+    // Cada novo devCenaId = uma interação significativa do aluno (transição
+    // de cena/sub-fase). Loga no log persistente do OVA para alimentar a
+    // contagem de interações nos cards de estatística da sequência.
+    // O `logTransition` legado só dispara em mudança de subStep — perdia
+    // todas as mudanças de sub-fase (compPhase, unionPhase, freqRelPhase
+    // etc.) que o devCenaId captura.
+    logOvaInteraction('roulette', devCenaId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [devCenaId]);
+
+  // ─────────────────────────────────────────────────────────────────
+  // Progresso interno do OVA (0..1) — reportado para a barra de
+  // progresso da sequência didática. Heurístico: cada etapa ocupa uma
+  // faixa fixa do OVA, e o subStep posiciona o aluno dentro da faixa.
+  // Não precisa ser exato — só monotônico o suficiente para o aluno
+  // perceber que está avançando.
+  // ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!onProgressChange) return;
+    const { stage, subStep } = gameState;
+    // Faixas de cada etapa no OVA inteiro
+    const RANGES = {
+      1: { start: 0,   end: 0.55, maxSub: 16 },   // subSteps vão de 0 a ~15.7
+      2: { start: 0.55, end: 0.82, maxSub: 9.5 }, // subSteps vão até ~9.3
+      3: { start: 0.82, end: 1,    maxSub: 8.5 }, // subSteps vão até ~8.3
+    } as const;
+    const range = RANGES[stage as 1 | 2 | 3] ?? RANGES[1];
+    const within = Math.max(0, Math.min(1, subStep / range.maxSub));
+    onProgressChange(range.start + within * (range.end - range.start));
+  }, [gameState, onProgressChange]);
+
+  // ─────────────────────────────────────────────────────────────────
+  // Cronômetro do OVA: reivindica o cronômetro 'roulette' enquanto
+  // este OVA é o estágio ativo da sequência. Em devMode todos os OVAs
+  // ficam montados — `isActiveStage` evita reivindicação fantasma.
+  // ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isActiveStage) return;
+    setActiveOva('roulette');
+  }, [isActiveStage]);
+
+  // Congela o cronômetro do OVA quando o aluno chega na tela
+  // "Atividade Concluída" (Stage 3 SubStep 10). Descongela se ele
+  // voltar para qualquer cena anterior via DEV.
+  useEffect(() => {
+    const atFinalScreen = gameState.stage === 3 && gameState.subStep === 10;
+    if (atFinalScreen) freezeOva('roulette');
+    else                unfreezeOva('roulette');
+  }, [gameState.stage, gameState.subStep]);
 
   return (
     <div className="flex flex-col gap-y-xxs">
@@ -1281,7 +1349,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                 Ao girar o disco uma única vez, qual a probabilidade de ocorrer o evento E?
               </p>
               <div className="flex items-center justify-center gap-2 mb-macro">
-                <span className="ds-body-bold text-brand-otimath-dark">P(E) =</span>
+                <span className="ds-body-bold text-brand-otimath-dark whitespace-nowrap">P(E) =</span>
                 <div className="flex flex-col items-center">
                   <input
                     type="text"
@@ -1375,7 +1443,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                     Calcule <strong>P({unionEvents[unionCurrentEventIdx].label})</strong>:
                   </p>
                   <div className="flex items-center justify-center gap-2 mb-macro">
-                    <span className="ds-body-bold text-brand-otimath-dark">P({unionEvents[unionCurrentEventIdx].label}) =</span>
+                    <span className="ds-body-bold text-brand-otimath-dark whitespace-nowrap">P({unionEvents[unionCurrentEventIdx].label}) =</span>
                     <div className="flex flex-col items-center">
                       <input
                         type="text"
@@ -1419,14 +1487,14 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                       <strong>Lembre-se:</strong> Para eventos mutuamente exclusivos:
                     </p>
                     <p className="ds-small text-neutral-darkest">
-                      P({unionEvents.map(e => e.label).join('∪')}) = {unionEvents.map(e => `P(${e.label})`).join(' + ')} = {unionEvents.map(e => `${e.probNumerator}/${e.probDenominator}`).join(' + ')}
+                      <span className="whitespace-nowrap">P({unionEvents.map(e => e.label).join('∪')})</span> = <span className="whitespace-nowrap">{unionEvents.map(e => `P(${e.label})`).join(' + ')}</span> = <span className="whitespace-nowrap">{unionEvents.map(e => `${e.probNumerator}/${e.probDenominator}`).join(' + ')}</span>
                     </p>
                   </div>
                   <p className="ds-body text-neutral-dark mb-macro">
-                    Calcule <strong>P({unionEvents.map(e => e.label).join('∪')})</strong>:
+                    Calcule <strong className="whitespace-nowrap">P({unionEvents.map(e => e.label).join('∪')})</strong>:
                   </p>
                   <div className="flex items-center justify-center gap-2 mb-macro">
-                    <span className="ds-body-bold text-brand-otimath-dark">P({unionEvents.map(e => e.label).join('∪')}) =</span>
+                    <span className="ds-body-bold text-brand-otimath-dark whitespace-nowrap">P({unionEvents.map(e => e.label).join('∪')}) =</span>
                     <div className="flex flex-col items-center">
                       <input
                         type="text"
@@ -1523,7 +1591,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                 Digite o número de casos favoráveis ao evento.
               </p>
               <div className="flex items-center gap-x-micro mb-macro">
-                <span className="ds-body-bold text-brand-otimath-dark">n(E) =</span>
+                <span className="ds-body-bold text-brand-otimath-dark whitespace-nowrap">n(E) =</span>
                 <input
                   type="text"
                   value={exerciseNEInput.value}
@@ -1559,7 +1627,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                 Digite o número de resultados possíveis do experimento.
               </p>
               <div className="flex items-center gap-x-micro mb-macro">
-                <span className="ds-body-bold text-brand-otimath-dark">n(S) =</span>
+                <span className="ds-body-bold text-brand-otimath-dark whitespace-nowrap">n(S) =</span>
                 <input
                   type="text"
                   value={exerciseNSInput.value}
@@ -1595,7 +1663,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                 Agora calcule a probabilidade.
               </p>
               <div className="flex items-center justify-center gap-2 mb-6">
-                <span className="ds-body-bold text-brand-otimath-dark">P(E) =</span>
+                <span className="ds-body-bold text-brand-otimath-dark whitespace-nowrap">P(E) =</span>
                 <div className="flex flex-col items-center py-2">
                   <input
                     type="text"
@@ -1702,7 +1770,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                 Informe a probabilidade de A como fração.
               </p>
               <div className="flex items-center justify-center gap-2 mb-6">
-                <span className="ds-body-bold text-brand-otimath-dark">P(A) =</span>
+                <span className="ds-body-bold text-brand-otimath-dark whitespace-nowrap">P(A) =</span>
                 <div className="flex flex-col items-center py-2">
                   <input
                     type="text"
@@ -1810,8 +1878,11 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                     <p className="ds-caption text-neutral-dark mb-micro text-center">Passo {Math.min(step, 4)} de 4</p>
 
                     {/* Linha 1: P(Ā) = 1 − P(A) = frac1 − frac2 = */}
-                    <div className="flex items-center justify-center gap-1 flex-wrap mb-micro">
-                      <span className="ds-small-bold text-brand-otimath-dark">P(Ā) = 1 − P(A) =</span>
+                    {/* sem flex-wrap: a equação precisa ficar numa linha só; em
+                        telas estreitas usa scroll horizontal local em vez de
+                        quebrar a expressão matemática. */}
+                    <div className="flex items-center justify-center gap-1 mb-micro overflow-x-auto">
+                      <span className="ds-small-bold text-brand-otimath-dark whitespace-nowrap">P(Ā) = 1 − P(A) =</span>
                       {step >= 1 ? <StepFrac num={`${n}`} den={`${n}`} highlight={step === 1} color={sampleSpaceColor} /> : <PlaceholderFrac />}
                       <span className="ds-small-bold text-brand-otimath-dark">−</span>
                       {step >= 2 ? <StepFrac num={`${m}`} den={`${n}`} highlight={step === 2} color="#FFD700" /> : <PlaceholderFrac />}
@@ -1819,7 +1890,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                     </div>
 
                     {/* Linha 2: = (n-m)/n e depois decimal/porcentagem */}
-                    <div className="flex items-center justify-center gap-1 flex-wrap mb-macro">
+                    <div className="flex items-center justify-center gap-1 mb-macro overflow-x-auto">
                       <span className="ds-small-bold text-brand-otimath-dark">=</span>
                       {step >= 3 ? <StepFrac num={`${n - m}`} den={`${n}`} highlight={step === 3} color="#00E5FF" /> : <PlaceholderFrac />}
                       {step >= 4 && (
@@ -1879,8 +1950,8 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                     </p>
 
                     {/* Linha 1: P(Ā) = 1 − P(A) = □/□ − □/□ = */}
-                    <div className="flex items-center justify-center gap-1 flex-wrap mb-micro">
-                      <span className="ds-small-bold text-brand-otimath-dark">P(Ā) = 1 − P(A) =</span>
+                    <div className="flex items-center justify-center gap-1 mb-micro overflow-x-auto">
+                      <span className="ds-small-bold text-brand-otimath-dark whitespace-nowrap">P(Ā) = 1 − P(A) =</span>
                       {/* Fração 1: n/n */}
                       <div className="flex flex-col items-center">
                         <input
@@ -1926,7 +1997,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                     </div>
 
                     {/* Linha 2: = □/□ = decimal_auto = percentage_auto */}
-                    <div className="flex items-center justify-center gap-1 flex-wrap mb-macro">
+                    <div className="flex items-center justify-center gap-1 mb-macro overflow-x-auto">
                       <span className="ds-small-bold text-brand-otimath-dark">=</span>
                       {/* Fração resultado: (n−m)/n */}
                       <div className="flex flex-col items-center">
@@ -3629,7 +3700,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                       Treino {fracTraining.currentTraining} concluído!
                     </p>
                   </div>
-                  <div className="flex gap-x-macro justify-center flex-wrap">
+                  <div className="flex gap-x-macro gap-y-micro justify-center flex-wrap">
                     {fracTraining.completedCount >= 2 && (
                       <Button style="primary" size="small" icon={<ArrowRight />} onClick={handleFracTrainingChangePhase}>
                         Mudar de fase
@@ -4197,7 +4268,7 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
                   if (!inp) return null;
                   const isCorrect = inp.status === 'correct';
                   return (
-                    <div key={color} className="flex items-center gap-x-micro flex-wrap">
+                    <div key={color} className="flex items-center gap-x-micro gap-y-nano flex-wrap">
                       <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter shrink-0" style={{ backgroundColor: ROULETTE_COLORS[color] }} aria-hidden="true" />
                       <span className="ds-small-bold w-[80px]">{color}</span>
                       <span className="ds-small text-neutral-dark" aria-hidden="true">P =</span>
@@ -4612,18 +4683,48 @@ export function RouletteGame({ onFinished, devMode = false }: Readonly<RouletteG
               pulando o subStep 11 (Reflexão de ponte) que duplicaria o conteúdo
               de transição já renderizado pela própria sequência. */}
           {gameState.stage === 3 && gameState.subStep === 10 && (
-            <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-light text-center flex flex-col items-center gap-y-macro">
-              <p className="ds-body-bold text-feedback-success-darkest">Atividade Concluída!</p>
-              <p className="ds-small text-neutral-dark">
-                Você explorou espaços equiprováveis e não equiprováveis, identificou vieses cognitivos e refletiu sobre suas escolhas. Parabéns!
-              </p>
-              {onFinished && (
-                <Button style="primary" size="medium" icon={<ArrowRight />} onClick={onFinished}>
-                  Continuar a Sequência
-                </Button>
-              )}
+            <div className="flex flex-col gap-y-xxs">
+              <div className="bg-feedback-success-lighter p-macro rounded-md border border-feedback-success-light text-center flex flex-col items-center gap-y-macro">
+                <p className="ds-body-bold text-feedback-success-darkest">Atividade Concluída!</p>
+                <p className="ds-small text-neutral-dark">
+                  Você explorou espaços equiprováveis e não equiprováveis, identificou vieses cognitivos e refletiu sobre suas escolhas. Parabéns!
+                </p>
+                <div className="flex gap-x-micro gap-y-micro flex-wrap justify-center">
+                  {/* Revisar conceitos — abre o StudyMenu (mesmo modal do
+                      OVA Dois Dados). Visível tanto no fluxo standalone
+                      quanto na sequência didática. */}
+                  <Button
+                    style="borderless"
+                    size="small"
+                    icon={<BookOpen />}
+                    onClick={() => setRouletteStudyMenuOpen(true)}
+                  >
+                    Revisar conceitos
+                  </Button>
+                  {onFinished && (
+                    <Button style="primary" size="medium" icon={<ArrowRight />} onClick={onFinished}>
+                      Continuar a Sequência
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {/* Card de estatísticas do OVA do Disco — mesmo formato dos
+                  cards da tela final da sequência, mas restrito a este
+                  OVA. Só aparece quando o aluno está dentro da sequência
+                  didática (onFinished definido). */}
+              {onFinished && <RouletteFinalStats />}
             </div>
           )}
+
+          {/* Modal de revisão de conceitos — usa o glossário e os grupos
+              do OVA do Disco (exemplos com setores, ponteiro, giros). */}
+          <StudyMenu
+            open={rouletteStudyMenuOpen}
+            onClose={() => setRouletteStudyMenuOpen(false)}
+            entries={DISCO_GLOSSARY}
+            groups={DISCO_GROUPS}
+          />
+
 
           {/* Stage 3 — SubStep 11: Reflexão de ponte com OVA 2.
               Só aparece na sequência didática (onFinished definido). No OVA
@@ -5113,7 +5214,7 @@ function RouletteDevNav({
   void historyTick;
 
   return (
-    <div className="relative z-50 flex flex-wrap items-center justify-center gap-x-quarck gap-y-quarck p-quarck rounded-md bg-feedback-warning-lightest border border-feedback-warning-light text-neutral-darkest">
+    <div className="relative z-98 flex flex-wrap items-center justify-center gap-x-quarck gap-y-quarck p-quarck rounded-md bg-feedback-warning-lightest border border-feedback-warning-light text-neutral-darkest">
       <span className="ds-caption font-bold">DEV — Disco:</span>
       <div className="flex gap-x-quarck">
         {[1, 2, 3].map(n => (
@@ -5146,4 +5247,16 @@ function RouletteDevNav({
       </button>
     </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Card de estatísticas do OVA do Disco na tela final do OVA.
+// `useSequenceTick` força re-render a cada segundo enquanto a
+// sequência roda — assim o tempo no card também avança ao vivo
+// caso o aluno permaneça na tela antes de clicar "Continuar".
+// ─────────────────────────────────────────────────────────────────
+function RouletteFinalStats() {
+  useSequenceTick(1000);
+  const { roulette } = getSequenceStats();
+  return <SequenceStatsCard title="OVA do Disco" stats={roulette} />;
 }

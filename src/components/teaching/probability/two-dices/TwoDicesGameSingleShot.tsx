@@ -19,7 +19,7 @@
      />
    ═══════════════════════════════════════════════════════════════════ */
 
-import React from 'react';
+import React, { forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { Alerts } from '@/components/global/Alerts';
 import { Modal } from '@/components/global/Modal';
@@ -39,11 +39,18 @@ interface TwoDicesGameSingleShotProps {
   onStepError?: (stepKind: SingleShotStepKind) => void;
 }
 
-export function TwoDicesGameSingleShot({
+// Handle exposto ao painel DEV — permite avançar pelas 5 sub-fases internas
+// (mark-A → mark-B → mark-D → identify-operation → compute-probability).
+export interface TwoDicesGameSingleShotHandle {
+  advance: () => void;
+}
+
+export const TwoDicesGameSingleShot = forwardRef<TwoDicesGameSingleShotHandle, TwoDicesGameSingleShotProps>(
+function TwoDicesGameSingleShot({
   candidate,
   onChallengeFinished,
   onStepError,
-}: Readonly<TwoDicesGameSingleShotProps>) {
+}: Readonly<TwoDicesGameSingleShotProps>, ref) {
   const {
     instructions,
     activeEvents,
@@ -66,11 +73,16 @@ export function TwoDicesGameSingleShot({
     hideIfUnchecked,
     markAllOnClick,
     disabledMarkAllButton,
+    devAdvance,
   } = useTwoDicesSingleShotHooks({
     candidate,
     onChallengeFinished,
     onStepError,
   });
+
+  useImperativeHandle(ref, () => ({
+    advance: () => devAdvance(),
+  }), [devAdvance]);
 
   return (
     <div className="flex flex-col gap-y-xxs">
@@ -141,4 +153,5 @@ export function TwoDicesGameSingleShot({
       </div>
     </div>
   );
-}
+});
+TwoDicesGameSingleShot.displayName = 'TwoDicesGameSingleShot';

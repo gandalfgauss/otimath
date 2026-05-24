@@ -499,8 +499,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
           </div>
 
           {selectError && (
-            <p role="alert" className="ds-small-bold text-center mb-micro"
-              style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p role="alert" className="ds-small-bold text-center mb-micro text-feedback-error-dark">
               {selectError}
             </p>
           )}
@@ -611,8 +610,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
             />
           </div>
           {countError && (
-            <p role="alert" className="ds-small-bold text-center mb-micro"
-              style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p role="alert" className="ds-small-bold text-center mb-micro text-feedback-error-dark">
               {countError}
             </p>
           )}
@@ -635,7 +633,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
             experimento aleatório: lançar dois dados e anotar as pintas nas faces voltadas para cima.
           </p>
 
-          <div className="flex justify-center items-center mb-micro" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <div className="flex justify-center items-center mb-micro gap-micro flex-wrap">
             <input type="text" inputMode="numeric" maxLength={2}
               value={multA} onChange={e => { setMultA(e.target.value); setMultError(''); }}
               style={inputStyle} aria-label="Primeiro fator" />
@@ -665,8 +663,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
               style={inputStyle} aria-label="Resultado" />
           </div>
           {multError && (
-            <p role="alert" className="ds-small-bold text-center mb-micro"
-              style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p role="alert" className="ds-small-bold text-center mb-micro text-feedback-error-dark">
               {multError}
             </p>
           )}
@@ -701,8 +698,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
             </p>
           </div>
           {totalError && (
-            <p role="alert" className="ds-small-bold text-center mb-micro"
-              style={{ color: 'var(--color-feedback-error-dark)' }}>
+            <p role="alert" className="ds-small-bold text-center mb-micro text-feedback-error-dark">
               {totalError}
             </p>
           )}

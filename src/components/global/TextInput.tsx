@@ -70,11 +70,15 @@ export function TextInput({
         {...(textInput.disabled ? { disabled: true } : {})}
         placeholder={textInput.placeholder}
         className={`p-micro border-solid border-hairline rounded-sm
-          outline-none bg-neutral-transparent ${textInput.value ? 'text-neutral-dark' : 'text-neutral-medium'} 
+          outline-none bg-neutral-transparent ${textInput.value ? 'text-neutral-dark' : 'text-neutral-medium'}
           transition-[border-color] duration-300 ease-in-out hover:border-neutral-medium focus:border-brand-otimath-pure
           disabled:opacity-level-soft disabled:pointer-events-none
           ${textInput.error ? 'border-feedback-error-dark' : 'border-neutral-light'} ${textInput.styles ?? ``}
         `}
+        // fontSize: 16px previne o auto-zoom do iOS Safari ao focar (acontece
+        // quando o input tem font-size < 16px). Inline style sobrescreve a
+        // classe `styles` do consumidor para garantir.
+        style={{ fontSize: 'max(16px, 1em)' }}
       >
       </input>
       {(textInput.error && textInput.helperText) && <small className="text-feedback-error-dark">{textInput.helperText}</small>}
