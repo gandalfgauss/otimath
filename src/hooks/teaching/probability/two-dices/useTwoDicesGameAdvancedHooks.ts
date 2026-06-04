@@ -674,9 +674,13 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
     return step + 1 >= (game.challenges?.[challenge]?.steps?.length ?? 0);
   };
 
+  // Tolera os dois wrappers possíveis: `dois-dados` (rota standalone)
+  // e `seq-dois-dados` (sequência didática). Sem o fallback, o scroll
+  // virava no-op dentro da sequência e o aluno ficava sem âncora.
   const goToTopOfChallenge = () => {
     requestAnimationFrame(() => {
-      document.getElementById('dois-dados')?.scrollIntoView({ behavior: 'smooth' });
+      const target = document.getElementById('dois-dados') ?? document.getElementById('seq-dois-dados');
+      target?.scrollIntoView({ behavior: 'smooth' });
     });
   };
 

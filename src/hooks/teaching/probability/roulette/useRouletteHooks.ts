@@ -10577,6 +10577,11 @@ export const useRouletteHooks = () => {
   const handleCompConfirmA = useCallback(() => {
     const ev = gameState.compEventA;
     if (!ev) return;
+    // Rolar para o topo da seção em qualquer resultado (acerto ou erro):
+    // o InfoBox que vai aparecer é renderizado bem acima da área de
+    // seleção/botão, e sem âncora o aluno (especialmente no mobile)
+    // ficaria sem ver o feedback.
+    goToTopOfChallenge();
 
     const correctSet = new Set(ev.indicesA);
     const userSet = new Set(compUserSelectA);
@@ -10609,6 +10614,7 @@ export const useRouletteHooks = () => {
   const handleCompConfirmAbar = useCallback(() => {
     const ev = gameState.compEventA;
     if (!ev) return;
+    goToTopOfChallenge();
 
     const correctSet = new Set(ev.indicesAbar);
     const userSet = new Set(compUserSelectAbar);
@@ -10650,6 +10656,7 @@ export const useRouletteHooks = () => {
 
   // 6. Retry após erro
   const handleCompRetry = useCallback(() => {
+    goToTopOfChallenge();
     if (compPhase === 'wrong_A') {
       setCompPhase('selecting_A');
       setCompUserSelectA([]);
@@ -10909,6 +10916,7 @@ export const useRouletteHooks = () => {
 
   // Handler para "Quero saber!" na nota obrigatória
   const handleLgnWantToKnow = useCallback(() => {
+    goToTopOfChallenge();
     setLgnPhase('explanation');
     setInstructions(`<p class="ds-body"><strong>Lei dos Grandes Números</strong></p>
       <p class="ds-body">Leia a explicação abaixo.</p>`);
@@ -10916,6 +10924,7 @@ export const useRouletteHooks = () => {
 
   // Handler para "Continuar" após explicação → consolidação verbal (Melhoria 7)
   const handleLgnContinue = useCallback(() => {
+    goToTopOfChallenge();
     setLgnPhase('verbal');
     setLgnVerbalInput({ value: '', error: false });
     setInstructions(`<p class="ds-body"><strong>Consolidação</strong></p>

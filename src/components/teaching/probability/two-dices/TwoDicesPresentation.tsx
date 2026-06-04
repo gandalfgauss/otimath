@@ -407,6 +407,13 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       requestAnimationFrame(() => {
         setTransitioning(false);
 
+        // Rola suave para o topo do OVA Dois Dados — sem isso o aluno
+        // clicava "Próximo" no fim de uma cena e a próxima carregava com
+        // o título e a instrução fora da viewport (especialmente crítico
+        // no mobile). `apresentacao-dado` é o Grid raiz do OVA — sempre
+        // existe, tanto na rota standalone quanto na sequência didática.
+        document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
         // Iniciar comportamento da cena (animações que precisam de UM render
         // já concluído — não devem rodar no mesmo batch da troca de cena).
         if (num === 2) {

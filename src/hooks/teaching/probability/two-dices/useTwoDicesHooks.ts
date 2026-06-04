@@ -796,9 +796,16 @@ export const useTwoDicesHooks = () => {
     });
   }
 
+  // Scroll suave para o topo da seção dos dois dados após resposta.
+  // Aceita os dois ids possíveis do wrapper: `dois-dados` (rota
+  // standalone /ensino/probabilidade/dois-dados — `TwoDicesSection`)
+  // e `seq-dois-dados` (sequência didática — `page.tsx`). Sem essa
+  // tolerância, o scroll silenciosamente não acontecia dentro da
+  // sequência e o aluno ficava sem âncora visual após acertar.
   const goToTopOfChallenge = () => {
     requestAnimationFrame(() => {
-      document.getElementById("dois-dados")?.scrollIntoView({ behavior: 'smooth' });
+      const target = document.getElementById("dois-dados") ?? document.getElementById("seq-dois-dados");
+      target?.scrollIntoView({ behavior: 'smooth' });
     });
   }
 
