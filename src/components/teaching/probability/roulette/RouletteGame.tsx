@@ -1734,18 +1734,19 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                     Evento A = &quot;<strong>{gameState.compEventA?.textA}</strong>&quot;
                   </p>
                 </div>
-                {/* Botão Conferir – pulsa quando há setores selecionados */}
-                <div className={gameState.selectedSectors.length > 0 ? 'animate-pulse' : ''}>
-                  <Button
-                    style="primary"
-                    size="small"
-                    icon={<Check />}
-                    onClick={checkAnswer}
-                    disabled={gameState.selectedSectors.length === 0}
-                  >
-                    Conferir
-                  </Button>
-                </div>
+                {/* Botão Conferir — fica destacado pelo próprio
+                    contraste do estilo `primary` quando habilitado.
+                    Removido `animate-pulse` que ficava trocando opacidade
+                    indefinidamente e incomodava visualmente. */}
+                <Button
+                  style="primary"
+                  size="small"
+                  icon={<Check />}
+                  onClick={checkAnswer}
+                  disabled={gameState.selectedSectors.length === 0}
+                >
+                  Conferir
+                </Button>
               </div>
             ) : (
               <div className="bg-feedback-success-lighter p-macro rounded-md border-l-4 border-feedback-success-dark">
