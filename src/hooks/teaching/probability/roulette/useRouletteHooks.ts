@@ -10121,6 +10121,11 @@ export const useRouletteHooks = () => {
   // Handler: confirmar previsão visual (subStep 0.5 → subStep 1)
   const handleS3ConfirmPrediction = useCallback((predictionColor: string) => {
     goToTopOfChallenge();
+    playSound("/sounds/nextChallenge.mp3");
+    const predictionLabel = predictionColor === 'iguais'
+      ? 'que todas as cores ocupam o mesmo espaço'
+      : `na cor ${predictionColor}`;
+    createAlert("Previsão registrada!", `Você previu ${predictionLabel}. Agora faça sua aposta clicando em um setor do disco.`, "info", 4000);
     setS3State(prev => ({ ...prev, predictionColor }));
     setGameState(prev => ({ ...prev, subStep: 1 }));
     setInstructions(`<p class="ds-body"><strong>Etapa 3 — Espaços Amostrais e Vieses Cognitivos</strong></p>
