@@ -7563,6 +7563,7 @@ export const useRouletteHooks = () => {
   // Handler: continuar da fase 8.1 para 8.2 (percepção do padrão)
   const handleS3FallacyContinue = useCallback(() => {
     if (s3State.spinCount < 5) return;
+    goToTopOfChallenge();
     setGameState(prev => ({ ...prev, subStep: 8.2 }));
     setSelectedOption('');
     setCurrentQuestion({
@@ -7581,6 +7582,7 @@ export const useRouletteHooks = () => {
   // Handler: confirmar nova aposta na fase 8.3
   const handleS3NewBetConfirm = useCallback(() => {
     if (!s3State.newBetColor) return;
+    goToTopOfChallenge();
     const n = s3State.n;
     setGameState(prev => ({ ...prev, subStep: 8.4 }));
     setSelectedOption('');
@@ -7599,6 +7601,7 @@ export const useRouletteHooks = () => {
 
   // Handler: avançar da institucionalização da falácia (8.5) para o resumo (9)
   const handleS3FallacyFinish = useCallback(() => {
+    goToTopOfChallenge();
     setGameState(prev => ({ ...prev, subStep: 9 }));
     setInstructions(`<p class="ds-body"><strong>Institucionalização Final</strong></p>
       <p class="ds-body">Leia o resumo dos conceitos explorados nesta etapa.</p>`);
@@ -7911,6 +7914,7 @@ export const useRouletteHooks = () => {
 
     const nextTraining = trainingState.currentTraining + 1;
     if (nextTraining > 4) return;
+    goToTopOfChallenge();
 
     // Sortear novo k não usado — pool k ∈ {3..6} (sem 2 setores).
     const availableKs = [3, 4, 5, 6].filter(k => !trainingState.usedKValues.includes(k));
@@ -7970,6 +7974,7 @@ export const useRouletteHooks = () => {
   // Handler: próximo exercício de fração θ/360
   const handleFracTrainingNext = useCallback(() => {
     if (fracTraining.currentTraining >= 5) return;
+    goToTopOfChallenge();
 
     const next = fracTraining.currentTraining + 1;
     // Pool de treino de fração — k ∈ {3..6} (sem 2 setores).
@@ -8010,6 +8015,7 @@ export const useRouletteHooks = () => {
 
   // Handler: mudar de fase (sair dos treinos de fração → simulação de convergência)
   const handleFracTrainingChangePhase = useCallback(() => {
+    goToTopOfChallenge();
     const restoredSectors = fracTraining.originalSectors;
     const colors = restoredSectors.map(s => s.colorName);
 
@@ -8148,6 +8154,7 @@ export const useRouletteHooks = () => {
 
   // Handler: continuar após simulação → subStep 9 (giros manuais)
   const handleConvergenceContinue = useCallback(() => {
+    goToTopOfChallenge();
     playSound("/sounds/gameFinished.mp3");
     createAlert("Parabéns!", "Você completou a Etapa 2!", "success", 5000);
 
@@ -9917,6 +9924,7 @@ export const useRouletteHooks = () => {
 
   // Função para iniciar Etapa 2
   const startStage2 = useCallback(() => {
+    goToTopOfChallenge();
     // Sortear k ∈ {3,4,5,6}. Discos de 2 setores foram excluídos —
     // trivializam o experimento. Limite superior preserva paleta de cores.
     const targetK = Math.floor(Math.random() * 4) + 3;
@@ -10020,6 +10028,7 @@ export const useRouletteHooks = () => {
 
   // Função para iniciar Etapa 3
   const startStage3 = useCallback(() => {
+    goToTopOfChallenge();
     s3BetLockedRef.current = false; // libera trava de aposta da E3
     const roulette = generateS3Roulette();
     const distinctColors = Object.keys(roulette.colorCounts);
@@ -10075,6 +10084,7 @@ export const useRouletteHooks = () => {
 
   // Handler: confirmar previsão visual (subStep 0.5 → subStep 1)
   const handleS3ConfirmPrediction = useCallback((predictionColor: string) => {
+    goToTopOfChallenge();
     setS3State(prev => ({ ...prev, predictionColor }));
     setGameState(prev => ({ ...prev, subStep: 1 }));
     setInstructions(`<p class="ds-body"><strong>Etapa 3 — Espaços Amostrais e Vieses Cognitivos</strong></p>
@@ -10107,6 +10117,7 @@ export const useRouletteHooks = () => {
   const handleS3ConfirmBet = useCallback(() => {
     if (!s3State.betColor) return;
     s3BetLockedRef.current = true; // trava mudança de aposta a partir daqui
+    goToTopOfChallenge();
 
     playSound("/sounds/correct.mp3");
     createAlert("Aposta registrada!", `Você apostou na cor ${s3State.betColor}. Agora justifique sua escolha.`, "success", 3000);
@@ -10172,6 +10183,7 @@ export const useRouletteHooks = () => {
   // para a tela final — Reflexão e botão de continuar só fazem sentido
   // quando há um próximo OVA na trilha.
   const handleS3Finalize = useCallback((inSequence: boolean = false) => {
+    goToTopOfChallenge();
     playSound("/sounds/gameFinished.mp3");
     createAlert("Parabéns!", "Você concluiu todas as etapas do Simulador Probabilístico com Disco Aleatório!", "success", 6000);
     if (inSequence) {
@@ -10189,6 +10201,7 @@ export const useRouletteHooks = () => {
   // foi invertido — handleS3Finalize agora roteia direto para a Reflexão
   // quando há fluxo de sequência didática.
   const handleS3GoToReflection = useCallback(() => {
+    goToTopOfChallenge();
     setGameState(prev => ({ ...prev, subStep: 11 }));
     setInstructions(`<p class="ds-body"><strong>Reflexão para o próximo desafio</strong></p>`);
   }, []);
@@ -10197,6 +10210,7 @@ export const useRouletteHooks = () => {
   // final "Atividade Concluída!" (subStep 10) com o botão "Continuar a
   // Sequência". Usado tanto pelo botão "Li" quanto pela seta avançar do DEV.
   const handleS3DismissReflexao = useCallback(() => {
+    goToTopOfChallenge();
     setGameState(prev => ({ ...prev, subStep: 10 }));
     setInstructions(`<p class="ds-body"><strong>Atividade Finalizada!</strong></p>
       <p class="ds-body">Você completou todas as 3 etapas do simulador. Parabéns!</p>`);
@@ -10781,6 +10795,7 @@ export const useRouletteHooks = () => {
 
   // 9. Transição para Previsão (6.5)
   const transitionToPrediction = useCallback(() => {
+    goToTopOfChallenge();
     const { sectors, targetSectorCount } = gameState;
     const randomColor = sectors[Math.floor(Math.random() * sectors.length)].colorName;
     setGameState(prev => ({
