@@ -4305,10 +4305,17 @@ export const useRouletteHooks = () => {
       <p class="ds-body">Digite na forma de fração (ex: 3/${gameState.ySpins}).</p>`);
   }, [gameState.sectors, gameState.ySpins]);
 
-  // Scroll suave para o topo da seção do disco após resposta correta
+  // Scroll suave para o topo da seção do disco após resposta correta.
+  // Aceita os dois ids possíveis do wrapper: `disco` (rota standalone
+  // /ensino/probabilidade/disco — `RouletteSection`) e `seq-roleta`
+  // (sequência didática — `page.tsx`). Sem essa tolerância, o scroll
+  // simplesmente não acontecia dentro da sequência e o aluno ficava
+  // sem âncora visual após acertar (especialmente no dado de 6 faces,
+  // em que o InfoBox de generalização aparece bem acima da pergunta).
   const goToTopOfChallenge = () => {
     requestAnimationFrame(() => {
-      document.getElementById("disco")?.scrollIntoView({ behavior: 'smooth' });
+      const target = document.getElementById("disco") ?? document.getElementById("seq-roleta");
+      target?.scrollIntoView({ behavior: 'smooth' });
     });
   };
 
@@ -10929,6 +10936,7 @@ export const useRouletteHooks = () => {
     logText(1, 15, 'consolidacao_verbal_lgn', text);
 
     playSound("/sounds/correct.mp3");
+    createAlert("Resposta registrada!", "Sua explicação foi registrada. Leia a formalização da Lei dos Grandes Números.", "success", 4000);
     setShowInfoBox(true);
     setInfoBoxContent({
       type: 'concept',
@@ -10961,6 +10969,7 @@ export const useRouletteHooks = () => {
     const val = diceInput.value.trim();
     if (areFractionsEquivalent(val, '1/6')) {
       playSound("/sounds/correct.mp3");
+      createAlert("Correto!", "Cada face do dado tem probabilidade 1/6. Leia a generalização da Lei dos Grandes Números.", "success", 5000);
       logText(1, 15.6, 'descontextualizacao_dado', val);
       setDiceState(prev => ({ ...prev, answered: true }));
       setGameState(prev => ({ ...prev, subStep: 15.7 }));
@@ -10972,6 +10981,12 @@ export const useRouletteHooks = () => {
       });
       setInstructions(`<p class="ds-body"><strong>Generalização</strong></p>
         <p class="ds-body">Leia a conclusão.</p>`);
+      // Rola suave para o topo da seção do disco para que o InfoBox de
+      // generalização (renderizado lá em cima junto com o painel de
+      // instruções) entre no campo de visão do aluno. Sem isso, no
+      // mobile/notebook o aluno ficava sem âncora visual ao final do
+      // exercício e precisava rolar manualmente para encontrar o botão "Li".
+      goToTopOfChallenge();
     } else {
       playSound("/sounds/incorrect.mp3");
       setDiceInput(prev => ({ ...prev, error: true }));

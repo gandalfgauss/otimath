@@ -4862,8 +4862,14 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
             );
           })()}
 
-          {/* SubStep 15: Problemas de consolidação LGN */}
-          {(gameState.subStep === 15 || gameState.subStep === 15.5) && (
+          {/* SubStep 15: Problemas de consolidação LGN.
+              Antes o gate incluía `subStep === 15.5` (subStep intermediário
+              durante o InfoBox de formalização da LGN), mas com isso o
+              título "Consolidação: Lei dos Grandes Números" ficava
+              renderizado órfão depois do envio da consolidação verbal.
+              Restringimos o gate a `subStep === 15`: no 15.5 só fica o
+              InfoBox, sem a moldura desta seção. */}
+          {gameState.subStep === 15 && (
             <div className="w-full max-w-[600px] mx-auto flex flex-col gap-xxxs">
               <h3 className="ds-body-large-bold text-brand-otimath-dark text-center">Consolidação: Lei dos Grandes Números</h3>
 
@@ -4957,8 +4963,15 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                 </div>
               )}
 
-              {/* Melhoria 7 — Consolidação verbal (Almouloud/Duval) */}
-              {lgnPhase === 'verbal' && (
+              {/* Melhoria 7 — Consolidação verbal (Almouloud/Duval).
+                  O `handleLgnVerbalConfirm` mantém `lgnPhase === 'verbal'`
+                  após o envio (preserva o contexto pedagógico) e só muda
+                  `subStep` 15 → 15.5. Por isso o gate também checa
+                  `subStep === 15`: ao confirmar, o formulário some e só
+                  resta o InfoBox da formalização da LGN. Antes, o
+                  textarea + botão Confirmar ficavam ativos depois do
+                  envio e permitiam novos cliques duplicados. */}
+              {lgnPhase === 'verbal' && gameState.subStep === 15 && (
                 <div className="rounded-md p-xxs bg-brand-otimath-lightest border-hairline border-brand-otimath-light">
                   <p className="ds-body-bold text-brand-otimath-dark mb-nano">Consolidação</p>
                   <p className="ds-body text-brand-otimath-dark mb-micro">
