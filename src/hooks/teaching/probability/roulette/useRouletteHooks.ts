@@ -9692,7 +9692,30 @@ export const useRouletteHooks = () => {
         // Verificar se completou todos os blocos
         const batches = gameState.stage === 2 ? gameState.s2AutoBatches : gameState.autoSpinBatches;
         const batchIdx = gameState.stage === 2 ? gameState.s2AutoBatchIndex : gameState.currentAutoBatchIndex;
-        if (batchIdx + 1 >= batches.length) {
+        const isLastBatch = batchIdx + 1 >= batches.length;
+
+        // Feedback explícito ao aluno após cada lote de giros — sem
+        // isso, só o som tocava e o aluno podia não perceber que o
+        // disco parou. Mensagem distingue se ainda há mais lotes a
+        // executar (instrui a continuar) ou se foi o último (instrui
+        // a aguardar a análise de convergência).
+        if (isLastBatch) {
+          createAlert(
+            "Giros automáticos concluídos",
+            `Você completou os ${batchSize} giros (último bloco). Observe a tabela de frequências e o gráfico antes de prosseguir.`,
+            "success",
+            8000,
+          );
+        } else {
+          createAlert(
+            "Bloco de giros concluído",
+            `Os ${batchSize} giros terminaram. Observe a tabela de frequências e o gráfico e, quando estiver pronto, clique no próximo botão para continuar os giros automáticos.`,
+            "success",
+            10000,
+          );
+        }
+
+        if (isLastBatch) {
           // Completou todos os giros automáticos
           setShowAutoSpinButtons(false);
           if (gameState.stage === 2) {
@@ -9764,7 +9787,7 @@ export const useRouletteHooks = () => {
     };
 
     doSpin();
-  }, [gameState]);
+  }, [gameState, createAlert]);
 
   // Função para obter dados de frequência para a tabela
   const getFrequencyData = useCallback((): FrequencyData[] => {
