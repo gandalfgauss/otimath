@@ -10782,16 +10782,25 @@ export const useRouletteHooks = () => {
 
   // ========== FIM HANDLERS EVENTOS COMPLEMENTARES ==========
 
-  // Atualizar instruções durante giros manuais
+  // Atualizar instruções durante giros manuais.
+  // Restrito ao Stage 1 — em Stage 2 o subStep 7 também existe (leitura
+  // progressiva de ângulo) e possui instrução própria; sem a guarda,
+  // `manualSpinsRequired` (estado de Stage 1) sobrescreveria com
+  // "Gire o disco 0 vezes" lá.
   useEffect(() => {
-    if (gameState.subStep === 7 && !gameState.pendingRegistration) {
+    if (gameState.stage === 1 && gameState.subStep === 7 && !gameState.pendingRegistration) {
       setInstructions(`<p class="ds-body"><strong>Giros Manuais</strong></p>
         <p class="ds-body">Gire o disco ${gameState.manualSpinsRequired} vezes clicando em <strong>Sortear</strong>.</p>
         <p class="ds-body">Após cada giro, registre a cor que saiu clicando no botão correspondente.</p>
         <p class="ds-body">Giros realizados: ${gameState.manualSpinsDone}/${gameState.manualSpinsRequired}</p>`);
     }
 
-    if (gameState.subStep === 8 && !gameState.pendingRegistration) {
+    // Restrito ao Stage 1 — em Stage 2 o subStep 8 é o início dos
+    // treinos de fração θ/360 (com instrução própria definida em
+    // outro handler). Sem essa guarda, o `ySpins` (estado exclusivo
+    // do Stage 1, valor padrão 0) sobrescrevia a instrução correta do
+    // Treino 1 com "Realize 0 giros e registre as frequências".
+    if (gameState.stage === 1 && gameState.subStep === 8 && !gameState.pendingRegistration) {
       setInstructions(`<p class="ds-body"><strong>Experimento Aleatório: Registro das Ocorrências dos Giros</strong></p>
         <p class="ds-body">Realize ${gameState.ySpins} giros e registre as frequências.</p>
         <p class="ds-body">Giros realizados: ${gameState.manualSpinsDone}/${gameState.ySpins}</p>`);
