@@ -4467,7 +4467,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Leia o conteúdo do balão e clique no <strong>Botão</strong> para continuar.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Erro!", `O número correto é ${targetSectorCount}. Tente novamente.`, "error", 4000);
+        createAlert("Tente novamente", `O número correto é ${targetSectorCount}. Tente novamente.`, "error", 4000);
       }
       return;
     }
@@ -4496,7 +4496,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Antes de girar o disco, clique diretamente em uma cor do disco e aposte em qual resultado você acredita que irá ocorrer.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Erro!", "⚠️ Atenção! Um experimento aleatório é o procedimento que pode ser repetido nas mesmas condições, mas cujo resultado não pode ser previsto antes de acontecer. Ele descreve o que é feito e o que será observado, e não cálculos, escolhas antecipadas ou análises dos resultados.", "error", 8000);
+        createAlert("Tente novamente", "⚠️ Atenção! Um experimento aleatório é o procedimento que pode ser repetido nas mesmas condições, mas cujo resultado não pode ser previsto antes de acontecer. Ele descreve o que é feito e o que será observado, e não cálculos, escolhas antecipadas ou análises dos resultados.", "error", 8000);
       }
       return;
     }
@@ -4553,7 +4553,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setSampleSpaceInput(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "Quando gira o disco quais as possibilidades para o ponteiro indicar?", "error", 5000);
+        createAlert("Tente novamente", "Quando gira o disco quais as possibilidades para o ponteiro indicar?", "error", 5000);
       }
       return;
     }
@@ -4602,7 +4602,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setSampleSpaceCountInput(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "Conte novamente quantas cores diferentes há no disco.", "error", 4000);
+        createAlert("Tente novamente", "Conte novamente quantas cores diferentes há no disco.", "error", 4000);
       }
       return;
     }
@@ -4624,7 +4624,7 @@ export const useRouletteHooks = () => {
         setGameState(prev => ({ ...prev, subStep: 4.5 }));
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Erro!", "Observe que todos os setores têm o mesmo tamanho (mesmo ângulo central). Não há razão para uma cor ter mais chance que outra.", "error", 5000);
+        createAlert("Tente novamente", "Observe que todos os setores têm o mesmo tamanho (mesmo ângulo central). Não há razão para uma cor ter mais chance que outra.", "error", 5000);
       }
       return;
     }
@@ -4646,7 +4646,7 @@ export const useRouletteHooks = () => {
         setGameState(prev => ({ ...prev, subStep: 5.5 }));
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Erro!", "Como os setores são iguais, o espaço amostral é equiprovável.", "error", 4000);
+        createAlert("Tente novamente", "Como os setores são iguais, o espaço amostral é equiprovável.", "error", 4000);
       }
       return;
     }
@@ -4670,7 +4670,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setTheoreticalQuestion1Input(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "O evento certo sempre ocorre. Qual é a probabilidade de algo que sempre acontece?", "error", 4000);
+        createAlert("Tente novamente", "O evento certo sempre ocorre. Qual é a probabilidade de algo que sempre acontece?", "error", 4000);
       }
       return;
     }
@@ -4731,7 +4731,7 @@ export const useRouletteHooks = () => {
       } else {
         setProbabilityInputs(updatedInputs);
         playSound("/sounds/incorrect.mp3");
-        createAlert("Erro!", "Verifique as probabilidades. Lembre-se: em um espaço equiprovável, cada resultado tem a mesma chance.", "error", 5000);
+        createAlert("Tente novamente", "Verifique as probabilidades. Lembre-se: em um espaço equiprovável, cada resultado tem a mesma chance.", "error", 5000);
       }
       return;
     }
@@ -4779,7 +4779,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setFavorableCasesInput(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "Conte a quantidade de elementos que pertencem ao conjunto E.", "error", 4000);
+        createAlert("Tente novamente", "Conte a quantidade de elementos que pertencem ao conjunto E.", "error", 4000);
       }
       return;
     }
@@ -4790,7 +4790,7 @@ export const useRouletteHooks = () => {
       if (!predictionText) {
         playSound("/sounds/incorrect.mp3");
         setPredictionInput(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "Digite sua previsão antes de verificar.", "error", 3000);
+        createAlert("Tente novamente", "Digite sua previsão antes de verificar.", "error", 3000);
         return;
       }
 
@@ -4845,7 +4845,7 @@ export const useRouletteHooks = () => {
         setDisabledSpinButton(false);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Erro!", "⚠️ Cuidado! Ter n resultados possíveis não garante que todos ocorram em n repetições, pois cada repetição é independente. Um mesmo resultado pode se repetir, enquanto outros podem não aparecer.", "error", 8000);
+        createAlert("Tente novamente", "⚠️ Cuidado! Ter n resultados possíveis não garante que todos ocorram em n repetições, pois cada repetição é independente. Um mesmo resultado pode se repetir, enquanto outros podem não aparecer.", "error", 8000);
       }
       return;
     }
@@ -4902,7 +4902,7 @@ export const useRouletteHooks = () => {
       } else {
         setRelativeFrequencyInputs(updatedInputs);
         playSound("/sounds/incorrect.mp3");
-        createAlert("Erro!", `Lembre-se: frequência relativa = frequência absoluta / total de giros (${gameState.ySpins}).`, "error", 5000);
+        createAlert("Tente novamente", `Lembre-se: frequência relativa = frequência absoluta / total de giros (${gameState.ySpins}).`, "error", 5000);
       }
       return;
     }
@@ -4994,7 +4994,7 @@ export const useRouletteHooks = () => {
           setConvergenceInputs(prev => ({ ...prev, convergence: { ...prev.convergence, error: true } }));
         }
         playSound("/sounds/incorrect.mp3");
-        createAlert("Erro!", "Observe o histograma. Para qual valor as frequências relativas estão convergindo?", "error", 5000);
+        createAlert("Tente novamente", "Observe o histograma. Para qual valor as frequências relativas estão convergindo?", "error", 5000);
       }
       return;
     }
@@ -5021,7 +5021,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setTheoreticalQuestion1Input(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", `Se o disco tem ${gameState.theoreticalK} setores iguais, qual é a probabilidade de cada um?`, "error", 5000);
+        createAlert("Tente novamente", `Se o disco tem ${gameState.theoreticalK} setores iguais, qual é a probabilidade de cada um?`, "error", 5000);
       }
       return;
     }
@@ -5043,7 +5043,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setTheoreticalQuestion2Input(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "A probabilidade de cada setor é a mesma que a frequência relativa quando o número de giros é muito grande.", "error", 5000);
+        createAlert("Tente novamente", "A probabilidade de cada setor é a mesma que a frequência relativa quando o número de giros é muito grande.", "error", 5000);
       }
       return;
     }
@@ -5071,7 +5071,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Digite o número de casos favoráveis ao evento E.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Erro!", "Observe as cores que compõem o evento e clique nos setores correspondentes no disco.", "error", 4000);
+        createAlert("Tente novamente", "Observe as cores que compõem o evento e clique nos setores correspondentes no disco.", "error", 4000);
       }
       return;
     }
@@ -5092,7 +5092,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setExerciseNEInput(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "Conte a quantidade de elementos do evento E.", "error", 3000);
+        createAlert("Tente novamente", "Conte a quantidade de elementos do evento E.", "error", 3000);
       }
       return;
     }
@@ -5113,7 +5113,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setExerciseNSInput(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "Observe quantos setores compõem o disco.", "error", 3000);
+        createAlert("Tente novamente", "Observe quantos setores compõem o disco.", "error", 3000);
       }
       return;
     }
@@ -5137,6 +5137,7 @@ export const useRouletteHooks = () => {
         const formattedPercentage = Number.isInteger(resultPercentage)
           ? resultPercentage.toString()
           : resultPercentage.toFixed(2).replace(/\.?0+$/, '');
+        createAlert("Parabéns!", `P(E) = ${expectedNumerator}/${expectedDenominator} = ${formattedPercentage}%`, "success", 3500);
 
         setGameState(prev => ({ ...prev, subStep: 6.45 }));
 
@@ -5153,7 +5154,7 @@ export const useRouletteHooks = () => {
         playSound("/sounds/incorrect.mp3");
         setExercisePENumeratorInput(prev => ({ ...prev, error: true }));
         setExercisePEDenominatorInput(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "Revise os valores de n(E) e n(S) antes de calcular a probabilidade.", "error", 4000);
+        createAlert("Tente novamente", "Revise os valores de n(E) e n(S) antes de calcular a probabilidade.", "error", 4000);
       }
       return;
     }
@@ -5198,6 +5199,7 @@ export const useRouletteHooks = () => {
 
       if (won) {
         playSound("/sounds/correct.mp3");
+        createAlert("Correto!", "Você identificou corretamente os casos favoráveis ao evento.", "success", 3000);
 
         setGameState(prev => ({ ...prev, subStep: 6.65 }));
 
@@ -5210,10 +5212,10 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         if (challenge1InterProblemType !== null) {
-          createAlert("Erro!", `Observe atentamente: o evento é definido por números que são ${challenge1PropertyY}. Verifique quais setores satisfazem ambas as condições simultaneamente.`, "error", 6000);
+          createAlert("Tente novamente", `Observe atentamente: o evento é definido por números que são ${challenge1PropertyY}. Verifique quais setores satisfazem ambas as condições simultaneamente.`, "error", 6000);
         } else {
           const connectiveText = challenge1Connective === 'ou' ? 'pelo menos uma das condições' : 'ambas as condições simultaneamente';
-          createAlert("Erro!", `Observe atentamente: o evento é definido por ${gameState.challenge1EventXText} ${challenge1Connective.toUpperCase()} número ${challenge1PropertyY}. Verifique quais setores satisfazem ${connectiveText}.`, "error", 6000);
+          createAlert("Tente novamente", `Observe atentamente: o evento é definido por ${gameState.challenge1EventXText} ${challenge1Connective.toUpperCase()} número ${challenge1PropertyY}. Verifique quais setores satisfazem ${connectiveText}.`, "error", 6000);
         }
       }
       return;
@@ -5262,7 +5264,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setExerciseNEInput(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "Conte novamente os setores favoráveis ao evento. Cada setor favorável conta como 1.", "error", 4000);
+        createAlert("Tente novamente", "Conte novamente os setores favoráveis ao evento. Cada setor favorável conta como 1.", "error", 4000);
       }
       return;
     }
@@ -5283,7 +5285,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setExerciseNSInput(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "Observe quantos setores compõem o disco.", "error", 3000);
+        createAlert("Tente novamente", "Observe quantos setores compõem o disco.", "error", 3000);
       }
       return;
     }
@@ -5334,6 +5336,7 @@ export const useRouletteHooks = () => {
         const formattedPercentage = Number.isInteger(resultPercentage)
           ? resultPercentage.toString()
           : resultPercentage.toFixed(2).replace(/\.?0+$/, '');
+        createAlert("Parabéns!", `P(E) = ${expectedNumerator}/${expectedDenominator} = ${formattedPercentage}%`, "success", 3500);
 
         setGameState(prev => ({ ...prev, subStep: 6.69 }));
 
@@ -5350,7 +5353,7 @@ export const useRouletteHooks = () => {
         playSound("/sounds/incorrect.mp3");
         setExercisePENumeratorInput(prev => ({ ...prev, error: true }));
         setExercisePEDenominatorInput(prev => ({ ...prev, error: true }));
-        createAlert("Erro!", "Conte corretamente quantos casos favoráveis ao evento E você marcou e conte quantos casos possíveis tem no disco: P(E) = número de casos favoráveis ao evento E / número de elementos do espaço amostral.", "error", 6000);
+        createAlert("Tente novamente", "Conte corretamente quantos casos favoráveis ao evento E você marcou e conte quantos casos possíveis tem no disco: P(E) = número de casos favoráveis ao evento E / número de elementos do espaço amostral.", "error", 6000);
       }
       return;
     }
@@ -5365,6 +5368,7 @@ export const useRouletteHooks = () => {
       const userSet = new Set(gameState.selectedSectors);
       if (correctSet.size === userSet.size && [...correctSet].every(i => userSet.has(i))) {
         playSound("/sounds/correct.mp3");
+        createAlert("Evento A correto!", "Agora vamos para a próxima etapa do cálculo.", "success", 3000);
         if (subStep === 6.85) {
           // Guiado → vai direto para selectĀ
           setCompPhase('calc_selectAbar');
@@ -5393,7 +5397,7 @@ export const useRouletteHooks = () => {
         }
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Incorreto", "Verifique quais setores correspondem ao evento A e tente novamente.", "error", 4000);
+        createAlert("Tente novamente", "Verifique quais setores correspondem ao evento A.", "error", 4000);
         setGameState(prev => ({ ...prev, selectedSectors: [] }));
       }
       return;
@@ -5415,11 +5419,12 @@ export const useRouletteHooks = () => {
       if (hasErr) {
         playSound("/sounds/incorrect.mp3");
         setCompPaInput(prev => ({ ...prev, ...errs }));
-        createAlert("Incorreto", "Verifique o numerador (setores favoráveis) e o denominador (total de setores).", "error", 4000);
+        createAlert("Tente novamente", "Verifique o numerador (setores favoráveis) e o denominador (total de setores).", "error", 4000);
         return;
       }
       // P(A) correto → transicionar para selectĀ
       playSound("/sounds/correct.mp3");
+      createAlert("P(A) correto!", "Agora marque o evento complementar Ā no disco.", "success", 3000);
       setCompPhase('calc_selectAbar');
       setGameState(prev => ({ ...prev, subStep: 6.91 }));
       setCompUserSelectAbar([]);
@@ -5442,6 +5447,7 @@ export const useRouletteHooks = () => {
       const userSet = new Set(compUserSelectAbar);
       if (correctSet.size === userSet.size && [...correctSet].every(i => userSet.has(i))) {
         playSound("/sounds/correct.mp3");
+        createAlert("Muito bem!", "Você identificou corretamente o evento complementar Ā.", "success", 3000);
         setCompPhase('calc_showBoth');
         setGameState(prev => ({ ...prev, subStep: subStep === 6.86 ? 6.87 : 6.92 }));
         setShowInfoBox(true);
@@ -5459,7 +5465,7 @@ export const useRouletteHooks = () => {
         }
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Incorreto", "Verifique quais setores NÃO pertencem ao evento A e tente novamente.", "error", 4000);
+        createAlert("Tente novamente", "Verifique quais setores NÃO pertencem ao evento A.", "error", 4000);
         setCompUserSelectAbar([]);
       }
       return;
@@ -5501,7 +5507,7 @@ export const useRouletteHooks = () => {
         if (!frac1Ok) msgs.push('A primeira fração deve representar o número 1 (qualquer forma equivalente, ex.: n/n).');
         if (!frac2Ok) msgs.push('A segunda fração deve representar P(A) (qualquer forma equivalente a m/n).');
         if (!fracFOk) msgs.push('A fração final deve representar P(Ā) (qualquer forma equivalente ao resultado da subtração).');
-        createAlert("Incorreto", msgs.join(' '), "error", 5000);
+        createAlert("Tente novamente", msgs.join(' '), "error", 5000);
         return;
       }
 
@@ -5516,6 +5522,7 @@ export const useRouletteHooks = () => {
 
       if (subStep === 6.88) {
         // Guiado → iniciar independente
+        createAlert("Parabéns!", `P(Ā) = ${n - m}/${n} = ${decimalStr}. Agora pratique sozinho!`, "success", 3500);
         setShowInfoBox(true);
         setInfoBoxContent({
           type: 'success',
@@ -5528,6 +5535,7 @@ export const useRouletteHooks = () => {
       } else {
         // Independente (6.93) → próximo exemplo ou transição
         if (compCalcExampleNum >= 4) {
+          createAlert("Excelente!", "Você dominou o cálculo de P(Ā) = 1 − P(A).", "success", 3500);
           setShowInfoBox(true);
           setInfoBoxContent({
             type: 'success',
@@ -5538,6 +5546,7 @@ export const useRouletteHooks = () => {
             transitionToPredictionRef.current();
           }, 1500);
         } else {
+          createAlert("Correto!", `P(Ā) = ${n - m}/${n} = ${decimalStr}.`, "success", 3000);
           setShowInfoBox(true);
           setInfoBoxContent({
             type: 'success',
@@ -8373,6 +8382,7 @@ export const useRouletteHooks = () => {
     }
 
     playSound("/sounds/correct.mp3");
+    createAlert("Evento A correto!", "Agora identifique os setores do evento B.", "success", 3000);
     setDisjointExercisePhase('selecting_B');
 
     setInfoBoxContent({
@@ -8401,6 +8411,7 @@ export const useRouletteHooks = () => {
 
     if (correctA && correctB) {
       playSound("/sounds/correct.mp3");
+      createAlert("Parabéns!", "Você identificou corretamente os eventos mutuamente exclusivos.", "success", 3500);
       setDisjointExercisePhase('correct');
       setDisjointExamplesViewed(prev => prev + 1);
       setInfoBoxContent({
@@ -8513,7 +8524,17 @@ export const useRouletteHooks = () => {
   }, [unionPhase, unionEvents]);
 
   const handleUnionConfirmSelection = useCallback(() => {
-    if (unionSelectedSectors.length === 0) return;
+    const currentEventLabel = unionEvents[unionCurrentEventIdx]?.label ?? '';
+    if (unionSelectedSectors.length === 0) {
+      playSound("/sounds/incorrect.mp3");
+      createAlert(
+        "Selecione ao menos um setor",
+        `Clique nos setores que pertencem ao evento ${currentEventLabel} antes de confirmar.`,
+        "error",
+        4000,
+      );
+      return;
+    }
     goToTopOfChallenge();
 
     const currentEvent = unionEvents[unionCurrentEventIdx];
@@ -8533,7 +8554,7 @@ export const useRouletteHooks = () => {
       setInstructions(`<p class="ds-body"><strong>Correto!</strong> Agora calcule P(${currentEvent.label}) como fração.</p>`);
     } else {
       playSound("/sounds/incorrect.mp3");
-      createAlert("Erro!", `Verifique quais setores pertencem ao evento ${currentEvent.label}: ${currentEvent.description}. Tente novamente.`, "error", 5000);
+      createAlert("Tente novamente", `Verifique quais setores pertencem ao evento ${currentEvent.label}: ${currentEvent.description}. Tente novamente.`, "error", 5000);
     }
   }, [unionSelectedSectors, unionEvents, unionCurrentEventIdx, createAlert]);
 
@@ -8585,7 +8606,7 @@ export const useRouletteHooks = () => {
       playSound("/sounds/incorrect.mp3");
       setUnionProbNumInput(prev => ({ ...prev, error: true }));
       setUnionProbDenInput(prev => ({ ...prev, error: true }));
-      createAlert("Erro!", `P(${currentEvent.label}) = n(${currentEvent.label}) / n(S). Conte quantos setores pertencem ao evento e quantos setores tem o disco.`, "error", 5000);
+      createAlert("Tente novamente", `P(${currentEvent.label}) = n(${currentEvent.label}) / n(S). Conte quantos setores pertencem ao evento e quantos setores tem o disco.`, "error", 5000);
     }
   }, [unionProbNumInput, unionProbDenInput, unionEvents, unionCurrentEventIdx, gameState.sectors, createAlert]);
 
@@ -8606,6 +8627,12 @@ export const useRouletteHooks = () => {
       const percentageVal = ((expectedNum / expectedDen) * 100).toFixed(1).replace(/\.0$/, '');
 
       const isLastActivity = unionActivityNum >= unionMaxActivities;
+      createAlert(
+        isLastActivity ? "Fase concluída!" : "Correto!",
+        `P(${unionLabel}) = ${expectedNum}/${expectedDen} = ${percentageVal}%`,
+        "success",
+        3500,
+      );
 
       setShowInfoBox(true);
       if (isLastActivity) {
@@ -8630,7 +8657,7 @@ export const useRouletteHooks = () => {
       setUnionFinalNumInput(prev => ({ ...prev, error: true }));
       setUnionFinalDenInput(prev => ({ ...prev, error: true }));
       const probSum = unionEvents.map(e => `P(${e.label})`).join(' + ');
-      createAlert("Erro!", `Para eventos mutuamente exclusivos: P(${unionEvents.map(e => e.label).join('∪')}) = ${probSum}. Some os numeradores e mantenha o denominador.`, "error", 6000);
+      createAlert("Tente novamente", `Para eventos mutuamente exclusivos: P(${unionEvents.map(e => e.label).join('∪')}) = ${probSum}. Some os numeradores e mantenha o denominador.`, "error", 6000);
     }
   }, [unionFinalNumInput, unionFinalDenInput, unionEvents, unionActivityNum, unionMaxActivities, gameState.sectors, createAlert]);
 
@@ -10522,6 +10549,7 @@ export const useRouletteHooks = () => {
     if (correctSet.size === userSet.size && [...correctSet].every(i => userSet.has(i))) {
       // Correto — avançar para selecting_Abar
       playSound("/sounds/correct.mp3");
+      createAlert("Evento A correto!", "Agora identifique o evento complementar Ā.", "success", 3000);
       setCompPhase('selecting_Abar');
       setShowInfoBox(true);
       setInfoBoxContent({
@@ -10531,6 +10559,7 @@ export const useRouletteHooks = () => {
       });
     } else {
       playSound("/sounds/incorrect.mp3");
+      createAlert("Tente novamente", `Revise os setores do evento A = "${ev.textA}".`, "error", 4000);
       setCompPhase('wrong_A');
       setShowInfoBox(true);
       setInfoBoxContent({
@@ -10539,7 +10568,7 @@ export const useRouletteHooks = () => {
         message: `Revise quais setores correspondem ao evento A = "<strong>${ev.textA}</strong>". Tente novamente.`
       });
     }
-  }, [gameState.compEventA, compUserSelectA]);
+  }, [gameState.compEventA, compUserSelectA, createAlert]);
 
   // 5. Confirmar seleção de Ā
   const handleCompConfirmAbar = useCallback(() => {
@@ -10552,6 +10581,7 @@ export const useRouletteHooks = () => {
     if (correctSet.size === userSet.size && [...correctSet].every(i => userSet.has(i))) {
       // Correto — mostrar ambos
       playSound("/sounds/correct.mp3");
+      createAlert("Muito bem!", "Você identificou corretamente A e Ā.", "success", 3000);
       setCompPhase('show_both');
       setCompExamplesViewed(prev => prev + 1);
       setShowInfoBox(true);
@@ -10572,6 +10602,7 @@ export const useRouletteHooks = () => {
       }
     } else {
       playSound("/sounds/incorrect.mp3");
+      createAlert("Tente novamente", "O evento complementar ocorre quando A não ocorre.", "error", 4000);
       setCompPhase('wrong_Abar');
       setShowInfoBox(true);
       setInfoBoxContent({
@@ -10580,7 +10611,7 @@ export const useRouletteHooks = () => {
         message: `O evento complementar ocorre quando A não ocorre. Marque as possibilidades do evento A não ocorrer no disco.`
       });
     }
-  }, [gameState.compEventA, compUserSelectAbar, compExamplesViewed]);
+  }, [gameState.compEventA, compUserSelectAbar, compExamplesViewed, createAlert]);
 
   // 6. Retry após erro
   const handleCompRetry = useCallback(() => {
