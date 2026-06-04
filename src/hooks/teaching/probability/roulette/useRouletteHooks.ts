@@ -8716,10 +8716,46 @@ export const useRouletteHooks = () => {
 
   // Função para lidar com confirmação do InfoBox
   const handleInfoBoxConfirm = useCallback(() => {
-    goToTopOfChallenge();
     setShowInfoBox(false);
 
     const { stage, subStep, sectors, targetSectorCount } = gameState;
+
+    // Pular âncora ao topo SOMENTE em transições intermediárias que NÃO mudam de
+    // tópico nem de layout — apenas trocam o conteúdo do mesmo InfoBox no topo.
+    // FINALIZADORES de cadeia (último balão antes de mudar tela/tópico/etapa)
+    // NÃO devem ser pulados — o usuário precisa ver o novo conteúdo abaixo.
+    //
+    // Balões 100% intermediários (próximo é OUTRO balão do MESMO conceito,
+    // sem setInstructions novo — apenas troca de conteúdo no mesmo InfoBox):
+    const balaoChainsS1 = new Set([
+      0.1, 0.2, 0.3, 0.4, 0.5,        // Acaso/Aleatoriedade/Experimento/Exemplo/Foco (0.6 é finalizador → rola)
+      3.4, 3.45, 3.5,                  // Evento/Composto/Equiprovável (3.6 é finalizador → rola)
+      5.5,                             // Evento certo → impossível (5.55 é finalizador → rola)
+      5.75, 5.8,                       // Modelo probabilístico/Divisão (5.9 é finalizador → rola)
+      6.2, 6.3, 6.35, 6.36, 6.37, 6.38, // Laplace progressivo (6.4 é finalizador → rola)
+      11.5,                            // Definição freq → Generalização (11.6 é finalizador → rola)
+    ]);
+    // Preenchimentos sequenciais no MESMO bloco de exercício (n(E)/n(S)/P(E)):
+    const seqFillsS1 = new Set([6.65, 6.66, 6.67]);
+    // Apenas fecham InfoBox sem mudar layout visível:
+    const dismissOnlyS2 = new Set([
+      0.185,  // muda só o texto da instrução; paleta de cores já visível
+      0.19,   // dispara giro in-place na mesma área do disco
+      2,      // fecha dica do espaço amostral; aluno retenta a MESMA pergunta
+    ]);
+    const skipScroll =
+      (stage === 1 && (balaoChainsS1.has(subStep) || seqFillsS1.has(subStep))) ||
+      (stage === 2 && dismissOnlyS2.has(subStep)) ||
+      // 2.9: ler 5 frases + 1 destaque é tudo no mesmo InfoBox; só rola na transição p/ subStep 3 (tabela).
+      (stage === 2 && subStep === 2.9 && progressiveReadingStep < 5) ||
+      // 6.80 formalize1/2/3 são cadeia de balões; formalize4 leva à tela de cálculo (rolar).
+      (stage === 1 && subStep === 6.80 && (compPhase === 'formalize1' || compPhase === 'formalize2' || compPhase === 'formalize3')) ||
+      // 6.56 definition1 → definition2 é balão; definition2 inicia atividade (rolar).
+      (stage === 1 && subStep === 6.56 && unionPhase === 'definition1') ||
+      // 6.70 show_both com <3 exemplos apenas re-mostra InfoBox; aos 3+ vai p/ formalização (rolar).
+      (stage === 1 && subStep === 6.70 && compPhase === 'show_both' && compExamplesViewed < 3);
+
+    if (!skipScroll) goToTopOfChallenge();
 
     // ===== CONFRONTO PREVISÃO × RESULTADO (Melhoria 4 — Artigue/Brousseau) =====
 
