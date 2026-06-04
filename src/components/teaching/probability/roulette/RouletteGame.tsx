@@ -2233,7 +2233,7 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
           {/* SubStep 12: Pergunta teórica 1 */}
           {gameState.stage === 1 && gameState.subStep === 12 && (
             <RouletteQuestion
-              question={`Caso o disco circular fosse dividido em <strong>${gameState.theoreticalK}</strong> setores iguais, o setor h após girar o disco um número p maior que 1 bilhão de vezes terá uma frequência relativa aproximando de qual número?`}
+              question={`Caso o disco circular fosse dividido em <strong>${gameState.theoreticalK}</strong> setores iguais, o setor h, após girar o disco um número p maior que 1 bilhão de vezes, terá uma frequência relativa aproximando de qual número?`}
               type="text"
               textInput={{
                 ...theoreticalQuestion1Input,
