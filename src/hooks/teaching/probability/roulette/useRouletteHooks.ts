@@ -8048,6 +8048,16 @@ export const useRouletteHooks = () => {
         if (done >= 10) {
           setConvergenceSim({ currentBlock: 1, running: false, progress: 100 });
           setGameState(prev => ({ ...prev, isAutoSpinning: false }));
+          // Feedback ao término do bloco — mesmo padrão do
+          // `startAutoSpins`. Sem alert, o aluno não percebia que o
+          // bloco terminou e ficava sem âncora para clicar no próximo.
+          playSound("/sounds/challengeFinished.mp3");
+          createAlert(
+            "Bloco de 10 giros concluído",
+            "Observe a tabela de frequências e o gráfico. Quando estiver pronto, clique no próximo botão para continuar a simulação.",
+            "success",
+            10000,
+          );
           return;
         }
 
@@ -8109,15 +8119,32 @@ export const useRouletteHooks = () => {
           const nextBlock = blockIdx + 1;
           setConvergenceSim({ currentBlock: nextBlock, running: false, progress: 100 });
           setGameState(prev => ({ ...prev, isAutoSpinning: false }));
-          if (nextBlock >= CONVERGENCE_BLOCKS.length) {
-            playSound("/sounds/challengeFinished.mp3");
+          const isLast = nextBlock >= CONVERGENCE_BLOCKS.length;
+          // Feedback ao término de cada bloco grande (500, 1000, 10000, 20000).
+          // O `playSound` antes só tocava no ÚLTIMO bloco; agora todo bloco
+          // toca som + alerta o aluno para observar a convergência.
+          playSound("/sounds/challengeFinished.mp3");
+          if (isLast) {
+            createAlert(
+              "Simulação concluída",
+              `Você completou os ${blockSize.toLocaleString('pt-BR')} giros (último bloco). Observe a convergência das frequências relativas para as probabilidades teóricas.`,
+              "success",
+              8000,
+            );
+          } else {
+            createAlert(
+              "Bloco concluído",
+              `Os ${blockSize.toLocaleString('pt-BR')} giros terminaram. Observe a tabela e o gráfico e, quando estiver pronto, clique no próximo botão para continuar.`,
+              "success",
+              10000,
+            );
           }
         }
       };
 
       doBatch();
     }
-  }, [convergenceSim.currentBlock, convergenceSim.running, gameState.sectors]);
+  }, [convergenceSim.currentBlock, convergenceSim.running, gameState.sectors, createAlert]);
 
   // Handler: continuar após simulação → subStep 9 (giros manuais)
   const handleConvergenceContinue = useCallback(() => {
