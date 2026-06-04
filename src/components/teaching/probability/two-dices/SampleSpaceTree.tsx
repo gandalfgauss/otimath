@@ -633,7 +633,12 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
             experimento aleatório: lançar dois dados e anotar as pintas nas faces voltadas para cima.
           </p>
 
-          <div className="flex justify-center items-center mb-micro gap-micro flex-wrap">
+          {/* Equação `a × b = c` — `flex-nowrap` + `overflow-x-auto`
+              garantem que a expressão SEMPRE permaneça em uma linha;
+              em viewports muito estreitos o usuário rola horizontalmente
+              em vez de ver a equação quebrada (matematicamente
+              incorreto). */}
+          <div className="flex flex-nowrap justify-center items-center mb-micro gap-micro overflow-x-auto">
             <input type="text" inputMode="numeric" maxLength={2}
               value={multA} onChange={e => { setMultA(e.target.value); setMultError(''); }}
               style={inputStyle} aria-label="Primeiro fator" />

@@ -255,12 +255,16 @@ export const ComplementaryEventsActivity = forwardRef<
             Sendo <strong>S</strong> o espaço amostral do experimento e os eventos <strong>A</strong> e{' '}
             <strong>Ā</strong>, então:
           </p>
+          {/* `A ∪ Ā =` + select agrupados em flex-nowrap interno —
+              o pai (`flex-wrap`) só permite quebra ENTRE pares, nunca
+              dentro de uma equação. */}
           <div className="flex items-center gap-micro flex-wrap">
-            <span className="ds-body-bold">A ∪ Ā =</span>
-            <select
-              value={h.formStep0Value}
-              onChange={e => h.setFormStep0Value(e.target.value)}
-              disabled={h.formStep > 0}
+            <div className="flex flex-nowrap items-center gap-x-nano">
+              <span className="ds-body-bold whitespace-nowrap">A ∪ Ā =</span>
+              <select
+                value={h.formStep0Value}
+                onChange={e => h.setFormStep0Value(e.target.value)}
+                disabled={h.formStep > 0}
               style={{
                 padding: '6px 10px',
                 fontSize: '1rem',
@@ -274,11 +278,12 @@ export const ComplementaryEventsActivity = forwardRef<
                 minWidth: 70,
               }}
             >
-              <option value="">?</option>
-              <option value="S">S</option>
-              <option value="A">A</option>
-              <option value="Ā">Ā</option>
-            </select>
+                <option value="">?</option>
+                <option value="S">S</option>
+                <option value="A">A</option>
+                <option value="Ā">Ā</option>
+              </select>
+            </div>
           </div>
         </div>
 

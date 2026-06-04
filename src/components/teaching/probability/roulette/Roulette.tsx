@@ -174,11 +174,17 @@ export function Roulette({
         </svg>
       </div>
 
-      {/* Wheel */}
+      {/* Wheel.
+          `overflow="visible"` no <svg> e no <g> permite que o
+          `drop-shadow` aplicado ao setor selecionado (modo de seleção
+          dos exercícios) escape da área do disco — sem isso, o halo
+          dourado/ciano em volta do setor selecionado ficava recortado
+          no contorno do disco, dando aparência de "sombra cortada". */}
       <svg
         width="100%"
         height="100%"
         viewBox={`0 0 ${size} ${size}`}
+        overflow="visible"
         role="img"
         aria-label={`Disco com ${sectors.length} setores: ${sectorDescription}`}
       >
@@ -192,6 +198,9 @@ export function Roulette({
             // Safari (especialmente iOS) repinta o SVG inteiro a cada frame
             // e o giro fica travado/serrilhado. Em Firefox também ajuda.
             willChange: 'transform',
+            // overflow visível para o `drop-shadow` do setor selecionado
+            // escapar do bounding box do <g> (necessário em Firefox).
+            overflow: 'visible',
           }}
         >
           {sectors.map((sector, index) => {

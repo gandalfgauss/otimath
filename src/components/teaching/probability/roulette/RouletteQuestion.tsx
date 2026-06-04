@@ -111,14 +111,22 @@ export function RouletteQuestion({
 
       {type === 'text' && textInput && (
         <div className="flex flex-col gap-y-micro">
-          <div className="flex items-center gap-x-micro">
+          {/* `flex-nowrap` + `whitespace-nowrap` no prefixo garantem que
+              a expressão matemática (ex.: "n(S) =") NUNCA quebre antes
+              do input. Largura do input limitada a 180px para deixar
+              espaço seguro em telas estreitas (320px+); `flex-shrink-0`
+              no input impede o flex de comprimi-lo ao ponto de o
+              placeholder ficar ilegível. `overflow-x-auto` no contêiner
+              permite scroll horizontal em viewports extremamente
+              estreitos em vez de quebrar a linha. */}
+          <div className="flex flex-nowrap items-center gap-x-micro overflow-x-auto">
             {inputPrefix && (
-              <span className="ds-body-bold text-brand-otimath-dark">{inputPrefix}</span>
+              <span className="ds-body-bold text-brand-otimath-dark whitespace-nowrap flex-shrink-0">{inputPrefix}</span>
             )}
             <TextInput
               textInput={{
                 ...textInput,
-                styles: `${textInput.styles || ''} w-full max-w-[300px]`
+                styles: `${textInput.styles || ''} w-[180px] flex-shrink-0`
               }}
             />
           </div>

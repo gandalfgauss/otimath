@@ -131,15 +131,19 @@ function HistoryChip({
         border: `2px solid ${color}`,
       }}
     >
-      <span aria-hidden style={{ color, fontWeight: 800 }}>✓</span>
-      <span style={{ color, fontWeight: 700, fontSize: '0.82rem' }}>
-        {label} =
-      </span>
-      <FracH top={num} bottom={den} color={color} size="0.9rem" />
-      <span className="text-neutral-darkest text-[0.8rem]">
+      {/* "label =" + fração formam UMA unidade matemática — agrupadas em
+          flex-nowrap interno para nunca quebrar no meio da igualdade. */}
+      <div className="flex flex-nowrap items-center gap-x-nano">
+        <span aria-hidden style={{ color, fontWeight: 800 }}>✓</span>
+        <span className="whitespace-nowrap" style={{ color, fontWeight: 700, fontSize: '0.82rem' }}>
+          {label} =
+        </span>
+        <FracH top={num} bottom={den} color={color} size="0.9rem" />
+      </div>
+      <span className="text-neutral-darkest text-[0.8rem] whitespace-nowrap">
         ≈ {formatDecimal(num, den, 3)}
       </span>
-      <span className="text-neutral-darkest text-[0.8rem]">
+      <span className="text-neutral-darkest text-[0.8rem] whitespace-nowrap">
         ≈ {formatPercent(num, den, 1)}
       </span>
     </div>

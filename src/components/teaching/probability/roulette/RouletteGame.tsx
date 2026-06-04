@@ -13,6 +13,7 @@ import { RouletteChart } from "./RouletteChart";
 import { RouletteQuestion } from "./RouletteQuestion";
 import { RouletteInfoBox } from "./RouletteInfoBox";
 import { useRouletteHooks } from "@/hooks/teaching/probability/roulette/useRouletteHooks";
+import { playSound } from "@/hooks/global/useSound";
 import { SequenceStatsCard } from "@/components/teaching/probability/SequenceStatsCard";
 import { freezeOva, getSequenceStats, logOvaInteraction, setActiveOva, unfreezeOva, useSequenceTick } from "@/hooks/teaching/probability/useSequenceSession";
 import { StudyMenu } from "@/components/teaching/probability/two-dices/shared/StudyMenu";
@@ -712,6 +713,16 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                   : []
               }
               onSectorClick={(index) => {
+                // Feedback sonoro universal para todo clique em setor
+                // selecionável. Antes, só os handlers de aposta
+                // (handleExperimentationBet/handleS2Bet) tocavam click.mp3;
+                // os outros modos de seleção (disjuntos, união ME,
+                // complementares, treinos, etc.) ficavam silenciosos.
+                // playSound usa Audio compartilhado — chamadas adicionais
+                // dentro dos handlers apenas reiniciam o mesmo som, sem
+                // tocar duas vezes.
+                playSound("/sounds/click.mp3");
+
                 // Etapa 3: aposta
                 if (gameState.stage === 3 && gameState.subStep === 1) {
                   handleS3SectorBet(index);
@@ -4271,8 +4282,11 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                     <div key={color} className="flex items-center gap-x-micro gap-y-nano flex-wrap">
                       <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter shrink-0" style={{ backgroundColor: ROULETTE_COLORS[color] }} aria-hidden="true" />
                       <span className="ds-small-bold w-[80px]">{color}</span>
-                      <span className="ds-small text-neutral-dark" aria-hidden="true">P =</span>
-                      <div className="flex items-center gap-x-nano">
+                      {/* "P =" + fração formam UMA unidade matemática:
+                          agrupados em flex-nowrap para nunca quebrar entre
+                          o sinal de igual e o numerador da fração. */}
+                      <div className="flex flex-nowrap items-center gap-x-nano">
+                        <span className="ds-small text-neutral-dark whitespace-nowrap" aria-hidden="true">P =</span>
                         <input
                           type="text"
                           inputMode="numeric"
