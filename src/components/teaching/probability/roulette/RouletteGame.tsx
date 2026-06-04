@@ -4289,81 +4289,92 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                     <div key={color} className="flex items-center gap-x-micro gap-y-nano flex-wrap">
                       <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter shrink-0" style={{ backgroundColor: ROULETTE_COLORS[color] }} aria-hidden="true" />
                       <span className="ds-small-bold w-[80px]">{color}</span>
-                      {/* "P =" + fração formam UMA unidade matemática:
-                          agrupados em flex-nowrap para nunca quebrar entre
-                          o sinal de igual e o numerador da fração. */}
-                      <div className="flex flex-nowrap items-center gap-x-nano">
-                        <span className="ds-small text-neutral-dark whitespace-nowrap" aria-hidden="true">P =</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="a"
-                          aria-label={`Numerador da probabilidade da cor ${color}`}
-                          aria-invalid={inp.errorNum}
-                          aria-describedby={inp.errorMsg && !isCorrect ? `s3-prob-err-${color}` : undefined}
-                          className={`w-[42px] p-nano rounded-sm border-hairline ds-small text-center ${
-                            isCorrect
-                              ? 'border-feedback-success-medium bg-feedback-success-lightest text-feedback-success-darkest'
-                              : inp.errorNum
-                                ? 'border-feedback-error-medium bg-feedback-error-lightest'
-                                : 'border-neutral-light bg-neutral-white'
-                          }`}
-                          value={inp.num}
-                          onChange={(e) => {
-                            if (isCorrect) return;
-                            setS3State(prev => ({
-                              ...prev,
-                              probInputs: {
-                                ...prev.probInputs,
-                                [color]: { ...prev.probInputs[color], num: e.target.value, errorNum: false, errorMsg: '' }
-                              }
-                            }));
-                          }}
-                          disabled={isCorrect}
-                        />
-                        <span className="ds-body-bold text-neutral-dark" aria-hidden="true">/</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="b"
-                          aria-label={`Denominador da probabilidade da cor ${color}`}
-                          aria-invalid={inp.errorDen}
-                          aria-describedby={inp.errorMsg && !isCorrect ? `s3-prob-err-${color}` : undefined}
-                          className={`w-[42px] p-nano rounded-sm border-hairline ds-small text-center ${
-                            isCorrect
-                              ? 'border-feedback-success-medium bg-feedback-success-lightest text-feedback-success-darkest'
-                              : inp.errorDen
-                                ? 'border-feedback-error-medium bg-feedback-error-lightest'
-                                : 'border-neutral-light bg-neutral-white'
-                          }`}
-                          value={inp.den}
-                          onChange={(e) => {
-                            if (isCorrect) return;
-                            setS3State(prev => ({
-                              ...prev,
-                              probInputs: {
-                                ...prev.probInputs,
-                                [color]: { ...prev.probInputs[color], den: e.target.value, errorDen: false, errorMsg: '' }
-                              }
-                            }));
-                          }}
-                          disabled={isCorrect}
-                        />
+                      {/* Bloco matemático: fração + "= decimal" + "= percent%".
+                          Tem seu próprio flex-wrap interno para que, quando o
+                          resultado não couber ao lado da fração, ele quebre
+                          ALINHADO à esquerda do bloco (logo após o nome da cor)
+                          — não na borda absoluta do container, o que fazia o
+                          resultado parecer desconectado da fração. */}
+                      <div className="flex flex-wrap items-center gap-x-nano gap-y-nano">
+                        {/* "P =" + fração: nunca quebra entre o "=" e o numerador. */}
+                        <div className="flex flex-nowrap items-center gap-x-nano">
+                          <span className="ds-small text-neutral-dark whitespace-nowrap" aria-hidden="true">P =</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="a"
+                            aria-label={`Numerador da probabilidade da cor ${color}`}
+                            aria-invalid={inp.errorNum}
+                            aria-describedby={inp.errorMsg && !isCorrect ? `s3-prob-err-${color}` : undefined}
+                            className={`w-[42px] p-nano rounded-sm border-hairline ds-small text-center ${
+                              isCorrect
+                                ? 'border-feedback-success-medium bg-feedback-success-lightest text-feedback-success-darkest'
+                                : inp.errorNum
+                                  ? 'border-feedback-error-medium bg-feedback-error-lightest'
+                                  : 'border-neutral-light bg-neutral-white'
+                            }`}
+                            value={inp.num}
+                            onChange={(e) => {
+                              if (isCorrect) return;
+                              setS3State(prev => ({
+                                ...prev,
+                                probInputs: {
+                                  ...prev.probInputs,
+                                  [color]: { ...prev.probInputs[color], num: e.target.value, errorNum: false, errorMsg: '' }
+                                }
+                              }));
+                            }}
+                            disabled={isCorrect}
+                          />
+                          <span className="ds-body-bold text-neutral-dark" aria-hidden="true">/</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="b"
+                            aria-label={`Denominador da probabilidade da cor ${color}`}
+                            aria-invalid={inp.errorDen}
+                            aria-describedby={inp.errorMsg && !isCorrect ? `s3-prob-err-${color}` : undefined}
+                            className={`w-[42px] p-nano rounded-sm border-hairline ds-small text-center ${
+                              isCorrect
+                                ? 'border-feedback-success-medium bg-feedback-success-lightest text-feedback-success-darkest'
+                                : inp.errorDen
+                                  ? 'border-feedback-error-medium bg-feedback-error-lightest'
+                                  : 'border-neutral-light bg-neutral-white'
+                            }`}
+                            value={inp.den}
+                            onChange={(e) => {
+                              if (isCorrect) return;
+                              setS3State(prev => ({
+                                ...prev,
+                                probInputs: {
+                                  ...prev.probInputs,
+                                  [color]: { ...prev.probInputs[color], den: e.target.value, errorDen: false, errorMsg: '' }
+                                }
+                              }));
+                            }}
+                            disabled={isCorrect}
+                          />
+                        </div>
+                        {(() => {
+                          const numVal = parseFloat(inp.num);
+                          const denVal = parseFloat(inp.den);
+                          if (!isNaN(numVal) && !isNaN(denVal) && denVal > 0) {
+                            const decimal = (numVal / denVal).toFixed(4).replace('.', ',').replace(/0+$/, '').replace(/,$/, '');
+                            const percent = ((numVal / denVal) * 100).toFixed(2).replace('.', ',').replace(/0+$/, '').replace(/,$/, '');
+                            const colorClass = isCorrect ? 'text-feedback-success-dark' : 'text-neutral-dark';
+                            // Cada "= valor" é uma unidade matemática indivisível
+                            // (whitespace-nowrap impede que o "=" fique órfão no fim
+                            // de uma linha). As duas unidades podem quebrar entre si.
+                            return (
+                              <>
+                                <span className={`ds-caption ${colorClass} whitespace-nowrap`}>= {decimal}</span>
+                                <span className={`ds-caption ${colorClass} whitespace-nowrap`}>= {percent}%</span>
+                              </>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
-                      {(() => {
-                        const numVal = parseFloat(inp.num);
-                        const denVal = parseFloat(inp.den);
-                        if (!isNaN(numVal) && !isNaN(denVal) && denVal > 0) {
-                          const decimal = (numVal / denVal).toFixed(4).replace('.', ',').replace(/0+$/, '').replace(/,$/, '');
-                          const percent = ((numVal / denVal) * 100).toFixed(2).replace('.', ',').replace(/0+$/, '').replace(/,$/, '');
-                          return (
-                            <span className={`ds-caption ${isCorrect ? 'text-feedback-success-dark' : 'text-neutral-dark'}`}>
-                              = {decimal} = {percent}%
-                            </span>
-                          );
-                        }
-                        return null;
-                      })()}
                       {inp.errorMsg && !isCorrect && (
                         <span id={`s3-prob-err-${color}`} className="ds-caption text-feedback-error-dark" role="alert">{inp.errorMsg}</span>
                       )}
