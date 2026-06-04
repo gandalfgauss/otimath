@@ -2043,7 +2043,13 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                     </div>
 
                     <div className="flex gap-micro">
-                      <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!allFilled}>
+                      {/* `compChainResult` é preenchido no acerto (P(Ā)
+                          = decimal = %). Enquanto ele estiver definido,
+                          desabilita o botão para impedir que o aluno
+                          dispare múltiplos alerts/sons no intervalo de
+                          1.5s antes da transição automática para o
+                          próximo treino. */}
+                      <Button style="primary" size="small" icon={<Check />} onClick={checkAnswer} disabled={!allFilled || compChainResult !== null}>
                         Conferir
                       </Button>
                       {compIsGuided && (

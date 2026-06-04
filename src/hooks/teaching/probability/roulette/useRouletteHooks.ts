@@ -5473,6 +5473,11 @@ export const useRouletteHooks = () => {
 
     // SubSteps 6.88 / 6.93: Cadeia de cálculo P(Ā) = 1 − P(A) = n/n − m/n = (n−m)/n
     if (stage === 1 && (subStep === 6.88 || subStep === 6.93)) {
+      // Guarda contra reentrada: depois do acerto, `compChainResult` é
+      // preenchido com decimal/percentual e há um setTimeout de 1.5s
+      // antes da transição. Sem isso, cliques repetidos no botão
+      // "Conferir" dentro dessa janela disparariam novos alerts/sons.
+      if (compChainResult !== null) return;
       const ev = gameState.compEventA;
       if (!ev) return;
       const m = ev.indicesA.length;
@@ -9652,7 +9657,7 @@ export const useRouletteHooks = () => {
         <p class="ds-body">Responda a pergunta teórica a seguir.</p>`);
       return;
     }
-  }, [gameState, unionPhase, initUnionActivity, handleUnionNextActivity, compPhase, compIsGuided, compExamplesViewed, compCalcExampleNum, progressiveReadingStep, showUncertaintyQuestion]);
+  }, [gameState, unionPhase, initUnionActivity, handleUnionNextActivity, compPhase, compIsGuided, compExamplesViewed, compCalcExampleNum, compChainResult, progressiveReadingStep, showUncertaintyQuestion]);
 
   // Função para iniciar giros automáticos
   const startAutoSpins = useCallback((batchSize: number) => {
