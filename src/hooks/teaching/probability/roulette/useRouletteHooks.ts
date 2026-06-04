@@ -4010,6 +4010,10 @@ export const useRouletteHooks = () => {
   const spinRoulette = useCallback(() => {
     if (gameState.isSpinning || gameState.sectors.length === 0) return;
 
+    // Ancora no disco — sem isso, em mobile/viewports pequenas o aluno
+    // clica "Girar" com o disco fora da viewport e perde a animação.
+    goToTopOfChallenge();
+
     const extraRotations = 5 + Math.floor(Math.random() * 5); // 5-10 rotações completas
     const randomAngle = Math.random() * 360;
     const newTargetAngle = gameState.currentRotation + (extraRotations * 360) + randomAngle;
@@ -7300,6 +7304,9 @@ export const useRouletteHooks = () => {
     // Só permite giro no subStep 1.1 com aposta feita
     if (subStep !== 1.1 || isSpinning || !experimentationState.wageredColor) return;
 
+    // Ancora no disco para o aluno acompanhar a animação.
+    goToTopOfChallenge();
+
     // Trava a aposta SINCRONAMENTE — qualquer clique no disco a partir daqui
     // (incluindo durante o giro e na janela curta antes da transição para
     // o subStep 1.17) será rejeitado por handleExperimentationBet.
@@ -7406,6 +7413,10 @@ export const useRouletteHooks = () => {
   const spinRouletteS2 = useCallback(() => {
     const { stage, subStep, sectors, isSpinning } = gameState;
     if (stage !== 2 || subStep !== 0.15 || isSpinning || !experimentationState.wageredColor) return;
+
+    // Ancora no disco para o aluno acompanhar a animação.
+    goToTopOfChallenge();
+
     // Ativa trava SINCRONAMENTE — qualquer clique no disco a partir daqui
     // (durante o giro de 2s e na janela curta antes da transição para 0.16)
     // será rejeitado por handleS2Bet.
@@ -7490,6 +7501,9 @@ export const useRouletteHooks = () => {
     const { stage, subStep, sectors, isSpinning } = gameState;
     if (stage !== 3 || subStep !== 8.1 || isSpinning || s3State.spinCount >= 5) return;
 
+    // Ancora no disco para o aluno acompanhar a animação.
+    goToTopOfChallenge();
+
     // Sortear setor ponderado pelo ângulo
     const rand = Math.random() * 360;
     let cumAngle = 0;
@@ -7551,9 +7565,23 @@ export const useRouletteHooks = () => {
       }));
 
       if (newCount < 5) {
+        playSound("/sounds/correct.mp3");
+        createAlert(
+          `Giro ${newCount} de 5`,
+          `O ponteiro parou na cor ${drawnColor}. Continue girando.`,
+          "info",
+          3500,
+        );
         setInstructions(`<p class="ds-body"><strong>Observe os resultados do disco</strong></p>
           <p class="ds-body">Giro ${newCount} de 5 realizado. Continue girando.</p>`);
       } else {
+        playSound("/sounds/challengeFinished.mp3");
+        createAlert(
+          "5 giros concluídos!",
+          `Último giro: ${drawnColor}. Observe o histórico completo e clique em Continuar.`,
+          "success",
+          5000,
+        );
         setInstructions(`<p class="ds-body"><strong>Observe os resultados do disco</strong></p>
           <p class="ds-body">Todos os 5 giros foram realizados. Observe o histórico e clique em Continuar.</p>`);
       }
@@ -7583,6 +7611,16 @@ export const useRouletteHooks = () => {
   const handleS3NewBetConfirm = useCallback(() => {
     if (!s3State.newBetColor) return;
     goToTopOfChallenge();
+    playSound("/sounds/correct.mp3");
+    const changed = s3State.newBetColor !== s3State.betColor;
+    createAlert(
+      "Nova aposta registrada!",
+      changed
+        ? `Você mudou de ${s3State.betColor} para ${s3State.newBetColor}.`
+        : `Você manteve a aposta em ${s3State.newBetColor}.`,
+      "success",
+      3500,
+    );
     const n = s3State.n;
     setGameState(prev => ({ ...prev, subStep: 8.4 }));
     setSelectedOption('');
@@ -7597,7 +7635,7 @@ export const useRouletteHooks = () => {
     setInstructions(`<p class="ds-body"><strong>Conflito Cognitivo</strong></p>
       <p class="ds-body">O disco é justo. Todos os ${n} setores possuem o mesmo tamanho. P(setor) = 1/${n}.</p>
       <p class="ds-body">Cada giro é um evento independente.</p>`);
-  }, [s3State.newBetColor, s3State.n]);
+  }, [s3State.newBetColor, s3State.betColor, s3State.n]);
 
   // Handler: avançar da institucionalização da falácia (8.5) para o resumo (9)
   const handleS3FallacyFinish = useCallback(() => {
@@ -8042,6 +8080,9 @@ export const useRouletteHooks = () => {
 
     const blockSize = CONVERGENCE_BLOCKS[blockIdx];
     const sectors = gameState.sectors;
+
+    // Ancora no disco — botão "Girar N vezes" da simulação de convergência.
+    goToTopOfChallenge();
 
     setConvergenceSim(prev => ({ ...prev, running: true, progress: 0 }));
 
@@ -8738,9 +8779,10 @@ export const useRouletteHooks = () => {
     // Preenchimentos sequenciais no MESMO bloco de exercício (n(E)/n(S)/P(E)):
     const seqFillsS1 = new Set([6.65, 6.66, 6.67]);
     // Apenas fecham InfoBox sem mudar layout visível:
+    // (0.19 NÃO entra aqui: o clique em "Girar novamente" dispara o giro do
+    //  disco — precisa ancorar para o aluno ver a animação.)
     const dismissOnlyS2 = new Set([
       0.185,  // muda só o texto da instrução; paleta de cores já visível
-      0.19,   // dispara giro in-place na mesma área do disco
       2,      // fecha dica do espaço amostral; aluno retenta a MESMA pergunta
     ]);
     const skipScroll =
@@ -9739,6 +9781,9 @@ export const useRouletteHooks = () => {
   // Função para iniciar giros automáticos
   const startAutoSpins = useCallback((batchSize: number) => {
     if (gameState.isAutoSpinning) return;
+
+    // Ancora no disco — o aluno precisa ver a sequência de giros automáticos.
+    goToTopOfChallenge();
 
     setGameState(prev => ({ ...prev, isAutoSpinning: true, isSpinning: true }));
     setDisabledSpinButton(true);
