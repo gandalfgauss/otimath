@@ -138,6 +138,28 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   const [greenBlink, setGreenBlink] = useState(false);
   const animCancelled = useRef(false);
 
+  // Tamanho responsivo dos dados na árvore. Padding stack do card:
+  // p-xxs (24px×2) + border 2px×2 + branchContainerRef padding (8px×2) = 68px.
+  // Numa viewport de 320px sobram só 252px pra 6 dados azuis + 5 gaps.
+  // Por isso usamos tier "ultra-tight" em telas muito estreitas: 28px + 3px gap
+  // (= 183px de conteúdo) — cabe folgado em qualquer celular real.
+  const [viewportTier, setViewportTier] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  useEffect(() => {
+    const check = () => {
+      const w = window.innerWidth;
+      if (w < 480) setViewportTier('mobile');
+      else if (w < 768) setViewportTier('tablet');
+      else setViewportTier('desktop');
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  const isMobile = viewportTier === 'mobile';
+  const blueDieSize  = viewportTier === 'mobile' ? 34 : viewportTier === 'tablet' ? 40 : 46;
+  const greenDieSize = viewportTier === 'mobile' ? 42 : viewportTier === 'tablet' ? 50 : 56;
+  const branchGap    = viewportTier === 'mobile' ? 4  : viewportTier === 'tablet' ? 8  : 12;
+
   // Respostas
   const [countAnswer, setCountAnswer] = useState('');
   const [countError, setCountError] = useState('');
@@ -545,8 +567,10 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
             pode mostrar <strong>1, 2, 3, 4, 5 ou 6</strong>.
           </p>
 
-          {/* Container da árvore — dado verde mais afastado dos azuis */}
-          <div ref={branchContainerRef} style={{ position: 'relative', minHeight: 260, padding: '0 8px' }}>
+          {/* Container da árvore — dado verde mais afastado dos azuis.
+              Padding horizontal removido no mobile pra liberar +16px de espaço
+              útil pros 6 dados azuis na linha. */}
+          <div ref={branchContainerRef} style={{ position: 'relative', minHeight: 260, padding: isMobile ? '0' : '0 8px' }}>
             <svg ref={svgRef} style={{
               position: 'absolute', inset: 0, width: '100%', height: '100%',
               pointerEvents: 'none', overflow: 'visible', zIndex: 1,
@@ -557,13 +581,13 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
               <div ref={greenDieRef} style={greenBlink ? {
                 animation: 'greenBlink 0.5s ease',
               } : undefined}>
-                <DiceFaceIcon face={animBranch || 1} size={56} color="green" />
+                <DiceFaceIcon face={animBranch || 1} size={greenDieSize} color="green" />
               </div>
             </div>
 
             {/* Dados azuis (folhas) — mais afastados */}
             <div className="flex justify-center" style={{
-              gap: 12, flexWrap: 'wrap', position: 'relative', zIndex: 2,
+              gap: branchGap, flexWrap: 'wrap', position: 'relative', zIndex: 2,
               paddingTop: 32,
             }}>
               {animBlues.map((face, idx) => (
@@ -576,7 +600,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
                     animationDelay: `${idx * 60}ms`,
                   }}
                 >
-                  <DiceFaceIcon face={face} size={46} color="blue" />
+                  <DiceFaceIcon face={face} size={blueDieSize} color="blue" />
                 </div>
               ))}
             </div>

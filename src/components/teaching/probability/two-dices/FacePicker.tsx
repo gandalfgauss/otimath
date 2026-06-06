@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 
 /* ═══════════════════════════════════════════════════════════════
    FacePicker — componente reutilizável de seleção de face de dado
@@ -125,7 +125,13 @@ export function FacePicker({
   size = PICKER_PLACEHOLDER_SIZE,
 }: FacePickerProps) {
   const [open, setOpen] = useState(false);
-  const [popPlacement, setPopPlacement] = useState<'bottom' | 'top'>('bottom');
+  // Coordenadas absolutas do popover em viewport (position: fixed). Calculadas
+  // a partir do bounding rect do placeholder. Usar `position: fixed` em vez de
+  // `absolute` desacopla TOTALMENTE o popover do layout flow dos ancestrais —
+  // não pode mais causar overflow horizontal no doc nem afetar seções vizinhas,
+  // como acontecia com `absolute` em alguns navegadores quando o popover
+  // transbordava o containing block.
+  const [popPos, setPopPos] = useState<{ left: number; top: number } | null>(null);
   const [focusIdx, setFocusIdx] = useState(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const placeholderBtnRef = useRef<HTMLButtonElement>(null);
@@ -141,7 +147,8 @@ export function FacePicker({
     // pointerdown unifica mouse+touch+pen e evita race conditions entre
     // os dois handlers em Firefox mobile e Safari iOS.
     const handler = (e: PointerEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)
+          && popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
@@ -151,28 +158,58 @@ export function FacePicker({
     };
   }, [open]);
 
-  // Posicionamento inteligente
-  useEffect(() => {
-    if (!open || !wrapperRef.current) return;
-    const rect = wrapperRef.current.getBoundingClientRect();
-    const popoverHeight = Math.ceil(6 / gridCols) * (cellSize + 8) + 24 + 16;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    if (spaceBelow < popoverHeight && spaceAbove > popoverHeight) {
-      setPopPlacement('top');
-    } else {
-      setPopPlacement('bottom');
-    }
+  // Posicionamento via getBoundingClientRect → coords absolutas em viewport.
+  // useLayoutEffect roda síncrono ANTES do paint, então o popover já renderiza
+  // na posição final sem flicker. Calcula vertical (preferindo abaixo, flip
+  // pra cima se faltar espaço) e horizontal (clamp pra viewport com margem).
+  useLayoutEffect(() => {
+    if (!open || !placeholderBtnRef.current) return;
+    const updatePos = () => {
+      if (!placeholderBtnRef.current) return;
+      const rect = placeholderBtnRef.current.getBoundingClientRect();
+      const popoverWidth = gridCols * cellSize + (gridCols - 1) * 8 + 24;
+      const popoverHeight = Math.ceil(6 / gridCols) * (cellSize + 8) + 24;
+      const margin = 8;
+
+      // Horizontal: centra no botão, clamp dentro da viewport
+      let left = rect.left + rect.width / 2 - popoverWidth / 2;
+      if (left < margin) left = margin;
+      if (left + popoverWidth > window.innerWidth - margin) {
+        left = window.innerWidth - margin - popoverWidth;
+      }
+
+      // Vertical: preferir abaixo, flip pra cima se não couber
+      const spaceBelow = window.innerHeight - rect.bottom - margin;
+      const spaceAbove = rect.top - margin;
+      const top = spaceBelow >= popoverHeight || spaceBelow >= spaceAbove
+        ? rect.bottom + 8
+        : rect.top - popoverHeight - 8;
+
+      setPopPos({ left, top });
+    };
+    updatePos();
+    // Reposiciona se a viewport ou o scroll mudarem enquanto o popover está aberto
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+    return () => {
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
+    };
   }, [open, gridCols, cellSize]);
 
-  // Foco automático
+  // Foco automático.
+  // IMPORTANTE: `focus({ preventScroll: true })` evita o auto-scroll padrão do
+  // browser ao focar um elemento — sem isso, em mobile/desktop o documento
+  // rolava horizontalmente OU verticalmente pra trazer o popover pra dentro
+  // da viewport, deslocando seções vizinhas (créditos abaixo, etc.). Como o
+  // clamp horizontal (popOffsetX) e o flip vertical (popPlacement) já
+  // posicionam o popover dentro da viewport, NÃO precisamos do scrollIntoView.
   useEffect(() => {
     if (!open) return;
     const initialIdx = selected ? selected - 1 : 0;
     setFocusIdx(initialIdx);
     requestAnimationFrame(() => {
-      faceBtnRefs.current[initialIdx]?.focus();
-      popoverRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      faceBtnRefs.current[initialIdx]?.focus({ preventScroll: true });
     });
   }, [open, selected]);
 
@@ -259,7 +296,7 @@ export function FacePicker({
         )}
       </button>
 
-      {open && (
+      {open && popPos && (
         <div
           ref={popoverRef}
           role="listbox"
@@ -267,18 +304,15 @@ export function FacePicker({
           aria-activedescendant={`face-${color}-${focusIdx + 1}`}
           onKeyDown={handleGridKeyDown}
           style={{
-            position: 'absolute',
-            ...(popPlacement === 'bottom'
-              ? { top: 'calc(100% + 8px)' }
-              : { bottom: 'calc(100% + 8px)' }),
-            left: '50%',
-            transform: 'translateX(-50%)',
+            position: 'fixed',
+            left: popPos.left,
+            top: popPos.top,
             background: 'var(--color-neutral-white)',
             border: `2px solid ${accentColor}`,
             borderRadius: 14,
             padding: 12,
             boxShadow: '0 8px 28px rgba(0,0,0,0.22)',
-            zIndex: 100,
+            zIndex: 1000,
             display: 'grid',
             gridTemplateColumns: `repeat(${gridCols}, ${cellSize}px)`,
             gap: 8,

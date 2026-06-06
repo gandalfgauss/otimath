@@ -775,6 +775,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
   // ── Próxima rodada (com intervalo pedagógico após rodada 2) ──
   const nextRound = () => {
+    scrollDiceToTop();
     const next = round + 1;
     // Após rodada 2 (index 1), inserir intervalo pedagógico
     if (next === 2 && !pedagogicDone) {
@@ -800,6 +801,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   // (state-leak através da travessia feedback → pairQuestion → pairExplain →
   // colorQuestion → colorExplain → resumeAfterPedagogic).
   const resumeAfterPedagogic = () => {
+    scrollDiceToTop();
     setPedagogicDone(true);
     setBlinkPairs([]);
     setRound(2);
@@ -1635,7 +1637,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     const showHighlight = phase === 'feedback' || phase === 'finished';
 
     return (
-      <div className="overflow-auto max-h-[calc(100vh-120px)] snap-both snap-mandatory scroll-p-[40px] rounded-md shadow-level-1 bg-background-otimath max-w-full">
+      <div className="overflow-auto max-h-[calc(100vh-120px)] snap-both snap-mandatory scroll-pl-[60px] scroll-pt-[60px] scroll-pr-2 scroll-pb-2 rounded-md shadow-level-1 bg-background-otimath max-w-full">
         <style>{blinkStyle}</style>
         <table className="border-collapse mx-auto bg-background-otimath" style={{ minWidth: 320 }}>
           <thead>
@@ -3969,6 +3971,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             {pairAnswer && (
               <div className="flex justify-center">
                 <Button style="primary" size="small" onClick={() => {
+                  scrollDiceToTop();
                   if (pairAnswer === 'nao') {
                     playSound('/sounds/correct.mp3');
                     createAlert?.(
@@ -4025,7 +4028,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             </p>
             {renderTable(false)}
             <div className="flex justify-center mt-micro">
-              <Button style="primary" size="small" onClick={() => setPhase('colorQuestion')}>
+              <Button style="primary" size="small" onClick={() => { scrollDiceToTop(); setPhase('colorQuestion'); }}>
                 Próximo
               </Button>
             </div>
@@ -4092,6 +4095,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {colorAnswer && (
             <div className="flex justify-center">
               <Button style="primary" size="small" onClick={() => {
+                scrollDiceToTop();
                 if (colorAnswer === 'sim') {
                   playSound('/sounds/correct.mp3');
                   createAlert?.(
