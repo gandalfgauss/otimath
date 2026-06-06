@@ -4061,6 +4061,15 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                     // 3. Máquina processa o lançamento completo (copo, pistões, física, som)
                     machineContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     await machine.roll();
+                    // 4. Feedback ao aluno após os dados pararem — som + alert
+                    // instruindo a próxima ação (responder Sim/Não abaixo).
+                    playSound('/sounds/correct.mp3');
+                    createAlert?.(
+                      'Dados parados!',
+                      'Observe os dois dados brancos. Agora responda abaixo: ainda dá pra distinguir os pares?',
+                      'info',
+                      5000,
+                    );
                   } finally {
                     setMachineBusy(false);
                     setWhiteThrowCount(c => c + 1);
