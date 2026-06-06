@@ -1212,24 +1212,32 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                         <p className="ds-body-bold text-neutral-black text-justify">
                           Qual o <strong>espaço amostral</strong> do lançamento de um dado equilibrado?
                         </p>
-                        <div className="flex items-center gap-x-micro">
-                          <span className="ds-body-bold text-neutral-black">S = {'{'}</span>
-                          <input
-                            type="text"
-                            value={scene3SampleSpace}
-                            onChange={e => { setScene3SampleSpace(e.target.value); setScene3SampleSpaceError(false); }}
-                            placeholder="x₁, x₂, ..., xₙ"
-                            className="ds-body"
-                            aria-label="Espaço amostral S"
-                            aria-invalid={scene3SampleSpaceError}
-                            aria-describedby={scene3SampleSpaceError ? 'scene3-sample-space-error' : undefined}
-                            style={{
-                              border: `2px solid ${scene3SampleSpaceError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                              borderRadius: 8, padding: '6px 10px', width: 180, textAlign: 'center',
-                              outline: 'none',
-                            }}
-                          />
-                          <span className="ds-body-bold text-neutral-black">{'}'}</span>
+                        {/* Layout: a expressão matemática "S = { ... }" forma uma
+                            unidade atômica (flex-nowrap interno) que NUNCA quebra
+                            entre o S, =, { e o input. O botão Conferir pode quebrar
+                            para a linha de baixo via flex-wrap externo se faltar
+                            espaço — preferível a vazar fora do card no mobile. */}
+                        <div className="flex flex-wrap items-center gap-x-micro gap-y-micro">
+                          <div className="flex flex-nowrap items-center gap-x-micro">
+                            <span className="ds-body-bold text-neutral-black whitespace-nowrap">S = {'{'}</span>
+                            <input
+                              type="text"
+                              value={scene3SampleSpace}
+                              onChange={e => { setScene3SampleSpace(e.target.value); setScene3SampleSpaceError(false); }}
+                              placeholder="x₁, x₂, ..., xₙ"
+                              className="ds-body"
+                              aria-label="Espaço amostral S"
+                              aria-invalid={scene3SampleSpaceError}
+                              aria-describedby={scene3SampleSpaceError ? 'scene3-sample-space-error' : undefined}
+                              style={{
+                                border: `2px solid ${scene3SampleSpaceError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                                borderRadius: 8, padding: '6px 10px', width: 180, textAlign: 'center',
+                                outline: 'none',
+                                minWidth: 0,
+                              }}
+                            />
+                            <span className="ds-body-bold text-neutral-black whitespace-nowrap">{'}'}</span>
+                          </div>
                           <Button style="primary" size="extra-small" onClick={validateSampleSpace}>Conferir</Button>
                         </div>
                         {scene3SampleSpaceError && (
@@ -1251,27 +1259,30 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                         <p className="ds-body-bold text-neutral-black text-justify">
                           Então, quantos resultados são possíveis no lançamento de um dado, ou seja, qual o <strong>número de elementos do espaço amostral</strong> n(S) desse experimento aleatório?
                         </p>
-                        <div className="flex items-center gap-x-micro">
-                          <span className="ds-body-bold text-neutral-black">n(S) =</span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={scene3NS}
-                            onChange={e => {
-                              const v = e.target.value.replace(/\D/g, '');
-                              setScene3NS(v); setScene3NSError(false);
-                            }}
-                            placeholder="?"
-                            className="ds-body"
-                            aria-label="Número de elementos do espaço amostral n de S"
-                            aria-invalid={scene3NSError}
-                            aria-describedby={scene3NSError ? 'scene3-ns-error' : undefined}
-                            style={{
-                              border: `2px solid ${scene3NSError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                              borderRadius: 8, padding: '6px 10px', width: 80, textAlign: 'center',
-                              outline: 'none',
-                            }}
-                          />
+                        <div className="flex flex-wrap items-center gap-x-micro gap-y-micro">
+                          <div className="flex flex-nowrap items-center gap-x-micro">
+                            <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(S) =</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={scene3NS}
+                              onChange={e => {
+                                const v = e.target.value.replace(/\D/g, '');
+                                setScene3NS(v); setScene3NSError(false);
+                              }}
+                              placeholder="?"
+                              className="ds-body"
+                              aria-label="Número de elementos do espaço amostral n de S"
+                              aria-invalid={scene3NSError}
+                              aria-describedby={scene3NSError ? 'scene3-ns-error' : undefined}
+                              style={{
+                                border: `2px solid ${scene3NSError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                                borderRadius: 8, padding: '6px 10px', width: 80, textAlign: 'center',
+                                outline: 'none',
+                                minWidth: 0,
+                              }}
+                            />
+                          </div>
                           <Button style="primary" size="extra-small" onClick={validateNS}>Conferir</Button>
                         </div>
                         {scene3NSError && (
@@ -1293,31 +1304,34 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                         <p className="ds-body-bold text-neutral-black text-justify">
                           Ao lançar um dado equilibrado, qual a <strong>probabilidade de obter algum resultado</strong>?
                         </p>
-                        <div className="flex items-center gap-x-micro">
-                          <span className="ds-body-bold text-neutral-black">P(S) =</span>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={scene3PS}
-                            onChange={e => {
-                              // Aceita dígitos, separador decimal (. ou ,), barra (/)
-                              // para frações equivalentes a 1 (ex: 6/6) e o sinal %.
-                              const next = e.target.value;
-                              if (next === '' || /^\d*[.,]?\d*\/?\d*[.,]?\d*%?$/.test(next)) {
-                                setScene3PS(next); setScene3PSError(false);
-                              }
-                            }}
-                            placeholder="?"
-                            className="ds-body"
-                            aria-label="Probabilidade do espaço amostral P de S"
-                            aria-invalid={scene3PSError}
-                            aria-describedby={scene3PSError ? 'scene3-ps-error' : undefined}
-                            style={{
-                              border: `2px solid ${scene3PSError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                              borderRadius: 8, padding: '6px 10px', width: 80, textAlign: 'center',
-                              outline: 'none',
-                            }}
-                          />
+                        <div className="flex flex-wrap items-center gap-x-micro gap-y-micro">
+                          <div className="flex flex-nowrap items-center gap-x-micro">
+                            <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(S) =</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={scene3PS}
+                              onChange={e => {
+                                // Aceita dígitos, separador decimal (. ou ,), barra (/)
+                                // para frações equivalentes a 1 (ex: 6/6) e o sinal %.
+                                const next = e.target.value;
+                                if (next === '' || /^\d*[.,]?\d*\/?\d*[.,]?\d*%?$/.test(next)) {
+                                  setScene3PS(next); setScene3PSError(false);
+                                }
+                              }}
+                              placeholder="?"
+                              className="ds-body"
+                              aria-label="Probabilidade do espaço amostral P de S"
+                              aria-invalid={scene3PSError}
+                              aria-describedby={scene3PSError ? 'scene3-ps-error' : undefined}
+                              style={{
+                                border: `2px solid ${scene3PSError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                                borderRadius: 8, padding: '6px 10px', width: 80, textAlign: 'center',
+                                outline: 'none',
+                                minWidth: 0,
+                              }}
+                            />
+                          </div>
                           <Button style="primary" size="extra-small" onClick={validatePS}>Conferir</Button>
                         </div>
                         {scene3PSError && (

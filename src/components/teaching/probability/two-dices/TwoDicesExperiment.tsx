@@ -3158,7 +3158,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                       <React.Fragment key={`pair-${s}`}>
                         <span
                           key={`label-${s}`}
-                          className="ds-body-bold"
+                          className="ds-body-bold whitespace-nowrap"
                           style={{ textAlign: 'right', color: 'var(--color-neutral-darkest)' }}
                         >
                           P({s}) =

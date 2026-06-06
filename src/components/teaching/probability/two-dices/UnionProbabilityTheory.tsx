@@ -1354,23 +1354,26 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-body-bold text-neutral-black text-center">
             Quantos pares tem o conjunto A?
           </p>
-          <div className="flex items-center justify-center gap-x-micro">
-            <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A) =</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={nAInput}
-              onChange={e => { setNAInput(e.target.value); setNAError(false); }}
-              onKeyDown={e => { if (e.key === 'Enter') validateCountA(); }}
-              placeholder="?"
-              aria-label="Digite n(A)"
-              aria-invalid={nAError}
-              className="ds-body-bold"
-              style={{
-                border: `2px solid ${nAError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
-              }}
-            />
+          <div className="flex flex-wrap items-center justify-center gap-x-micro gap-y-micro">
+            <div className="flex flex-nowrap items-center gap-x-micro">
+              <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A) =</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={nAInput}
+                onChange={e => { setNAInput(e.target.value); setNAError(false); }}
+                onKeyDown={e => { if (e.key === 'Enter') validateCountA(); }}
+                placeholder="?"
+                aria-label="Digite n(A)"
+                aria-invalid={nAError}
+                className="ds-body-bold"
+                style={{
+                  border: `2px solid ${nAError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                  borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
+                  minWidth: 0,
+                }}
+              />
+            </div>
             <Button style="primary" size="extra-small" onClick={validateCountA}>Conferir</Button>
           </div>
           {nAError && (
@@ -1442,23 +1445,26 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-body-bold text-neutral-black text-center">
             Quantos pares tem o conjunto B?
           </p>
-          <div className="flex items-center justify-center gap-x-micro">
-            <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(B) =</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={nBInput}
-              onChange={e => { setNBInput(e.target.value); setNBError(false); }}
-              onKeyDown={e => { if (e.key === 'Enter') validateCountB(); }}
-              placeholder="?"
-              aria-label="Digite n(B)"
-              aria-invalid={nBError}
-              className="ds-body-bold"
-              style={{
-                border: `2px solid ${nBError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
-              }}
-            />
+          <div className="flex flex-wrap items-center justify-center gap-x-micro gap-y-micro">
+            <div className="flex flex-nowrap items-center gap-x-micro">
+              <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(B) =</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={nBInput}
+                onChange={e => { setNBInput(e.target.value); setNBError(false); }}
+                onKeyDown={e => { if (e.key === 'Enter') validateCountB(); }}
+                placeholder="?"
+                aria-label="Digite n(B)"
+                aria-invalid={nBError}
+                className="ds-body-bold"
+                style={{
+                  border: `2px solid ${nBError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                  borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
+                  minWidth: 0,
+                }}
+              />
+            </div>
             <Button style="primary" size="extra-small" onClick={validateCountB}>Conferir</Button>
           </div>
           {nBError && (
@@ -1561,23 +1567,26 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-body-bold text-neutral-black text-center">
             Quantos pares tem o conjunto A ∩ B?
           </p>
-          <div className="flex items-center justify-center gap-x-micro">
-            <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A ∩ B) =</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={nIntersectionInput}
-              onChange={e => { setNIntersectionInput(e.target.value); setNIntersectionError(false); }}
-              onKeyDown={e => { if (e.key === 'Enter') validateCountIntersection(); }}
-              placeholder="?"
-              aria-label="Digite n(A ∩ B)"
-              aria-invalid={nIntersectionError}
-              className="ds-body-bold"
-              style={{
-                border: `2px solid ${nIntersectionError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
-              }}
-            />
+          <div className="flex flex-wrap items-center justify-center gap-x-micro gap-y-micro">
+            <div className="flex flex-nowrap items-center gap-x-micro">
+              <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A ∩ B) =</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={nIntersectionInput}
+                onChange={e => { setNIntersectionInput(e.target.value); setNIntersectionError(false); }}
+                onKeyDown={e => { if (e.key === 'Enter') validateCountIntersection(); }}
+                placeholder="?"
+                aria-label="Digite n(A ∩ B)"
+                aria-invalid={nIntersectionError}
+                className="ds-body-bold"
+                style={{
+                  border: `2px solid ${nIntersectionError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                  borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
+                  minWidth: 0,
+                }}
+              />
+            </div>
             <Button style="primary" size="extra-small" onClick={validateCountIntersection}>Conferir</Button>
           </div>
           {nIntersectionError && (
@@ -1828,23 +1837,26 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-body-bold text-neutral-black text-center">
             Quantos pares tem o conjunto A ∪ B?
           </p>
-          <div className="flex items-center justify-center gap-x-micro">
-            <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A ∪ B) =</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={nUnionInput}
-              onChange={e => { setNUnionInput(e.target.value); setNUnionError(false); }}
-              onKeyDown={e => { if (e.key === 'Enter') validateCountUnion(); }}
-              placeholder="?"
-              aria-label="Digite n(A ∪ B)"
-              aria-invalid={nUnionError}
-              className="ds-body-bold"
-              style={{
-                border: `2px solid ${nUnionError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
-              }}
-            />
+          <div className="flex flex-wrap items-center justify-center gap-x-micro gap-y-micro">
+            <div className="flex flex-nowrap items-center gap-x-micro">
+              <span className="ds-body-bold text-neutral-black whitespace-nowrap">n(A ∪ B) =</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={nUnionInput}
+                onChange={e => { setNUnionInput(e.target.value); setNUnionError(false); }}
+                onKeyDown={e => { if (e.key === 'Enter') validateCountUnion(); }}
+                placeholder="?"
+                aria-label="Digite n(A ∪ B)"
+                aria-invalid={nUnionError}
+                className="ds-body-bold"
+                style={{
+                  border: `2px solid ${nUnionError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                  borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
+                  minWidth: 0,
+                }}
+              />
+            </div>
             <Button style="primary" size="extra-small" onClick={validateCountUnion}>Conferir</Button>
           </div>
           {nUnionError && (
@@ -1945,24 +1957,27 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-body text-neutral-black text-center mb-micro">
             Calcule n(A) + n(B):
           </p>
-          <div className="flex items-center justify-center gap-x-micro mb-micro">
-            <span className="ds-body-bold text-neutral-black">{correctSets.nA} + {correctSets.nB} =</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={nSumInput}
-              onChange={e => { setNSumInput(e.target.value); setNSumError(false); }}
-              onKeyDown={e => { if (e.key === 'Enter') validateSumInput(); }}
-              placeholder="?"
-              aria-label="Digite n(A) + n(B)"
-              aria-invalid={nSumError}
-              className="ds-body-bold"
-              style={{
-                border: `2px solid ${nSumError ? 'var(--color-feedback-error-dark)' : (parseInt(nSumInput) === correctSets.nA + correctSets.nB ? 'var(--color-feedback-success-dark)' : 'var(--color-neutral-lighter)')}`,
-                borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
-              }}
-              disabled={parseInt(nSumInput) === correctSets.nA + correctSets.nB}
-            />
+          <div className="flex flex-wrap items-center justify-center gap-x-micro gap-y-micro mb-micro">
+            <div className="flex flex-nowrap items-center gap-x-micro">
+              <span className="ds-body-bold text-neutral-black whitespace-nowrap">{correctSets.nA} + {correctSets.nB} =</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={nSumInput}
+                onChange={e => { setNSumInput(e.target.value); setNSumError(false); }}
+                onKeyDown={e => { if (e.key === 'Enter') validateSumInput(); }}
+                placeholder="?"
+                aria-label="Digite n(A) + n(B)"
+                aria-invalid={nSumError}
+                className="ds-body-bold"
+                style={{
+                  border: `2px solid ${nSumError ? 'var(--color-feedback-error-dark)' : (parseInt(nSumInput) === correctSets.nA + correctSets.nB ? 'var(--color-feedback-success-dark)' : 'var(--color-neutral-lighter)')}`,
+                  borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
+                  minWidth: 0,
+                }}
+                disabled={parseInt(nSumInput) === correctSets.nA + correctSets.nB}
+              />
+            </div>
             {parseInt(nSumInput) !== correctSets.nA + correctSets.nB && (
               <Button style="primary" size="extra-small" onClick={validateSumInput}>Conferir</Button>
             )}
