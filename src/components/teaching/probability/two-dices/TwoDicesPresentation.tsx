@@ -515,7 +515,11 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   };
 
   const validateProb = () => {
-    scrollDiceToTop();
+    // EXCEÇÃO ao padrão "scroll no topo de todo validador": neste caso,
+    // ao acertar aparece a AnimatedBar embaixo (3s antes da transição).
+    // Se rolássemos pro topo imediatamente, o aluno perderia a barra.
+    // Solução: scroll só dispara no caminho de erro (pra ver o alert)
+    // ou DEPOIS dos 3s da barra (no setTimeout), nunca durante.
     const num = parseInt(scene3Num);
     const den = parseInt(scene3Den);
     // Aceita qualquer fração equivalente a 1/6 via produto cruzado
@@ -546,10 +550,13 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       // Tempo aumentado de 800ms para 3000ms para o aluno conseguir
       // observar a barra animada da face sorteada antes da transição.
       setTimeout(() => {
+        setScene3ShowBar(false);
         setScene3Step(5);
         scrollDiceToTop();
       }, 3000);
     } else {
+      // Erro: rola imediatamente pro topo (mirror do padrão geral).
+      scrollDiceToTop();
       playSound("/sounds/incorrect.mp3");
       createAlert('Tente novamente', 'Verifique a fração e a porcentagem.', 'error', 4000);
 
@@ -578,7 +585,10 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   };
 
   const handleGeneralize = (answer: boolean) => {
-    scrollDiceToTop();
+    // EXCEÇÃO ao padrão "scroll no topo do validador": ao acertar, todas
+    // as barras animam in-place (1,2s) antes da transição p/ step 6.
+    // Scroll só dispara no erro (pra ver o alert) ou DEPOIS da animação
+    // (no setTimeout), nunca durante — senão o aluno perde as barras.
     if (answer) {
       setScene3NoError(false);
       setScene3AllBars(true);
@@ -590,6 +600,8 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
         scrollDiceToTop();
       }, 1200);
     } else {
+      // Erro: rola imediatamente pro topo (mirror do padrão geral).
+      scrollDiceToTop();
       setScene3NoError(true);
       playSound("/sounds/incorrect.mp3");
       createAlert('Releia a definição', 'Releia a definição de dado equilibrado e tente novamente.', 'error', 4000);
@@ -1111,7 +1123,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       )}
       <Grid id="apresentacao-dado" paddings="pt-xl">
         <GridItem cols="col-[1_/_13]">
-          <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && (scene7ExperimentPhase.startsWith('complementaryEvents') || scene7ExperimentPhase.startsWith('unionTheory') || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5' || scene7ExperimentPhase === 'unionExercise6' || scene7ExperimentPhase === 'twoDicesGameFree' || scene7ExperimentPhase === 'unionExercise8') ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
+          <div className={`flex flex-col items-center gap-y-xs ${scene === 7 && (scene7ExperimentPhase.startsWith('complementaryEvents') || scene7ExperimentPhase.startsWith('unionTheory') || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5' || scene7ExperimentPhase === 'unionExercise6' || scene7ExperimentPhase === 'twoDicesGameFree' || scene7ExperimentPhase === 'unionExercise8') ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
 
             {/* Título da cena atual */}
             {scene === 1 && (
@@ -1451,7 +1463,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                             />
                             <span className="ds-body-bold text-neutral-black whitespace-nowrap">%</span>
                           </div>
-                          <Button style="primary" size="extra-small" onClick={validateProb}>Conferir</Button>
+                          <Button style="primary" size="extra-small" onClick={validateProb} disabled={scene3ShowBar}>Conferir</Button>
                         </div>
                         {scene3ProbFeedback && (
                           <p
@@ -1486,8 +1498,8 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                           As demais faces têm a <strong>mesma probabilidade</strong> que a face {scene3RandomFace} de ocorrer?
                         </p>
                         <div className="flex gap-x-micro">
-                          <Button style="primary" size="small" onClick={() => handleGeneralize(true)}>Sim</Button>
-                          <Button style="secondary" size="small" onClick={() => handleGeneralize(false)}>Não</Button>
+                          <Button style="primary" size="small" onClick={() => handleGeneralize(true)} disabled={scene3AllBars}>Sim</Button>
+                          <Button style="secondary" size="small" onClick={() => handleGeneralize(false)} disabled={scene3AllBars}>Não</Button>
                         </div>
                         {scene3NoError && (
                           <p
