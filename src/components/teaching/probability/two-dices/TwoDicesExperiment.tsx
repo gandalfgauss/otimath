@@ -655,9 +655,10 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     setMarkBusy(false);
     setMarkRetryMsg(false);
     setPhase('pickPair');
-    // Feedback ao aluno após os dados pararem — sem isso ele rolava o dado,
-    // via o resultado, mas não percebia que precisava interagir com o card
-    // de registro abaixo.
+    // Feedback ao aluno após os dados pararem — som de "parou!" + alert instrutivo.
+    // Sem isso ele rolava o dado, via o resultado, mas não percebia que
+    // precisava interagir com o card de registro abaixo.
+    playSound('/sounds/correct.mp3');
     createAlert?.(
       'Dados parados!',
       'Toque em cada dado abaixo e escolha a face que apareceu para registrar o par.',
@@ -698,8 +699,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     setMarkBusy(false);
     // Volta ao picker com o novo par
     setPhase('pickPair');
-    // Feedback ao aluno após o relançamento — explicita que novos valores
-    // foram sorteados e precisa registrar o novo par.
+    // Feedback ao aluno após o relançamento — som de "parou!" + alert instrutivo.
+    playSound('/sounds/correct.mp3');
     createAlert?.(
       'Novo par sorteado!',
       'Toque em cada dado e escolha a face que apareceu para registrar o novo par.',
@@ -1226,8 +1227,9 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       setTimeout(() => {
         cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 300);
-      // Feedback ao aluno após os dados pararem na corrida — instrui qual
-      // carrinho avançar (o da soma sorteada).
+      // Feedback ao aluno após os dados pararem na corrida — som de "parou!" +
+      // alert instruindo qual carrinho avançar (o da soma sorteada).
+      playSound('/sounds/correct.mp3');
       createAlert?.(
         'Dados parados!',
         `Soma sorteada: ${result.green} + ${result.blue} = ${sum}. Clique no carrinho ${sum} para avançá-lo.`,

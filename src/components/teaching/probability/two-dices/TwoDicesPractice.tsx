@@ -575,7 +575,8 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
 
     rolling.current = false;
     setExpSubPhase('markResult');
-    // Feedback ao aluno após o dado parar — instrui a marcar a face que apareceu.
+    // Feedback ao aluno após o dado parar — som de "parou!" + alert instrutivo.
+    playSound('/sounds/correct.mp3');
     createAlert?.(
       'Dado parado!',
       'Marque abaixo a face que apareceu no dado.',
@@ -719,8 +720,8 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
 
     rolling.current = false;
     setExSubPhase('readDice');
-    // Feedback ao aluno após o dado parar — instrui a responder a pergunta
-    // de leitura do resultado no card abaixo.
+    // Feedback ao aluno após o dado parar — som de "parou!" + alert instrutivo.
+    playSound('/sounds/correct.mp3');
     createAlert?.(
       'Dado parado!',
       'Leia a face que apareceu e responda à pergunta abaixo.',
