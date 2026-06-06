@@ -21,7 +21,7 @@
    • Trap de foco simples
    ═══════════════════════════════════════════════════════════════ */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { TeamShield } from './TeamShield';
 import type { Team } from './teamsData';
 
@@ -63,6 +63,21 @@ export function SpiralAlternatives({
   const [selected, setSelected] = useState<string | null>(null);
   const rafRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Mede largura real do container — sem isso, o `dr` fixo de 1.4 levava
+  // os botões a raio final de 252px (=1.4*180), que cabe em desktop 640px
+  // (raio disponível ~290px) mas TRANSBORDA em mobile (container 92vw ≈
+  // 331px → raio disponível só ~130px). Agora `dr` é proporcional à
+  // largura real, garantindo que os 5 botões sempre fiquem dentro do círculo.
+  const [containerSize, setContainerSize] = useState(640);
+  useLayoutEffect(() => {
+    if (!open || !containerRef.current) return;
+    const measure = () => {
+      if (containerRef.current) setContainerSize(containerRef.current.offsetWidth);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [open]);
 
   // Detecta prefers-reduced-motion
   const reducedMotion = useReducedMotion();
@@ -134,8 +149,14 @@ export function SpiralAlternatives({
 
   if (!open) return null;
 
-  // Posições das 5 alternativas em espiral (final = pentágono regular)
-  const dr = 1.4; // raio por tick (calibrado para containers responsivos)
+  // Posições das 5 alternativas em espiral (final = pentágono regular).
+  // `dr` é proporcional à largura real do container:
+  //   - Raio final desejado = (containerSize/2) - ALT_RADIUS - margem
+  //   - Como r = dr * ANIM_TICKS no fim da animação,
+  //     dr = (raio desejado) / ANIM_TICKS.
+  // Margem de 12px evita que o botão cole na borda.
+  const finalRadius = Math.max(60, containerSize / 2 - ALT_RADIUS - 12);
+  const dr = finalRadius / ANIM_TICKS;
   const positions = alternatives.map((_alt, i) => {
     const angDeg = t + i * 72 - 18;
     const angRad = (angDeg * Math.PI) / 180;

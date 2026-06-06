@@ -614,7 +614,7 @@ function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks }: MarkingTab
 function EventCard({ label, description }: { label: string; description: string }) {
   const color = EVENT_COLORS[label] ?? 'var(--color-brand-otimath-dark)';
   return (
-    <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter">
+    <div className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter">
       <p className="ds-body-bold text-center" style={{ color }}>
         Evento {label}
       </p>
@@ -1243,7 +1243,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   // ═══════════════════════════════════════════════════════════════
 
   return (
-    <div className="w-full max-w-[1216px] mx-auto px-xxs py-xs">
+    <div className="w-full max-w-[1216px] mx-auto">
       <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
         Probabilidade da união de dois eventos
       </h2>
@@ -1270,7 +1270,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
         );
 
         return (
-          <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[640px] mx-auto">
+          <div className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter max-w-[640px] mx-auto">
             <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
               Descobrindo a fórmula geral
             </p>
@@ -1511,7 +1511,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
 
       {/* ═══════ defineIntersection ═══════ */}
       {phase === 'defineIntersection' && (
-        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[620px] mx-auto">
+        <div className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter max-w-[620px] mx-auto">
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Interseção: A ∩ B
           </p>
@@ -1635,7 +1635,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           Conversão entre registros (DUVAL): o aluno vê que os elementos de A∩B
           estão PRESENTES tanto em A quanto em B — prepara a dupla contagem. */}
       {phase === 'enumDisplay' && (
-        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[720px] mx-auto">
+        <div className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter max-w-[720px] mx-auto">
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Observe os 3 conjuntos
           </p>
@@ -1782,7 +1782,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
 
       {/* ═══════ MACRO 2 — defineUnion ═══════ */}
       {phase === 'defineUnion' && (
-        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[620px] mx-auto">
+        <div className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter max-w-[620px] mx-auto">
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             União: A ∪ B
           </p>
@@ -1903,7 +1903,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
 
       {/* ═══════ predict — metacognição antes da fórmula ═══════ */}
       {phase === 'predict' && (
-        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[620px] mx-auto">
+        <div className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter max-w-[620px] mx-auto">
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Antes de continuar, faça uma previsão
           </p>
@@ -1984,7 +1984,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
 
       {/* ═══════ sumCompareVisual — barra empilhada ═══════ */}
       {phase === 'sumCompareVisual' && (
-        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[720px] mx-auto">
+        <div className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter max-w-[720px] mx-auto">
           <p className="ds-heading-large text-brand-otimath-dark text-center mb-micro">
             Vamos verificar sua previsão
           </p>
@@ -2158,7 +2158,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
         const predA = extractSumPredicate(currentPair.eventA.description);
         const predB = extractSumPredicate(currentPair.eventB.description);
         return (
-        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[680px] mx-auto">
+        <div className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter max-w-[680px] mx-auto">
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Agora calcule as demais probabilidades
           </p>
@@ -2265,7 +2265,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
 
       {/* ═══════ institucionalize — múltipla escolha de síntese ═══════ */}
       {phase === 'institucionalize' && (
-        <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[620px] mx-auto">
+        <div className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter max-w-[620px] mx-auto">
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             Qual fórmula você construiu?
           </p>
@@ -2633,7 +2633,7 @@ function ProbTransferScreen({
   );
 
   return (
-    <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter max-w-[720px] mx-auto">
+    <div className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter max-w-[720px] mx-auto">
       <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
         Agora vamos calcular a probabilidade
       </p>

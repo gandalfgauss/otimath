@@ -2290,7 +2290,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
       {/* ═══════ RODADA ATIVA ═══════ */}
       {phase !== 'intro' && phase !== 'tree' && phase !== 'finished' && phase !== 'pairQuestion' && phase !== 'pairExplain' && phase !== 'colorQuestion' && phase !== 'colorExplain' && (
-        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
 
           {/* Indicador de rodada — só aparece nas fases ligadas ao lançamento
               em si (ready até sumComplete). A partir do alienígena (sumAlienIntro)
@@ -4048,7 +4048,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         const pair = cachedPair ?? getPairForQuestion();
         const { original: o } = pair;
         return (
-          <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+          <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
             <p className="ds-body-bold text-neutral-black text-center mb-micro text-[1.05rem]">
               Considere o par ordenado <strong>({o.green}, {o.blue})</strong> que você registrou.
             </p>
@@ -4115,7 +4115,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         const pair = cachedPair ?? getPairForQuestion();
         const o = pair?.original ?? { green: 3, blue: 5 };
         return (
-          <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+          <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
             <p className="ds-body-bold text-neutral-black mb-micro text-justify text-[1.05rem]">
               Os pares <strong>({o.green}, {o.blue})</strong> e <strong>({o.blue}, {o.green})</strong> são
               resultados <strong>diferentes</strong>.
@@ -4141,7 +4141,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
       {/* ═══════ PERGUNTA SOBRE DADOS DA MESMA COR ═══════ */}
       {phase === 'colorQuestion' && (
-        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
           <p className="ds-body-bold text-neutral-black text-center mb-micro text-[1.05rem]">
             E se os dois dados fossem da <strong>mesma cor</strong>? Ainda seria possível distinguir os pares?
           </p>
@@ -4239,7 +4239,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       )}
 
       {phase === 'colorExplain' && (
-        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
           <p className="ds-body-bold text-neutral-black mb-micro text-justify text-[1.05rem]">
             Mesmo escondidos pelo copo, sem as cores e sem você conseguir rastrear qual dado era qual,
             os pares <strong>(x, y)</strong> e <strong>(y, x)</strong> continuam sendo resultados diferentes.
@@ -4272,7 +4272,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
       {/* ═══════ FINALIZAÇÃO ═══════ */}
       {phase === 'finished' && (
-        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+        <div ref={cardRef} className="bg-neutral-white rounded-lg p-xxs max-sm:p-xxxs border border-neutral-lighter shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
           <p className="ds-body-bold text-neutral-black mb-micro text-[1.05rem] text-justify">
             Você realizou {TOTAL_ROUNDS} lançamentos e registrou os resultados como pares ordenados na tabela.
             Cada célula representa um resultado possível do experimento aleatório de lançar dois dados.
