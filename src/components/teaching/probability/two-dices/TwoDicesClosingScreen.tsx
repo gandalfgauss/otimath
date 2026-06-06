@@ -573,7 +573,9 @@ export function TwoDicesProgressOverlay({
   return (
     <div
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-20 flex items-center justify-center bg-opacity-modal"
+      // z-[1000] pra ficar ACIMA do header sticky (z-99). Antes era z-20 e o
+      // header se sobrepunha ao topo do overlay/modal, escondendo título.
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-opacity-modal"
       role="presentation"
     >
       <div

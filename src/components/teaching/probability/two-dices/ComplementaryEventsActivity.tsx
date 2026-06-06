@@ -339,6 +339,7 @@ export const ComplementaryEventsActivity = forwardRef<
                     inputMode="numeric"
                     value={h.formStep2Value}
                     onChange={e => h.setFormStep2Value(e.target.value.replace(/\D/g, ''))}
+                    disabled={h.formStep > 2}
                     placeholder="?"
                     style={{
                       width: 50,
@@ -350,6 +351,8 @@ export const ComplementaryEventsActivity = forwardRef<
                         ? '2px solid var(--color-feedback-error-dark)'
                         : '2px solid var(--color-neutral-lighter)',
                       borderRadius: 4,
+                      color: h.formStep > 2 ? 'var(--color-feedback-success-dark)' : undefined,
+                      background: h.formStep > 2 ? 'var(--color-neutral-lightest)' : undefined,
                     }}
                   />
                   <div style={{ width: 50, height: 2, background: 'var(--color-neutral-dark)' }} />
@@ -358,6 +361,7 @@ export const ComplementaryEventsActivity = forwardRef<
                     inputMode="numeric"
                     value={h.formStep2DenValue}
                     onChange={e => h.setFormStep2DenValue(e.target.value.replace(/\D/g, ''))}
+                    disabled={h.formStep > 2}
                     placeholder="?"
                     style={{
                       width: 50,
@@ -369,6 +373,8 @@ export const ComplementaryEventsActivity = forwardRef<
                         ? '2px solid var(--color-feedback-error-dark)'
                         : '2px solid var(--color-neutral-lighter)',
                       borderRadius: 4,
+                      color: h.formStep > 2 ? 'var(--color-feedback-success-dark)' : undefined,
+                      background: h.formStep > 2 ? 'var(--color-neutral-lightest)' : undefined,
                     }}
                   />
                 </div>

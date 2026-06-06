@@ -268,6 +268,9 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
   if (!open) return null;
 
   // ── Estilos ──────────────────────────────────────────────────
+  // zIndex: 1000 — pra ficar ACIMA do header sticky (z-99 em Header.tsx).
+  // Sem isso, ao arrastar a calculadora pra perto do topo, o header
+  // (que é fixo) sobrepunha a calculadora, escondendo controles.
   const wrapperStyle: React.CSSProperties = {
     position: 'fixed',
     left: pos.x,
@@ -276,7 +279,7 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
     height: size.h,
     minWidth: MIN_W,
     minHeight: MIN_H,
-    zIndex: 97,
+    zIndex: 1000,
     background: 'var(--color-neutral-white)',
     border: '2px solid var(--color-brand-otimath-darker)',
     borderRadius: 12,

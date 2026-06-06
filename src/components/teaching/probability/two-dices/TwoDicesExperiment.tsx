@@ -1293,6 +1293,16 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         playSound('/sounds/gameFinished.mp3');
         setPhase('raceFinished');
       }, 600);
+    } else {
+      // Avançou mas ainda não venceu — instrui a sortear de novo.
+      // Sem esse alert, o aluno não sabe que precisa voltar pro topo,
+      // clicar em "🎲 Sortear" outra vez pro próximo lançamento.
+      createAlert?.(
+        'Boa!',
+        `Carrinho ${carNumber} avançou. Clique em "🎲 Sortear" para o próximo lançamento.`,
+        'success',
+        3500,
+      );
     }
   };
 

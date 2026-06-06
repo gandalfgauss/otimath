@@ -88,7 +88,10 @@ export function ComplementaryReviewModal({ open, onClose }: ComplementaryReviewM
       onClick={handleBackdropClick}
       tabIndex={-1}
       // `bg-opacity-modal` é o token padrão de overlay do DS (≈ 0.8 black).
-      className="fixed inset-0 z-50 flex items-center justify-center bg-opacity-modal outline-none"
+      // `z-[1000]` pra ficar ACIMA do header sticky (z-99 em Header.tsx) e dos
+      // alerts (z-97 em Alerts.tsx). Sem isso, o header (que sticky-fixo no
+      // topo) sobrepunha o topo do modal, escondendo o título "Revisão".
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-opacity-modal outline-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="comp-review-title"

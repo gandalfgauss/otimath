@@ -456,6 +456,16 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
 
   function goToFormalization(d: ComplementaryEventData) {
     setSubPhase('formalization');
+    // Trava o painel Cálculo(s) (numerator/denominator de P(Ā)) ao entrar na
+    // formalização — sem isso o aluno poderia editar o cálculo de P(Ā) que
+    // ele JÁ provou estar correto, invalidando a derivação progressiva
+    // visível dentro do card de formalização (Step 3 usa P(Ā) substituído
+    // pelo valor calculado).
+    setProbabilitiesTextInputs(prev => ({
+      ...prev,
+      numerator:   { ...prev.numerator,   disabled: true, error: false },
+      denominator: { ...prev.denominator, disabled: true, error: false },
+    }));
     setFormStep(0);
     setFormStep0ValueState('');
     setFormStep1ValueState('');
@@ -533,6 +543,11 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
       setDisabledTrainAgainButton(false);
       setDisabledContinueButton(false);
     }
+    // Feedback de celebração ao finalizar a rodada — som + alert. Sem isso,
+    // o aluno via apenas o texto "Parabéns, você finalizou esta rodada com
+    // sucesso!" sem cue auditivo nem alert visual destacando a conquista.
+    playSound('/sounds/challengeFinished.mp3');
+    createAlert('Rodada concluída!', 'Você finalizou esta rodada com sucesso!', 'success', 4500);
     scrollDiceToTop();
   }
 
@@ -816,6 +831,14 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
         if (verifyProbabilityOfComplement()) {
           createAlert('Parabéns!', 'P(Ā) calculado corretamente.', 'success', 3000);
           playSound('/sounds/correct.mp3');
+          // Trava os inputs de P(Ā) após acerto — sem isso o quadro de cálculo
+          // permanece editável durante a fase de formalização, permitindo que
+          // o aluno modifique o valor que ele já provou estar correto.
+          setProbabilitiesTextInputs(prev => ({
+            ...prev,
+            numerator: { ...prev.numerator, disabled: true, error: false },
+            denominator: { ...prev.denominator, disabled: true, error: false },
+          }));
           // R0: passa para a formalização. R1+: pula formalização, vai direto para P(A).
           if (roundRef.current === 0) {
             goToFormalization(data);

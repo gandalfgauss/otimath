@@ -78,7 +78,11 @@ export function Modal({
       <div
         onClick={clickModalExternalArea}
         ref={divRef}
-        className={`w-full h-full fixed bg-opacity-modal flex items-center justify-center z-11 top-0 left-0
+        // z-[1000] pra ficar ACIMA do header sticky (z-99 em Header.tsx).
+        // Antes era z-11 e o header sobrepunha o topo do modal global,
+        // afetando todos os modais de confirmação do app (ex: "Reiniciar
+        // jogo" no OVA Dois Dados, "Limpar marcações", etc.).
+        className={`w-full h-full fixed bg-opacity-modal flex items-center justify-center z-[1000] top-0 left-0
         opacity-level-transparent transition-[opacity] duration-300 ease-in-out`}
       >
         <dialog

@@ -359,9 +359,16 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
 
     const onGoalFinished = useCallback(() => {
       // Após gol: rodada 2 (round=1) ganha conditionalGlimpse; outras vão direto para roundFinished.
-      if (round === 1) setStep('conditionalGlimpse');
-      else setStep('roundFinished');
-    }, [round]);
+      // Som + alert de celebração ao chegar em roundFinished (idêntico ao padrão
+      // dos outros exercícios Ex1/Ex2/Ex3/Ex4 ao concluir).
+      if (round === 1) {
+        setStep('conditionalGlimpse');
+      } else {
+        playSound('/sounds/challengeFinished.mp3');
+        createAlert?.('Parabéns!', 'Você finalizou esta rodada com sucesso!', 'success', 4500);
+        setStep('roundFinished');
+      }
+    }, [round, createAlert]);
 
     const onRequestHint = useCallback(() => {
       if (hintLevel === 0) setHintLevel(1);
@@ -471,7 +478,12 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
             <ReasoningPlaybackPanel
               title="Resolução completa"
               lines={reasoningLines}
-              onFinish={() => setStep('roundFinished')}
+              onFinish={() => {
+                // Mesmo padrão de celebração das outras vias de finalizar rodada.
+                playSound('/sounds/challengeFinished.mp3');
+                createAlert?.('Parabéns!', 'Você finalizou esta rodada com sucesso!', 'success', 4500);
+                setStep('roundFinished');
+              }}
               finishLabel="Entendi — concluir rodada"
             />
           </div>
@@ -480,7 +492,13 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
         {step === 'conditionalGlimpse' && (
           <ConditionalGlimpsePanel
             data={data}
-            onContinue={() => setStep('roundFinished')}
+            onContinue={() => {
+              // Som + alert de celebração ao chegar em roundFinished — mesmo
+              // padrão do onGoalFinished (rodadas que não passam pelo glimpse).
+              playSound('/sounds/challengeFinished.mp3');
+              createAlert?.('Parabéns!', 'Você finalizou esta rodada com sucesso!', 'success', 4500);
+              setStep('roundFinished');
+            }}
           />
         )}
 

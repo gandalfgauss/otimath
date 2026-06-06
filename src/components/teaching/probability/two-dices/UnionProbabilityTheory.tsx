@@ -2184,7 +2184,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
               <div className="flex items-center gap-x-nano">
                 <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(A) =</span>
-                <FractionInput num={pANum} den={pADen} setNum={setPANum} setDen={setPADen} error={pAError} onEnter={validatePA} />
+                <FractionInput num={pANum} den={pADen} setNum={setPANum} setDen={setPADen} error={pAError} onEnter={validatePA} disabled={isEquivalentFraction(pANum, pADen, correctSets.nA, 36)} />
               </div>
               {!isEquivalentFraction(pANum, pADen, correctSets.nA, 36) && (
                 <Button style="primary" size="extra-small" onClick={validatePA}>Conferir</Button>
@@ -2196,7 +2196,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
               <div className="flex items-center gap-x-nano">
                 <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(B) =</span>
-                <FractionInput num={pBNum} den={pBDen} setNum={setPBNum} setDen={setPBDen} error={pBError} onEnter={validatePB} />
+                <FractionInput num={pBNum} den={pBDen} setNum={setPBNum} setDen={setPBDen} error={pBError} onEnter={validatePB} disabled={isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36)} />
               </div>
               {!isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36) && (
                 <Button style="primary" size="extra-small" onClick={validatePB}>Conferir</Button>
@@ -2208,7 +2208,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
               <div className="flex items-center gap-x-nano">
                 <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(A ∩ B) =</span>
-                <FractionInput num={pABNum} den={pABDen} setNum={setPABNum} setDen={setPABDen} error={pABError} onEnter={validatePAB} />
+                <FractionInput num={pABNum} den={pABDen} setNum={setPABNum} setDen={setPABDen} error={pABError} onEnter={validatePAB} disabled={isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36)} />
               </div>
               {!isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36) && (
                 <Button style="primary" size="extra-small" onClick={validatePAB}>Conferir</Button>
@@ -2380,25 +2380,36 @@ interface FractionInputProps {
   setNum: (v: string) => void; setDen: (v: string) => void;
   error: boolean;
   onEnter?: () => void;
+  /** Trava os dois inputs (numerador + denominador). Aplicado pelo consumidor
+   *  quando a resposta já foi validada como correta — evita que o aluno
+   *  modifique um valor já provado e quebre a coerência da derivação. */
+  disabled?: boolean;
 }
-function FractionInput({ num, den, setNum, setDen, error, onEnter }: FractionInputProps) {
+function FractionInput({ num, den, setNum, setDen, error, onEnter, disabled = false }: FractionInputProps) {
   const border = error ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)';
+  // Visual feedback ao travar — fundo cinza claro + texto verde de "correto".
+  const lockedStyle = disabled ? {
+    background: 'var(--color-neutral-lightest)',
+    color: 'var(--color-feedback-success-dark)',
+  } : {};
   return (
     <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', margin: '0 6px' }}>
       <input
         type="number" inputMode="numeric" value={num}
         onChange={e => setNum(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' && onEnter) onEnter(); }}
+        disabled={disabled}
         placeholder="?" aria-label="Numerador"
-        style={{ border: `2px solid ${border}`, borderRadius: 6, padding: '4px', width: 56, textAlign: 'center', outline: 'none', fontWeight: 700 }}
+        style={{ border: `2px solid ${border}`, borderRadius: 6, padding: '4px', width: 56, textAlign: 'center', outline: 'none', fontWeight: 700, ...lockedStyle }}
       />
       <hr style={{ width: '100%', height: 2, background: 'var(--color-neutral-black)', border: 'none', margin: '3px 0' }} />
       <input
         type="number" inputMode="numeric" value={den}
         onChange={e => setDen(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' && onEnter) onEnter(); }}
+        disabled={disabled}
         placeholder="?" aria-label="Denominador"
-        style={{ border: `2px solid ${border}`, borderRadius: 6, padding: '4px', width: 56, textAlign: 'center', outline: 'none', fontWeight: 700 }}
+        style={{ border: `2px solid ${border}`, borderRadius: 6, padding: '4px', width: 56, textAlign: 'center', outline: 'none', fontWeight: 700, ...lockedStyle }}
       />
     </div>
   );
@@ -2803,6 +2814,7 @@ function ProbTransferScreen({
                   num={pAUBNum} den={pAUBDen}
                   setNum={setPAUBNum} setDen={setPAUBDen}
                   error={pAUBError} onEnter={validatePAUB}
+                  disabled={isCorrect}
                 />
               </div>
               {!isCorrect && (
