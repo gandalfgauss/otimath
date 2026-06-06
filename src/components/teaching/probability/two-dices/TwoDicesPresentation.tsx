@@ -1382,64 +1382,75 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                         <p className="ds-body-bold text-neutral-black text-justify">
                           Calcule a probabilidade de ocorrer a <strong>face {scene3RandomFace}</strong>:
                         </p>
-                        <div className="flex items-center gap-x-micro flex-wrap">
-                          <div className="flex items-center gap-x-nano">
+                        {/* Layout: dois blocos matemáticos atômicos via flex-nowrap
+                            interno — (1) "P(face X) = a/b" e (2) "≈ X%". Cada um
+                            é uma unidade indivisível. Externo flex-wrap deixa o
+                            "≈ X%" descer pra próxima linha quando faltar espaço,
+                            e o Conferir descer pra terceira linha se necessário —
+                            sem nunca orfanar operadores. */}
+                        <div className="flex flex-wrap items-center gap-x-micro gap-y-micro">
+                          <div className="flex flex-nowrap items-center gap-x-nano">
                             <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(face {scene3RandomFace}) =</span>
-                            <div className="inline-flex flex-col items-center mx-nano">
-                            <input
-                              type="text" inputMode="numeric" value={scene3Num}
-                              onChange={e => {
-                                const v = e.target.value.replace(/\D/g, '');
-                                setScene3Num(v); setScene3NumError(false); setScene3ProbFeedback('');
-                              }}
-                              placeholder="?" className="ds-body"
-                              aria-label="Numerador da probabilidade"
-                              aria-invalid={scene3NumError}
-                              aria-describedby={scene3ProbFeedback ? 'scene3-prob-feedback' : undefined}
-                              style={{
-                                border: `2px solid ${scene3NumError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                                borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
-                              }}
-                            />
-                            <hr aria-hidden="true" style={{ width: '100%', height: 2, background: 'var(--color-neutral-black)', border: 'none', margin: '2px 0' }} />
-                            <input
-                              type="text" inputMode="numeric" value={scene3Den}
-                              onChange={e => {
-                                const v = e.target.value.replace(/\D/g, '');
-                                setScene3Den(v); setScene3DenError(false); setScene3ProbFeedback('');
-                              }}
-                              placeholder="?" className="ds-body"
-                              aria-label="Denominador da probabilidade"
-                              aria-invalid={scene3DenError}
-                              aria-describedby={scene3ProbFeedback ? 'scene3-prob-feedback' : undefined}
-                              style={{
-                                border: `2px solid ${scene3DenError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                                borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
-                              }}
-                            />
+                            <div className="inline-flex flex-col items-center mx-nano shrink-0">
+                              <input
+                                type="text" inputMode="numeric" value={scene3Num}
+                                onChange={e => {
+                                  const v = e.target.value.replace(/\D/g, '');
+                                  setScene3Num(v); setScene3NumError(false); setScene3ProbFeedback('');
+                                }}
+                                placeholder="?" className="ds-body"
+                                aria-label="Numerador da probabilidade"
+                                aria-invalid={scene3NumError}
+                                aria-describedby={scene3ProbFeedback ? 'scene3-prob-feedback' : undefined}
+                                style={{
+                                  border: `2px solid ${scene3NumError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                                  borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
+                                  minWidth: 0,
+                                }}
+                              />
+                              <hr aria-hidden="true" style={{ width: '100%', height: 2, background: 'var(--color-neutral-black)', border: 'none', margin: '2px 0' }} />
+                              <input
+                                type="text" inputMode="numeric" value={scene3Den}
+                                onChange={e => {
+                                  const v = e.target.value.replace(/\D/g, '');
+                                  setScene3Den(v); setScene3DenError(false); setScene3ProbFeedback('');
+                                }}
+                                placeholder="?" className="ds-body"
+                                aria-label="Denominador da probabilidade"
+                                aria-invalid={scene3DenError}
+                                aria-describedby={scene3ProbFeedback ? 'scene3-prob-feedback' : undefined}
+                                style={{
+                                  border: `2px solid ${scene3DenError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                                  borderRadius: 6, padding: '4px', width: 48, textAlign: 'center', outline: 'none',
+                                  minWidth: 0,
+                                }}
+                              />
                             </div>
                           </div>
-                          <span className="ds-body-bold text-neutral-black">≈</span>
-                          <input
-                            type="text" inputMode="decimal" value={scene3Pct}
-                            onChange={e => {
-                              // Aceita dígitos + um separador decimal (. ou ,) + reticências (...) usadas
-                              // para indicar dízima periódica (16,6...). Bloqueia letras e símbolos.
-                              const next = e.target.value;
-                              if (next === '' || /^\d*[.,]?\d*\.?\.?\.?$/.test(next) || next === '…') {
-                                setScene3Pct(next); setScene3PctError(false); setScene3ProbFeedback('');
-                              }
-                            }}
-                            placeholder="?" className="ds-body"
-                            aria-label="Probabilidade em porcentagem"
-                            aria-invalid={scene3PctError}
-                            aria-describedby={scene3ProbFeedback ? 'scene3-prob-feedback' : undefined}
-                            style={{
-                              border: `2px solid ${scene3PctError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                              borderRadius: 6, padding: '4px', width: 72, textAlign: 'center', outline: 'none',
-                            }}
-                          />
-                          <span className="ds-body-bold text-neutral-black">%</span>
+                          <div className="flex flex-nowrap items-center gap-x-nano">
+                            <span className="ds-body-bold text-neutral-black whitespace-nowrap">≈</span>
+                            <input
+                              type="text" inputMode="decimal" value={scene3Pct}
+                              onChange={e => {
+                                // Aceita dígitos + um separador decimal (. ou ,) + reticências (...) usadas
+                                // para indicar dízima periódica (16,6...). Bloqueia letras e símbolos.
+                                const next = e.target.value;
+                                if (next === '' || /^\d*[.,]?\d*\.?\.?\.?$/.test(next) || next === '…') {
+                                  setScene3Pct(next); setScene3PctError(false); setScene3ProbFeedback('');
+                                }
+                              }}
+                              placeholder="?" className="ds-body"
+                              aria-label="Probabilidade em porcentagem"
+                              aria-invalid={scene3PctError}
+                              aria-describedby={scene3ProbFeedback ? 'scene3-prob-feedback' : undefined}
+                              style={{
+                                border: `2px solid ${scene3PctError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                                borderRadius: 6, padding: '4px', width: 72, textAlign: 'center', outline: 'none',
+                                minWidth: 0,
+                              }}
+                            />
+                            <span className="ds-body-bold text-neutral-black whitespace-nowrap">%</span>
+                          </div>
                           <Button style="primary" size="extra-small" onClick={validateProb}>Conferir</Button>
                         </div>
                         {scene3ProbFeedback && (
