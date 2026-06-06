@@ -482,8 +482,18 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       [],
     );
 
+    // Rola pro topo do OVA em todo Conferir (acerto OU erro). Mirror do
+    // padrão de checkAnswer no Disco — sem isso, no mobile o aluno termina
+    // a tarefa lá embaixo e perde o enunciado/alert quando o conteúdo muda.
+    const scrollDiceToTop = () => {
+      requestAnimationFrame(() => {
+        document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    };
+
     // ── Validações ───────────────────────────────────────────────
     const validateMarkA = useCallback(() => {
+      scrollDiceToTop();
       const fb = evaluateMarks(marksA, correctSets.A);
       setFeedbackA(fb);
       if (fb === 'none') {
@@ -500,6 +510,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     }, [marksA, correctSets.A, evaluateMarks, createAlert]);
 
     const validateMarkB = useCallback(() => {
+      scrollDiceToTop();
       const fb = evaluateMarks(marksB, correctSets.B);
       setFeedbackB(fb);
       if (fb === 'none') {
@@ -516,6 +527,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     }, [marksB, correctSets.B, evaluateMarks, createAlert]);
 
     const validateMarkI = useCallback(() => {
+      scrollDiceToTop();
       const fb = evaluateMarks(marksI, correctSets.I);
       setFeedbackI(fb);
       if (fb === 'none') {
@@ -532,6 +544,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     }, [marksI, correctSets.I, evaluateMarks, createAlert]);
 
     const validatePA = useCallback(() => {
+      scrollDiceToTop();
       const num = parseInt(pANum.trim(), 10);
       const den = parseInt(pADen.trim(), 10);
       const numValid = Number.isInteger(num) && num >= 0;
@@ -565,6 +578,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     }, [pANum, pADen, correctSets.nA, createAlert]);
 
     const validatePB = useCallback(() => {
+      scrollDiceToTop();
       const num = parseInt(pBNum.trim(), 10);
       const den = parseInt(pBDen.trim(), 10);
       const numValid = Number.isInteger(num) && num >= 0;
@@ -600,6 +614,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     }, [pBNum, pBDen, correctSets.nB, createAlert]);
 
     const validatePAB = useCallback(() => {
+      scrollDiceToTop();
       if (pABExpr !== 'AnB') {
         setPABExprError(true);
         playSound('/sounds/incorrect.mp3');
@@ -620,6 +635,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     }, [pABExpr, pABNum, pABDen, correctSets.nI, createAlert]);
 
     const validatePAUB = useCallback(() => {
+      scrollDiceToTop();
       // 1. Checa que as 3 substituições equivalem às probabilidades calculadas
       const subAOk = isEquivalentFraction(subANum, subADen, correctSets.nA, 36);
       const subBOk = isEquivalentFraction(subBNum, subBDen, correctSets.nB, 36);

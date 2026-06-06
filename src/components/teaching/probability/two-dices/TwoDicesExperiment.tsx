@@ -691,8 +691,19 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     setPhase('pickPair');
   }, [diceSceneRef, greenResult, blueResult]);
 
+  // Rola pro topo do OVA quando uma fase avança após Conferir. Crítico no
+  // mobile: o aluno termina a pergunta lá embaixo, clica Conferir, e a fase
+  // nova carrega sem trazer o enunciado pra viewport.
+  // `apresentacao-dado` é o Grid raiz do OVA, sempre presente.
+  const scrollDiceToTop = () => {
+    requestAnimationFrame(() => {
+      document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   // ── Validação do picker (FacePicker) ──
   const validatePickedPair = useCallback(() => {
+    scrollDiceToTop();
     if (pickedGreen == null) {
       setPickGreenError(true);
       setPickFeedback('Toque no dado verde e escolha a face que apareceu.');
@@ -716,6 +727,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `Par registrado: (${greenResult}, ${blueResult}).`, 'success', 3000);
       setPhase('pickConfirm');
+      scrollDiceToTop();
       return;
     }
     // Erro
@@ -830,6 +842,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
   // ── Validação da soma digitada pelo aluno ──
   const validateSumInput = () => {
+    scrollDiceToTop();
     const typed = parseInt(sumAnswer.trim(), 10);
     const correct = greenResult + blueResult;
     if (isNaN(typed)) {
@@ -846,6 +859,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       setSumWrongMarks(new Set());
       setSumFeedbackState('none');
       setPhase('sumMarkTable');
+      scrollDiceToTop();
     } else {
       setSumAnswerError(true);
       playSound('/sounds/incorrect.mp3');
@@ -870,6 +884,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
   // ── Validação das marcações na fase sumMarkTable (3 estados) ──
   const validateSumMarks = () => {
+    scrollDiceToTop();
     const targetSum = greenResult + blueResult;
     const correct = getPairsForSum(targetSum);
     const wrong = new Set<string>();
@@ -891,6 +906,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `Todos os pares com soma ${targetSum} foram marcados.`, 'success', 3000);
       setPhase('sumComplete');
+      scrollDiceToTop();
     } else if (wrong.size === 0 && missing.size > 0) {
       // Estado 2: só acertos mas incompleto → reforço positivo parcial
       setSumFeedbackState('incomplete');
@@ -910,6 +926,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   // O aluno precisa contar manualmente quantas células foram marcadas como
   // corretas e digitar o número — verbalizando n(A) da fórmula P(A)=n(A)/n(Ω).
   const validateSumCount = () => {
+    scrollDiceToTop();
     const typed = parseInt(sumCountAnswer.trim(), 10);
     const correct = getPairsForSum(greenResult + blueResult).size;
     if (isNaN(typed) || typed !== correct) {
@@ -967,6 +984,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
   // Validações das 3 perguntas do alienígena
   const validateSumPredictMax = () => {
+    scrollDiceToTop();
     if (sumPredictedMax === null) {
       createAlert?.('Falta escolher', 'Selecione uma soma antes de confirmar.', 'error', 3500);
       return;
@@ -974,9 +992,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     playSound('/sounds/correct.mp3');
     createAlert?.('Resposta registrada', 'Vamos para a próxima pergunta do alienígena.', 'info', 2500);
     setPhase('sumPredictMin');
+    scrollDiceToTop();
   };
 
   const validateSumPredictMin = () => {
+    scrollDiceToTop();
     if (sumPredictedMin === null) {
       createAlert?.('Falta escolher', 'Selecione uma soma antes de confirmar.', 'error', 3500);
       return;
@@ -988,6 +1008,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     setSumImpossibleSelected(new Set());
     setSumImpossibleError('none');
     setPhase('sumImpossible');
+    scrollDiceToTop();
   };
 
   // Toggle de marcação de uma opção na pergunta 3
@@ -1001,6 +1022,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
   // Validação da pergunta 3 (impossíveis). Correto = exatamente {1, d}.
   const validateSumImpossible = () => {
+    scrollDiceToTop();
     const correctSet = new Set<number>();
     for (const opt of sumImpossibleOptions) {
       if (opt === 1 || opt > 12) correctSet.add(opt);
@@ -1024,6 +1046,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     playSound('/sounds/correct.mp3');
     createAlert?.('Correto!', 'Somas fora do intervalo [2, 12] são impossíveis.', 'success', 3500);
     setPhase('sumReveal');
+    scrollDiceToTop();
   };
 
   // Verifica se o aluno acertou cada uma das 3 previsões (para o card de revelação)
@@ -1051,12 +1074,14 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
    * Se errado, detecta qual componente (numerador/denominador/ambos) está errado
    * e define probPairErrorType para renderizar a mensagem específica. */
   const validateProbPair = () => {
+    scrollDiceToTop();
     if (isEquivalentFraction(probPairNum, probPairDen, 1, 36)) {
       setProbPairError(false);
       setProbPairErrorType(null);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `P(par) = 1/36 — todos os 36 pares são equiprováveis.`, 'success', 3500);
       setPhase('probPairReveal');
+      scrollDiceToTop();
       return;
     }
     // Analisa qual parte está errada
@@ -1089,6 +1114,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
    * para feedback visual (sem revelar a resposta correta).
    */
   const validateProbSumTable = () => {
+    scrollDiceToTop();
     const wrong = new Set<number>();
     let missingAny = false;
     for (let s = 2; s <= 12; s++) {
@@ -1109,6 +1135,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       playSound('/sounds/gameFinished.mp3');
       createAlert?.('Excelente!', 'Todas as 11 probabilidades estão corretas.', 'success', 4000);
       setPhase('probSumReveal');
+      scrollDiceToTop();
       return;
     }
     setProbSumWrongRows(wrong);

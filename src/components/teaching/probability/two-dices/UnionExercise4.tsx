@@ -483,11 +483,19 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       playSound('/sounds/clear.mp3');
     }, [hintsUsed]);
 
+    // Rola pro topo do OVA em todo Conferir. Mirror do checkAnswer do Disco.
+    const scrollDiceToTop = () => {
+      requestAnimationFrame(() => {
+        document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    };
+
     // ── Validações de cada sub-passo ────────────────────────────
 
     // Caminho 1.1 — Etapa 1: fórmula n(A∪B) = n(A) + n(B) − n(A∩B)
     const card1Ok = card1Pos1 === 'AuB' && card1Pos2 === 'A' && card1Pos3 === 'B' && card1Pos4 === 'AnB';
     const validateCard1 = () => {
+      scrollDiceToTop();
       if (card1Ok) {
         playSound('/sounds/correct.mp3');
         createAlert?.('Correto!', 'Fórmula montada: n(A ∪ B) = n(A) + n(B) − n(A ∩ B).', 'success', 3500);
@@ -501,6 +509,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
     // Caminho 1.1 — Etapa 2: c = b + d − n(A∩B)
     const validateCard2 = () => {
+      scrollDiceToTop();
       const cOk = parseInt(card2CInput, 10) === data.c;
       const bOk = parseInt(card2BInput, 10) === data.b;
       const dOk = parseInt(card2DInput, 10) === data.d;
@@ -519,6 +528,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
     // Caminho 1.1 — Etapa 3: n(A∩B) = b + d − c (valor: data.e)
     const validateCard3 = () => {
+      scrollDiceToTop();
       const parsed = parseInt(card3Num, 10);
       if (parsed === data.e) {
         setCard3Error(false);
@@ -540,6 +550,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     //   (T, F): n(Ā ∩ B) = d − e
     //   (T, T): n(Ā ∩ B̄) = S − c
     const validateCard3b = () => {
+      scrollDiceToTop();
       const parsed = parseInt(card3bNum, 10);
       if (parsed === data.targetCardinality) {
         setCard3bError(false);
@@ -556,6 +567,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
     // Caminho 1.1 — Etapa 4: P(target) = targetCardinality / S
     const validateCard4 = () => {
+      scrollDiceToTop();
       const v = validateFracSep(card4Num, card4Den, data.targetCardinality, data.S);
       setCard4NumError(v.numError); setCard4DenError(v.denError);
       if (v.ok) {
@@ -585,6 +597,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     //
     // Normaliza espaços e unifica traços Unicode (− U+2212) com hífen ASCII.
     const validateVenn1 = () => {
+      scrollDiceToTop();
       const normalize = (s: string) =>
         s.trim()
          .replace(/\s+/g, '')
@@ -646,6 +659,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     //     pode pular, indo direto para D. Respeita TOMLINSON (diferenciação).
     //   Sub-passo D: valor numérico final de x = n(A ∩ B).
     const validateVenn2 = () => {
+      scrollDiceToTop();
       const v = vennVar; // letra escolhida no lapVenn1 (propagada)
 
       // A: n(A ∪ B) deve ser o valor c do enunciado
@@ -730,6 +744,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     //                  (identificação do espaço amostral).
     //   Sub-passo 3.b: aplica Laplace P(target) = n(target)/n(S).
     const validateVenn3 = () => {
+      scrollDiceToTop();
       const nsParsed = parseInt(vennNS.trim(), 10);
       const nsOk = nsParsed === data.S;
       setVennNSError(!nsOk);
@@ -751,6 +766,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
     // Caminho 2 — Etapa 1: substituição das 3 frações em P(A∪B)=P(A)+P(B)−P(A∩B)
     const validateG1 = () => {
+      scrollDiceToTop();
       const cOk = isEquivalentFraction(g1CNum, g1CDen, data.c, data.S);
       const bOk = isEquivalentFraction(g1BNum, g1BDen, data.b, data.S);
       const dOk = isEquivalentFraction(g1DNum, g1DDen, data.d, data.S);
@@ -770,6 +786,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     // Caminho 2 — Etapa 2: P(A∩B) = e/S (sempre calcula a interseção original;
     // se há inversão, o ajuste vem no passo general3 a seguir).
     const validateG2 = () => {
+      scrollDiceToTop();
       const v = validateFracSep(g2Num, g2Den, data.e, data.S);
       setG2NumError(v.numError); setG2DenError(v.denError);
       if (v.ok) {
@@ -797,6 +814,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     //   (T, F): P(Ā ∩ B) = P(B) − P(A ∩ B)       = (d − e)/S
     //   (T, T): P(Ā ∩ B̄) = 1 − P(A ∪ B)          = (S − c)/S = w/S
     const validateG3 = () => {
+      scrollDiceToTop();
       const v = validateFracSep(g3Num, g3Den, data.targetCardinality, data.S);
       setG3NumError(v.numError); setG3DenError(v.denError);
       if (v.ok) {

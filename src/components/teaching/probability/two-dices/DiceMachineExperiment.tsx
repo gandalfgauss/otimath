@@ -511,9 +511,17 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
     [diceMachineRef, scrollToScene],
   );
 
+  // Rola pro topo do OVA em todo Conferir. Mirror do checkAnswer do Disco.
+  const scrollDiceToTop = () => {
+    requestAnimationFrame(() => {
+      document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   // ═══════ Validação do picker (L1 e L2) ═══════
   const validatePair = useCallback(
     (onSuccess: () => void) => {
+      scrollDiceToTop();
       if (pickedGreen == null) {
         setPickGreenError(true);
         setPickFeedback('Toque no dado verde e escolha a face que apareceu.');
@@ -558,6 +566,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
 
   // ═══════ Validação da soma (L2 e L3) ═══════
   const validateSum = useCallback((nextPhase: Phase = 's2-correct') => {
+    scrollDiceToTop();
     const v = parseInt(sumInput.trim(), 10);
     if (isNaN(v)) {
       setSumError(true);
@@ -584,6 +593,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
 
   // ═══════ Validação da previsão (L3) ═══════
   const validatePrediction = useCallback(() => {
+    scrollDiceToTop();
     const v = parseInt(predictionInput.trim(), 10);
     let hasError = false;
     if (isNaN(v) || v < 2 || v > 12) {

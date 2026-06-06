@@ -440,7 +440,19 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   // ── Validações da Cena 3 interativa ──
   // Etapas: 0=texto, 1=S, 2=n(S), 3=P(S), 4=P(face i), 5=generalizar, 6=fechamento
 
+  // Rola pro topo do OVA quando uma sub-etapa interna avança. Crítico no mobile:
+  // o aluno termina a pergunta atual lá embaixo, clica Conferir, e a próxima
+  // pergunta carrega no MESMO scroll position — o enunciado fica fora da
+  // viewport e o aluno se perde. `apresentacao-dado` é o Grid raiz do OVA,
+  // sempre presente (standalone e sequência didática).
+  const scrollDiceToTop = () => {
+    requestAnimationFrame(() => {
+      document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const validateSampleSpace = () => {
+    scrollDiceToTop();
     const clean = scene3SampleSpace.replace(/\s/g, '').replace(/[{}]/g, '');
     const nums = clean.split(',').map(Number).sort();
     if (nums.length === 6 && nums.every((n, i) => n === i + 1)) {
@@ -448,6 +460,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       playSound("/sounds/correct.mp3");
       createAlert('Correto!', 'Espaço amostral identificado.', 'success', 2500);
       setScene3Step(2);
+      scrollDiceToTop();
     } else {
       setScene3SampleSpaceError(true);
       playSound("/sounds/incorrect.mp3");
@@ -456,12 +469,14 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   };
 
   const validateNS = () => {
+    scrollDiceToTop();
     const v = parseInt(scene3NS.trim());
     if (v === 6) {
       setScene3NSError(false);
       playSound("/sounds/correct.mp3");
       createAlert('Correto!', 'O espaço amostral tem 6 elementos.', 'success', 2500);
       setScene3Step(3);
+      scrollDiceToTop();
     } else {
       setScene3NSError(true);
       playSound("/sounds/incorrect.mp3");
@@ -470,6 +485,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   };
 
   const validatePS = () => {
+    scrollDiceToTop();
     // P(S) = 1 — aceita: 1, 100, 1.0, 100%, ou QUALQUER fração equivalente
     // a 1 (ex.: 6/6, 3/3, 100/100, 36/36) usando produto cruzado.
     const raw = scene3PS.trim().replace('%', '');
@@ -490,6 +506,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       playSound("/sounds/correct.mp3");
       createAlert('Correto!', 'P(S) = 1 — algum resultado certamente ocorre.', 'success', 2500);
       setScene3Step(4);
+      scrollDiceToTop();
     } else {
       setScene3PSError(true);
       playSound("/sounds/incorrect.mp3");
@@ -498,6 +515,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   };
 
   const validateProb = () => {
+    scrollDiceToTop();
     const num = parseInt(scene3Num);
     const den = parseInt(scene3Den);
     // Aceita qualquer fração equivalente a 1/6 via produto cruzado
@@ -527,7 +545,10 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       setScene3ShowBar(true);
       // Tempo aumentado de 800ms para 3000ms para o aluno conseguir
       // observar a barra animada da face sorteada antes da transição.
-      setTimeout(() => setScene3Step(5), 3000);
+      setTimeout(() => {
+        setScene3Step(5);
+        scrollDiceToTop();
+      }, 3000);
     } else {
       playSound("/sounds/incorrect.mp3");
       createAlert('Tente novamente', 'Verifique a fração e a porcentagem.', 'error', 4000);
@@ -557,13 +578,17 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   };
 
   const handleGeneralize = (answer: boolean) => {
+    scrollDiceToTop();
     if (answer) {
       setScene3NoError(false);
       setScene3AllBars(true);
       setBarsAnimated(true);
       playSound("/sounds/correct.mp3");
       createAlert('Exatamente!', 'Em um dado equilibrado todas as faces têm a mesma probabilidade.', 'success', 3000);
-      setTimeout(() => setScene3Step(6), 1200);
+      setTimeout(() => {
+        setScene3Step(6);
+        scrollDiceToTop();
+      }, 1200);
     } else {
       setScene3NoError(true);
       playSound("/sounds/incorrect.mp3");
@@ -573,6 +598,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
 
   // ── Validação da Cena 4 ──
   const validateScene4 = () => {
+    scrollDiceToTop();
     const eqOk = scene4EqAnswer === 'equiprovavel';
     const vicOk = scene4VicAnswer === 'nao-equiprovavel';
 
@@ -583,6 +609,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       playSound("/sounds/correct.mp3");
       createAlert('Correto!', 'Você classificou corretamente os espaços amostrais.', 'success', 3000);
       setScene4Step(2);
+      scrollDiceToTop();
     } else {
       playSound("/sounds/incorrect.mp3");
       createAlert('Tente novamente', 'Releia a definição de dado equilibrado/viciado e revise as opções.', 'error', 4000);
@@ -591,6 +618,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
 
   // ── Validação da soma P(Ω) = 1 na Cena 4 ──
   const validateScene4Sum = () => {
+    scrollDiceToTop();
     // Aceita: 1, 100, 1.0, 100%, ou QUALQUER fração equivalente a 1
     // (ex.: 6/6, 3/3, 100/100) usando produto cruzado.
     const raw = scene4SumAnswer.trim().replace('%', '');
@@ -611,6 +639,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       playSound("/sounds/correct.mp3");
       createAlert('Correto!', 'A soma das probabilidades de todos os resultados possíveis é sempre 1 (100%).', 'success', 3000);
       setScene4Step(3);
+      scrollDiceToTop();
     } else {
       setScene4SumError(true);
       playSound("/sounds/incorrect.mp3");

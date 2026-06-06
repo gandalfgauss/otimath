@@ -350,8 +350,16 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
       [],
     );
 
+    // Rola pro topo do OVA em todo Conferir. Mirror do checkAnswer do Disco.
+    const scrollDiceToTop = () => {
+      requestAnimationFrame(() => {
+        document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    };
+
     // ── Validações de marcação ───────────────────────────────────
     const validateMarkA = useCallback(() => {
+      scrollDiceToTop();
       const fb = evaluateMarks(marksA, correctSets.A);
       setFeedbackA(fb);
       if (fb === 'none') {
@@ -368,6 +376,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
     }, [marksA, correctSets.A, evaluateMarks, createAlert]);
 
     const validateMarkB = useCallback(() => {
+      scrollDiceToTop();
       const fb = evaluateMarks(marksB, correctSets.B);
       setFeedbackB(fb);
       if (fb === 'none') {
@@ -384,6 +393,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
     }, [marksB, correctSets.B, evaluateMarks, createAlert]);
 
     const validateMarkAmB = useCallback(() => {
+      scrollDiceToTop();
       // Caso A∩B=∅: A−B = A. Ainda assim a validação funciona (correctSets.AmB é calculado).
       // Caso A−B=∅ (quando A ⊂ B), o aluno marca ZERO células.
       const markedCount = matrixToKeySet(marksAmB).size;
@@ -416,6 +426,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
     }, [marksAmB, correctSets.AmB, correctSets.nAmB, evaluateMarks, createAlert]);
 
     const validateMarkBmA = useCallback(() => {
+      scrollDiceToTop();
       const markedCount = matrixToKeySet(marksBmA).size;
       if (correctSets.nBmA === 0) {
         if (markedCount === 0) {
@@ -447,6 +458,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
 
     // ── Validações de cálculo ────────────────────────────────────
     const validatePAmB = useCallback(() => {
+      scrollDiceToTop();
       const v = validateFractionSeparate(pAmBNum, pAmBDen, correctSets.nAmB, 36);
       setPAmBNumError(v.numError);
       setPAmBDenError(v.denError);
@@ -461,6 +473,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
     }, [pAmBNum, pAmBDen, correctSets.nAmB, createAlert]);
 
     const validatePBmA = useCallback(() => {
+      scrollDiceToTop();
       const v = validateFractionSeparate(pBmANum, pBmADen, correctSets.nBmA, 36);
       setPBmANumError(v.numError);
       setPBmADenError(v.denError);

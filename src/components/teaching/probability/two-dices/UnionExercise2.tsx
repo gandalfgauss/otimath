@@ -271,8 +271,16 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
       [],
     );
 
+    // Rola pro topo do OVA em todo Conferir. Mirror do checkAnswer do Disco.
+    const scrollDiceToTop = () => {
+      requestAnimationFrame(() => {
+        document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    };
+
     // ── Validações de marcação ───────────────────────────────────
     const validateMarkA = useCallback(() => {
+      scrollDiceToTop();
       const fb = evaluateMarks(marksA, correctSets.A);
       setFeedbackA(fb);
       if (fb === 'none') {
@@ -289,6 +297,7 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
     }, [marksA, correctSets.A, evaluateMarks, createAlert]);
 
     const validateMarkB = useCallback(() => {
+      scrollDiceToTop();
       const fb = evaluateMarks(marksB, correctSets.B);
       setFeedbackB(fb);
       if (fb === 'none') {
@@ -306,6 +315,7 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
 
     // Validação especial: esperado é ZERO células (A ∩ B = ∅)
     const validateMarkI = useCallback(() => {
+      scrollDiceToTop();
       const markedCount = matrixToKeySet(marksI).size;
       if (markedCount === 0) {
         setFeedbackI('none');
@@ -321,6 +331,7 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
 
     // ── Validação do cálculo final ───────────────────────────────
     const validatePAUB = useCallback(() => {
+      scrollDiceToTop();
       // Verifica substituições: P(A)=nA/36, P(B)=nB/36, P(A∩B)=0
       const subAOk = isEquivalentFraction(subANum, subADen, correctSets.nA, 36);
       const subBOk = isEquivalentFraction(subBNum, subBDen, correctSets.nB, 36);

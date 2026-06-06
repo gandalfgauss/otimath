@@ -177,8 +177,18 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
     });
   }, []);
 
+  // Rola pro topo do OVA em todo Conferir (acerto OU erro). Mirror do
+  // padrão de checkAnswer no OVA do disco — o aluno SEMPRE vê o alert e
+  // o enunciado novo no topo, independente do resultado.
+  const scrollDiceToTop = () => {
+    requestAnimationFrame(() => {
+      document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   // ─── Seleção: validar ───
   const validateSelection = useCallback(() => {
+    scrollDiceToTop();
     if (selectedFaces.size < 6 || ![1,2,3,4,5,6].every(v => selectedFaces.has(v))) {
       setSelectError('Selecione todas as 6 faces possíveis do dado azul.');
       playSound('/sounds/incorrect.mp3');
@@ -293,6 +303,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
 
   // ─── Validações ───
   const validateCount = useCallback(() => {
+    scrollDiceToTop();
     if (countAnswer.trim() !== '6') {
       const msg = 'Observe a árvore: para cada resultado do primeiro dado, aparecem 6 possibilidades no segundo.';
       setCountError(msg);
@@ -307,6 +318,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   }, [countAnswer, createAlert]);
 
   const validateMultiply = useCallback(() => {
+    scrollDiceToTop();
     const op = multOp.trim();
     const opOk = op === 'x' || op === '×' || op === '*' || op === 'X';
     let msg = '';
@@ -327,6 +339,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   }, [multA, multOp, multB, multC, createAlert]);
 
   const validateTotal = useCallback(() => {
+    scrollDiceToTop();
     if (totalAnswer.trim() !== '36') {
       const msg = 'Lembre-se: 6 × 6 = 36 pares ordenados.';
       setTotalError(msg);
@@ -341,10 +354,15 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   }, [totalAnswer, createAlert]);
 
   // ─── Scroll ao mudar de fase ───
+  // Era `block: 'nearest'` antes — em telas grandes funcionava, mas no
+  // mobile o aluno terminava a pergunta lá embaixo, clicava Conferir, e o
+  // scroll "mínimo" do `nearest` não trazia o enunciado novo pra viewport.
+  // `start` garante que o cardRef fique no topo da tela em qualquer
+  // tamanho de viewport.
   useEffect(() => {
     if (['count', 'multiply', 'total', 'pairs', 'select2'].includes(phase)) {
       setTimeout(() => {
-        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     }
   }, [phase]);

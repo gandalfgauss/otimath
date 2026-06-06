@@ -357,6 +357,16 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   // TRANSIÇÕES DE SUB-FASE
   // ════════════════════════════════════════════════════════════
 
+  // Rola pro topo do OVA em cada transição de sub-fase. Crítico no mobile:
+  // o aluno termina a tarefa lá embaixo, clica Conferir, e a sub-fase nova
+  // carrega sem trazer o enunciado pra viewport. `apresentacao-dado` é o
+  // Grid raiz do OVA (TwoDicesPresentation), sempre presente.
+  const scrollDiceToTop = () => {
+    requestAnimationFrame(() => {
+      document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   function goToMarking(d: ComplementaryEventData) {
     const checkboxes: EventCheckboxes = { [COMPLEMENT_LABEL]: buildEmptyCheckboxLayer() };
     setEventsCheckboxes(checkboxes);
@@ -367,6 +377,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     setDisabledCheckButton(false);
     setDisabledClearButton(false);
     setDisabledNextStepButton(true);
+    scrollDiceToTop();
   }
 
   function goToReveal(d: ComplementaryEventData) {
@@ -374,6 +385,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     setInstructions(buildInstructions('reveal', d));
     setDisabledCheckButton(true);
     setDisabledClearButton(true);
+    scrollDiceToTop();
     // Descrição de Ā REVELADA no painel Evento(s).
     setActiveEvents([
       { name: A_LABEL, ...d.eventA },
@@ -415,6 +427,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     setConfrontMessage('');
     setDisabledCheckButton(false);
     setDisabledClearButton(true);
+    scrollDiceToTop();
   }
 
   /** Sub-fase nova: aluno calcula P(Ā) pela definição clássica
@@ -438,6 +451,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     probInputs.denominator.setValue = (v: string) =>
       setProbabilitiesTextInputs(prev => ({ ...prev, denominator: { ...prev.denominator, value: v } }));
     setProbabilitiesTextInputs(probInputs);
+    scrollDiceToTop();
   }
 
   function goToFormalization(d: ComplementaryEventData) {
@@ -466,6 +480,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     setInstructions(buildInstructions('formalization', d));
     setDisabledCheckButton(false);
     setDisabledClearButton(true);
+    scrollDiceToTop();
   }
 
   function goToProbabilities(d: ComplementaryEventData) {
@@ -487,6 +502,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     probInputs.denominator.setValue = (v: string) =>
       setProbabilitiesTextInputs(prev => ({ ...prev, denominator: { ...prev.denominator, value: v } }));
     setProbabilitiesTextInputs(probInputs);
+    scrollDiceToTop();
   }
 
   function goToComplete(d: ComplementaryEventData) {
@@ -517,6 +533,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
       setDisabledTrainAgainButton(false);
       setDisabledContinueButton(false);
     }
+    scrollDiceToTop();
   }
 
   // ════════════════════════════════════════════════════════════
@@ -629,6 +646,12 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   const checkOnClick = () => {
     if (!data) return;
 
+    // Mirror do padrão do OVA disco — rola pro topo do OVA em todo Conferir
+    // (acerto OU erro). Sem isso, no mobile o aluno fica confuso ao receber
+    // um alert de erro lá embaixo, ou ao avançar pra próxima sub-fase
+    // sem trazer o enunciado pra viewport.
+    scrollDiceToTop();
+
     switch (subPhase) {
       case 'strategyChoice': {
         // Passo 1 — NÃO valida. Apenas registra e avança.
@@ -684,6 +707,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             createAlert('Correto!', 'A ∪ Ā é o espaço amostral S.', 'success', 2500);
             playSound('/sounds/correct.mp3');
             setFormStep(1);
+            scrollDiceToTop();
           } else {
             setFormStep0Error(true);
             createAlert(
@@ -705,6 +729,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             createAlert('Correto!', 'P(S) = 1.', 'success', 2500);
             playSound('/sounds/correct.mp3');
             setFormStep(2);
+            scrollDiceToTop();
           } else {
             setFormStep1Error(true);
             createAlert('Ops!', 'A probabilidade do espaço amostral S é 1 (ou, equivalentemente, 100%), pois S é o evento certo!', 'error', 4500);
@@ -717,6 +742,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             createAlert('Correto!', 'Agora substitua P(Ā) pelo valor que você calculou.', 'success', 3500);
             playSound('/sounds/correct.mp3');
             setFormStep(3);
+            scrollDiceToTop();
           } else {
             setFormStep2Error(true);
             // Mensagens escalonadas: primeira falha aponta S abstrato;
@@ -738,6 +764,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             createAlert('Correto!', `Agora calcule P(A) = ${SAMPLE_SPACE}/${SAMPLE_SPACE} − ${data.nE}/${SAMPLE_SPACE}.`, 'success', 3500);
             playSound('/sounds/correct.mp3');
             setFormStep(4);
+            scrollDiceToTop();
           } else {
             setFormStep3Error(true);
             createAlert('Ops!', 'Substitua P(Ā) pelo valor que você calculou anteriormente. Frações equivalentes são aceitas.', 'error', 4500);
@@ -752,6 +779,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             createAlert('Correto!', 'Agora escreva na forma irredutível.', 'success', 3000);
             playSound('/sounds/correct.mp3');
             setFormStep(5);
+            scrollDiceToTop();
           } else {
             setFormStep4Error(true);
             createAlert('Ops!', `Efetue a subtração ${SAMPLE_SPACE}/${SAMPLE_SPACE} − ${data.nE}/${SAMPLE_SPACE}. Frações equivalentes são aceitas.`, 'error', 4500);

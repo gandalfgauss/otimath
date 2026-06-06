@@ -305,8 +305,16 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
       canBack: () => step !== 'intro' || !!onRequestPreviousPhase,
     }), [advanceStep, backStep, step, onRequestPreviousPhase]);
 
+    // Rola pro topo do OVA em todo Conferir. Mirror do checkAnswer do Disco.
+    const scrollDiceToTop = () => {
+      requestAnimationFrame(() => {
+        document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    };
+
     // ── Handlers ─────────────────────────────────────────────────
     const onValidateTotals = useCallback(() => {
+      scrollDiceToTop();
       const v = validateTotals(data, totals);
       setValidation(v);
       if (allTotalsCorrect(v)) {
@@ -321,10 +329,12 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
     }, [data, totals, createAlert]);
 
     const onResponderClick = useCallback(() => {
+      scrollDiceToTop();
       setStep('spiralOpen');
     }, []);
 
     const onSpiralSubmit = useCallback((selectedId: string) => {
+      scrollDiceToTop();
       if (selectedId === 'correct') {
         playSound('/sounds/correct.mp3');
         createAlert?.('Correto!', 'Resposta certa — siga para o gol!', 'success', 3500);

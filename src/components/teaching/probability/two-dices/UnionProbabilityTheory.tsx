@@ -837,13 +837,25 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   // VALIDAÇÕES (MACRO 1)
   // ═══════════════════════════════════════════════════════════════
 
+  // Rola pro topo do OVA quando a fase avança. Crítico no mobile: o aluno
+  // termina a pergunta lá embaixo, clica Conferir, e a fase nova carrega
+  // sem trazer o enunciado pra viewport — sem isso ele perde o contexto.
+  // `apresentacao-dado` é o Grid raiz do OVA (TwoDicesPresentation),
+  // sempre presente em qualquer rota.
+  const scrollDiceToTop = () => {
+    requestAnimationFrame(() => {
+      document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const validateMarkA = useCallback(() => {
+    scrollDiceToTop();
     const fb = evaluateMarks(marksA, correctSets.A);
     setFeedbackA(fb);
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', 'Marcação do evento A completa.', 'success', 3000);
-      setTimeout(() => setPhase('countA'), 600);
+      setTimeout(() => { setPhase('countA'); scrollDiceToTop(); }, 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
       createAlert?.('Quase lá', 'As marcações feitas estão corretas, mas faltam pares.', 'warning', 4000);
@@ -854,12 +866,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [marksA, correctSets.A, evaluateMarks, createAlert]);
 
   const validateCountA = useCallback(() => {
+    scrollDiceToTop();
     const v = parseInt(nAInput.trim(), 10);
     if (v === correctSets.nA) {
       setNAError(false);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `n(A) = ${correctSets.nA}.`, 'success', 3000);
       setPhase('markB');
+      scrollDiceToTop();
     } else {
       setNAError(true);
       playSound('/sounds/incorrect.mp3');
@@ -868,12 +882,13 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [nAInput, correctSets.nA, createAlert]);
 
   const validateMarkB = useCallback(() => {
+    scrollDiceToTop();
     const fb = evaluateMarks(marksB, correctSets.B);
     setFeedbackB(fb);
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', 'Marcação do evento B completa.', 'success', 3000);
-      setTimeout(() => setPhase('countB'), 600);
+      setTimeout(() => { setPhase('countB'); scrollDiceToTop(); }, 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
       createAlert?.('Quase lá', 'As marcações feitas estão corretas, mas faltam pares.', 'warning', 4000);
@@ -884,12 +899,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [marksB, correctSets.B, evaluateMarks, createAlert]);
 
   const validateCountB = useCallback(() => {
+    scrollDiceToTop();
     const v = parseInt(nBInput.trim(), 10);
     if (v === correctSets.nB) {
       setNBError(false);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `n(B) = ${correctSets.nB}.`, 'success', 3000);
       setPhase('defineIntersection');
+      scrollDiceToTop();
     } else {
       setNBError(true);
       playSound('/sounds/incorrect.mp3');
@@ -898,12 +915,13 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [nBInput, correctSets.nB, createAlert]);
 
   const validateMarkIntersection = useCallback(() => {
+    scrollDiceToTop();
     const fb = evaluateMarks(marksIntersection, correctSets.I);
     setFeedbackIntersection(fb);
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', 'Marcação de A ∩ B completa.', 'success', 3000);
-      setTimeout(() => setPhase('countIntersection'), 600);
+      setTimeout(() => { setPhase('countIntersection'); scrollDiceToTop(); }, 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
       createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de A ∩ B.', 'warning', 4000);
@@ -914,12 +932,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [marksIntersection, correctSets.I, evaluateMarks, createAlert]);
 
   const validateCountIntersection = useCallback(() => {
+    scrollDiceToTop();
     const v = parseInt(nIntersectionInput.trim(), 10);
     if (v === correctSets.nI) {
       setNIntersectionError(false);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `n(A ∩ B) = ${correctSets.nI}.`, 'success', 3000);
       setPhase('enumDisplay');
+      scrollDiceToTop();
     } else {
       setNIntersectionError(true);
       playSound('/sounds/incorrect.mp3');
@@ -985,12 +1005,13 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   // ═══════════════════════════════════════════════════════════════
 
   const validateMarkUnion = useCallback(() => {
+    scrollDiceToTop();
     const fb = evaluateMarks(marksUnion, correctSets.U);
     setFeedbackUnion(fb);
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', 'Marcação de A ∪ B completa.', 'success', 3000);
-      setTimeout(() => setPhase('countUnion'), 600);
+      setTimeout(() => { setPhase('countUnion'); scrollDiceToTop(); }, 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
       createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de A ∪ B.', 'warning', 4000);
@@ -1001,6 +1022,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [marksUnion, correctSets.U, evaluateMarks, createAlert]);
 
   const validateCountUnion = useCallback(() => {
+    scrollDiceToTop();
     const v = parseInt(nUnionInput.trim(), 10);
     if (v === correctSets.nU) {
       setNUnionError(false);
@@ -1008,6 +1030,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       createAlert?.('Correto!', `n(A ∪ B) = ${correctSets.nU}.`, 'success', 3000);
       // Reordenação: após contar n(A∪B), aluno calcula P(A∪B) direto por Laplace
       setPhase('probTransfer');
+      scrollDiceToTop();
     } else {
       setNUnionError(true);
       playSound('/sounds/incorrect.mp3');
@@ -1016,6 +1039,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [nUnionInput, correctSets.nU, createAlert]);
 
   const validatePrediction = useCallback(() => {
+    scrollDiceToTop();
     if (!predictionOp || !predictionReason) {
       setPredictionError(true);
       playSound('/sounds/incorrect.mp3');
@@ -1029,9 +1053,11 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     // Após confirmar a previsão, aluno entra no laboratório Venn (construção
     // topológica) antes da confrontação numérica em sumCompareVisual.
     setPhase('vennLab');
+    scrollDiceToTop();
   }, [predictionOp, predictionReason, createAlert]);
 
   const validateSumInput = useCallback(() => {
+    scrollDiceToTop();
     const v = parseInt(nSumInput.trim(), 10);
     const expected = correctSets.nA + correctSets.nB;
     if (v === expected) {
@@ -1046,6 +1072,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [nSumInput, correctSets.nA, correctSets.nB, createAlert]);
 
   const validateCompareOp = useCallback(() => {
+    scrollDiceToTop();
     const sum = correctSets.nA + correctSets.nB;
     const union = correctSets.nU;
     const correct: '>' | '<' | '=' = sum > union ? '>' : sum < union ? '<' : '=';
@@ -1054,6 +1081,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `n(A) + n(B) ${correct} n(A ∪ B).`, 'success', 3000);
       setPhase('formulaReveal');
+      scrollDiceToTop();
     } else {
       setCompareError(true);
       playSound('/sounds/incorrect.mp3');
@@ -1075,6 +1103,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, []);
 
   const validatePAUB = useCallback(() => {
+    scrollDiceToTop();
     if (isEquivalentFraction(pAUBNum, pAUBDen, correctSets.nU, 36)) {
       setPAUBError(false);
       playSound('/sounds/correct.mp3');
@@ -1089,6 +1118,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [pAUBNum, pAUBDen, correctSets.nU, isEquivalentFraction, createAlert]);
 
   const validatePA = useCallback(() => {
+    scrollDiceToTop();
     if (isEquivalentFraction(pANum, pADen, correctSets.nA, 36)) {
       setPAError(false);
       playSound('/sounds/correct.mp3');
@@ -1101,6 +1131,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [pANum, pADen, correctSets.nA, isEquivalentFraction, createAlert]);
 
   const validatePB = useCallback(() => {
+    scrollDiceToTop();
     if (isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36)) {
       setPBError(false);
       playSound('/sounds/correct.mp3');
@@ -1113,6 +1144,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [pBNum, pBDen, correctSets.nB, isEquivalentFraction, createAlert]);
 
   const validatePAB = useCallback(() => {
+    scrollDiceToTop();
     if (isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36)) {
       setPABError(false);
       playSound('/sounds/correct.mp3');
@@ -1134,11 +1166,13 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [pANum, pADen, pBNum, pBDen, pABNum, pABDen, correctSets.nA, correctSets.nB, correctSets.nI, isEquivalentFraction]);
 
   const validateInstitutional = useCallback(() => {
+    scrollDiceToTop();
     if (institutionalAnswer === 'correct') {
       setInstitutionalError(false);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', 'Você dominou a fórmula da união.', 'success', 3000);
       setPhase('done');
+      scrollDiceToTop();
     } else if (institutionalAnswer === '') {
       setInstitutionalError(true);
       createAlert?.('Falta escolher', 'Selecione uma alternativa antes de conferir.', 'error', 3500);

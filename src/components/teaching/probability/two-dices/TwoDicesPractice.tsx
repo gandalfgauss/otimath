@@ -577,8 +577,19 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     setExpSubPhase('markResult');
   }, [diceRef, diceContainerRef]);
 
+  // Rola pro topo do OVA quando uma fase avança após Conferir/Próximo. Crítico
+  // no mobile: o aluno termina a pergunta lá embaixo, clica Conferir, e a fase
+  // nova carrega sem trazer o enunciado pra viewport. `apresentacao-dado`
+  // é o Grid raiz do OVA, sempre presente.
+  const scrollDiceToTop = () => {
+    requestAnimationFrame(() => {
+      document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   // ── Validar marcação do resultado ──
   const validateResultMark = () => {
+    scrollDiceToTop();
     // Exatamente 1 checkbox marcado, e deve ser o resultado
     const marked = resultCheck.filter(Boolean).length;
     if (marked === 1 && resultCheck[diceResult - 1]) {
@@ -598,6 +609,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
         playSound(won ? '/sounds/correct.mp3' : '/sounds/incorrect.mp3');
       }, 400);
       setExpSubPhase('compare');
+      scrollDiceToTop();
     } else {
       setResultCheckError(true);
       playSound('/sounds/incorrect.mp3');
@@ -630,10 +642,12 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       setEventChecks([false, false, false, false, false, false]);
       setEventChecksDisabled(false);
     }
+    scrollDiceToTop();
   };
 
   // ── Validar marcação do evento ──
   const validateEventMarks = () => {
+    scrollDiceToTop();
     const event = events[exerciseIdx];
     let correct = true;
     for (let f = 1; f <= 6; f++) {
@@ -653,6 +667,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
         3000,
       );
       setExSubPhase('bet');
+      scrollDiceToTop();
     } else {
       setEventChecksError(true);
       playSound('/sounds/incorrect.mp3');
@@ -736,10 +751,12 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       setImpossibleNameValidated(false);
       setImpossibleNameError(false);
     }
+    scrollDiceToTop();
   };
 
   // Validar cálculo do complementar (quando "indiferente" errado)
   const validateCompCalc = () => {
+    scrollDiceToTop();
     const event = events[exerciseIdx];
     let favorable = 0;
     for (let f = 1; f <= 6; f++) if (event.validation(f)) favorable++;
@@ -784,6 +801,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
   };
 
   const validateCalc = () => {
+    scrollDiceToTop();
     const event = events[exerciseIdx];
     let favorable = 0;
     for (let f = 1; f <= 6; f++) {
@@ -826,6 +844,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
         createAlert?.('P(A) correto!', 'Agora calcule também P(Ā) — a probabilidade do evento complementar.', 'info', 4000);
       } else {
         setExSubPhase('next');
+        scrollDiceToTop();
         createAlert?.('Correto!', `P(A) = ${favorable}/6 (ou qualquer fração equivalente).`, 'success', 3000);
       }
     } else {

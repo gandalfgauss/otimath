@@ -285,7 +285,15 @@ export function VennLaboratory({
     return circlesOverlap(A, B);
   }, [geometry]);
 
+  // Rola pro topo do OVA em todo Conferir. Mirror do checkAnswer do Disco.
+  const scrollDiceToTop = () => {
+    requestAnimationFrame(() => {
+      document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const confirmIntersection = useCallback(() => {
+    scrollDiceToTop();
     playSound('/sounds/correct.mp3');
     createAlert?.('Interseção criada', 'Os círculos agora se sobrepõem — formando A ∩ B.', 'success', 3000);
     setGeometry(defaultGeometry2Intersected());
@@ -435,6 +443,7 @@ export function VennLaboratory({
 
   // --- Sub-etapa 6/8: fillAMinusB / fillBMinusA via dropdown ---
   const handleFormulaChoice = useCallback((choice: string, expected: string, onCorrect: () => void) => {
+    scrollDiceToTop();
     if (choice === expected) {
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `Operação ${expected} selecionada.`, 'success', 3000);
@@ -454,6 +463,7 @@ export function VennLaboratory({
   }, []);
 
   const validateAMinusBArithmetic = useCallback(() => {
+    scrollDiceToTop();
     if (matchesSubtraction(aMinusBInput, nA, nI)) {
       setAMinusBValueDeposited(true);
       setAMinusBInputError(false);
@@ -470,6 +480,7 @@ export function VennLaboratory({
   }, [aMinusBInput, nA, nI, matchesSubtraction, goTo, createAlert]);
 
   const validateBMinusAArithmetic = useCallback(() => {
+    scrollDiceToTop();
     if (matchesSubtraction(bMinusAInput, nB, nI)) {
       setBMinusAValueDeposited(true);
       setBMinusAInputError(false);
@@ -499,6 +510,7 @@ export function VennLaboratory({
   }, []);
 
   const validateUnionCount = useCallback(() => {
+    scrollDiceToTop();
     const aMinusB = nA - nI;
     const bMinusA = nB - nI;
     if (matchesSum(unionCountInput, [aMinusB, nI, bMinusA])) {
@@ -516,6 +528,7 @@ export function VennLaboratory({
   }, [unionCountInput, nA, nB, nI, matchesSum, createAlert]);
 
   const validateCountAFromDiagram = useCallback(() => {
+    scrollDiceToTop();
     const aMinusB = nA - nI;
     if (matchesSum(countAInput, [aMinusB, nI])) {
       setCountAAccepted(true);
@@ -538,6 +551,7 @@ export function VennLaboratory({
   }, []);
 
   const confirmPlaceExpressions = useCallback(() => {
+    scrollDiceToTop();
     const correctMap: Record<string, ExpressionId> = {
       [maskKey([true, false])]: 'AMinusB',
       [maskKey([true, true])]: 'intersection',
@@ -559,6 +573,7 @@ export function VennLaboratory({
   }, [placedExpressions, goTo, createAlert]);
 
   const validateCountBFromDiagram = useCallback(() => {
+    scrollDiceToTop();
     const bMinusA = nB - nI;
     if (matchesSum(countBInput, [bMinusA, nI])) {
       setCountBAccepted(true);
@@ -576,6 +591,7 @@ export function VennLaboratory({
 
   // --- Sub-etapa 9: confirmação de markUnion ---
   const confirmMarkUnion = useCallback(() => {
+    scrollDiceToTop();
     const expected = new Set([maskKey([true, false]), maskKey([true, true]), maskKey([false, true])]);
     const correct = expected.size === unionSelection.size &&
       [...expected].every(k => unionSelection.has(k));
@@ -657,6 +673,7 @@ export function VennLaboratory({
 
   // --- Sub-etapa 10: doubleCountQuestion ---
   const confirmDoubleCount = useCallback(() => {
+    scrollDiceToTop();
     if (doubleCountChoice === 'A ∩ B') {
       playSound('/sounds/correct.mp3');
       setDoubleCountConfirmed(true);
