@@ -655,7 +655,16 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     setMarkBusy(false);
     setMarkRetryMsg(false);
     setPhase('pickPair');
-  }, [diceSceneRef, diceContainerRef, history, round]);
+    // Feedback ao aluno após os dados pararem — sem isso ele rolava o dado,
+    // via o resultado, mas não percebia que precisava interagir com o card
+    // de registro abaixo.
+    createAlert?.(
+      'Dados parados!',
+      'Toque em cada dado abaixo e escolha a face que apareceu para registrar o par.',
+      'info',
+      5000,
+    );
+  }, [diceSceneRef, diceContainerRef, history, round, createAlert]);
 
   // ── Relançamento + volta ao picker (usado em 3 erros no picker OU no markTable) ──
   const rerollAndRestartPicker = useCallback(async () => {
@@ -689,7 +698,15 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     setMarkBusy(false);
     // Volta ao picker com o novo par
     setPhase('pickPair');
-  }, [diceSceneRef, greenResult, blueResult]);
+    // Feedback ao aluno após o relançamento — explicita que novos valores
+    // foram sorteados e precisa registrar o novo par.
+    createAlert?.(
+      'Novo par sorteado!',
+      'Toque em cada dado e escolha a face que apareceu para registrar o novo par.',
+      'info',
+      5000,
+    );
+  }, [diceSceneRef, greenResult, blueResult, createAlert]);
 
   // Rola pro topo do OVA quando uma fase avança após Conferir. Crítico no
   // mobile: o aluno termina a pergunta lá embaixo, clica Conferir, e a fase
@@ -1209,6 +1226,14 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       setTimeout(() => {
         cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 300);
+      // Feedback ao aluno após os dados pararem na corrida — instrui qual
+      // carrinho avançar (o da soma sorteada).
+      createAlert?.(
+        'Dados parados!',
+        `Soma sorteada: ${result.green} + ${result.blue} = ${sum}. Clique no carrinho ${sum} para avançá-lo.`,
+        'info',
+        4500,
+      );
     } finally {
       setRaceBusy(false);
     }

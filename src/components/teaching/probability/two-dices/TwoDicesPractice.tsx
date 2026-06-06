@@ -575,7 +575,14 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
 
     rolling.current = false;
     setExpSubPhase('markResult');
-  }, [diceRef, diceContainerRef]);
+    // Feedback ao aluno após o dado parar — instrui a marcar a face que apareceu.
+    createAlert?.(
+      'Dado parado!',
+      'Marque abaixo a face que apareceu no dado.',
+      'info',
+      4500,
+    );
+  }, [diceRef, diceContainerRef, createAlert]);
 
   // Rola pro topo do OVA quando uma fase avança após Conferir/Próximo. Crítico
   // no mobile: o aluno termina a pergunta lá embaixo, clica Conferir, e a fase
@@ -712,7 +719,15 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
 
     rolling.current = false;
     setExSubPhase('readDice');
-  }, [diceRef, diceContainerRef]);
+    // Feedback ao aluno após o dado parar — instrui a responder a pergunta
+    // de leitura do resultado no card abaixo.
+    createAlert?.(
+      'Dado parado!',
+      'Leia a face que apareceu e responda à pergunta abaixo.',
+      'info',
+      4500,
+    );
+  }, [diceRef, diceContainerRef, createAlert]);
 
   // ── Validar cálculo de P(A) ──
   // ── Avançar para próximo exercício ou finalizar ──

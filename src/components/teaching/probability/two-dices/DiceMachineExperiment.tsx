@@ -504,11 +504,19 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
         setStatusMsg('Os dois dados pararam.');
         playSound('/sounds/correct.mp3');
         setPhase(nextPhase);
+        // Feedback ao aluno após os dois dados pararem — instrui a registrar
+        // o resultado e responder à pergunta no card abaixo.
+        createAlert?.(
+          'Dados parados!',
+          `Os dados pararam em (verde, azul) = (${result.green}, ${result.blue}). Registre o par e responda abaixo.`,
+          'info',
+          5000,
+        );
       } finally {
         runningRef.current = false;
       }
     },
-    [diceMachineRef, scrollToScene],
+    [diceMachineRef, scrollToScene, createAlert],
   );
 
   // Rola pro topo do OVA em todo Conferir. Mirror do checkAnswer do Disco.
