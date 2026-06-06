@@ -1121,9 +1121,9 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
           applyDevSnapshot={applyDevSnapshot}
         />
       )}
-      <Grid id="apresentacao-dado" paddings="pt-xl">
+      <Grid id="apresentacao-dado" paddings="pt-xl" noEdgeMargins>
         <GridItem cols="col-[1_/_13]">
-          <div className={`flex flex-col items-center gap-y-xs ${scene === 7 && (scene7ExperimentPhase.startsWith('complementaryEvents') || scene7ExperimentPhase.startsWith('unionTheory') || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5' || scene7ExperimentPhase === 'unionExercise6' || scene7ExperimentPhase === 'twoDicesGameFree' || scene7ExperimentPhase === 'unionExercise8') ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
+          <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && (scene7ExperimentPhase.startsWith('complementaryEvents') || scene7ExperimentPhase.startsWith('unionTheory') || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5' || scene7ExperimentPhase === 'unionExercise6' || scene7ExperimentPhase === 'twoDicesGameFree' || scene7ExperimentPhase === 'unionExercise8') ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
 
             {/* Título da cena atual */}
             {scene === 1 && (

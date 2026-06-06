@@ -8,6 +8,11 @@ interface GridProps {
   backgroundColor?: string;
   tag?: React.ElementType;
   styles?: string;
+  /** Quando true, remove as margens horizontais responsivas (ml-xs/mr-xs e variantes)
+   *  da div filha direta do tag raiz. Útil quando o consumidor (ex.: um OVA aninhado
+   *  dentro da Sequência Didática) já gerencia a respiração horizontal por conta
+   *  própria e a margem do Grid acaba comprimindo o conteúdo. */
+  noEdgeMargins?: boolean;
 }
 
 export function Grid({
@@ -18,14 +23,15 @@ export function Grid({
   backgroundColor = '',
   tag: Tag = 'section',
   styles = '',
+  noEdgeMargins = false,
 }: Readonly<GridProps>) {
+  const edgeMargins = noEdgeMargins
+    ? ''
+    : 'ml-xs mr-xs max-xlg:ml-xxs max-xlg:mr-xxs max-lg:ml-xxxs max-lg:mr-xxxs';
   return (
     <Tag id={id} className={`flex justify-center w-full overflow-hidden ${styles} ${paddings} ${backgroundColor}`}>
       <div
-        className={`flex w-full max-w-[1216px] ml-xs mr-xs 
-          max-xlg:ml-xxs max-xlg:mr-xxs 
-          max-lg:ml-xxxs max-lg:mr-xxxs
-        `}
+        className={`flex w-full max-w-[1216px] ${edgeMargins}`}
       >
         <div className={`grid grid-cols-[repeat(12,1fr)] gap-x-xs w-full max-xlg:gap-x-xxs max-lg:gap-x-xxxs ${rowGaps ?? ''}`}>
           {children}
