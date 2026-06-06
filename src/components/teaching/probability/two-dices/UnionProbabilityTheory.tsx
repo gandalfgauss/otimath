@@ -721,6 +721,10 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   // Controle da revisita ao enumDisplay a partir do predict (metacognição ativa)
   const [cameFromPredict, setCameFromPredict] = useState(false);
   const [predictReviewedEnum, setPredictReviewedEnum] = useState(false);
+  // Flag setada APENAS quando o aluno acabou de mexer num radio do predict.
+  // É a guarda do useEffect de auto-redirect — sem ela, qualquer re-render
+  // com op/reason já setados disparava o redirect (problema em dev nav).
+  const [predictJustFilled, setPredictJustFilled] = useState(false);
   const [nSumInput, setNSumInput] = useState('');
   const [nSumError, setNSumError] = useState(false);
   const [compareOp, setCompareOp] = useState<'>' | '<' | '=' | ''>('');
@@ -803,6 +807,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     setInstitutionalAnswer(''); setInstitutionalError(false);
     setCameFromPredict(false);
     setPredictReviewedEnum(false);
+    setPredictJustFilled(false);
   }, []);
 
   // Registra o ID do par inicial (gerado no lazy init do currentPair).
@@ -818,20 +823,27 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   // Quando o aluno termina de marcar AMBOS os radios em predict pela primeira
   // vez, redireciona-o automaticamente para enumDisplay para revisitar a
   // evidência visual (dupla contagem) antes de confirmar a previsão.
-  // Redirecionamento imediato (sem setTimeout) — setTimeout com cleanup estava
-  // sendo cancelado pelo próprio re-render disparado pelos setStates.
+  //
+  // Guarda `predictJustFilled`: o efeito SÓ dispara quando o aluno acabou
+  // de mudar um dos radios. Antes, qualquer entrada em phase==='predict'
+  // com predictionOp/Reason já setados (ex.: dev nav voltando e indo de
+  // novo, ou render extra causado por outro setState) podia disparar o
+  // redirect, fazendo a seta dev pular múltiplas etapas (predict →
+  // enumDisplay) sem o aluno perceber.
   useEffect(() => {
     if (
       phase === 'predict' &&
       predictionOp &&
       predictionReason &&
-      !predictReviewedEnum
+      !predictReviewedEnum &&
+      predictJustFilled
     ) {
+      setPredictJustFilled(false);
       setCameFromPredict(true);
       setPredictReviewedEnum(true);
       setPhase('enumDisplay');
     }
-  }, [phase, predictionOp, predictionReason, predictReviewedEnum]);
+  }, [phase, predictionOp, predictionReason, predictReviewedEnum, predictJustFilled]);
 
   // ═══════════════════════════════════════════════════════════════
   // VALIDAÇÕES (MACRO 1)
@@ -1329,7 +1341,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             </p>
 
             <div className="flex justify-center mt-macro">
-              <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markA'); }}>
+              <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markA'); scrollDiceToTop(); }}>
                 Começar
               </Button>
             </div>
@@ -1524,7 +1536,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             você <strong>já tinha marcado antes</strong>: uma vez em A e outra vez em B.
           </p>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markIntersection'); }}>
+            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markIntersection'); scrollDiceToTop(); }}>
               Continuar
             </Button>
           </div>
@@ -1749,7 +1761,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               <Button
                 style="primary"
                 size="small"
-                onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('synthM1'); }}
+                onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('synthM1'); scrollDiceToTop(); }}
               >
                 Continuar
               </Button>
@@ -1773,7 +1785,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Agora vamos ver o que acontece com a <strong>união</strong> dos dois conjuntos.
           </p>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('defineUnion'); }}>
+            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('defineUnion'); scrollDiceToTop(); }}>
               Continuar
             </Button>
           </div>
@@ -1795,7 +1807,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             No próximo passo, você vai marcar na tabela todos os pares de A ∪ B.
           </p>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markUnion'); }}>
+            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markUnion'); scrollDiceToTop(); }}>
               Continuar
             </Button>
           </div>
@@ -1926,7 +1938,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                   name="predictOp"
                   value={opt.v}
                   checked={predictionOp === opt.v}
-                  onChange={() => { setPredictionOp(opt.v); setPredictionError(false); }}
+                  onChange={() => { setPredictionOp(opt.v); setPredictionError(false); setPredictJustFilled(true); }}
                   style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
                 />
                 <span className="ds-body text-neutral-black">{opt.label}</span>
@@ -1948,7 +1960,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                   name="predictReason"
                   value={opt.v}
                   checked={predictionReason === opt.v}
-                  onChange={() => { setPredictionReason(opt.v); setPredictionError(false); }}
+                  onChange={() => { setPredictionReason(opt.v); setPredictionError(false); setPredictJustFilled(true); }}
                   style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)', marginTop: 3 }}
                 />
                 <span className="ds-body text-neutral-black">{opt.label}</span>
@@ -2093,7 +2105,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             ✓ {correctSets.nU} = {correctSets.nA + correctSets.nB - correctSets.nI}
           </p>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probCalc'); }}>
+            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probCalc'); scrollDiceToTop(); }}>
               Continuar
             </Button>
           </div>
@@ -2129,7 +2141,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Vamos investigar: se somarmos n(A) + n(B), será que chegamos em n(A ∪ B)?
           </p>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('predict'); }}>
+            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('predict'); scrollDiceToTop(); }}>
               Investigar
             </Button>
           </div>
@@ -2149,7 +2161,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           pAUBError={pAUBError}
           validatePAUB={validatePAUB}
           isEquivalentFraction={isEquivalentFraction}
-          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('synthM2'); }}
+          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('synthM2'); scrollDiceToTop(); }}
         />
       )}
 
@@ -2225,7 +2237,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           )}
           {allIndividualProbsValid && (
             <div className="flex justify-center mt-macro">
-              <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probFormulaReveal'); }}>
+              <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probFormulaReveal'); scrollDiceToTop(); }}>
                 Continuar
               </Button>
             </div>
@@ -2237,7 +2249,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       {/* ═══════ probFormulaReveal — derivação simbólica da fórmula ═══════ */}
       {phase === 'probFormulaReveal' && (
         <ProbFormulaRevealAnimation
-          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probFormulaApply'); }}
+          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probFormulaApply'); scrollDiceToTop(); }}
         />
       )}
 
@@ -2248,7 +2260,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           nB={correctSets.nB}
           nI={correctSets.nI}
           nU={correctSets.nU}
-          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probFormulaVerify'); }}
+          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probFormulaVerify'); scrollDiceToTop(); }}
         />
       )}
 
@@ -2259,7 +2271,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           nB={correctSets.nB}
           nI={correctSets.nI}
           nU={correctSets.nU}
-          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('institucionalize'); }}
+          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('institucionalize'); scrollDiceToTop(); }}
         />
       )}
 
@@ -2309,7 +2321,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                 ✓ Correto! Você construiu a fórmula geral.
               </p>
               <div className="flex justify-center mt-micro">
-                <Button style="primary" size="small" onClick={() => setPhase('done')}>
+                <Button style="primary" size="small" onClick={() => { setPhase('done'); scrollDiceToTop(); }}>
                   Continuar
                 </Button>
               </div>

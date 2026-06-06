@@ -2027,13 +2027,22 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         return;
       }
       // Delegação para filhos com handle próprio.
-      if (phase === 'unionTheory'    && unionTheoryRef?.current?.canAdvance())    { unionTheoryRef.current.advance();    return; }
-      if (phase === 'unionExercises' && unionExercise1Ref?.current?.canAdvance()) { unionExercise1Ref.current.advance(); return; }
-      if (phase === 'unionExercise2' && unionExercise2Ref?.current?.canAdvance()) { unionExercise2Ref.current.advance(); return; }
-      if (phase === 'unionExercise3' && unionExercise3Ref?.current?.canAdvance()) { unionExercise3Ref.current.advance(); return; }
-      if (phase === 'unionExercise4' && unionExercise4Ref?.current?.canAdvance()) { unionExercise4Ref.current.advance(); return; }
-      if (phase === 'unionExercise5' && unionExercise5Ref?.current?.canAdvance()) { unionExercise5Ref.current.advance(); return; }
-      if (phase === 'unionExercise6' && unionExercise6Ref?.current?.canAdvance()) { unionExercise6Ref.current.advance(); return; }
+      //
+      // IMPORTANTE: para essas fases (unionTheory, unionExerciseN), o `return`
+      // vem DENTRO do bloco mesmo se canAdvance for falso ou se ref.current
+      // for null. Antes, se a condição falhasse, caía no switch case abaixo
+      // (`case 'unionTheory': setPhase('unionExercises')`) que PULA a seção
+      // inteira de teoria — bug visível em dev nav rápida (logo após entrar
+      // em unionTheory, antes do ref ter sido attached pelo React, a seta dev
+      // saltava direto pra unionExercises). Agora, se a delegação falhar,
+      // simplesmente não faz nada (NÃO cai no switch que pula sub-fases).
+      if (phase === 'unionTheory')    { if (unionTheoryRef?.current?.canAdvance())    unionTheoryRef.current.advance();    return; }
+      if (phase === 'unionExercises') { if (unionExercise1Ref?.current?.canAdvance()) unionExercise1Ref.current.advance(); return; }
+      if (phase === 'unionExercise2') { if (unionExercise2Ref?.current?.canAdvance()) unionExercise2Ref.current.advance(); return; }
+      if (phase === 'unionExercise3') { if (unionExercise3Ref?.current?.canAdvance()) unionExercise3Ref.current.advance(); return; }
+      if (phase === 'unionExercise4') { if (unionExercise4Ref?.current?.canAdvance()) unionExercise4Ref.current.advance(); return; }
+      if (phase === 'unionExercise5') { if (unionExercise5Ref?.current?.canAdvance()) unionExercise5Ref.current.advance(); return; }
+      if (phase === 'unionExercise6') { if (unionExercise6Ref?.current?.canAdvance()) unionExercise6Ref.current.advance(); return; }
 
       // Transições contextuais — espelham o fluxo NATURAL visível ao aluno,
       // que depende de `round` e `pedagogicDone` (não pode ser um mapa puro
@@ -2178,20 +2187,10 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         case 'raceRunning':   setPhase('raceFinished'); return;
         case 'raceFinished':  setPhase('complementaryEvents'); return;
         case 'complementaryEvents': setPhase('unionTheory'); return;
-        case 'unionTheory':       setPhase('unionExercises'); return;
-        case 'unionExercises':    setPhase('unionExercise2'); return;
-        case 'unionExercise2':    setPhase('unionExercise3'); return;
-        case 'unionExercise3':    setPhase('unionExercise4'); return;
-        case 'unionExercise4':    setPhase('unionExercise5'); return;
-        case 'unionExercise5':    setPhase('unionExercise6'); return;
-        case 'unionExercise6':
-          // No Ex6, ao pressionar DEV →, percorrer os exercícios opcionais
-          // que faltam para demonstrar o comportamento de botões marcados;
-          // se ambos já foram concluídos, encerra o OVA via onFinished.
-          if (!ex7Completed) { setPhase('twoDicesGameFree'); return; }
-          if (!ex8Completed) { setPhase('unionExercise8');   return; }
-          onFinished();
-          return;
+        // Os cases 'unionTheory' e 'unionExerciseN' foram removidos: agora a
+        // delegação para os filhos (acima) SEMPRE retorna nesses phases,
+        // garantindo que a seta dev percorra cada sub-fase interna em vez de
+        // pular a seção inteira quando o ref ainda não estiver disponível.
         case 'twoDicesGameFree':
           // Pular Ex7 via DEV: marca como concluído e volta à tela de
           // Parabéns do Ex6 (mesma rota do botão "Concluir Ex7").
