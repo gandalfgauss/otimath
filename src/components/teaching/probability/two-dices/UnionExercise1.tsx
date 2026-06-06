@@ -669,6 +669,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
 
     // ── Reset para nova rodada ───────────────────────────────────
     const resetForNewRound = useCallback((newRound: number) => {
+      scrollDiceToTop();
       const pair = selectPairForRound(newRound, usedPairIds);
       setUsedPairIds(prev => new Set(prev).add(pair.id));
       setCurrentPair(pair);

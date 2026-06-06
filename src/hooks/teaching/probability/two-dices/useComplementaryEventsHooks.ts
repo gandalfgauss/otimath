@@ -874,16 +874,19 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   // ════════════════════════════════════════════════════════════
 
   const goToNextStepOnClick = () => {
+    scrollDiceToTop();
     playSound('/sounds/nextChallenge.mp3');
     startRound(round + 1);
   };
 
   const trainAgainOnClick = () => {
+    scrollDiceToTop();
     playSound('/sounds/nextChallenge.mp3');
     startRound(round + 1);
   };
 
   const continueOnClick = () => {
+    scrollDiceToTop();
     playSound('/sounds/challengeFinished.mp3');
     onContinue();
   };

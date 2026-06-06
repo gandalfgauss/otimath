@@ -527,6 +527,17 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   // sendo revelada, 13=animação completa (histograma + feedback visíveis).
   const [sumRevealStep, setSumRevealStep] = useState(0);
 
+  // Detecção de viewport estreita pra ajustar grids responsivos com inline-style
+  // (a tabela de P(soma) e outros layouts em grade 2-col que estouram em mobile).
+  // Threshold de 480px cobre todos os celulares e tablets em portrait.
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  useEffect(() => {
+    const check = () => setIsNarrowViewport(window.innerWidth < 480);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   // ═══════ Fase probPair: cálculo da probabilidade do par ordenado ═══════
   // Par exibido é dinâmico — sorteado de {1..6}×{1..6} a cada sessão.
   // Aluno digita numerador/denominador e o sistema valida via R14 (fração
@@ -1201,12 +1212,20 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     setRaceImpossibleConfirm(null);
   };
 
-  /** Inicia a corrida: primeiro sorteio disparando launchDice sem branch logic
-   * e entrando na fase raceRunning. */
+  /** Inicia a corrida: entra na fase raceRunning E dispara o sorteio
+   * imediatamente. Antes precisava de DOIS cliques no botão "Sortear" —
+   * o primeiro só confirmava a aposta/trocava de fase, o segundo rolava.
+   * Agora um clique só dispara tudo: aposta já está confirmada antes
+   * (botão fica `disabled={raceBet === null}`), então o clique vai direto
+   * pra rolagem dos dados. */
   const startRace = () => {
     if (raceBet === null) return;
     setPhase('raceRunning');
     playSound('/sounds/nextChallenge.mp3');
+    // Dispara o sorteio na próxima frame pra garantir que o React processe a
+    // troca de fase e renderize a cena dos dados antes do scroll/roll do
+    // rollRaceDice.
+    requestAnimationFrame(() => { void rollRaceDice(); });
   };
 
   /** Dispara um sorteio dos dados na fase raceRunning.
@@ -1217,18 +1236,25 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     const scene = diceSceneRef.current;
     if (!scene) return;
     setRaceBusy(true);
-    // Ancora para o topo (dados 3D) antes do sorteio
-    diceContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Ancora no topo do OVA (#apresentacao-dado) — alvo SEMPRE visível durante
+    // a transição raceBet → raceRunning. O diceContainerRef interno (twoDiceContainerRef
+    // do parent) tem o display alternado pelo `scene7HideAllDice` e durante a
+    // troca de fase pode ter momento de display:none ou layout instável,
+    // fazendo o scrollIntoView falhar silenciosamente. `scrollDiceToTop` casa
+    // com o padrão usado em TODO o OVA.
+    scrollDiceToTop();
     try {
       const result = await scene.roll();
       const sum = result.green + result.blue;
       setRacePendingSum(sum);
       setRaceClickError(false);
       logSpinResult('raceRunning', '0', `green=${result.green},blue=${result.blue},sum=${sum}`);
-      // 300ms depois dos dados pararem, ancora para baixo (pista de carrinhos)
+      // 600ms depois dos dados pararem, ancora para baixo (pista de carrinhos).
+      // Era 300ms mas competia com o smooth-scroll inicial pro topo — o segundo
+      // scroll cancelava o primeiro antes do aluno enxergar os dados parados.
       setTimeout(() => {
         cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
+      }, 600);
       // Feedback ao aluno após os dados pararem na corrida — som de "parou!" +
       // alert instruindo qual carrinho avançar (o da soma sorteada).
       playSound('/sounds/correct.mp3');
@@ -2232,7 +2258,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <Button
               style="primary"
               size="small"
-              onClick={() => { setPhase('tree'); playSound('/sounds/nextChallenge.mp3'); }}
+              onClick={() => { scrollDiceToTop(); setPhase('tree'); playSound('/sounds/nextChallenge.mp3'); }}
               aria-label="Começar a construção do espaço amostral"
             >
               Começar
@@ -2407,6 +2433,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   onClick={() => {
+                    scrollDiceToTop();
                     // Rodada 3 (index 2) salta a marcação simples e entra no
                     // exercício da soma (Momento A). Rodadas 0 e 1 seguem para
                     // markTable como antes.
@@ -2626,6 +2653,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                       style="primary"
                       size="small"
                       onClick={() => {
+                        scrollDiceToTop();
                         playSound('/sounds/nextChallenge.mp3');
                         setPhase('sumAlienIntro');
                       }}
@@ -2664,6 +2692,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               </p>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={() => {
+                  scrollDiceToTop();
                   playSound('/sounds/nextChallenge.mp3');
                   setPhase('sumPredictMax');
                 }}>
@@ -2862,8 +2891,14 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                     Garante que o aluno veja tanto a célula sendo marcada quanto a
                     barra crescendo em sincronia, sem precisar rolar. */}
                 <div className="sumRevealLayout">
-                  {/* Tabela 6×6: apenas a soma atual destacada, cor alternada */}
-                  <div style={{ flexShrink: 0 }}>
+                  {/* Tabela 6×6: apenas a soma atual destacada, cor alternada.
+                      `minWidth: 0` permite que esse flex-item encolha abaixo
+                      do conteúdo natural da tabela — sem isso, em viewports
+                      estreitas a tabela transborda o container pai sem ativar
+                      o overflow-auto interno do renderTable. `maxWidth: 100%`
+                      explicita o limite pra o wrapper interno (max-w-full)
+                      ter referência. */}
+                  <div style={{ minWidth: 0, maxWidth: '100%', width: '100%' }}>
                     {renderTable()}
                   </div>
 
@@ -3023,6 +3058,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                         style="primary"
                         size="small"
                         onClick={() => {
+                          scrollDiceToTop();
                           playSound('/sounds/nextChallenge.mp3');
                           setPhase('probPair');
                         }}
@@ -3154,6 +3190,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               </p>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={() => {
+                  scrollDiceToTop();
                   playSound('/sounds/nextChallenge.mp3');
                   setPhase('probSumTable');
                 }}>
@@ -3184,27 +3221,37 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 aria-label="Tabela de probabilidades das somas"
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(2, auto auto)',
+                  // Mobile (<480px): 1 par de colunas (label + inputs) — empilha
+                  //                  todas as 11 somas verticalmente em vez de
+                  //                  vazar horizontalmente.
+                  // Desktop:        2 pares (P(2..7) à esquerda, P(8..12) à direita)
+                  //                  expondo a simetria triangular da distribuição.
+                  gridTemplateColumns: isNarrowViewport ? 'auto auto' : 'repeat(2, auto auto)',
                   gap: '6px 12px',
                   alignItems: 'center',
                   padding: 12,
                   background: 'var(--color-neutral-lightest)',
                   border: '1px solid var(--color-neutral-lighter)',
                   borderRadius: 12,
-                  maxWidth: 520,
+                  maxWidth: '100%',
                   justifyContent: 'center',
                 }}
               >
                 <span className="ds-caption-bold" style={{ color: 'var(--color-neutral-dark)', textAlign: 'right' }}>Soma</span>
                 <span className="ds-caption-bold text-neutral-dark">Probabilidade</span>
-                <span className="ds-caption-bold" style={{ color: 'var(--color-neutral-dark)', textAlign: 'right' }}>Soma</span>
-                <span className="ds-caption-bold text-neutral-dark">Probabilidade</span>
-                {/* Intercala P(k) e P(k+6) para formar as 2 colunas:
-                    linha 0: P(2) | P(8), linha 1: P(3) | P(9), ..., linha 5: P(7) | — */}
+                {!isNarrowViewport && (
+                  <>
+                    <span className="ds-caption-bold" style={{ color: 'var(--color-neutral-dark)', textAlign: 'right' }}>Soma</span>
+                    <span className="ds-caption-bold text-neutral-dark">Probabilidade</span>
+                  </>
+                )}
+                {/* Em desktop: intercala P(k) e P(k+6) para formar as 2 colunas:
+                    linha 0: P(2) | P(8), linha 1: P(3) | P(9), ..., linha 5: P(7) | —.
+                    Em mobile (1 coluna): todas as somas 2..12 empilhadas em ordem. */}
                 {(() => {
-                  const rows: Array<[number, number | null]> = [
-                    [2, 8], [3, 9], [4, 10], [5, 11], [6, 12], [7, null],
-                  ];
+                  const rows: Array<[number, number | null]> = isNarrowViewport
+                    ? [[2, null], [3, null], [4, null], [5, null], [6, null], [7, null], [8, null], [9, null], [10, null], [11, null], [12, null]]
+                    : [[2, 8], [3, 9], [4, 10], [5, 11], [6, 12], [7, null]];
                   const nodes: React.ReactNode[] = [];
                   const renderCellsForSum = (s: number): React.ReactNode => {
                     const entry = probSumInputs[s] ?? { num: '', den: '' };
@@ -3263,8 +3310,10 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                     nodes.push(renderCellsForSum(leftS));
                     if (rightS !== null) {
                       nodes.push(renderCellsForSum(rightS));
-                    } else {
-                      // Célula vazia para manter o grid alinhado na linha final
+                    } else if (!isNarrowViewport) {
+                      // Desktop com grid 2x2: célula vazia mantém o alinhamento na
+                      // linha final (P(7) | —). Mobile (grid 1x2) NÃO precisa —
+                      // todas as 11 linhas têm só leftS, sem buraco a preencher.
                       nodes.push(
                         <span key={`empty-label-${leftS}`} aria-hidden />,
                         <span key={`empty-input-${leftS}`} aria-hidden />,
@@ -3322,6 +3371,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               </p>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={() => {
+                  scrollDiceToTop();
                   playSound('/sounds/nextChallenge.mp3');
                   setPhase('raceBet');
                 }}>
@@ -3334,6 +3384,19 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {/* ═══════ CORRIDA DE CARRINHOS — sub-fase raceBet (aposta obrigatória) ═══════ */}
           {phase === 'raceBet' && (
             <div className="flex flex-col gap-y-micro" style={{ maxWidth: 720, margin: '0 auto' }}>
+              {/* Hover dos carrinhos clicáveis na corrida — fundo dourado, borda
+                  amarela e leve scale pra reforçar affordance de clique. */}
+              <style>{`
+                .race-bet-car-btn:hover {
+                  background: rgba(251, 191, 36, 0.18) !important;
+                  border-color: #fbbf24 !important;
+                  transform: scale(1.03);
+                }
+                .race-running-car-btn:not(:disabled):hover {
+                  transform: scale(1.18) !important;
+                  filter: drop-shadow(0 2px 6px rgba(180, 83, 9, 0.35));
+                }
+              `}</style>
               <p className="ds-body-bold text-center text-brand-otimath-pure">
                 Corrida dos carrinhos
               </p>
@@ -3386,6 +3449,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                       {/* Carrinho clicável (primeira célula, largada) */}
                       <button
                         type="button"
+                        className="race-bet-car-btn"
                         onClick={() => handleRaceBetClick(carNumber)}
                         aria-label={`Apostar no carrinho ${carNumber}`}
                         style={{
@@ -3482,6 +3546,15 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {/* ═══════ CORRIDA DE CARRINHOS — sub-fase raceRunning (corrida em andamento) ═══════ */}
           {phase === 'raceRunning' && (
             <div className="flex flex-col gap-y-micro" style={{ maxWidth: 720, margin: '0 auto' }}>
+              {/* Hover dos carrinhos clicáveis (só o carrinho da soma sorteada
+                  responde). scale maior + drop-shadow pra destacar que ESTE é
+                  o carrinho a clicar. */}
+              <style>{`
+                .race-running-car-btn:not(:disabled):hover {
+                  transform: scale(1.18) !important;
+                  filter: drop-shadow(0 2px 6px rgba(180, 83, 9, 0.35));
+                }
+              `}</style>
               <p className="ds-body-bold text-center text-brand-otimath-pure">
                 Corrida em andamento
               </p>
@@ -3559,6 +3632,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                             {isCarHere && (
                               <button
                                 type="button"
+                                className="race-running-car-btn"
                                 disabled={!canClick}
                                 onClick={() => handleRaceCarClick(carNumber)}
                                 aria-label={`Carrinho ${carNumber}`}
@@ -3567,7 +3641,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                                   border: 'none',
                                   padding: 0,
                                   cursor: canClick ? 'pointer' : 'default',
-                                  transition: 'transform 350ms ease',
+                                  transition: 'transform 250ms ease, filter 250ms ease',
                                   transform: 'scale(1)',
                                   display: 'flex',
                                   alignItems: 'center',
@@ -3683,6 +3757,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               </div>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={() => {
+                  scrollDiceToTop();
                   playSound('/sounds/nextChallenge.mp3');
                   setPhase('complementaryEvents');
                 }}>
@@ -3701,6 +3776,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               ref={complementaryEventsRef}
               onPhaseChange={setComplementaryEventsPhase}
               onContinue={() => {
+                scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
                 setPhase('unionTheory');
               }}
@@ -3715,6 +3791,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               createAlert={createAlert}
               onPhaseChange={setUnionTheoryPhase}
               onFinished={() => {
+                scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
                 setUnionTheoryInitialPhase(undefined);
                 setPhase('unionExercises');
@@ -3729,11 +3806,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               initialStep={unionExercise1InitialStep}
               createAlert={createAlert}
               onFinished={() => {
+                scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
                 setUnionExercise1InitialStep(undefined);
                 setPhase('unionExercise2');
               }}
               onRequestPreviousPhase={() => {
+                scrollDiceToTop();
                 setUnionTheoryInitialPhase('done');
                 setPhase('unionTheory');
               }}
@@ -3747,11 +3826,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               initialStep={unionExercise2InitialStep}
               createAlert={createAlert}
               onFinished={() => {
+                scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
                 setUnionExercise2InitialStep(undefined);
                 setPhase('unionExercise3');
               }}
               onRequestPreviousPhase={() => {
+                scrollDiceToTop();
                 setUnionExercise1InitialStep('done');
                 setPhase('unionExercises');
               }}
@@ -3765,11 +3846,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               initialStep={unionExercise3InitialStep}
               createAlert={createAlert}
               onFinished={() => {
+                scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
                 setUnionExercise3InitialStep(undefined);
                 setPhase('unionExercise4');
               }}
               onRequestPreviousPhase={() => {
+                scrollDiceToTop();
                 setUnionExercise2InitialStep('done');
                 setPhase('unionExercise2');
               }}
@@ -3782,10 +3865,12 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               ref={unionExercise4Ref}
               createAlert={createAlert}
               onFinished={() => {
+                scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
                 setPhase('unionExercise5');
               }}
               onRequestPreviousPhase={() => {
+                scrollDiceToTop();
                 setUnionExercise3InitialStep('done');
                 setPhase('unionExercise3');
               }}
@@ -3798,10 +3883,12 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               ref={unionExercise5Ref}
               createAlert={createAlert}
               onFinished={() => {
+                scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
                 setPhase('unionExercise6');
               }}
               onRequestPreviousPhase={() => {
+                scrollDiceToTop();
                 setPhase('unionExercise4');
               }}
             />
@@ -3819,18 +3906,22 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               ex7Completed={ex7Completed}
               ex8Completed={ex8Completed}
               onFinished={() => {
+                scrollDiceToTop();
                 playSound('/sounds/gameFinished.mp3');
                 onFinished();
               }}
               onRequestFreePlay={() => {
+                scrollDiceToTop();
                 playSound('/sounds/nextChallenge.mp3');
                 setPhase('twoDicesGameFree');
               }}
               onRequestAdvancedFreePlay={() => {
+                scrollDiceToTop();
                 playSound('/sounds/nextChallenge.mp3');
                 setPhase('unionExercise8');
               }}
               onRequestPreviousPhase={() => {
+                scrollDiceToTop();
                 setPhase('unionExercise5');
               }}
             />
@@ -3851,6 +3942,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   onClick={() => {
+                    scrollDiceToTop();
                     playSound('/sounds/challengeFinished.mp3');
                     setEx7Completed(true);
                     setEx6InitialStep('finalSynthesis');
@@ -3886,6 +3978,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   onClick={() => {
+                    scrollDiceToTop();
                     playSound('/sounds/challengeFinished.mp3');
                     setEx8Completed(true);
                     setEx6InitialStep('finalSynthesis');

@@ -8383,6 +8383,7 @@ export const useRouletteHooks = () => {
 
   // Iniciar exercício interativo de eventos disjuntos (4º exemplo)
   const handleStartDisjointExercise = useCallback(() => {
+    goToTopOfChallenge();
     const { sectors } = gameState;
     const n = sectors.length;
 
@@ -8529,6 +8530,7 @@ export const useRouletteHooks = () => {
 
   // Tentar novamente o exercício de disjuntos (mesmos eventos, limpar seleções)
   const handleDisjointRetry = useCallback(() => {
+    goToTopOfChallenge();
     setDisjointUserSelectA([]);
     setDisjointUserSelectB([]);
     setDisjointExercisePhase('selecting_A');
@@ -8749,6 +8751,7 @@ export const useRouletteHooks = () => {
   }, [unionFinalNumInput, unionFinalDenInput, unionEvents, unionActivityNum, unionMaxActivities, gameState.sectors, createAlert]);
 
   const handleUnionNextActivity = useCallback(() => {
+    goToTopOfChallenge();
     const nextActivity = unionActivityNum + 1;
     setUnionActivityNum(nextActivity);
     setShowInfoBox(false);
@@ -10309,6 +10312,7 @@ export const useRouletteHooks = () => {
 
   // Função para reiniciar o exercício dinâmico (treinar novamente)
   const restartExercise = useCallback(() => {
+    goToTopOfChallenge();
     // Limpar seleções e inputs
     setExerciseNEInput(prev => ({ ...prev, value: '', error: false }));
     setExerciseNSInput(prev => ({ ...prev, value: '', error: false }));
@@ -10368,6 +10372,7 @@ export const useRouletteHooks = () => {
 
   // Função para reiniciar o Desafio Dinâmico 1 (treinar novamente)
   const restartChallenge1 = useCallback(() => {
+    goToTopOfChallenge();
     // Limpar seleções e inputs
     setExerciseNEInput(prev => ({ ...prev, value: '', error: false }));
     setExerciseNSInput(prev => ({ ...prev, value: '', error: false }));
@@ -10646,6 +10651,7 @@ export const useRouletteHooks = () => {
 
   // 2. Iniciar exercício interativo de identificação (selecting_A)
   const handleStartCompExercise = useCallback(() => {
+    goToTopOfChallenge();
     const { sectors, challenge1SectorNumbers } = gameState;
 
     let ev = generateComplementaryEvent(sectors, challenge1SectorNumbers, compUsedBitmasks);
