@@ -1722,7 +1722,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               border: `2px solid ${EVENT_COLORS['A']}`,
             }}
           >
-            <p className="ds-body-bold" style={{ color: EVENT_COLORS['A'], lineHeight: 1.5 }}>
+            <p className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A'], lineHeight: 1.5 }}>
               A = {'{'}{shortPredicate(currentPair.eventA.description)}{'}'} =
             </p>
             <p className="ds-body-bold" style={{ color: 'var(--color-neutral-darkest)', lineHeight: 1.6, marginLeft: 8 }}>
@@ -1748,7 +1748,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               border: `2px solid ${EVENT_COLORS['B']}`,
             }}
           >
-            <p className="ds-body-bold" style={{ color: EVENT_COLORS['B'], lineHeight: 1.5 }}>
+            <p className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['B'], lineHeight: 1.5 }}>
               B = {'{'}{shortPredicate(currentPair.eventB.description)}{'}'} =
             </p>
             <p className="ds-body-bold" style={{ color: 'var(--color-neutral-darkest)', lineHeight: 1.6, marginLeft: 8 }}>
@@ -1774,7 +1774,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               border: `2px solid ${EVENT_COLORS['A∩B']}`,
             }}
           >
-            <p className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], lineHeight: 1.5 }}>
+            <p className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∩B'], lineHeight: 1.5 }}>
               A ∩ B = {'{'}{shortPredicate(currentPair.eventA.description)} e {shortPredicate(currentPair.eventB.description)}{'}'} =
             </p>
             <p className="ds-body-bold" style={{ lineHeight: 1.6, marginLeft: 8 }}>
@@ -1833,9 +1833,9 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             ✓ Você contou os 3 conjuntos
           </p>
           <div className="flex flex-col gap-y-nano items-center">
-            <p className="ds-body-bold text-neutral-black">n(A) = {correctSets.nA}</p>
-            <p className="ds-body-bold text-neutral-black">n(B) = {correctSets.nB}</p>
-            <p className="ds-body-bold text-neutral-black">n(A ∩ B) = {correctSets.nI}</p>
+            <p className="ds-body-bold text-neutral-black"><span className="whitespace-nowrap">n(A)</span> = {correctSets.nA}</p>
+            <p className="ds-body-bold text-neutral-black"><span className="whitespace-nowrap">n(B)</span> = {correctSets.nB}</p>
+            <p className="ds-body-bold text-neutral-black"><span className="whitespace-nowrap">n(A ∩ B)</span> = {correctSets.nI}</p>
           </div>
           <p className="ds-body text-neutral-black mt-micro text-justify">
             Agora vamos ver o que acontece com a <strong>união</strong> dos dois conjuntos.
@@ -1977,7 +1977,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           </p>
           <p className="ds-body text-neutral-black mb-micro text-justify">
             Você contou <strong>n(A) = {correctSets.nA}</strong>, <strong>n(B) = {correctSets.nB}</strong>{' '}
-            e <strong>n(A ∪ B) = {correctSets.nU}</strong>. Sem calcular, o que você acha?
+            e <strong><span className="whitespace-nowrap">n(A ∪ B)</span> = {correctSets.nU}</strong>. Sem calcular, o que você acha?
           </p>
           <fieldset style={{ border: '1px solid var(--color-neutral-lighter)', borderRadius: 10, padding: 12, marginBottom: 8 }}>
             <legend className="ds-body-bold text-neutral-black px-[6px]">
@@ -2187,25 +2187,25 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       {phase === 'synthM2' && (
         <div className="bg-brand-otimath-lightest rounded-lg p-xxs border-2 border-brand-otimath-pure max-w-[640px] mx-auto">
           <p className="ds-heading-extra text-feedback-success-dark text-center mb-micro">
-            ✓ Você calculou P(A ∪ B) diretamente por Laplace
+            ✓ Você calculou <span className="whitespace-nowrap">P(A ∪ B)</span> diretamente por Laplace
           </p>
           <p className="ds-body text-neutral-black text-justify">
-            Aplicando o <strong>Teorema de Laplace</strong> ao conjunto A ∪ B que você
+            Aplicando o <strong>Teorema de Laplace</strong> ao conjunto <span className="whitespace-nowrap">A ∪ B</span> que você
             contou na tabela, obtivemos a probabilidade da união.
           </p>
           <p className="ds-body text-neutral-black mt-micro text-justify">
             <strong>Mas há outra rota.</strong> No OVA do <strong>Disco Probabilístico</strong>,
-            você aprendeu que, para eventos <strong>mutuamente exclusivos</strong> (A ∩ B = ∅):
+            você aprendeu que, para eventos <strong>mutuamente exclusivos</strong> (<span className="whitespace-nowrap">A ∩ B</span> = ∅):
           </p>
           <p className="ds-body-bold text-center mt-micro" style={{ color: 'var(--color-brand-otimath-pure)', fontSize: '1.05rem', whiteSpace: 'nowrap' }}>
             P(A ∪ B) = P(A) + P(B)
           </p>
           <p className="ds-body text-neutral-black mt-micro text-justify">
-            Porém, no nosso problema A ∩ B <strong>não é vazio</strong>. Será que essa
+            Porém, no nosso problema <span className="whitespace-nowrap">A ∩ B</span> <strong>não é vazio</strong>. Será que essa
             fórmula do Disco <strong>ainda funciona</strong> aqui?
           </p>
           <p className="ds-body-bold text-neutral-black mt-micro text-justify">
-            Vamos investigar: se somarmos n(A) + n(B), será que chegamos em n(A ∪ B)?
+            Vamos investigar: se somarmos <span className="whitespace-nowrap">n(A) + n(B)</span>, será que chegamos em <span className="whitespace-nowrap">n(A ∪ B)</span>?
           </p>
           <div className="flex justify-center mt-macro">
             <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('predict'); scrollDiceToTop(); }}>
@@ -2253,7 +2253,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               <strong style={{ color: EVENT_COLORS['B'] }}>Evento B</strong>: {formatForProblem(predB)}
             </li>
             <li className="ds-body text-neutral-black">
-              <strong style={{ color: EVENT_COLORS['A∩B'] }}>Evento A ∩ B</strong>: ocorrência simultânea de A e B (soma {formatForProblem(predA)} e {formatForProblem(predB)})
+              <strong style={{ color: EVENT_COLORS['A∩B'], whiteSpace: 'nowrap' }}>Evento A ∩ B</strong>: ocorrência simultânea de A e B (soma {formatForProblem(predA)} e {formatForProblem(predB)})
             </li>
           </ul>
           <ValuesRecallPanel nA={correctSets.nA} nB={correctSets.nB} nI={correctSets.nI} nU={correctSets.nU} />
@@ -2353,12 +2353,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Escolha a fórmula geral da <strong>probabilidade da união de dois eventos</strong>:
           </p>
           <div className="flex flex-col gap-y-nano">
-            {[
-              { v: 'wrong1', label: 'P(A ∪ B) = P(A) + P(B)' },
-              { v: 'correct', label: 'P(A ∪ B) = P(A) + P(B) − P(A ∩ B)' },
-              { v: 'wrong2', label: 'P(A ∪ B) = P(A) × P(B)' },
-              { v: 'wrong3', label: 'P(A ∪ B) = P(A) − P(B) + P(A ∩ B)' },
-            ].map(opt => (
+            {([
+              { v: 'wrong1', parts: ['P(A ∪ B)', '=', 'P(A)', '+', 'P(B)'] },
+              { v: 'correct', parts: ['P(A ∪ B)', '=', 'P(A)', '+', 'P(B)', '−', 'P(A ∩ B)'] },
+              { v: 'wrong2', parts: ['P(A ∪ B)', '=', 'P(A)', '×', 'P(B)'] },
+              { v: 'wrong3', parts: ['P(A ∪ B)', '=', 'P(A)', '−', 'P(B)', '+', 'P(A ∩ B)'] },
+            ] as const).map(opt => (
               <label key={opt.v} className="flex items-center gap-x-micro" style={{ padding: '10px 6px', cursor: institutionalValidated ? 'default' : 'pointer', minHeight: 44, borderRadius: 8, background: 'var(--color-neutral-lightest)' }}>
                 <input
                   type="radio"
@@ -2369,7 +2369,11 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                   onChange={() => { setInstitutionalAnswer(opt.v); setInstitutionalError(false); }}
                   style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
                 />
-                <span className="ds-body text-neutral-black">{opt.label}</span>
+                <span className="ds-body text-neutral-black flex flex-wrap items-center gap-x-nano gap-y-nano">
+                  {opt.parts.map((p, i) => (
+                    <span key={i} className="whitespace-nowrap">{p}</span>
+                  ))}
+                </span>
               </label>
             ))}
           </div>
@@ -2792,13 +2796,14 @@ function ProbTransferScreen({
                 style={{
                   fontSize: '1.4rem', fontWeight: 700,
                   color: EVENT_COLORS['A∪B'],
+                  whiteSpace: 'nowrap',
                 }}
               >
                 P(A ∪ B)
               </span>
               <span style={{ fontSize: '1.4rem', fontWeight: 700 }}>=</span>
               <FractionStacked
-                top={<span>n(A ∪ B)</span>}
+                top={<span className="whitespace-nowrap">n(A ∪ B)</span>}
                 bottom={<span>n(S)</span>}
                 topColor={EVENT_COLORS['A∪B']}
                 bottomColor="var(--color-neutral-dark)"
@@ -2870,7 +2875,7 @@ function ProbTransferScreen({
                         flex: 1,
                       }}
                     >
-                      <span className="ds-small-bold" style={{ color: EVENT_COLORS['A∪B'] }}>
+                      <span className="ds-small-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∪B'] }}>
                         P(A ∪ B)
                       </span>
                       <span className="ds-small text-neutral-darkest"> = probabilidade de ocorrer A ou B</span>
@@ -2904,7 +2909,7 @@ function ProbTransferScreen({
           >
             <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
               <div className="flex items-center gap-x-nano">
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'], fontSize: '1.15rem', whiteSpace: 'nowrap' }}>
+                <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∪B'], fontSize: '1.15rem', whiteSpace: 'nowrap' }}>
                   P(A ∪ B) =
                 </span>
                 <FractionInput
@@ -2981,7 +2986,7 @@ function ProbTransferScreen({
             <div className="flex items-center justify-center gap-x-micro flex-wrap gap-macro">
               {/* Fração */}
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>Fração:</span>
+                <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∪B'] }}>Fração:</span>
                 <FractionStacked
                   top={<span>{nU}</span>}
                   bottom={<span>36</span>}
@@ -3214,8 +3219,8 @@ function ProbFormulaRevealAnimation({
         <div className="flex flex-col gap-y-nano mt-nano items-center">
           {step >= 0 && (
             <div style={slideFadeIn} className="flex items-center" aria-live="polite">
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
-              <FracH top={<span>n(A ∪ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∪B']} />
+              <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
+              <FracH top={<span className="whitespace-nowrap">n(A ∪ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∪B']} />
             </div>
           )}
           {step >= 1 && (
@@ -3224,7 +3229,7 @@ function ProbFormulaRevealAnimation({
               className={`flex items-center ${flashTarget === 'probsA' ? 'flash-sub' : ''}`}
               aria-live="polite"
             >
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['A'] }}>P(A)&nbsp;=&nbsp;</span>
+              <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A'] }}>P(A)&nbsp;=&nbsp;</span>
               <FracH top={<span>n(A)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A']} />
             </div>
           )}
@@ -3234,7 +3239,7 @@ function ProbFormulaRevealAnimation({
               className={`flex items-center ${flashTarget === 'probsB' ? 'flash-sub' : ''}`}
               aria-live="polite"
             >
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['B'] }}>P(B)&nbsp;=&nbsp;</span>
+              <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['B'] }}>P(B)&nbsp;=&nbsp;</span>
               <FracH top={<span>n(B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['B']} />
             </div>
           )}
@@ -3244,8 +3249,8 @@ function ProbFormulaRevealAnimation({
               className={`flex items-center ${flashTarget === 'probsI' ? 'flash-sub' : ''}`}
               aria-live="polite"
             >
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P(A ∩ B)&nbsp;=&nbsp;</span>
-              <FracH top={<span>n(A ∩ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∩B']} />
+              <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∩B'] }}>P(A ∩ B)&nbsp;=&nbsp;</span>
+              <FracH top={<span className="whitespace-nowrap">n(A ∩ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∩B']} />
             </div>
           )}
           {step >= 4 && (
@@ -3254,8 +3259,14 @@ function ProbFormulaRevealAnimation({
               className={`flex items-center ${flashTarget === 'nU' ? 'flash-sub' : ''}`}
               aria-live="polite"
             >
-              <span className="ds-body-bold text-neutral-darkest">
-                n(A ∪ B) = n(A) + n(B) − n(A ∩ B)
+              <span className="ds-body-bold text-neutral-darkest flex flex-wrap items-center justify-center gap-x-nano">
+                <span className="whitespace-nowrap">n(A ∪ B)</span>
+                <span>=</span>
+                <span className="whitespace-nowrap">n(A)</span>
+                <span>+</span>
+                <span className="whitespace-nowrap">n(B)</span>
+                <span>−</span>
+                <span className="whitespace-nowrap">n(A ∩ B)</span>
               </span>
             </div>
           )}
@@ -3279,9 +3290,9 @@ function ProbFormulaRevealAnimation({
             {/* Linha 1: P(A∪B) = n(A∪B)/n(S) — n(A∪B) pisca quando sendo substituído (step→6) */}
             {step >= 5 && (
               <div style={slideFadeIn} className="flex items-center flex-wrap gap-y-nano" aria-live="polite">
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
+                <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
                 <span className={`inline-block ${flashTarget === 'nU' ? 'flash-sub' : ''}`}>
-                  <FracH top={<span>n(A ∪ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∪B']} />
+                  <FracH top={<span className="whitespace-nowrap">n(A ∪ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∪B']} />
                 </span>
               </div>
             )}
@@ -3293,7 +3304,7 @@ function ProbFormulaRevealAnimation({
                 <span className="ds-body-bold text-neutral-darkest">=&nbsp;</span>
                 <span className={`inline-block ${flashTarget === 'nU' || flashTarget === 'distrib' ? 'flash-sub' : ''}`}>
                   <FracH
-                    top={<span>n(A) + n(B) − n(A ∩ B)</span>}
+                    top={<span style={{ whiteSpace: 'nowrap' }}><span className="whitespace-nowrap">n(A)</span> + <span className="whitespace-nowrap">n(B)</span> − <span className="whitespace-nowrap">n(A ∩ B)</span></span>}
                     bottom={<span>n(S)</span>}
                     color="var(--color-brand-otimath-dark)"
                   />
@@ -3315,7 +3326,7 @@ function ProbFormulaRevealAnimation({
                 </span>
                 <span className="ds-body-bold text-neutral-darkest">&nbsp;−&nbsp;</span>
                 <span className={`inline-block ${flashTarget === 'probsI' || flashTarget === 'distrib' ? 'flash-sub' : ''}`}>
-                  <FracH top={<span>n(A ∩ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∩B']} />
+                  <FracH top={<span className="whitespace-nowrap">n(A ∩ B)</span>} bottom={<span>n(S)</span>} color={EVENT_COLORS['A∩B']} />
                 </span>
               </div>
             )}
@@ -3354,8 +3365,14 @@ function ProbFormulaRevealAnimation({
               className="bg-brand-otimath-lightest rounded-md p-micro text-center mt-micro"
               style={{ border: '2px solid var(--color-brand-otimath-pure)', ...slideFadeIn }}
             >
-              <p className="ds-heading-large text-brand-otimath-dark">
-                P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
+              <p className="ds-heading-large text-brand-otimath-dark flex flex-wrap items-center justify-center gap-x-micro gap-y-nano">
+                <span className="whitespace-nowrap">P(A ∪ B)</span>
+                <span>=</span>
+                <span className="whitespace-nowrap">P(A)</span>
+                <span>+</span>
+                <span className="whitespace-nowrap">P(B)</span>
+                <span>−</span>
+                <span className="whitespace-nowrap">P(A ∩ B)</span>
               </p>
             </div>
           )}
@@ -3411,19 +3428,19 @@ function ProbFormulaApplyScreen({
       >
         <div className="flex flex-col gap-y-micro items-center">
           <div className="flex items-center">
-            <span className="ds-body-bold" style={{ color: EVENT_COLORS['A'] }}>P(A)&nbsp;=&nbsp;</span>
+            <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A'] }}>P(A)&nbsp;=&nbsp;</span>
             <FracH top={<span>{nA}</span>} bottom={<span>36</span>} color={EVENT_COLORS['A']} size="1.15rem" />
           </div>
           <div className="flex items-center">
-            <span className="ds-body-bold" style={{ color: EVENT_COLORS['B'] }}>P(B)&nbsp;=&nbsp;</span>
+            <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['B'] }}>P(B)&nbsp;=&nbsp;</span>
             <FracH top={<span>{nB}</span>} bottom={<span>36</span>} color={EVENT_COLORS['B']} size="1.15rem" />
           </div>
           <div className="flex items-center">
-            <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P(A ∩ B)&nbsp;=&nbsp;</span>
+            <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∩B'] }}>P(A ∩ B)&nbsp;=&nbsp;</span>
             <FracH top={<span>{nI}</span>} bottom={<span>36</span>} color={EVENT_COLORS['A∩B']} size="1.15rem" />
           </div>
           <div className="flex items-center">
-            <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
+            <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
             <FracH top={<span>{nU}</span>} bottom={<span>36</span>} color={EVENT_COLORS['A∪B']} size="1.15rem" />
             <span className="ds-caption text-neutral-medium" style={{ marginLeft: 6, fontSize: '0.78rem' }}>
               (calculado diretamente por Laplace)
@@ -3441,8 +3458,14 @@ function ProbFormulaApplyScreen({
         className="bg-neutral-white rounded-md p-micro text-center mt-micro"
         style={{ border: `2px solid ${EVENT_COLORS['A∪B']}` }}
       >
-        <p className="ds-heading-large text-brand-otimath-dark">
-          P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
+        <p className="ds-heading-large text-brand-otimath-dark flex flex-wrap items-center justify-center gap-x-micro gap-y-nano">
+          <span className="whitespace-nowrap">P(A ∪ B)</span>
+          <span>=</span>
+          <span className="whitespace-nowrap">P(A)</span>
+          <span>+</span>
+          <span className="whitespace-nowrap">P(B)</span>
+          <span>−</span>
+          <span className="whitespace-nowrap">P(A ∩ B)</span>
         </p>
       </div>
 
@@ -3481,12 +3504,12 @@ function ProbFormulaVerifyScreen({
         <div className="flex flex-col gap-y-micro items-center">
           {/* Linha 1: fórmula simbólica */}
           <div className="flex items-center flex-wrap gap-y-nano">
-            <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
-            <span className="ds-body-bold" style={{ color: EVENT_COLORS['A'] }}>P(A)</span>
+            <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∪B'] }}>P(A ∪ B)&nbsp;=&nbsp;</span>
+            <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A'] }}>P(A)</span>
             <span className="ds-body-bold text-neutral-darkest">&nbsp;+&nbsp;</span>
-            <span className="ds-body-bold" style={{ color: EVENT_COLORS['B'] }}>P(B)</span>
+            <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['B'] }}>P(B)</span>
             <span className="ds-body-bold text-neutral-darkest">&nbsp;−&nbsp;</span>
-            <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'] }}>P(A ∩ B)</span>
+            <span className="ds-body-bold whitespace-nowrap" style={{ color: EVENT_COLORS['A∩B'] }}>P(A ∩ B)</span>
           </div>
 
           {/* Linha 2: substituindo os valores */}
@@ -3542,10 +3565,20 @@ function ProbFormulaVerifyScreen({
         <p className="ds-body text-neutral-black text-justify">
           Essa fórmula <strong>generaliza</strong> a que você aprendeu no OVA do{' '}
           <strong>Disco Probabilístico</strong>. Quando A e B são <strong>mutuamente exclusivos</strong>,
-          temos A ∩ B = ∅, logo P(A ∩ B) = 0 e resta:
+          temos <span className="whitespace-nowrap">A ∩ B = ∅</span>, logo <span className="whitespace-nowrap">P(A ∩ B) = 0</span> e resta:
         </p>
-        <p className="ds-body-bold text-center mt-nano" style={{ color: 'var(--color-brand-otimath-pure)', fontSize: '1.05rem' }}>
-          P(A ∪ B) = P(A) + P(B) − 0 = P(A) + P(B)
+        <p className="ds-body-bold text-center mt-nano flex flex-wrap items-center justify-center gap-x-micro gap-y-nano" style={{ color: 'var(--color-brand-otimath-pure)', fontSize: '1.05rem' }}>
+          <span className="whitespace-nowrap">P(A ∪ B)</span>
+          <span>=</span>
+          <span className="whitespace-nowrap">P(A)</span>
+          <span>+</span>
+          <span className="whitespace-nowrap">P(B)</span>
+          <span>−</span>
+          <span>0</span>
+          <span>=</span>
+          <span className="whitespace-nowrap">P(A)</span>
+          <span>+</span>
+          <span className="whitespace-nowrap">P(B)</span>
         </p>
         <p className="ds-body text-neutral-black mt-nano text-justify">
           A fórmula geral <strong>contém</strong> o caso particular: quando a interseção é vazia,

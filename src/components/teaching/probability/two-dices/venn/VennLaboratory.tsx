@@ -1503,7 +1503,7 @@ function StepInstruction({
           Ao final, você deverá identificar uma <strong>relação entre as quantidades</strong>:
         </p>
         <p className="ds-body-bold text-center mt-micro" style={{ color: 'var(--color-brand-otimath-dark)', fontSize: '1.1rem' }}>
-          n(A ∪ B), n(A), n(B) e n(A ∩ B)
+          <span className="whitespace-nowrap">n(A ∪ B)</span>, <span className="whitespace-nowrap">n(A)</span>, <span className="whitespace-nowrap">n(B)</span> e <span className="whitespace-nowrap">n(A ∩ B)</span>
         </p>
       </>
     );
@@ -1536,7 +1536,7 @@ function StepInstruction({
   if (step === 'fillIntersection') {
     return (
       <p className="ds-body text-neutral-black text-justify">
-        Agora clique no valor <strong>n(A ∩ B)</strong> no topo da tela e, em seguida, clique na região correspondente no diagrama para depositá-lo.
+        Agora clique no valor <strong className="whitespace-nowrap">n(A ∩ B)</strong> no topo da tela e, em seguida, clique na região correspondente no diagrama para depositá-lo.
       </p>
     );
   }
@@ -1553,7 +1553,7 @@ function StepInstruction({
   if (step === 'fillAMinusB') {
     return (
       <p className="ds-body text-neutral-black text-justify">
-        Qual operação dá <strong>n(A − B)</strong>?
+        Qual operação dá <strong className="whitespace-nowrap">n(A − B)</strong>?
       </p>
     );
   }
@@ -1561,7 +1561,7 @@ function StepInstruction({
   if (step === 'identifyBMinusA') {
     return (
       <p className="ds-body text-neutral-black text-justify">
-        Analogamente: sabendo que <strong>n(B) = {nB}</strong>, em quantos pares ocorre B e <strong>não</strong> ocorre A?<br />
+        Analogamente: sabendo que <strong className="whitespace-nowrap">n(B)</strong> = {nB}, em quantos pares ocorre B e <strong>não</strong> ocorre A?<br />
         <strong>Clique na região em que ocorre B − A</strong> (B menos A): casos em que ocorre B e não ocorre A.
       </p>
     );
@@ -1570,7 +1570,7 @@ function StepInstruction({
   if (step === 'fillBMinusA') {
     return (
       <p className="ds-body text-neutral-black text-justify">
-        Qual operação dá <strong>n(B − A)</strong>?
+        Qual operação dá <strong className="whitespace-nowrap">n(B − A)</strong>?
       </p>
     );
   }
@@ -1636,7 +1636,7 @@ function StepInstruction({
   if (step === 'numericConclusion') {
     return (
       <p className="ds-body text-neutral-black text-justify">
-        Como a região <strong>A ∩ B</strong> foi contada <strong>duas vezes</strong> ao somar n(A) + n(B), precisamos <strong>subtrair n(A ∩ B)</strong> uma vez para obter n(A ∪ B).
+        Como a região <strong>A ∩ B</strong> foi contada <strong>duas vezes</strong> ao somar <span className="whitespace-nowrap">n(A)</span> + <span className="whitespace-nowrap">n(B)</span>, precisamos <strong className="whitespace-nowrap">subtrair n(A ∩ B)</strong> uma vez para obter <span className="whitespace-nowrap">n(A ∪ B)</span>.
       </p>
     );
   }
@@ -1652,7 +1652,7 @@ function StepInstruction({
   if (step === 'writeUnionFormula') {
     return (
       <p className="ds-body text-neutral-black text-justify">
-        Note pelo diagrama que <strong>n(A ∪ B)</strong> é a soma das três regiões internas. Clique em cada região para preencher os três espaços indicados.
+        Note pelo diagrama que <strong className="whitespace-nowrap">n(A ∪ B)</strong> é a soma das três regiões internas. Clique em cada região para preencher os três espaços indicados.
       </p>
     );
   }

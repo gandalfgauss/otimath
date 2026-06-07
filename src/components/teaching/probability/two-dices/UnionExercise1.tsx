@@ -1162,7 +1162,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               <p
                 className="ds-small mt-micro text-center text-feedback-warning-dark font-medium"
               >
-                Estamos marcando elementos de A ∩ B, ou seja, casos que satisfazem A e B ao
+                Estamos marcando elementos de <span className="whitespace-nowrap">A ∩ B</span>, ou seja, casos que satisfazem A e B ao
                 mesmo tempo.
               </p>
             )}
@@ -1346,7 +1346,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               <p
                 className="ds-small text-center mt-nano text-feedback-error-dark font-medium"
               >
-                Reflita: o enunciado pede <strong>A ∩ B</strong> — a probabilidade de A e B
+                Reflita: o enunciado pede <strong className="whitespace-nowrap">A ∩ B</strong> — a probabilidade de A e B
                 ocorrerem <em>simultaneamente</em>.
               </p>
             )}

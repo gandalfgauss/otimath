@@ -545,12 +545,12 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
             <p className="ds-body text-neutral-black mb-micro text-justify">
               Agora você vai aplicar a fórmula da união em um caso especial: eventos A e B
               que <strong>não podem ocorrer ao mesmo tempo</strong>. Observe o que acontece
-              com P(A ∩ B) quando isso vale.
+              com <span className="whitespace-nowrap">P(A ∩ B)</span> quando isso vale.
             </p>
             <ul className="ds-body text-neutral-black mb-micro pl-xxs list-disc leading-relaxed">
               <li>Marque os casos favoráveis a <strong>A</strong> na tabela</li>
               <li>Marque os casos favoráveis a <strong>B</strong></li>
-              <li>Tente identificar <strong>A ∩ B</strong> (observe o que aparece)</li>
+              <li>Tente identificar <strong className="whitespace-nowrap">A ∩ B</strong> (observe o que aparece)</li>
               <li>Aplique a fórmula substituindo os valores encontrados</li>
             </ul>
             <div className="flex justify-center mt-macro">
@@ -678,7 +678,7 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
             </p>
 
             <p className="ds-body text-neutral-black mt-nano text-justify">
-              Como você acabou de confirmar, <strong>A ∩ B = ∅</strong> neste problema.
+              Como você acabou de confirmar, <strong className="whitespace-nowrap">A ∩ B = ∅</strong> neste problema.
               Aplicando a fórmula geral da probabilidade da união, substitua os valores
               na linha seguinte:
             </p>
@@ -735,7 +735,7 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
                 <p
                   className="ds-small mt-nano text-center text-feedback-error-dark font-medium"
                 >
-                  Alguma fração não confere. Lembre-se: P(A ∩ B) = 0 neste caso (A e B são
+                  Alguma fração não confere. Lembre-se: <span className="whitespace-nowrap">P(A ∩ B) = 0</span> neste caso (A e B são
                   mutuamente exclusivos).
                 </p>
               )}
@@ -784,7 +784,7 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
               className="bg-neutral-white rounded-md p-micro mb-micro border-2 border-brand-otimath-pure"
             >
               <p className="ds-body-bold text-center mb-nano text-brand-otimath-dark">
-                Caso particular: A ∩ B = ∅
+                Caso particular: <span className="whitespace-nowrap">A ∩ B = ∅</span>
               </p>
               <p className="ds-body text-neutral-black mt-nano text-justify">
                 Quando os eventos são <strong>mutuamente exclusivos</strong>, a fórmula

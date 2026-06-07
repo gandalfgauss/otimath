@@ -1051,7 +1051,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
         `}</style>
 
         <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-micro">
-          Exercício 4 — Torcedores no bar (P(A ∩ B))
+          Exercício 4 — Torcedores no bar (<span className="whitespace-nowrap">P(A ∩ B)</span>)
         </h2>
 
         {/* Intro */}
@@ -1305,9 +1305,9 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 Etapa 1 — Modele o diagrama de Venn com expressões
               </p>
               <p className="ds-small text-center text-neutral-dark mt-nano italic">
-                Chame n(A ∩ B) de uma variável (por exemplo, x). Em cada região,
-                escreva a expressão correspondente: n(A − B) = n(A) − x e
-                n(B − A) = n(B) − x.
+                Chame <span className="whitespace-nowrap">n(A ∩ B)</span> de uma variável (por exemplo, x). Em cada região,
+                escreva a expressão correspondente: <span className="whitespace-nowrap">n(A − B)</span> = <span className="whitespace-nowrap">n(A)</span> − x e
+                <span className="whitespace-nowrap"> n(B − A)</span> = <span className="whitespace-nowrap">n(B)</span> − x.
               </p>
               <VennNumericPanel
                 totalLabel={String(data.S)}
@@ -1982,8 +1982,11 @@ const COLOR_B_ = EVENT_COLORS['B'];
 const COLOR_U = EVENT_COLORS['A∪B'];
 
 function Hi({ children, color }: { children: React.ReactNode; color?: string }) {
+  // whiteSpace: 'nowrap' garante que notações como `n(A ∩ B)` ou `P(A ∪ B)`
+  // não se quebrem em duas linhas (regra: módulos atômicos da expressão
+  // ficam grudados; quebras só são aceitas ENTRE grupos).
   return (
-    <strong style={{ color: color ?? 'var(--color-brand-otimath-dark)' }}>
+    <strong style={{ color: color ?? 'var(--color-brand-otimath-dark)', whiteSpace: 'nowrap' }}>
       {children}
     </strong>
   );
@@ -2011,8 +2014,8 @@ function buildReasoningLines(
   if (path === 'lapCard') {
     const lines: ReasoningLine[] = [
       { content: <>Partimos da fórmula da cardinalidade: <Hi color={COLOR_U}>n(A ∪ B)</Hi> = <Hi color={COLOR_A_}>n(A)</Hi> + <Hi color={COLOR_B_}>n(B)</Hi> − <Hi color={COLOR_I}>n(A ∩ B)</Hi>.</> },
-      { content: <>Substituindo os valores do enunciado: <Hi color={COLOR_U}>{data.c}</Hi> = <Hi color={COLOR_A_}>{data.b}</Hi> + <Hi color={COLOR_B_}>{data.d}</Hi> − n(A ∩ B).</> },
-      { content: <>Isolando n(A ∩ B): <Hi color={COLOR_I}>n(A ∩ B)</Hi> = {data.b} + {data.d} − {data.c} = <Hi color={COLOR_I}>{data.e}</Hi>.</> },
+      { content: <>Substituindo os valores do enunciado: <Hi color={COLOR_U}>{data.c}</Hi> = <Hi color={COLOR_A_}>{data.b}</Hi> + <Hi color={COLOR_B_}>{data.d}</Hi> − <span className="whitespace-nowrap">n(A ∩ B)</span>.</> },
+      { content: <>Isolando <span className="whitespace-nowrap">n(A ∩ B)</span>: <Hi color={COLOR_I}>n(A ∩ B)</Hi> = {data.b} + {data.d} − {data.c} = <Hi color={COLOR_I}>{data.e}</Hi>.</> },
     ];
     const adj = lapCardAdjustLine();
     if (adj) lines.push(adj);
@@ -2056,11 +2059,11 @@ function buildReasoningLines(
   if (path === 'general') {
     const lines: ReasoningLine[] = [
       { content: <>Começamos com a fórmula geral: <Hi color={COLOR_U}>P(A ∪ B)</Hi> = <Hi color={COLOR_A_}>P(A)</Hi> + <Hi color={COLOR_B_}>P(B)</Hi> − <Hi color={COLOR_I}>P(A ∩ B)</Hi>.</> },
-      { content: <>Substituindo pelas probabilidades: <FracH top={data.c} bottom={data.S} color={COLOR_U} size="1rem" /> = <FracH top={data.b} bottom={data.S} color={COLOR_A_} size="1rem" /> + <FracH top={data.d} bottom={data.S} color={COLOR_B_} size="1rem" /> − P(A ∩ B).</> },
-      { content: <>Isolando P(A ∩ B): <Hi color={COLOR_I}>P(A ∩ B)</Hi> = <FracH top={`${data.b} + ${data.d} − ${data.c}`} bottom={data.S} color="var(--color-neutral-darkest)" size="1rem" /> = <FracH top={data.e} bottom={data.S} color={COLOR_I} size="1rem" />.</> },
+      { content: <>Substituindo pelas probabilidades: <FracH top={data.c} bottom={data.S} color={COLOR_U} size="1rem" /> = <FracH top={data.b} bottom={data.S} color={COLOR_A_} size="1rem" /> + <FracH top={data.d} bottom={data.S} color={COLOR_B_} size="1rem" /> − <span className="whitespace-nowrap">P(A ∩ B)</span>.</> },
+      { content: <>Isolando <span className="whitespace-nowrap">P(A ∩ B)</span>: <Hi color={COLOR_I}>P(A ∩ B)</Hi> = <FracH top={`${data.b} + ${data.d} − ${data.c}`} bottom={data.S} color="var(--color-neutral-darkest)" size="1rem" /> = <FracH top={data.e} bottom={data.S} color={COLOR_I} size="1rem" />.</> },
     ];
     if (!data.invertA && data.invertB) {
-      lines.push({ content: <>Ajuste para a pergunta: <Hi color={COLOR_I}>P(A ∩ B̄)</Hi> = P(A) − P(A ∩ B) = <FracH top={data.b} bottom={data.S} color="var(--color-neutral-darkest)" size="1rem" /> − <FracH top={data.e} bottom={data.S} color="var(--color-neutral-darkest)" size="1rem" /> = <FracH top={tCard} bottom={data.S} color={COLOR_I} size="1rem" />.</> });
+      lines.push({ content: <>Ajuste para a pergunta: <Hi color={COLOR_I}>P(A ∩ B̄)</Hi> = <span className="whitespace-nowrap">P(A)</span> − <span className="whitespace-nowrap">P(A ∩ B)</span> = <FracH top={data.b} bottom={data.S} color="var(--color-neutral-darkest)" size="1rem" /> − <FracH top={data.e} bottom={data.S} color="var(--color-neutral-darkest)" size="1rem" /> = <FracH top={tCard} bottom={data.S} color={COLOR_I} size="1rem" />.</> });
     } else if (data.invertA && !data.invertB) {
       lines.push({ content: <>Ajuste para a pergunta: <Hi color={COLOR_I}>P(Ā ∩ B)</Hi> = P(B) − P(A ∩ B) = <FracH top={data.d} bottom={data.S} color="var(--color-neutral-darkest)" size="1rem" /> − <FracH top={data.e} bottom={data.S} color="var(--color-neutral-darkest)" size="1rem" /> = <FracH top={tCard} bottom={data.S} color={COLOR_I} size="1rem" />.</> });
     } else if (data.invertA && data.invertB) {

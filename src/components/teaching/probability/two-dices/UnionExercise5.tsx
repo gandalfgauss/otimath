@@ -154,9 +154,9 @@ function buildReasoningLines(data: Exercise5Data): ReasoningLine[] {
   if (data.questionType === 'union') {
     return [
       { content: <>Identificamos os dois eventos: <strong>A</strong> = {data.descA} e <strong>B</strong> = {data.descB}.</> },
-      { content: <>Lendo a tabela: n(A) = {data.nA}, n(B) = {data.nB}, n(A ∩ B) = {data.nAB}, total geral = {data.tg}.</> },
-      { content: <>Como há sobreposição, aplicamos a fórmula geral: P(A ∪ B) = P(A) + P(B) − P(A ∩ B).</> },
-      { content: <>Substituindo: P(A ∪ B) = ({data.nA} + {data.nB} − {data.nAB}) / {data.tg} = {ans}/{den}.</> },
+      { content: <>Lendo a tabela: n(A) = {data.nA}, n(B) = {data.nB}, <span className="whitespace-nowrap">n(A ∩ B)</span> = {data.nAB}, total geral = {data.tg}.</> },
+      { content: <>Como há sobreposição, aplicamos a fórmula geral: <span className="whitespace-nowrap">P(A ∪ B)</span> = <span className="whitespace-nowrap">P(A)</span> + <span className="whitespace-nowrap">P(B)</span> − <span className="whitespace-nowrap">P(A ∩ B)</span>.</> },
+      { content: <>Substituindo: <span className="whitespace-nowrap">P(A ∪ B)</span> =({data.nA} + {data.nB} − {data.nAB}) / {data.tg} = {ans}/{den}.</> },
       {
         emphasis: true,
         content: <><strong>Resposta final:</strong> {target} = {ans}/{den} ≈ {fmtDecimal(ans, den, 3)} ≈ {fmtPercent(ans, den, 1)}.</>,
@@ -166,10 +166,10 @@ function buildReasoningLines(data: Exercise5Data): ReasoningLine[] {
   if (data.questionType === 'union_excl') {
     return [
       { content: <>Identificamos: <strong>A</strong> = {data.descA} e <strong>B</strong> = {data.descB}.</> },
-      { content: <>Os eventos são mutuamente exclusivos: <strong>A ∩ B = ∅</strong> (ninguém torce pelos dois times ao mesmo tempo).</> },
-      { content: <>A fórmula geral reduz-se a P(A ∪ B) = P(A) + P(B), pois P(A ∩ B) = 0.</> },
+      { content: <>Os eventos são mutuamente exclusivos: <strong className="whitespace-nowrap">A ∩ B = ∅</strong> (ninguém torce pelos dois times ao mesmo tempo).</> },
+      { content: <>A fórmula geral reduz-se a <span className="whitespace-nowrap">P(A ∪ B) = P(A) + P(B)</span>, pois <span className="whitespace-nowrap">P(A ∩ B) = 0</span>.</> },
       { content: <>Lendo a tabela: n(A) = {data.nA}, n(B) = {data.nB}, total geral = {data.tg}.</> },
-      { content: <>Substituindo: P(A ∪ B) = ({data.nA} + {data.nB}) / {data.tg} = {ans}/{den}.</> },
+      { content: <>Substituindo: <span className="whitespace-nowrap">P(A ∪ B)</span> =({data.nA} + {data.nB}) / {data.tg} = {ans}/{den}.</> },
       {
         emphasis: true,
         content: <><strong>Resposta:</strong> {target} = {ans}/{den} ≈ {fmtDecimal(ans, den, 3)} ≈ {fmtPercent(ans, den, 1)}. Note que a fórmula geral <em>contém</em> este caso particular.</>,
@@ -178,8 +178,8 @@ function buildReasoningLines(data: Exercise5Data): ReasoningLine[] {
   }
   return [
     { content: <>A pergunta pede a interseção: <strong>A</strong> = {data.descA} e <strong>B</strong> = {data.descB}.</> },
-    { content: <>Localizamos na tabela a célula correspondente: n(A ∩ B) = {data.nAB}.</> },
-    { content: <>Aplicamos Laplace direto: P(A ∩ B) = n(A ∩ B) / n(S) = {data.nAB} / {data.tg}.</> },
+    { content: <>Localizamos na tabela a célula correspondente: <span className="whitespace-nowrap">n(A ∩ B)</span> = {data.nAB}.</> },
+    { content: <>Aplicamos Laplace direto: <span className="whitespace-nowrap">P(A ∩ B)</span> = <span className="whitespace-nowrap">n(A ∩ B)</span> / n(S) = {data.nAB} / {data.tg}.</> },
     {
       emphasis: true,
       content: <><strong>Resposta:</strong> {target} = {ans}/{den} ≈ {fmtDecimal(ans, den, 3)} ≈ {fmtPercent(ans, den, 1)}.</>,

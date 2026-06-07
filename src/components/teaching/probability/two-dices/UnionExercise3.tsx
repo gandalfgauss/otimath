@@ -656,14 +656,14 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
         {step === 'intro' && (
           <div className="bg-brand-otimath-lightest rounded-lg p-xxs border-2 border-brand-otimath-pure max-w-[720px] mx-auto" data-ex-panel>
             <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
-              🎯 Diferenças de eventos: A − B e B − A
+              🎯 Diferenças de eventos: <span className="whitespace-nowrap">A − B</span> e <span className="whitespace-nowrap">B − A</span>
             </p>
             <p className="ds-body text-neutral-black mb-micro text-justify">
               Neste exercício você vai identificar dois eventos derivados de A e B:
             </p>
             <ul className="ds-body text-neutral-black mb-micro pl-xxs list-disc leading-relaxed">
-              <li><strong style={{ color: EVENT_COLORS['A-B'] }}>A − B</strong>: casos em que <em>A ocorre</em> e <em>B não ocorre</em></li>
-              <li><strong style={{ color: EVENT_COLORS['B-A'] }}>B − A</strong>: casos em que <em>B ocorre</em> e <em>A não ocorre</em></li>
+              <li><strong style={{ color: EVENT_COLORS['A-B'], whiteSpace: 'nowrap' }}>A − B</strong>: casos em que <em>A ocorre</em> e <em>B não ocorre</em></li>
+              <li><strong style={{ color: EVENT_COLORS['B-A'], whiteSpace: 'nowrap' }}>B − A</strong>: casos em que <em>B ocorre</em> e <em>A não ocorre</em></li>
             </ul>
             <p className="ds-body text-neutral-black mb-micro text-justify">
               As marcações de A e B servem apenas para você visualizar a estrutura.
@@ -782,10 +782,10 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
         {step === 'markAmB' && (
           <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[760px] mx-auto" data-ex-panel>
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['A-B'] }}>
-              Passo 3 — Marcar A − B
+              Passo 3 — Marcar <span className="whitespace-nowrap">A − B</span>
             </p>
             <p className="ds-body text-neutral-black text-center mt-nano text-justify">
-              Marque os casos favoráveis ao evento <strong>A − B</strong>:{' '}
+              Marque os casos favoráveis ao evento <strong className="whitespace-nowrap">A − B</strong>:{' '}
               <em>ocorre A e não ocorre B</em>.
             </p>
             {feedbackAmB !== 'none' && (
@@ -812,10 +812,10 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
         {step === 'markBmA' && (
           <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[760px] mx-auto" data-ex-panel>
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['B-A'] }}>
-              Passo 4 — Marcar B − A
+              Passo 4 — Marcar <span className="whitespace-nowrap">B − A</span>
             </p>
             <p className="ds-body text-neutral-black text-center mt-nano text-justify">
-              Marque os casos favoráveis ao evento <strong>B − A</strong>:{' '}
+              Marque os casos favoráveis ao evento <strong className="whitespace-nowrap">B − A</strong>:{' '}
               <em>ocorre B e não ocorre A</em>.
             </p>
             {feedbackBmA !== 'none' && (
@@ -842,7 +842,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
         {step === 'calcPAmB' && (
           <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[760px] mx-auto" data-ex-panel>
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['A-B'] }}>
-              Passo 5 — Calcular P(A − B)
+              Passo 5 — Calcular <span className="whitespace-nowrap">P(A − B)</span>
             </p>
             <p className="ds-body text-neutral-black mt-nano text-justify">
               Qual é a probabilidade de ocorrer A e não ocorrer B?
@@ -876,7 +876,7 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
         {step === 'calcPBmA' && (
           <div className="bg-neutral-white rounded-md p-xxs border border-neutral-lighter max-w-[760px] mx-auto" data-ex-panel>
             <p className="ds-body-bold text-center" style={{ color: EVENT_COLORS['B-A'] }}>
-              Passo 6 — Calcular P(B − A)
+              Passo 6 — Calcular <span className="whitespace-nowrap">P(B − A)</span>
             </p>
             <p className="ds-body text-neutral-black mt-nano text-justify">
               Qual é a probabilidade de ocorrer B e não ocorrer A?
@@ -923,10 +923,10 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
             </div>
             <p className="ds-body text-neutral-black mt-micro text-justify">
               Você explorou as <strong>diferenças de eventos</strong>: os casos em que só A
-              ocorre (A − B) e os casos em que só B ocorre (B − A).
+              ocorre (<span className="whitespace-nowrap">A − B</span>) e os casos em que só B ocorre (<span className="whitespace-nowrap">B − A</span>).
               {correctSets.nI === 0 && (
-                <> Neste problema, como A ∩ B = ∅, observe que <strong>A − B = A</strong> e
-                {' '}<strong>B − A = B</strong>.</>
+                <> Neste problema, como <span className="whitespace-nowrap">A ∩ B = ∅</span>, observe que <strong className="whitespace-nowrap">A − B = A</strong> e
+                {' '}<strong className="whitespace-nowrap">B − A = B</strong>.</>
               )}
             </p>
 

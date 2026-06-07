@@ -1611,7 +1611,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
             {/* ═══════ CENA 4 — Painéis comparativos + interação ═══════ */}
             {scene === 4 && (
               <>
-                <div className="flex gap-x-xs max-sm:flex-col max-sm:gap-y-xs w-full justify-center">
+                <div className="flex gap-x-xs max-sm:flex-col max-sm:gap-y-xs max-sm:items-center w-full justify-center">
                   {/* Painel Equilibrado */}
                   <div className="bg-neutral-white rounded-lg p-xxs border border-neutral-lighter flex-1 max-w-[370px] text-center shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
                     <p className="ds-heading-large text-brand-otimath-pure mb-macro">Dado Equilibrado</p>
