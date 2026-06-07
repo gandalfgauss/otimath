@@ -675,39 +675,45 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
             experimento aleatório: lançar dois dados e anotar as pintas nas faces voltadas para cima.
           </p>
 
-          {/* Equação `a × b = c` — `flex-nowrap` + `overflow-x-auto`
-              garantem que a expressão SEMPRE permaneça em uma linha;
-              em viewports muito estreitos o usuário rola horizontalmente
-              em vez de ver a equação quebrada (matematicamente
-              incorreto). */}
-          <div className="flex flex-nowrap justify-center items-center mb-micro gap-micro overflow-x-auto">
-            <input type="text" inputMode="numeric" maxLength={2}
-              value={multA} onChange={e => { setMultA(e.target.value); setMultError(''); }}
-              style={inputStyle} aria-label="Primeiro fator" />
-            <select
-              value={multOp}
-              onChange={e => { setMultOp(e.target.value); setMultError(''); }}
-              aria-label="Selecione a operação"
-              style={{
-                ...inputStyle,
-                width: 64,
-                appearance: 'auto' as const,
-                cursor: 'pointer',
-              }}
-            >
-              <option value="">?</option>
-              <option value="+">+</option>
-              <option value="-">-</option>
-              <option value="×">×</option>
-              <option value="÷">÷</option>
-            </select>
-            <input type="text" inputMode="numeric" maxLength={2}
-              value={multB} onChange={e => { setMultB(e.target.value); setMultError(''); }}
-              style={inputStyle} aria-label="Segundo fator" />
-            <span className="ds-heading-extra text-neutral-darkest">=</span>
-            <input type="text" inputMode="numeric" maxLength={2}
-              value={multC} onChange={e => { setMultC(e.target.value); setMultError(''); }}
-              style={inputStyle} aria-label="Resultado" />
+          {/* Equação `a × b = c` — mantida em UMA linha (matematicamente
+              uma equação não quebra). Padrão: wrapper externo CENTRALIZA
+              quando cabe; container interno tem `overflow-x-auto` com
+              `maxWidth: 100%` pra não estourar a viewport — quando os
+              campos passam da largura do mobile, o aluno ROLA horizontal
+              em vez de ter conteúdo cortado (antes o `justify-center`
+              direto + overflow espalhava o overflow pros dois lados e
+              cortava o input da esquerda sem deixar scrollar até ele). */}
+          <div className="flex justify-center mb-micro" style={{ maxWidth: '100%' }}>
+            <div className="flex flex-nowrap items-center gap-micro overflow-x-auto" style={{ maxWidth: '100%' }}>
+              <input type="text" inputMode="numeric" maxLength={2}
+                value={multA} onChange={e => { setMultA(e.target.value); setMultError(''); }}
+                style={{ ...inputStyle, flexShrink: 0 }} aria-label="Primeiro fator" />
+              <select
+                value={multOp}
+                onChange={e => { setMultOp(e.target.value); setMultError(''); }}
+                aria-label="Selecione a operação"
+                style={{
+                  ...inputStyle,
+                  width: 64,
+                  appearance: 'auto' as const,
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                <option value="">?</option>
+                <option value="+">+</option>
+                <option value="-">-</option>
+                <option value="×">×</option>
+                <option value="÷">÷</option>
+              </select>
+              <input type="text" inputMode="numeric" maxLength={2}
+                value={multB} onChange={e => { setMultB(e.target.value); setMultError(''); }}
+                style={{ ...inputStyle, flexShrink: 0 }} aria-label="Segundo fator" />
+              <span className="ds-heading-extra text-neutral-darkest" style={{ flexShrink: 0 }}>=</span>
+              <input type="text" inputMode="numeric" maxLength={2}
+                value={multC} onChange={e => { setMultC(e.target.value); setMultError(''); }}
+                style={{ ...inputStyle, flexShrink: 0 }} aria-label="Resultado" />
+            </div>
           </div>
           {multError && (
             <p role="alert" className="ds-small-bold text-center mb-micro text-feedback-error-dark">

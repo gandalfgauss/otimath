@@ -205,6 +205,7 @@ function FormulaSelect({
         outline: 'none',
         cursor: disabled ? 'not-allowed' : undefined,
         opacity: disabled ? 0.7 : 1,
+        flexShrink: 0,
       }}
     >
       <option value="" disabled hidden>?</option>
@@ -710,14 +711,60 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       formulaPos3 !== '' || formulaPos4 !== ''
     ), [formulaPos1, formulaPos2, formulaPos3, formulaPos4]);
 
+    // Mapa de rótulos amigáveis pra usar nos alerts dos FormulaSelect.
+    const exprLabel = useCallback((id: ExprId): string => {
+      switch (id) {
+        case 'A':    return 'A';
+        case 'B':    return 'B';
+        case 'AnB':  return 'A ∩ B';
+        case 'AmB':  return 'A − B';
+        case 'BmA':  return 'B − A';
+        case 'AuB':  return 'A ∪ B';
+        case 'AuB_minus_AnB': return '(A ∪ B) − (A ∩ B)';
+        case 'AmB_union_BmA': return '(A − B) ∪ (B − A)';
+        case 'S_minus_AuB':   return 'Ω − (A ∪ B)';
+        default: return '';
+      }
+    }, []);
+
+    // Feedback compartilhado pros 4 FormulaSelects da fórmula
+    // P(?) = P(?) + P(?) − P(?). Toca som de acerto/erro e mostra alert.
+    // Não dispara em valor vazio (estado inicial / reset).
+    const playFormulaPosFeedback = useCallback((v: ExprId, expected: ExprId, posLabel: string) => {
+      if (v === '') return;
+      if (v === expected) {
+        playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', `${posLabel}: ${exprLabel(expected)}.`, 'success', 2500);
+      } else {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', `Releia a posição ${posLabel} da fórmula da união.`, 'error', 3500);
+      }
+    }, [createAlert, exprLabel]);
+
     // Handler customizado para o placeholder de P(A∪B) — incrementa contador
-    // de erros progressivos a cada mudança para valor diferente do esperado.
+    // de erros progressivos a cada mudança para valor diferente do esperado
+    // E dispara feedback auditivo/textual.
     const handlePos1Change = useCallback((v: ExprId) => {
       setFormulaPos1(v);
       if (v !== '' && v !== 'AuB') {
         setP1ErrorCount(c => c + 1);
       }
-    }, []);
+      playFormulaPosFeedback(v, 'AuB', 'P(...)');
+    }, [playFormulaPosFeedback]);
+
+    // Handlers para os outros 3 placeholders — todos com feedback consistente.
+    const handlePos2Change = useCallback((v: ExprId) => {
+      setFormulaPos2(v);
+      playFormulaPosFeedback(v, 'A', 'P(A)');
+    }, [playFormulaPosFeedback]);
+    const handlePos3Change = useCallback((v: ExprId) => {
+      setFormulaPos3(v);
+      playFormulaPosFeedback(v, 'B', 'P(B)');
+    }, [playFormulaPosFeedback]);
+    const handlePos4Change = useCallback((v: ExprId) => {
+      setFormulaPos4(v);
+      playFormulaPosFeedback(v, 'AnB', 'P(A ∩ B)');
+    }, [playFormulaPosFeedback]);
 
     // Dica progressiva conforme o número de erros cometidos em pos1.
     const p1Hint = useMemo(() => {
@@ -1248,48 +1295,51 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               Antes de calcular, escolha dentro dos parênteses qual evento você vai usar.
             </p>
 
-            <div className="flex items-center justify-center gap-x-nano mt-micro overflow-x-auto">
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], fontSize: '1.05rem' }}>
-                P(
-              </span>
-              <select
-                id="ex1-expr-selector"
-                value={pABExpr}
-                onChange={e => {
-                  setPABExpr(e.target.value as ExprId);
-                  setPABExprError(false);
-                }}
-                aria-label="Evento a calcular"
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                  border: `2px solid ${pABExprError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
-                  fontWeight: 700,
-                  outline: 'none',
-                  minWidth: 80,
-                  background: 'var(--color-neutral-white)',
-                  color: pABExpr === 'AnB' ? EVENT_COLORS['A∩B'] : 'var(--color-neutral-darkest)',
-                  fontSize: '0.95rem',
-                }}
-              >
-                <option value="" disabled hidden>?</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="AnB">A ∩ B</option>
-                <option value="AmB">A − B</option>
-                <option value="BmA">B − A</option>
-                <option value="AuB">A ∪ B</option>
-              </select>
-              <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], fontSize: '1.05rem' }}>
-                ) =
-              </span>
-              <FractionInput
-                num={pABNum} den={pABDen}
-                setNum={setPABNum} setDen={setPABDen}
-                error={pABError}
-                onEnter={validatePAB}
-                disabled={pABExpr !== 'AnB'}
-              />
+            <div className="flex justify-center mt-micro" style={{ maxWidth: '100%' }}>
+              <div className="flex flex-nowrap items-center gap-x-nano overflow-x-auto" style={{ maxWidth: '100%' }}>
+                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], fontSize: '1.05rem', flexShrink: 0 }}>
+                  P(
+                </span>
+                <select
+                  id="ex1-expr-selector"
+                  value={pABExpr}
+                  onChange={e => {
+                    setPABExpr(e.target.value as ExprId);
+                    setPABExprError(false);
+                  }}
+                  aria-label="Evento a calcular"
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    border: `2px solid ${pABExprError ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)'}`,
+                    fontWeight: 700,
+                    outline: 'none',
+                    minWidth: 80,
+                    background: 'var(--color-neutral-white)',
+                    color: pABExpr === 'AnB' ? EVENT_COLORS['A∩B'] : 'var(--color-neutral-darkest)',
+                    fontSize: '0.95rem',
+                    flexShrink: 0,
+                  }}
+                >
+                  <option value="" disabled hidden>?</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="AnB">A ∩ B</option>
+                  <option value="AmB">A − B</option>
+                  <option value="BmA">B − A</option>
+                  <option value="AuB">A ∪ B</option>
+                </select>
+                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∩B'], fontSize: '1.05rem', flexShrink: 0 }}>
+                  ) =
+                </span>
+                <FractionInput
+                  num={pABNum} den={pABDen}
+                  setNum={setPABNum} setDen={setPABDen}
+                  error={pABError}
+                  onEnter={validatePAB}
+                  disabled={pABExpr !== 'AnB'}
+                />
+              </div>
             </div>
 
             {pABExprError && pABExpr && pABExpr !== 'AnB' && (
@@ -1342,7 +1392,21 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               Esse problema pode ser resolvido aplicando a fórmula da probabilidade{' '}
               <OperationSelect
                 value={operationExpr}
-                onChange={setOperationExpr}
+                onChange={(v) => {
+                  setOperationExpr(v);
+                  // Antes era `onChange={setOperationExpr}` direto, sem
+                  // feedback. Agora cada seleção do select dá som + alert:
+                  // acerto libera os 4 selects da fórmula (`disabled` cai
+                  // pra false quando operationExpr==='union'), então é um
+                  // momento importante pedagogicamente.
+                  if (v === 'union') {
+                    playSound('/sounds/correct.mp3');
+                    createAlert?.('Correto!', 'Fórmula da união selecionada. Agora monte a expressão dentro dos parênteses.', 'success', 3500);
+                  } else if (v !== '') {
+                    playSound('/sounds/incorrect.mp3');
+                    createAlert?.('Tente novamente', 'Releia o enunciado — qual operação combina dois eventos numa "soma"?', 'error', 4000);
+                  }
+                }}
                 expected="union"
               />
               {' '}de dois eventos. Monte a fórmula selecionando os conjuntos (eventos)
@@ -1350,52 +1414,61 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             </p>
 
             <div
-              className="mt-micro text-center p-micro rounded-md"
+              className="mt-micro p-micro rounded-md"
               style={{
                 background: 'var(--color-brand-otimath-lightest)',
                 border: '2px solid var(--color-brand-otimath-pure)',
               }}
             >
-              <div
-                className="flex items-center justify-center gap-x-nano overflow-x-auto"
-                style={{
-                  color: operationExpr === 'union'
-                    ? 'var(--color-brand-otimath-dark)'
-                    : 'var(--color-neutral-medium)',
-                  fontWeight: 700,
-                  fontSize: '1.15rem',
-                }}
-              >
-                <span>P(</span>
-                <FormulaSelect
-                  value={formulaPos1}
-                  onChange={handlePos1Change}
-                  expected="AuB"
-                  expanded={p1Expanded}
-                  disabled={operationExpr !== 'union'}
-                />
-                <span>) = P(</span>
-                <FormulaSelect
-                  value={formulaPos2}
-                  onChange={setFormulaPos2}
-                  expected="A"
-                  disabled={operationExpr !== 'union'}
-                />
-                <span>) + P(</span>
-                <FormulaSelect
-                  value={formulaPos3}
-                  onChange={setFormulaPos3}
-                  expected="B"
-                  disabled={operationExpr !== 'union'}
-                />
-                <span>) − P(</span>
-                <FormulaSelect
-                  value={formulaPos4}
-                  onChange={setFormulaPos4}
-                  expected="AnB"
-                  disabled={operationExpr !== 'union'}
-                />
-                <span>)</span>
+              {/* Fórmula: wrapper externo centra + interno tem scroll-x.
+                  Antes era um único div com justify-center + overflow-x-auto
+                  — quando os 4 selects + spans não cabiam no mobile, o
+                  flex empurrava o overflow pros DOIS lados igualmente
+                  cortando o P( da esquerda sem deixar acessar via scroll.
+                  Agora o interno fica 100% da viewport e rola de A pra Z. */}
+              <div className="flex justify-center" style={{ maxWidth: '100%' }}>
+                <div
+                  className="flex flex-nowrap items-center gap-x-nano overflow-x-auto"
+                  style={{
+                    color: operationExpr === 'union'
+                      ? 'var(--color-brand-otimath-dark)'
+                      : 'var(--color-neutral-medium)',
+                    fontWeight: 700,
+                    fontSize: '1.15rem',
+                    maxWidth: '100%',
+                  }}
+                >
+                  <span style={{ flexShrink: 0 }}>P(</span>
+                  <FormulaSelect
+                    value={formulaPos1}
+                    onChange={handlePos1Change}
+                    expected="AuB"
+                    expanded={p1Expanded}
+                    disabled={operationExpr !== 'union'}
+                  />
+                  <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>) = P(</span>
+                  <FormulaSelect
+                    value={formulaPos2}
+                    onChange={handlePos2Change}
+                    expected="A"
+                    disabled={operationExpr !== 'union'}
+                  />
+                  <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>) + P(</span>
+                  <FormulaSelect
+                    value={formulaPos3}
+                    onChange={handlePos3Change}
+                    expected="B"
+                    disabled={operationExpr !== 'union'}
+                  />
+                  <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>) − P(</span>
+                  <FormulaSelect
+                    value={formulaPos4}
+                    onChange={handlePos4Change}
+                    expected="AnB"
+                    disabled={operationExpr !== 'union'}
+                  />
+                  <span style={{ flexShrink: 0 }}>)</span>
+                </div>
               </div>
 
               {operationExpr !== 'union' && (
@@ -1497,27 +1570,29 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                   Substitua cada probabilidade pela fração correspondente e some:
                 </p>
 
-                <div className="flex items-center justify-center gap-x-micro mt-micro overflow-x-auto">
-                  <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'], whiteSpace: 'nowrap' }}>
-                    P(A ∪ B) =
-                  </span>
-                  <FractionInput
-                    num={subANum} den={subADen}
-                    setNum={setSubANum} setDen={setSubADen}
-                    error={subError}
-                  />
-                  <span className="ds-body-bold text-neutral-darkest">+</span>
-                  <FractionInput
-                    num={subBNum} den={subBDen}
-                    setNum={setSubBNum} setDen={setSubBDen}
-                    error={subError}
-                  />
-                  <span className="ds-body-bold text-neutral-darkest">−</span>
-                  <FractionInput
-                    num={subINum} den={subIDen}
-                    setNum={setSubINum} setDen={setSubIDen}
-                    error={subError}
-                  />
+                <div className="flex justify-center mt-micro" style={{ maxWidth: '100%' }}>
+                  <div className="flex flex-nowrap items-center gap-x-micro overflow-x-auto" style={{ maxWidth: '100%' }}>
+                    <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'], whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      P(A ∪ B) =
+                    </span>
+                    <FractionInput
+                      num={subANum} den={subADen}
+                      setNum={setSubANum} setDen={setSubADen}
+                      error={subError}
+                    />
+                    <span className="ds-body-bold text-neutral-darkest" style={{ flexShrink: 0 }}>+</span>
+                    <FractionInput
+                      num={subBNum} den={subBDen}
+                      setNum={setSubBNum} setDen={setSubBDen}
+                      error={subError}
+                    />
+                    <span className="ds-body-bold text-neutral-darkest" style={{ flexShrink: 0 }}>−</span>
+                    <FractionInput
+                      num={subINum} den={subIDen}
+                      setNum={setSubINum} setDen={setSubIDen}
+                      error={subError}
+                    />
+                  </div>
                 </div>
                 {subError && (
                   <p

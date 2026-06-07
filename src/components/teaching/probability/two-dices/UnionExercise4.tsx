@@ -269,6 +269,7 @@ function ExprSelect({
         padding: '3px 8px', borderRadius: 5, border: `2px solid ${color}`,
         fontWeight: 700, fontSize: '0.95rem', color,
         background: 'var(--color-neutral-white)', minWidth: 76, outline: 'none',
+        flexShrink: 0,
       }}
     >
       <option value="" disabled hidden>?</option>
@@ -302,6 +303,44 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     const [card1Pos2, setCard1Pos2] = useState<ExprId>('');
     const [card1Pos3, setCard1Pos3] = useState<ExprId>('');
     const [card1Pos4, setCard1Pos4] = useState<ExprId>('');
+
+    // Helpers de feedback pros 4 ExprSelect da fórmula de cardinalidade
+    // n(?) = n(?) + n(?) − n(?). Antes os onChange eram setCardNPosM direto,
+    // sem som/alert — aluno escolhia opção e nada acontecia até validar.
+    const exprLabelCard = useCallback((id: ExprId): string => {
+      switch (id) {
+        case 'A':   return 'A';
+        case 'B':   return 'B';
+        case 'AnB': return 'A ∩ B';
+        case 'AmB': return 'A − B';
+        case 'BmA': return 'B − A';
+        case 'AuB': return 'A ∪ B';
+        case 'AuB_minus_AnB': return '(A ∪ B) − (A ∩ B)';
+        default: return '';
+      }
+    }, []);
+    const playCardPosFeedback = useCallback((v: ExprId, expected: ExprId, posLabel: string) => {
+      if (v === '') return;
+      if (v === expected) {
+        playSound('/sounds/correct.mp3');
+        createAlert?.('Correto!', `${posLabel}: ${exprLabelCard(expected)}.`, 'success', 2500);
+      } else {
+        playSound('/sounds/incorrect.mp3');
+        createAlert?.('Tente novamente', `Releia a posição ${posLabel} da fórmula da cardinalidade.`, 'error', 3500);
+      }
+    }, [createAlert, exprLabelCard]);
+    const handleCard1Pos1Change = useCallback((v: ExprId) => {
+      setCard1Pos1(v); playCardPosFeedback(v, 'AuB', 'n(...)');
+    }, [playCardPosFeedback]);
+    const handleCard1Pos2Change = useCallback((v: ExprId) => {
+      setCard1Pos2(v); playCardPosFeedback(v, 'A', 'n(A)');
+    }, [playCardPosFeedback]);
+    const handleCard1Pos3Change = useCallback((v: ExprId) => {
+      setCard1Pos3(v); playCardPosFeedback(v, 'B', 'n(B)');
+    }, [playCardPosFeedback]);
+    const handleCard1Pos4Change = useCallback((v: ExprId) => {
+      setCard1Pos4(v); playCardPosFeedback(v, 'AnB', 'n(A ∩ B)');
+    }, [playCardPosFeedback]);
 
     const [card2CInput, setCard2CInput] = useState('');
     const [card2BInput, setCard2BInput] = useState('');
@@ -1114,16 +1153,18 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 1 — Complete a fórmula da cardinalidade da união
               </p>
-              <div className="flex items-center justify-center gap-x-nano mt-micro overflow-x-auto text-[1.1rem] font-bold">
-                <span>n(</span>
-                <ExprSelect value={card1Pos1} onChange={setCard1Pos1} expected="AuB" options={CARD_OPTIONS} />
-                <span>) = n(</span>
-                <ExprSelect value={card1Pos2} onChange={setCard1Pos2} expected="A" options={CARD_OPTIONS} />
-                <span>) + n(</span>
-                <ExprSelect value={card1Pos3} onChange={setCard1Pos3} expected="B" options={CARD_OPTIONS} />
-                <span>) − n(</span>
-                <ExprSelect value={card1Pos4} onChange={setCard1Pos4} expected="AnB" options={CARD_OPTIONS} />
-                <span>)</span>
+              <div className="flex justify-center mt-micro" style={{ maxWidth: '100%' }}>
+                <div className="flex flex-nowrap items-center gap-x-nano overflow-x-auto text-[1.1rem] font-bold" style={{ maxWidth: '100%' }}>
+                  <span style={{ flexShrink: 0 }}>n(</span>
+                  <ExprSelect value={card1Pos1} onChange={handleCard1Pos1Change} expected="AuB" options={CARD_OPTIONS} />
+                  <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>) = n(</span>
+                  <ExprSelect value={card1Pos2} onChange={handleCard1Pos2Change} expected="A" options={CARD_OPTIONS} />
+                  <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>) + n(</span>
+                  <ExprSelect value={card1Pos3} onChange={handleCard1Pos3Change} expected="B" options={CARD_OPTIONS} />
+                  <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>) − n(</span>
+                  <ExprSelect value={card1Pos4} onChange={handleCard1Pos4Change} expected="AnB" options={CARD_OPTIONS} />
+                  <span style={{ flexShrink: 0 }}>)</span>
+                </div>
               </div>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={validateCard1}>Validar</Button>
@@ -1143,13 +1184,15 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               <p className="ds-small text-center text-neutral-dark mt-nano italic whitespace-nowrap">
                 n(A ∪ B) = n(A) + n(B) − n(A ∩ B)
               </p>
-              <div className="flex items-center justify-center gap-x-nano mt-micro overflow-x-auto text-[1.1rem] font-bold">
-                <NumberBox value={card2CInput} setValue={setCard2CInput} error={card2Error} ariaLabel="n(A ∪ B)" />
-                <span>= </span>
-                <NumberBox value={card2BInput} setValue={setCard2BInput} error={card2Error} ariaLabel="n(A)" />
-                <span> + </span>
-                <NumberBox value={card2DInput} setValue={setCard2DInput} error={card2Error} ariaLabel="n(B)" />
-                <span className="whitespace-nowrap"> − n(A ∩ B)</span>
+              <div className="flex justify-center mt-micro" style={{ maxWidth: '100%' }}>
+                <div className="flex flex-nowrap items-center gap-x-nano overflow-x-auto text-[1.1rem] font-bold" style={{ maxWidth: '100%' }}>
+                  <NumberBox value={card2CInput} setValue={setCard2CInput} error={card2Error} ariaLabel="n(A ∪ B)" />
+                  <span style={{ flexShrink: 0 }}>= </span>
+                  <NumberBox value={card2BInput} setValue={setCard2BInput} error={card2Error} ariaLabel="n(A)" />
+                  <span style={{ flexShrink: 0 }}> + </span>
+                  <NumberBox value={card2DInput} setValue={setCard2DInput} error={card2Error} ariaLabel="n(B)" />
+                  <span className="whitespace-nowrap" style={{ flexShrink: 0 }}> − n(A ∩ B)</span>
+                </div>
               </div>
               {card2Error && (
                 <p className="ds-small text-center mt-nano text-feedback-error-dark font-medium">
@@ -1336,13 +1379,15 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                   <p className="ds-body text-neutral-black text-justify">
                     Observando o diagrama apresentado, escreva a equação que permite calcular n(A ∪ B):
                   </p>
-                  <div className="flex items-center justify-center gap-x-nano mt-nano overflow-x-auto text-[1.05rem] font-bold">
-                    <span style={{ color: EVENT_COLORS['A∪B'], whiteSpace: 'nowrap' }}>n(A ∪ B) =</span>
-                    <TextBox value={vennEqAmB} setValue={setVennEqAmB} error={vennEqAmBError} ariaLabel="n(A − B)" />
-                    <span>+</span>
-                    <TextBox value={vennEqAnB} setValue={setVennEqAnB} error={vennEqAnBError} ariaLabel="n(A ∩ B)" width={70} />
-                    <span>+</span>
-                    <TextBox value={vennEqBmA} setValue={setVennEqBmA} error={vennEqBmAError} ariaLabel="n(B − A)" />
+                  <div className="flex justify-center mt-nano" style={{ maxWidth: '100%' }}>
+                    <div className="flex flex-nowrap items-center gap-x-nano overflow-x-auto text-[1.05rem] font-bold" style={{ maxWidth: '100%' }}>
+                      <span style={{ color: EVENT_COLORS['A∪B'], whiteSpace: 'nowrap', flexShrink: 0 }}>n(A ∪ B) =</span>
+                      <TextBox value={vennEqAmB} setValue={setVennEqAmB} error={vennEqAmBError} ariaLabel="n(A − B)" />
+                      <span style={{ flexShrink: 0 }}>+</span>
+                      <TextBox value={vennEqAnB} setValue={setVennEqAnB} error={vennEqAnBError} ariaLabel="n(A ∩ B)" width={70} />
+                      <span style={{ flexShrink: 0 }}>+</span>
+                      <TextBox value={vennEqBmA} setValue={setVennEqBmA} error={vennEqBmAError} ariaLabel="n(B − A)" />
+                    </div>
                   </div>
                   {vennEqAmBError && (
                     <p className="ds-small mt-nano text-feedback-error-dark font-medium">

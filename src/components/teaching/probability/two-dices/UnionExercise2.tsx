@@ -697,27 +697,29 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
                 P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
               </p>
 
-              <div className="flex items-center justify-center gap-x-micro mt-nano overflow-x-auto">
-                <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'], whiteSpace: 'nowrap' }}>
-                  P(A ∪ B) =
-                </span>
-                <FractionInput
-                  num={subANum} den={subADen}
-                  setNum={setSubANum} setDen={setSubADen}
-                  error={subError}
-                />
-                <span className="ds-body-bold text-neutral-darkest">+</span>
-                <FractionInput
-                  num={subBNum} den={subBDen}
-                  setNum={setSubBNum} setDen={setSubBDen}
-                  error={subError}
-                />
-                <span className="ds-body-bold text-neutral-darkest">−</span>
-                <FractionInput
-                  num={subINum} den={subIDen}
-                  setNum={setSubINum} setDen={setSubIDen}
-                  error={subError}
-                />
+              <div className="flex justify-center mt-nano" style={{ maxWidth: '100%' }}>
+                <div className="flex flex-nowrap items-center gap-x-micro overflow-x-auto" style={{ maxWidth: '100%' }}>
+                  <span className="ds-body-bold" style={{ color: EVENT_COLORS['A∪B'], whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    P(A ∪ B) =
+                  </span>
+                  <FractionInput
+                    num={subANum} den={subADen}
+                    setNum={setSubANum} setDen={setSubADen}
+                    error={subError}
+                  />
+                  <span className="ds-body-bold text-neutral-darkest" style={{ flexShrink: 0 }}>+</span>
+                  <FractionInput
+                    num={subBNum} den={subBDen}
+                    setNum={setSubBNum} setDen={setSubBDen}
+                    error={subError}
+                  />
+                  <span className="ds-body-bold text-neutral-darkest" style={{ flexShrink: 0 }}>−</span>
+                  <FractionInput
+                    num={subINum} den={subIDen}
+                    setNum={setSubINum} setDen={setSubIDen}
+                    error={subError}
+                  />
+                </div>
               </div>
               {subError && (
                 <p
