@@ -3,6 +3,14 @@
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { playSound } from '@/hooks/global/useSound';
+import { registerCanvasContext } from '@/hooks/global/useCanvasRevivalKey';
+
+// Cache do último face rolado neste tipo de cena (módulo-level porque só existe
+// uma instância ativa de DiceScene no OVA por vez). Permite restaurar a face
+// que o aluno acabou de ver caso a cena seja remontada após context-loss WebGL
+// (background prolongado em mobile). Sem isso, a face cai pra a pose inicial
+// arbitrária e o aluno perde a informação que precisa pra responder a questão.
+let lastFaceCache: number | null = null;
 
 /* ═══════════════════════════════════════════════════════════════
    DiceScene — Dado 3D realista com Three.js (um dado só)
@@ -408,6 +416,7 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     renderer.toneMappingExposure = 1.22;
     renderer.setClearColor(0x110d09, 1);
     container.appendChild(renderer.domElement);
+    const unregisterContext = registerCanvasContext(renderer.getContext(), renderer.domElement);
 
     const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
@@ -521,6 +530,15 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     };
     internals.current = state;
 
+    // Restauração pós-revival: se já houve roll antes (cache não-null), encaixar
+    // o dado em repouso na face correspondente para o aluno não perder o
+    // resultado anterior após uma remontagem por context-loss.
+    if (lastFaceCache !== null) {
+      die.position.set(0, REST_Y, 0);
+      die.quaternion.copy(snapRot[lastFaceCache]);
+      state.mode = 'resting';
+    }
+
     // Resize
     const onResize = () => {
       const rect = container.getBoundingClientRect();
@@ -632,6 +650,7 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
           d.position.z = 0;
           cs.position.x = 0;
           s.mode = 'resting';
+          lastFaceCache = s.rollTarget; // pra restaurar após revival WebGL
           if (s.rollResolve) {
             s.rollResolve();
             s.rollResolve = null;
@@ -749,6 +768,7 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', onPointerCancel);
+      unregisterContext();
       renderer.dispose();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);

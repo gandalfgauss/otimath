@@ -5,6 +5,13 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { playSound } from '@/hooks/global/useSound';
 import { IBERE_AUDIO_DATA_URL } from './ibereAudioData';
+import { registerCanvasContext } from '@/hooks/global/useCanvasRevivalKey';
+
+// Cache do último resultado rolado por esta cena (módulo-level porque só uma
+// instância de DiceMachineScene fica ativa por vez). Permite restaurar as faces
+// visíveis após context-loss WebGL — o aluno conserva o resultado pra responder
+// a questão sem precisar relançar a máquina inteira (~12s de animação).
+let lastFacesCache: { blue: number; green: number } | null = null;
 
 /* ═══════════════════════════════════════════════════════════════
    DiceMachineScene — Cena 7
@@ -910,6 +917,7 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.display = 'block';
+    const unregisterContext = registerCanvasContext(renderer.getContext(), renderer.domElement);
 
     /* ───── Cena (background azul-escuro com profundidade) ───── */
     const scene = new THREE.Scene();
@@ -2166,6 +2174,7 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
               // outras partes da cena dependam de die1/die2).
               state.die1 = realBlue;
               state.die2 = realGreen;
+              lastFacesCache = { blue: realBlue, green: realGreen }; // pra restaurar após revival
               state.rollResolve({ blue: realBlue, green: realGreen });
               state.rollResolve = null;
             }
@@ -2213,6 +2222,27 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     };
     state.animId = requestAnimationFrame(animate);
 
+    // Restauração pós-revival WebGL — encaixa os dois dados em RESULT com as
+    // faces cacheadas, sem rodar a animação de ~12s da máquina. Posições padrão
+    // centradas na mesa (a posição original do lançamento se perde com o
+    // remount; o importante é o aluno conseguir LER as faces pra responder a
+    // questão pendente). state.cur='RESULT' bloqueia o loop de avançar pelos
+    // estados (vide guarda `state.cur !== 'RESULT'` em animate).
+    if (lastFacesCache !== null) {
+      state.die1 = lastFacesCache.blue;
+      state.die2 = lastFacesCache.green;
+      setDieMats(die1Mesh, state.die1, true);
+      setDieMats(die2Mesh, state.die2, false);
+      state.d1Final.set(-0.6, DIE_Y, 0);
+      state.d2Final.set(0.6, DIE_Y, 0);
+      die1Mesh.position.copy(state.d1Final);
+      die2Mesh.position.copy(state.d2Final);
+      state.p1.x = -0.6; state.p1.y = DIE_Y; state.p1.z = 0;
+      state.p2.x = 0.6; state.p2.y = DIE_Y; state.p2.z = 0;
+      state.cur = 'RESULT';
+      state.running = false;
+    }
+
     // Exposição do enterState para o handle
     (state as unknown as { _enterState: (s: State) => void })._enterState = enterState;
 
@@ -2221,6 +2251,7 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       cancelAnimationFrame(state.animId);
       cancelAnimationFrame(compileId);
       ro.disconnect();
+      unregisterContext();
       // Libera o player do áudio do Iberê
       try { state.audio.dispose(); } catch { /* noop */ }
       // Libera áudio da máquina

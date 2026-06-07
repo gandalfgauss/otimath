@@ -3,6 +3,14 @@
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { playSound } from '@/hooks/global/useSound';
+import { registerCanvasContext } from '@/hooks/global/useCanvasRevivalKey';
+
+// Cache do último resultado rolado neste tipo de cena (módulo-level porque só
+// existe uma instância ativa de TwoDiceScene no OVA por vez). Permite restaurar
+// as faces que o aluno acabou de ver caso a cena seja remontada após
+// context-loss WebGL — preserva o resultado pra ele conseguir responder a
+// questão sem precisar relançar.
+let lastFacesCache: { green: number; blue: number } | null = null;
 
 /* ═══════════════════════════════════════════════════════════════
    TwoDiceScene — Dois dados 3D (verde + azul) com colisão
@@ -284,6 +292,7 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
     renderer.toneMappingExposure = 1.22;
     renderer.setClearColor(0x110d09, 1);
     container.appendChild(renderer.domElement);
+    const unregisterContext = registerCanvasContext(renderer.getContext(), renderer.domElement);
 
     const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
@@ -383,6 +392,21 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
       rebuildMaterials,
     };
     internals.current = state;
+
+    // Restauração pós-revival: se houve roll anterior, encaixar os dois dados
+    // em repouso nas faces correspondentes para o aluno não perder o resultado
+    // após uma remontagem por context-loss WebGL.
+    if (lastFacesCache !== null) {
+      const apply = (d: DieState, value: number) => {
+        const [tx, ty, tz] = SNAP_ROT[value];
+        d.value = value;
+        d.mesh.rotation.set(tx, ty, tz);
+        d.mesh.position.set(d.xBase, REST_Y, 0);
+        d.x = d.xBase; d.y = REST_Y; d.z = 0;
+      };
+      apply(state.dice[0], lastFacesCache.green);
+      apply(state.dice[1], lastFacesCache.blue);
+    }
 
     // Resize
     const onResize = () => {
@@ -495,7 +519,9 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
         s.globalRolling = false;
         setTimeout(() => {
           if (s.rollResolve) {
-            s.rollResolve({ green: s.dice[0].value, blue: s.dice[1].value });
+            const result = { green: s.dice[0].value, blue: s.dice[1].value };
+            lastFacesCache = result; // pra restaurar após revival WebGL
+            s.rollResolve(result);
             s.rollResolve = null;
           }
         }, 400);
@@ -537,6 +563,7 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
     return () => {
       cancelAnimationFrame(state.animId);
       ro.disconnect();
+      unregisterContext();
       renderer.dispose();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
