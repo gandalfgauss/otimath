@@ -10,6 +10,7 @@ import { Alerts } from '@/components/global/Alerts';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { playSound } from '@/hooks/global/useSound';
 import { useAlerts } from '@/hooks/global/useAlerts';
+import { useCanvasRevivalKey } from '@/hooks/global/useCanvasRevivalKey';
 import type { DiceSceneHandle } from './DiceScene';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
 import type { UnionTheoryHandle } from './UnionProbabilityTheory';
@@ -238,6 +239,13 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   const [done, setDone] = useState(false);
   const [scene, setScene] = useState(1);
   const [transitioning, setTransitioning] = useState(false);
+
+  // Chave que incrementa quando a página fica visível depois de ter ficado
+  // oculta. Aplicada como `key` em cada cena WebGL (DiceScene, TwoDiceScene,
+  // DiceMachineScene) para forçar remontagem após o SO descartar o contexto
+  // WebGL no segundo plano — corrige o bug do canvas em branco no Firefox
+  // Android ao voltar do app switcher.
+  const canvasRevivalKey = useCanvasRevivalKey();
 
   // Ref do dado 3D e seu container (para scroll programático)
   const diceRef = useRef<DiceSceneHandle>(null);
@@ -1174,7 +1182,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
 
             {/* Dado 3D — montado uma vez, oculto na cena 4 */}
             <div ref={diceContainerRef} style={{ display: showDice ? 'block' : 'none', width: '100%' }}>
-              <DiceScene ref={diceRef} />
+              <DiceScene key={canvasRevivalKey} ref={diceRef} />
             </div>
 
             {/* ═══════ CENA 1 — Texto informativo ═══════ */}
@@ -1825,7 +1833,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                     <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
                   </div>
                 )}
-                <DiceMachineScene ref={diceMachineRef} onReady={() => setMachineReady(true)} />
+                <DiceMachineScene key={canvasRevivalKey} ref={diceMachineRef} onReady={() => setMachineReady(true)} />
               </div>
             )}
 
@@ -1861,7 +1869,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                     display: (scene7UsesMachine || scene7HideAllDice) ? 'none' : 'block',
                   }}
                 >
-                  <TwoDiceScene ref={twoDiceRef} />
+                  <TwoDiceScene key={canvasRevivalKey} ref={twoDiceRef} />
                 </div>
                 {/* DiceMachineScene (mesma máquina da Cena 6) — montada desde o início da Cena 7
                     para pré-inicializar a WebGL (texturas, geometrias, materiais). Escondida via
@@ -1874,7 +1882,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                     display: (scene7UsesMachine && !scene7HideAllDice) ? 'block' : 'none',
                   }}
                 >
-                  <DiceMachineScene ref={diceMachineRef} />
+                  <DiceMachineScene key={canvasRevivalKey} ref={diceMachineRef} />
                 </div>
                 <TwoDicesExperiment
                   ref={twoDicesExperimentRef}
