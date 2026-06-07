@@ -10,18 +10,21 @@ import { useEffect, useState } from 'react';
    contexto WebGL para liberar GPU. Three.js não tem recuperação
    automática — o canvas fica em branco.
 
-   ABORDAGEM — Detectar context loss e forçar React a remontar APENAS
-   as cenas afetadas, via `key` prop. A detecção é dupla:
+   TRIGGERS — Bumpamos a key (= forçar remontagem) em dois eventos:
 
-     1. Direta — listener `webglcontextlost` em cada canvas registrado
-        (dispara o evento assim que o contexto cai).
-     2. Indireta — na transição hidden→visible da página, consultar
-        `gl.isContextLost()` em cada contexto (safety net pra navegadores
-        que não disparam o evento de forma confiável).
+     1. `webglcontextlost` — dispara assim que o browser sinaliza perda
+        do contexto. Resposta imediata.
+     2. `visibilitychange` (hidden→visible) com `elapsed > thresholdMs`
+        — fallback INCONDICIONAL. Não dá pra confiar em
+        `gl.isContextLost()` em mobile (retorna false mesmo quando o
+        canvas está em branco), e o `webglcontextlost` nem sempre
+        dispara — então bumpamos por padrão depois de um background
+        longo, mesmo que isso force rebuild quando talvez não fosse
+        necessário. Preferimos custo extra a tela em branco travando o
+        aluno.
 
-   Sem esse 1º passo a chave bumpava em TODO retorno do background, mesmo
-   quando o contexto sobrevivia — o que custava ~200ms desnecessários de
-   tear-down + rebuild de Three.js a cada app switch curto.
+   Cada notificação é debounced — se ambos os triggers dispararem no
+   mesmo ciclo de revival, só uma remontagem acontece.
    ═══════════════════════════════════════════════════════════════════ */
 
 type GLContext = WebGLRenderingContext | WebGL2RenderingContext;
@@ -34,8 +37,13 @@ interface RegisteredContext {
 
 const registered = new Set<RegisteredContext>();
 const revivalListeners = new Set<() => void>();
+const REVIVAL_DEBOUNCE_MS = 500;
+let lastRevivalAt = 0;
 
 function notifyRevival() {
+  const now = Date.now();
+  if (now - lastRevivalAt < REVIVAL_DEBOUNCE_MS) return;
+  lastRevivalAt = now;
   revivalListeners.forEach(fn => fn());
 }
 
@@ -45,9 +53,8 @@ function notifyRevival() {
  * renderer), passando `renderer.getContext()` e `renderer.domElement`. O
  * retorno é a função de unregister — chamar no cleanup do mesmo useEffect.
  *
- * Anexa internamente um listener `webglcontextlost` ao canvas que chama
- * `preventDefault()` (sinaliza ao browser que queremos restoration) e
- * dispara o revival imediato.
+ * Anexa um listener `webglcontextlost` ao canvas que chama `preventDefault()`
+ * (sinaliza ao browser que queremos restoration) e dispara o revival.
  */
 export function registerCanvasContext(gl: GLContext, canvas: HTMLCanvasElement): () => void {
   const onLost = (e: Event) => {
@@ -64,28 +71,24 @@ export function registerCanvasContext(gl: GLContext, canvas: HTMLCanvasElement):
 }
 
 /**
- * Retorna uma chave numérica que incrementa quando um contexto WebGL
- * registrado é perdido. Aplica em props `key` de componentes WebGL pra
- * forçar React a remontar e reconstruir o contexto/cena/texturas.
+ * Retorna uma chave numérica que incrementa quando um cenário de revival WebGL
+ * é detectado. Use em props `key` de componentes WebGL pra forçar React a
+ * remontar e reconstruir contexto + cena + texturas do zero.
  *
- * Aceita um threshold opcional (default 1000ms) — só verifica perda
- * após a página ficar oculta por mais que esse tempo. Backgrounds
- * curtíssimos quase nunca causam perda real, então pulamos a checagem.
+ * O `thresholdMs` (default 1000ms) é o tempo mínimo de background antes do
+ * fallback de visibility-change bumpar. Backgrounds mais curtos não disparam
+ * o fallback — mas o `webglcontextlost` continua ativo (resposta imediata
+ * caso o contexto realmente caia).
  */
 export function useCanvasRevivalKey(thresholdMs = 1000): number {
   const [key, setKey] = useState(0);
 
-  // Inscrição no canal de revival (disparado por webglcontextlost direto OU
-  // pelo safety-net abaixo).
   useEffect(() => {
     const bump = () => setKey(k => k + 1);
     revivalListeners.add(bump);
     return () => { revivalListeners.delete(bump); };
   }, []);
 
-  // Safety-net: na transição hidden→visible, verifica se algum contexto caiu
-  // sem ter disparado o evento. Necessário porque alguns navegadores móveis
-  // são preguiçosos com o evento `webglcontextlost`.
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
@@ -96,13 +99,7 @@ export function useCanvasRevivalKey(thresholdMs = 1000): number {
       } else if (hiddenAt !== null) {
         const elapsed = Date.now() - hiddenAt;
         hiddenAt = null;
-        if (elapsed <= thresholdMs) return;
-        for (const entry of registered) {
-          if (entry.gl.isContextLost()) {
-            notifyRevival();
-            return;
-          }
-        }
+        if (elapsed > thresholdMs) notifyRevival();
       }
     };
 
