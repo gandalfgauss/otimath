@@ -72,9 +72,12 @@ function performanceIndicator(p: PhasePerformance): {
   color: string;
   bg: string;
 } {
-  if (p.attempts === 0) {
+  // Tempo zero = fase nunca foi visitada (chip neutro). Antes usávamos
+  // `p.attempts === 0`, mas o campo `attempts` foi removido das stats
+  // públicas — `elapsedMs` é o substituto natural pra "não iniciado".
+  if (p.elapsedMs === 0) {
     return {
-      label: 'Sem tentativas',
+      label: 'Não iniciado',
       color: 'var(--color-neutral-dark)',
       bg: 'var(--color-neutral-lightest)',
     };
@@ -200,7 +203,6 @@ export function TwoDicesClosingScreen({
         <p className="ds-caption text-neutral-dark">
           Tempo total da sessão: <strong>{summary.totalTime}</strong>
           {' · '}interações registradas: <strong>{summary.totalEntries}</strong>
-          {' · '}tentativas: <strong>{summary.attempts}</strong>
           {' · '}erros: <strong>{summary.errors}</strong>
           {' · '}consultas ao Menu de Revisão: <strong>{summary.studyMenuOpens}</strong>
         </p>
@@ -212,7 +214,7 @@ export function TwoDicesClosingScreen({
           1. Resumo cronológico do percurso
         </h3>
         <TextBlock
-          paragraph={`<p class="ds-body">Você começou pela <strong>apresentação inicial</strong> e percorreu progressivamente a sistematização tabular do espaço amostral 6×6, a Corrida dos Carrinhos, os Eventos Complementares, a Fundamentação da União e os exercícios de aplicação até a revisão obrigatória do Ex6. Os indicadores discretos abaixo mostram quanto tempo você passou em cada bloco e como foi o desempenho em tentativas e erros — sem julgamento, apenas como espelho.</p>`}
+          paragraph={`<p class="ds-body">Você começou pela <strong>apresentação inicial</strong> e percorreu progressivamente a sistematização tabular do espaço amostral 6×6, a Corrida dos Carrinhos, os Eventos Complementares, a Fundamentação da União e os exercícios de aplicação até a revisão obrigatória do Ex6. Os indicadores discretos abaixo mostram quanto tempo você passou em cada bloco e como foi o desempenho — sem julgamento, apenas como espelho.</p>`}
           maxWidthParagraph="max-w-[820px]"
         />
         <div className="flex flex-col gap-y-xxs mt-micro">
@@ -232,7 +234,7 @@ export function TwoDicesClosingScreen({
                         key={phase.id}
                         className="flex items-center gap-x-quarck p-quarck rounded-sm"
                         style={{ background: ind.bg, color: ind.color }}
-                        title={`${phase.title} — ${perf.attempts} tentativas, ${perf.errors} erros, tempo ≈ ${formatElapsed(perf.elapsedMs)}.`}
+                        title={`${phase.title} — ${perf.errors} erros, tempo ≈ ${formatElapsed(perf.elapsedMs)}.`}
                       >
                         <span className="ds-small-bold">{phase.shortLabel}</span>
                         <span className="ds-caption">· {ind.label}</span>
@@ -466,7 +468,6 @@ export function TwoDicesClosingScreen({
                 )}
                 <p className="ds-caption text-neutral-dark italic">
                   Tempo na atividade: {formatElapsed(perf.elapsedMs)}
-                  {' · '}tentativas: {perf.attempts}
                   {' · '}consultas ao Menu: {perf.studyMenuOpens}
                 </p>
               </article>

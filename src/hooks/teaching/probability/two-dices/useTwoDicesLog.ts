@@ -206,7 +206,6 @@ export function downloadLog(): void {
 export interface LogSummary {
   totalTime: string;
   totalEntries: number;
-  attempts: number;
   errors: number;
   studyMenuOpens: number;
   markAllUses: number;
@@ -215,6 +214,9 @@ export interface LogSummary {
 
 export function getLogSummary(): LogSummary {
   const log = getLog();
+  // Entradas do tipo 'attempt' continuam sendo logadas e usadas pra derivar
+  // `errors` (tentativas com success=false). Apenas a contagem total
+  // ("Tentativas") foi removida das stats públicas a pedido do colaborador.
   const attempts = log.entries.filter((e) => e.type === 'attempt');
   const errors = attempts.filter((e) => !e.data.success);
   const studyMenuOpens = log.entries.filter((e) => e.type === 'study_menu_opened').length;
@@ -229,7 +231,6 @@ export function getLogSummary(): LogSummary {
   return {
     totalTime: `${minutes}min ${seconds}s`,
     totalEntries: log.entries.length,
-    attempts: attempts.length,
     errors: errors.length,
     studyMenuOpens,
     markAllUses,
@@ -361,7 +362,6 @@ export function detectCognitiveBiases(): BiasOccurrence[] {
 export interface PhasePerformance {
   /** Identificador da phase (ex.: 'unionExercise6'). */
   phase: string;
-  attempts: number;
   errors: number;
   successes: number;
   /** Quantos study_menu_opened ocorreram durante a phase. */
@@ -373,6 +373,10 @@ export interface PhasePerformance {
 /**
  * Agrupa o log por phase e calcula métricas. Útil para a Tela de
  * Fechamento Reflexiva (componente de desempenho por exercício).
+ *
+ * `attempts` foi removido da interface pública por decisão do colaborador
+ * (a métrica "Tentativas" não é mais coletada/exibida). `errors` e
+ * `successes` continuam derivados dos entries `type: 'attempt'`.
  */
 export function getPhasePerformance(): PhasePerformance[] {
   const log = getLog();
@@ -383,7 +387,6 @@ export function getPhasePerformance(): PhasePerformance[] {
     if (!map[e.phase]) {
       map[e.phase] = {
         phase: e.phase,
-        attempts: 0,
         errors: 0,
         successes: 0,
         studyMenuOpens: 0,
@@ -393,7 +396,6 @@ export function getPhasePerformance(): PhasePerformance[] {
     }
     lastSeen[e.phase] = e.timestamp;
     if (e.type === 'attempt') {
-      map[e.phase].attempts += 1;
       if (e.data.success) map[e.phase].successes += 1;
       else map[e.phase].errors += 1;
     }

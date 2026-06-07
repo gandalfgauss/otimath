@@ -125,8 +125,11 @@ export function clearRouletteLog(): void {
   } catch { /* ignorar — localStorage indisponível */ }
 }
 
-export function getLogSummary(): { totalTime: string; totalEntries: number; attempts: number; errors: number } {
+export function getLogSummary(): { totalTime: string; totalEntries: number; errors: number } {
   const log = getLog();
+  // Entradas 'attempt' continuam logadas — usadas apenas pra derivar `errors`
+  // (success=false). A contagem total de tentativas foi removida das stats
+  // públicas a pedido do colaborador.
   const attempts = log.entries.filter(e => e.type === 'attempt');
   const errors = attempts.filter(e => !e.data.success);
   const elapsed = log.entries.length > 0
@@ -137,7 +140,6 @@ export function getLogSummary(): { totalTime: string; totalEntries: number; atte
   return {
     totalTime: `${minutes}min ${seconds}s`,
     totalEntries: log.entries.length,
-    attempts: attempts.length,
     errors: errors.length
   };
 }

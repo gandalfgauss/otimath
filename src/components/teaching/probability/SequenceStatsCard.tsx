@@ -10,14 +10,14 @@
 
    LAYOUT
      • Título no topo
-     • Linha de 5 chips: Tempo · Interações · Tentativas · Erros · Acertos
+     • Linha de 4 chips: Tempo · Interações · Erros · Acertos
      • Mobile: chips quebram em grid 2 colunas; tempo ocupa linha inteira
      • Cores: tempo destacado em brand, erros em feedback-error,
        acertos em feedback-success — paleta consistente do design system
    ═══════════════════════════════════════════════════════════════════ */
 
 import React from 'react';
-import { Clock, MousePointerClick, Target, X, Check } from 'lucide-react';
+import { Clock, MousePointerClick, X, Check } from 'lucide-react';
 import { formatElapsed, type OvaStats } from '@/hooks/teaching/probability/useSequenceSession';
 
 interface SequenceStatsCardProps {
@@ -75,11 +75,6 @@ export function SequenceStatsCard({ title, stats, variant = 'ova', footer }: Rea
           icon={<MousePointerClick size={14} aria-hidden="true" />}
           label="Interações"
           value={String(stats.interactions)}
-        />
-        <StatChip
-          icon={<Target size={14} aria-hidden="true" />}
-          label="Tentativas"
-          value={String(stats.attempts)}
         />
         <StatChip
           icon={<X size={14} aria-hidden="true" />}

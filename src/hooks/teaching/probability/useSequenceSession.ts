@@ -23,9 +23,10 @@
 
    GLOSSÁRIO
      • Interações = total de eventos logados (qualquer clique relevante)
-     • Tentativas = eventos do tipo 'attempt' (validações)
-     • Erros     = tentativas com success=false
-     • Acertos   = tentativas com success=true
+     • Erros     = entries do tipo 'attempt' com success=false
+     • Acertos   = entries do tipo 'attempt' com success=true
+     (a métrica "Tentativas" — total de attempts — foi removida das stats
+      públicas; entries 'attempt' continuam logados pra derivar Erros/Acertos)
    ═══════════════════════════════════════════════════════════════════ */
 
 import { useEffect, useState } from 'react';
@@ -228,8 +229,6 @@ export interface OvaStats {
   elapsedMs: number;
   /** Eventos logados (todos os tipos: cliques, transitions, attempts, etc.). */
   interactions: number;
-  /** Tentativas (eventos do tipo 'attempt') — subconjunto das interações. */
-  attempts: number;
   errors: number;
   successes: number;
 }
@@ -241,6 +240,9 @@ export interface SequenceStats {
   total: OvaStats;
 }
 
+// `attempts` foi removido das stats públicas — a métrica "Tentativas" não é
+// mais coletada/exibida. Entries do tipo 'attempt' continuam logados pra
+// derivar `errors` e `successes` (filtrando por success=false/true).
 function statsFromEntries(
   entries: readonly { type: string; data: Record<string, unknown> }[],
   elapsedMs: number,
@@ -251,7 +253,6 @@ function statsFromEntries(
   return {
     elapsedMs,
     interactions: entries.length,
-    attempts: attemptsArr.length,
     errors,
     successes,
   };
@@ -263,7 +264,6 @@ export function getSequenceStats(): SequenceStats {
   const total: OvaStats = {
     elapsedMs: getElapsedTotalMs(),
     interactions: roulette.interactions + twoDices.interactions,
-    attempts: roulette.attempts + twoDices.attempts,
     errors: roulette.errors + twoDices.errors,
     successes: roulette.successes + twoDices.successes,
   };
