@@ -27,6 +27,8 @@ import {
   useSequenceTick,
 } from "@/hooks/teaching/probability/useSequenceSession";
 import { playSound } from "@/hooks/global/useSound";
+import { useAlerts } from "@/hooks/global/useAlerts";
+import { Alerts } from "@/components/global/Alerts";
 import heroBannerProbabilityImage from '@/images/teaching/probability/probabilityBanner.webp';
 
 type Stage = 'intro' | 'roulette' | 'transition' | 'twoDices' | 'complete';
@@ -97,10 +99,25 @@ export default function DidacticSequencePage() {
     });
   }, [stage]);
 
-  // Som de conclusão ao chegar na tela final
+  // Sistema de alerts ao nível da página — usado pra mostrar a celebração
+  // "🏆 Sequência didática concluída!" QUANDO a tela final monta (não
+  // condicionada ao clique de "Finalizar OVA"). Abordagem mais simples
+  // que a anterior, que tentava disparar o alert dentro do TwoDicesPresentation
+  // e precisava de delay pra sobreviver à desmontagem da árvore.
+  const { alerts, createAlert, updateAlert, deleteAlerts } = useAlerts();
+
+  // Som + alert de conclusão ao chegar na tela final
   useEffect(() => {
-    if (stage === 'complete') playSound('/sounds/gameFinished.mp3');
-  }, [stage]);
+    if (stage === 'complete') {
+      playSound('/sounds/gameFinished.mp3');
+      createAlert(
+        '🏆 Sequência didática concluída!',
+        'Parabéns! Você completou a sequência didática inteira de Probabilidade.',
+        'success',
+        6000,
+      );
+    }
+  }, [stage, createAlert]);
 
   // Lifecycle da sessão a nível de stage:
   //  • `startSequence()` é idempotente — chamado defensivamente para
@@ -187,6 +204,9 @@ export default function DidacticSequencePage() {
 
   return (
     <main>
+      {/* Overlay global de alerts da página da sequência. Renderizado no topo
+          do <main> pra ficar visível em qualquer stage (intro, OVAs, complete). */}
+      <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts} />
       <HeroBanner
         id="hero-banner"
         textBlock={

@@ -166,11 +166,14 @@ export function TwoDicesGameAdvanced({
 
       <div className="flex gap-x-xs gap-y-xs max-lg:flex-col-reverse">
         <div className="w-full flex flex-col gap-y-xxs max-lg:items-center max-sm:item-start">
-          <div className="flex items-center gap-x-xxxs justify-between w-full max-w-[747px] flex-wrap">
+          {/* Barra de botões: `gap-y-micro` + `px-micro` evitam que os
+              botões colem nas bordas da tela e fiquem grudados verticalmente
+              quando quebram linha no mobile (Ex8 tem 4-5 botões aqui). */}
+          <div className="flex items-center gap-x-xxxs gap-y-micro justify-between w-full max-w-[747px] flex-wrap px-micro">
             <Button style="secondary" size="small" icon={<RefreshCw aria-hidden="true" />} onClick={resetGameOnClick}>
               Novo
             </Button>
-            <div className="flex items-center gap-x-xxxs flex-wrap">
+            <div className="flex items-center gap-x-xxxs gap-y-micro flex-wrap">
               <Button
                 style="secondary"
                 size="extra-small"
@@ -215,7 +218,7 @@ export function TwoDicesGameAdvanced({
             hideIfUnchecked={hideIfUnchecked}
           />
 
-          <div className="flex gap-xxxs items-center">
+          <div className="flex flex-wrap gap-x-xxxs gap-y-micro items-center justify-center px-micro">
             <Button
               style="secondary"
               size="small"

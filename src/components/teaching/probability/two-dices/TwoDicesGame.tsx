@@ -41,9 +41,13 @@ export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGamePro
 
       <div className="flex gap-x-xs gap-y-xs max-lg:flex-col-reverse">
         <div className="w-full flex flex-col gap-y-xxs max-lg:items-center max-sm:item-start">
-          <div className="flex items-center gap-x-xxxs justify-between w-full max-w-[747px]">
+          {/* Barra de botões: `gap-y-micro` pra respiro vertical quando
+              quebra linha no mobile. `flex-wrap` permite quebra; antes ficava
+              sem espaço entre as linhas e os botões se colavam. `px-micro`
+              evita os botões encostarem nas bordas da viewport. */}
+          <div className="flex flex-wrap items-center gap-x-xxxs gap-y-micro justify-between w-full max-w-[747px] px-micro">
             <Button style="secondary" size="small" icon={<RefreshCw aria-hidden="true" />} onClick={resetGameOnClick}>Novo</Button>
-            <div className="flex items-center gap-x-xxxs">
+            <div className="flex flex-wrap items-center gap-x-xxxs gap-y-micro">
               {enableMarkAll && (
                 <span title="Para eventos com número grande de casos favoráveis é mais fácil usar esse recurso e desmarcar os casos não favoráveis ao evento.">
                   <Button
@@ -64,7 +68,7 @@ export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGamePro
 
           <TwoDicesTable eventsCheckboxes={eventsCheckboxes ?? {}} updateEventsCheckboxes={updateEventsCheckboxes}/>
 
-          <div className="flex gap-xxxs items-center">
+          <div className="flex flex-wrap gap-x-xxxs gap-y-micro items-center justify-center px-micro">
             <Button style="secondary" size="small" icon={<Check aria-hidden="true" />} onClick={checkOnClick} disabled={disabledCheckButton}>Conferir</Button>
             <Button style="primary" size="small" icon={<ArrowRight aria-hidden="true" />} onClick={goToNextStepOnClick} disabled={disabledNextStepButton}>Próximo Desafio</Button>
           </div>

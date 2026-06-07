@@ -74,6 +74,9 @@ interface UnionExercise6Props {
   ex7Completed?: boolean;
   /** Análogo para o Ex8. */
   ex8Completed?: boolean;
+  /** Disparado pra mostrar alerts de feedback (acerto, conclusão de rodada,
+   *  finalização do OVA). Mesma assinatura do alerts global. */
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
 }
 
 export interface UnionExercise6Handle {
@@ -100,6 +103,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       initialStep = 'intro',
       ex7Completed = false,
       ex8Completed = false,
+      createAlert,
     },
     ref,
   ) {
@@ -223,17 +227,35 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       setRound1Outcome((p) => ({ ...p, finished: true }));
       setLastErrorStep(null);
       playSound('/sounds/challengeFinished.mp3');
+      // Alert de celebração ao concluir a Rodada 1 (chegada na tela
+      // "Rodada 1 concluída!"). Antes só tocava o som — sem reforço
+      // visual da conquista.
+      createAlert?.(
+        '✅ Rodada concluída!',
+        'Parabéns! Você finalizou a Rodada 1 do Exercício 6.',
+        'success',
+        4500,
+      );
       setStep('transition');
       scrollDiceToTop();
-    }, [scrollDiceToTop]);
+    }, [scrollDiceToTop, createAlert]);
 
     const handleRound2Finished = useCallback(() => {
       setRound2Outcome((p) => ({ ...p, finished: true }));
       setLastErrorStep(null);
       playSound('/sounds/gameFinished.mp3');
+      // Alert de celebração ao chegar em finalSynthesis (tela "Parabéns!
+      // Você concluiu o OVA..."). Antes só tocava o som — sem reconhecimento
+      // textual de que o aluno completou o OVA inteiro do dado.
+      createAlert?.(
+        '🎉 OVA concluído!',
+        'Parabéns! Você finalizou o OVA Probabilidade Dois Dados.',
+        'success',
+        6000,
+      );
       setStep('finalSynthesis');
       scrollDiceToTop();
-    }, [scrollDiceToTop]);
+    }, [scrollDiceToTop, createAlert]);
 
     /* ──────────────────────────────────────────────────────────────
        SUGESTÃO DE VERBETES — derivada do último erro

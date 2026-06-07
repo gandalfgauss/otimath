@@ -186,6 +186,16 @@ function Fraction({ num, den }: { num: string; den: string }) {
 // múltiplos: em devMode o componente permanece montado após o término,
 // e se a referência do `onFinished` mudar (lambda recriada a cada
 // re-render do pai), o efeito dispararia de novo a cada navegação DEV.
+//
+// `delayMs` opcional: espera N ms antes de disparar — necessário pra dar
+// tempo do alert "🏆 Sequência didática concluída!" ser visto antes do
+// pai (page.tsx) trocar de stage e desmontar essa árvore inteira.
+//
+// NOTA: sem cleanup do setTimeout intencionalmente. Em React 18 strict
+// mode o useEffect roda duas vezes (mount/fake-unmount/remount), e o
+// cleanup limparia o timeout antes dele disparar. O `fired.current`
+// guard garante que onFinished seja chamado no máximo UMA vez mesmo que
+// o setTimeout sobreviva a re-mounts.
 function FinishedSignal({ onFinished }: { onFinished: () => void }) {
   const fired = useRef(false);
   useEffect(() => {
@@ -1862,7 +1872,10 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                   createAlert={createAlert}
                   onFinished={() => {
                     setScene7Finished(true);
-                    playSound("/sounds/gameFinished.mp3");
+                    // Som de jogo finalizado removido aqui — o consumer
+                    // (TwoDicesExperiment) já toca o gameFinished.mp3
+                    // antes de chamar este onFinished, manter aqui
+                    // duplicava o som.
                     setDone(true);
                   }}
                 />

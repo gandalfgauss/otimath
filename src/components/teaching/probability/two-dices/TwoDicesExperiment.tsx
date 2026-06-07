@@ -3923,9 +3923,16 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               initialStep={ex6InitialStep}
               ex7Completed={ex7Completed}
               ex8Completed={ex8Completed}
+              // createAlert injetado pro Ex6 disparar o alert de "OVA
+              // concluído" no momento em que o aluno CHEGA na finalSynthesis
+              // (transição automática após a Rodada 2), em vez de só ao
+              // clicar "Finalizar OVA" — clique esse que pode demorar pq o
+              // aluno tem opções (Ex7/Ex8) antes de finalizar.
+              createAlert={createAlert}
               onFinished={() => {
                 scrollDiceToTop();
-                playSound('/sounds/gameFinished.mp3');
+                // Som de gameFinished removido aqui — a page.tsx toca
+                // quando a stage='complete' monta. Manter aqui duplicava.
                 onFinished();
               }}
               onRequestFreePlay={() => {
