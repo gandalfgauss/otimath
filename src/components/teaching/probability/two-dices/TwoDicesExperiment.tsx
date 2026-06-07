@@ -2243,7 +2243,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
   return (
     <div className={`w-full ${phase === 'complementaryEvents' || phase === 'unionTheory' || phase === 'unionExercises' || phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4' || phase === 'unionExercise5' || phase === 'unionExercise6' || phase === 'twoDicesGameFree' || phase === 'unionExercise8' || phase === 'closing' ? 'max-w-[1216px]' : 'max-w-[700px]'}`}>
-      {phase !== 'unionTheory' && phase !== 'unionExercise5' && phase !== 'unionExercise6' && phase !== 'twoDicesGameFree' && phase !== 'unionExercise8' && phase !== 'closing' && (
+      {phase !== 'unionTheory' && phase !== 'unionExercises' && phase !== 'unionExercise2' && phase !== 'unionExercise3' && phase !== 'unionExercise4' && phase !== 'unionExercise5' && phase !== 'unionExercise6' && phase !== 'twoDicesGameFree' && phase !== 'unionExercise8' && phase !== 'closing' && (
         <h2 className="ds-heading-ultra text-brand-otimath-dark text-center mb-xs">
           Lançamento de dois dados
         </h2>
