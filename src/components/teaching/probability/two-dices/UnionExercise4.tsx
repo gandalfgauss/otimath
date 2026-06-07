@@ -1031,7 +1031,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     ) : null;
 
     return (
-      <div className="w-full max-w-[1216px] mx-auto px-xxs py-xs">
+      <div className="w-full max-w-[1216px] mx-auto">
         <style>{`
           @keyframes exerciseFadeIn {
             from { opacity: 0; transform: translateY(6px); }

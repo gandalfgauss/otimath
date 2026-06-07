@@ -491,7 +491,7 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
     // ═══════════════════════════════════════════════════════════════
 
     return (
-      <div className="w-full max-w-[1216px] mx-auto px-xxs py-xs">
+      <div className="w-full max-w-[1216px] mx-auto">
         <style>{`
           @keyframes exerciseFadeIn {
             from { opacity: 0; transform: translateY(6px); }
@@ -690,12 +690,22 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
                 border: '2px solid var(--color-brand-otimath-pure)',
               }}
             >
-              <p
-                className="ds-heading-large"
-                style={{ color: 'var(--color-brand-otimath-dark)', marginBottom: 12, whiteSpace: 'nowrap' }}
+              {/* Fórmula com quebra POR GRUPOS atômicos: cada P(X) e cada
+                  operador não quebram internamente; o flex-wrap permite a
+                  linha INTEIRA quebrar entre dois grupos no mobile. Antes
+                  era um `<p whiteSpace: nowrap>` que estourava a viewport. */}
+              <div
+                className="ds-heading-large flex flex-wrap items-center justify-center gap-x-micro gap-y-nano"
+                style={{ color: 'var(--color-brand-otimath-dark)', marginBottom: 12 }}
               >
-                P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
-              </p>
+                <span className="whitespace-nowrap">P(A ∪ B)</span>
+                <span className="whitespace-nowrap">=</span>
+                <span className="whitespace-nowrap">P(A)</span>
+                <span className="whitespace-nowrap">+</span>
+                <span className="whitespace-nowrap">P(B)</span>
+                <span className="whitespace-nowrap">−</span>
+                <span className="whitespace-nowrap">P(A ∩ B)</span>
+              </div>
 
               <div className="flex justify-center mt-nano" style={{ maxWidth: '100%' }}>
                 <div className="flex flex-nowrap items-center gap-x-micro overflow-x-auto" style={{ maxWidth: '100%' }}>
@@ -780,11 +790,17 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
                 Quando os eventos são <strong>mutuamente exclusivos</strong>, a fórmula
                 geral se reduz a:
               </p>
-              <p
-                className="ds-heading-large text-center mt-micro text-brand-otimath-dark whitespace-nowrap"
+              {/* Fórmula simplificada (eventos mutuamente exclusivos) com
+                  quebra por grupos atômicos, mesmo padrão da fórmula geral. */}
+              <div
+                className="ds-heading-large mt-micro text-brand-otimath-dark flex flex-wrap items-center justify-center gap-x-micro gap-y-nano"
               >
-                P(A ∪ B) = P(A) + P(B)
-              </p>
+                <span className="whitespace-nowrap">P(A ∪ B)</span>
+                <span className="whitespace-nowrap">=</span>
+                <span className="whitespace-nowrap">P(A)</span>
+                <span className="whitespace-nowrap">+</span>
+                <span className="whitespace-nowrap">P(B)</span>
+              </div>
               <div className="flex flex-wrap gap-x-micro gap-y-nano justify-center mt-micro">
                 <div
                   className="flex items-center gap-x-nano"
