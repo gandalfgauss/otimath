@@ -1367,12 +1367,15 @@ function VennSVG({
               <input
 
                 type="text"
-                // inputMode="text" pra teclado virtual mobile mostrar +/-/
-                // letras. Antes era "numeric" — só números, impossível
-                // digitar "30-9" sem alternar teclado.
-                inputMode="text"
+                // Sem `inputMode` explícito — alguns mobile browsers (iOS
+                // Safari em particular) interpretavam "numeric" baseado em
+                // heurística do `name`/contexto mesmo com inputMode="text",
+                // abrindo o teclado numérico. type="text" puro deixa o
+                // browser usar o teclado padrão (alfanumérico com acesso
+                // direto a +/- via "123" → "#+=").
                 autoCapitalize="none"
                 autoComplete="off"
+                autoCorrect="off"
                 spellCheck={false}
                 autoFocus
                 value={arithmeticValue}
@@ -2426,12 +2429,13 @@ function ExpressionInput({
   return (
     <input
       type="text"
-      // inputMode="text" pra teclado mobile mostrar +/-. Validators dos
-      // consumidores (matchesSubtraction, matchesSum) esperam operações
-      // tipo "30-9" ou "13+10+8", então o teclado precisa ter operadores.
-      inputMode="text"
+      // Sem inputMode explícito — type="text" puro garante teclado padrão
+      // no mobile (com acesso a +/-). inputMode="text" ainda causava o
+      // teclado numérico abrir em alguns mobile browsers que mal-aplicavam
+      // heurísticas baseadas em outros atributos.
       autoCapitalize="none"
       autoComplete="off"
+      autoCorrect="off"
       spellCheck={false}
       value={value}
       onChange={e => onChange(e.target.value)}
