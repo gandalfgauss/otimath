@@ -484,8 +484,13 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
   const [impossibleNameValidated, setImpossibleNameValidated] = useState(false);
   const [impossibleNameError, setImpossibleNameError] = useState(false);
 
-  // Rolling state
+  // Rolling state — ref é a guarda síncrona dura (evita re-entrada em
+  // launchDie/launchExDie); isLaunching é o espelho React que desabilita o
+  // botão visualmente pra impedir cliques subsequentes do mesmo gesto (problema
+  // recorrente em mobile: double-tap rápido dispara múltiplos onClicks antes
+  // do re-render).
   const rolling = useRef(false);
+  const [isLaunching, setIsLaunching] = useState(false);
   // Ref do card de exercício (para scroll de volta)
   const exerciseCardRef = useRef<HTMLDivElement>(null);
 
@@ -541,6 +546,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
   const launchDie = useCallback(async () => {
     if (rolling.current) return;
     rolling.current = true;
+    setIsLaunching(true);
     setExpSubPhase('rolling');
 
     // Som imediato ao clicar — sincroniza com a intenção do usuário
@@ -572,6 +578,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     exerciseCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     rolling.current = false;
+    setIsLaunching(false);
     setExpSubPhase('markResult');
     // Feedback ao aluno após o dado parar — som de "parou!" + alert instrutivo.
     playSound('/sounds/correct.mp3');
@@ -636,13 +643,26 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
   const goToNextRound = () => {
     // Limpar highlight da aposta anterior
     diceRef.current?.highlightFace(null);
+    playSound('/sounds/nextChallenge.mp3');
     if (mainPhase === 'experimentA') {
+      createAlert?.(
+        'Rodada 2',
+        'Agora vamos repetir a experiência com o dado de outra cor. Faça nova aposta antes de lançar.',
+        'info',
+        4500,
+      );
       setMainPhase('experimentB');
       setExpSubPhase('bet');
       setBet('');
       setResultCheck([false, false, false, false, false, false]);
       setDiceResult(0);
     } else {
+      createAlert?.(
+        'Hora dos exercícios!',
+        'A experimentação acabou. Agora você vai identificar eventos e calcular probabilidades.',
+        'info',
+        4500,
+      );
       setMainPhase('exercises');
       setExSubPhase('mark');
       setEventChecks([false, false, false, false, false, false]);
@@ -690,6 +710,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
   const launchExDie = useCallback(async () => {
     if (rolling.current) return;
     rolling.current = true;
+    setIsLaunching(true);
     setExSubPhase('rolling');
 
     // Som imediato ao clicar — sincroniza com a intenção do usuário
@@ -717,6 +738,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     exerciseCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     rolling.current = false;
+    setIsLaunching(false);
     setExSubPhase('readDice');
     // Feedback ao aluno após o dado parar — som de "parou!" + alert instrutivo.
     playSound('/sounds/correct.mp3');
@@ -1133,7 +1155,17 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
             exercícios identificando <strong>eventos</strong> e calculando <strong>probabilidades</strong>.
           </p>
           <div className="flex justify-center">
-            <Button style="primary" size="small" onClick={() => { setMainPhase('experimentA'); setExpSubPhase('bet'); }}>
+            <Button style="primary" size="small" onClick={() => {
+              playSound('/sounds/nextChallenge.mp3');
+              createAlert?.(
+                'Mãos à obra!',
+                'Vamos começar pela Rodada 1: aposte numa face do dado antes de lançar. Depois você vai marcar o que realmente saiu.',
+                'info',
+                4500,
+              );
+              setMainPhase('experimentA');
+              setExpSubPhase('bet');
+            }}>
               Começar
             </Button>
           </div>
@@ -1167,7 +1199,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                     <DiceFaceIcon face={parseInt(bet)} size={48} color={currentColor()} />
                     <span className="ds-body-bold text-neutral-black">{bet}</span>
                   </div>
-                  <Button style="primary" size="small" onClick={submitBet}>
+                  <Button style="primary" size="small" disabled={isLaunching} onClick={submitBet}>
                     🎲 Lançar dado
                   </Button>
                 </>
@@ -1404,7 +1436,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
               )}
               {exBet !== null && (
                 <div className="flex justify-center mt-micro">
-                  <Button style="primary" size="small" onClick={launchExDie}>
+                  <Button style="primary" size="small" disabled={isLaunching} onClick={launchExDie}>
                     🎲 Lançar dado
                   </Button>
                 </div>
@@ -1816,7 +1848,11 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                     Note que as probabilidades são distintas, portanto não cabe a resposta indiferente.
                   </p>
                   <div className="flex justify-center mt-micro">
-                    <Button style="primary" size="small" onClick={() => setExSubPhase('next')}>
+                    <Button style="primary" size="small" onClick={() => {
+                      playSound('/sounds/nextChallenge.mp3');
+                      scrollDiceToTop();
+                      setExSubPhase('next');
+                    }}>
                       {exerciseIdx + 1 >= 4 ? 'Próximo: finalizar' : `Próximo: exercício ${exerciseIdx + 2} de 4`}
                     </Button>
                   </div>
@@ -2198,7 +2234,16 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
             <Button
               style="primary"
               size="small"
-              onClick={onFinished}
+              onClick={() => {
+                playSound('/sounds/nextChallenge.mp3');
+                createAlert?.(
+                  'Próxima etapa',
+                  'Agora a máquina vai entrar em cena. Observe o lançamento de dois dados antes de organizar tudo numa tabela.',
+                  'info',
+                  4500,
+                );
+                onFinished();
+              }}
               aria-label="Avançar para a máquina automática de lançamento"
             >
               Observar a máquina

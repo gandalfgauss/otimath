@@ -434,7 +434,14 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
   // Estado da máquina (para barra de progresso)
   const [stepIdx, setStepIdx] = useState(-1);
   const [statusMsg, setStatusMsg] = useState('');
+  // `runningRef` é a guarda síncrona dura — usada dentro de launchMachine para
+  // evitar re-entrada quando o handler do botão dispara várias vezes seguidas
+  // (ex.: double-tap mobile, eventos pointer + click do mesmo gesto).
+  // `isLaunching` é o espelho React — provoca re-render que desabilita o botão
+  // visualmente, fazendo `disabled:pointer-events-none` bloquear cliques
+  // subsequentes antes mesmo de chegarem no onClick.
   const runningRef = useRef(false);
+  const [isLaunching, setIsLaunching] = useState(false);
 
   // Picker (par ordenado) — usado em L1 e L2
   const [pickedGreen, setPickedGreen] = useState<number | null>(null);
@@ -487,6 +494,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
     async (rollingPhase: Phase, nextPhase: Phase) => {
       if (runningRef.current || !diceMachineRef.current) return;
       runningRef.current = true;
+      setIsLaunching(true);
       setBlueResult(null);
       setGreenResult(null);
       setStepIdx(-1);
@@ -508,12 +516,13 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
         // o resultado e responder à pergunta no card abaixo.
         createAlert?.(
           'Dados parados!',
-          `Os dados pararam em (verde, azul) = (${result.green}, ${result.blue}). Registre o par e responda abaixo.`,
+          'Observe a face de cima de cada dado e registre o par (verde, azul) no card abaixo.',
           'info',
           5000,
         );
       } finally {
         runningRef.current = false;
+        setIsLaunching(false);
       }
     },
     [diceMachineRef, scrollToScene, createAlert],
@@ -649,7 +658,13 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
     setStatusMsg('');
     setPhase('s2-ready');
     playSound('/sounds/nextChallenge.mp3');
-  }, [resetPicker]);
+    createAlert?.(
+      'Lançamento 2: observação',
+      'Mais uma vez — observe o lançamento e registre o par (verde, azul) que sair.',
+      'info',
+      4500,
+    );
+  }, [resetPicker, createAlert]);
 
   const goToS3 = useCallback(() => {
     resetPicker();
@@ -666,12 +681,24 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
     setStatusMsg('');
     setPhase('s3-predict');
     playSound('/sounds/nextChallenge.mp3');
-  }, [resetPicker]);
+    createAlert?.(
+      'Lançamento 3: previsão',
+      'Agora é diferente — antes da máquina lançar, você vai fazer uma previsão da soma.',
+      'info',
+      4500,
+    );
+  }, [resetPicker, createAlert]);
 
   const goToBridge = useCallback(() => {
     setPhase('bridge');
     playSound('/sounds/nextChallenge.mp3');
-  }, []);
+    createAlert?.(
+      'Quase lá',
+      'Você completou as três etapas. Avance para descobrir o padrão escondido por trás dos lançamentos.',
+      'info',
+      4500,
+    );
+  }, [createAlert]);
 
   // ═══════ Indicador de etapas (L1, L2, L3) ═══════
   const StageIndicator = (
@@ -983,8 +1010,15 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
               style="primary"
               size="medium"
               onClick={() => {
+                scrollDiceToTop();
                 setPhase('s1-ready');
                 playSound('/sounds/nextChallenge.mp3');
+                createAlert?.(
+                  'Lançamento 1: observação',
+                  'Acione a máquina e observe atentamente. Você vai precisar registrar o par (verde, azul) que sair.',
+                  'info',
+                  4500,
+                );
               }}
               aria-label="Iniciar a primeira observação da máquina"
             >
@@ -1019,6 +1053,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="medium"
+                  disabled={isLaunching}
                   onClick={() => void launchMachine('s1-rolling', 's1-pick')}
                   aria-label="Lançar a máquina pela primeira vez"
                 >
@@ -1122,6 +1157,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="medium"
+                  disabled={isLaunching}
                   onClick={() => void launchMachine('s2-rolling', 's2-pick')}
                   aria-label="Lançar a máquina pela segunda vez"
                 >
@@ -1372,6 +1408,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="medium"
+                  disabled={isLaunching}
                   onClick={validatePrediction}
                   aria-label="Lançar a máquina e observar o resultado"
                 >
@@ -1482,7 +1519,11 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
             (() => {
               const realSum = greenResult + blueResult;
               const userPrediction = parseInt(predictionInput.trim(), 10);
-              const occurred = userPrediction === realSum;
+              // Em dev, a seta pode pular o passo de previsão deixando o
+              // input vazio — parseInt('') === NaN. Tratamos como "sem
+              // previsão" para evitar warning do React e texto sem sentido.
+              const hasPrediction = !Number.isNaN(userPrediction);
+              const occurred = hasPrediction && userPrediction === realSum;
               return (
                 <div className="bg-neutral-white rounded-lg p-xxs"
                   style={{ border: '1px solid var(--color-neutral-lighter)', maxWidth: 560, margin: '0 auto' }}>
@@ -1491,8 +1532,8 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                   </p>
                   {renderResultCard(true)}
                   <p className="ds-body text-neutral-black text-center mb-micro">
-                    Sua previsão foi <strong>{userPrediction}</strong>.{' '}
-                    {occurred ? (
+                    Sua previsão foi <strong>{hasPrediction ? userPrediction : '—'}</strong>.{' '}
+                    {hasPrediction && (occurred ? (
                       <span className="text-feedback-success-dark">
                         Sua previsão <strong>ocorreu</strong>.
                       </span>
@@ -1500,7 +1541,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                       <span className="text-feedback-warning-dark">
                         Sua previsão <strong>não ocorreu</strong>.
                       </span>
-                    )}
+                    ))}
                   </p>
                   {occurred ? (
                     <p className="ds-body text-neutral-black mt-micro text-justify">

@@ -682,11 +682,13 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
     if (transitioning) return;
 
     if (scene === 5 && scene5Finished) {
+      playSound('/sounds/nextChallenge.mp3');
       goToScene(6);
       return;
     }
 
     if (scene === 6 && scene6Finished) {
+      playSound('/sounds/nextChallenge.mp3');
       goToScene(7);
       return;
     }
@@ -697,7 +699,10 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       return;
     }
 
-    if (scene < 5) goToScene(scene + 1);
+    if (scene < 5) {
+      playSound('/sounds/nextChallenge.mp3');
+      goToScene(scene + 1);
+    }
   };
 
   // ─────────────────────────────────────────────────────────────────
@@ -1279,7 +1284,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                 {/* ETAPA 0 — Ler texto, avançar */}
                 {scene3Step === 0 && (
                   <div className="flex justify-center mt-macro">
-                    <Button style="primary" size="small" icon={<ArrowRight aria-hidden="true" />} onClick={() => setScene3Step(1)}>
+                    <Button style="primary" size="small" icon={<ArrowRight aria-hidden="true" />} onClick={() => { playSound('/sounds/nextChallenge.mp3'); setScene3Step(1); }}>
                       Continuar
                     </Button>
                   </div>

@@ -269,6 +269,12 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   useEffect(() => {
     if (phase !== 'animate') return;
     animCancelled.current = false;
+    createAlert?.(
+      'Observe a árvore sendo construída',
+      'Para cada face do dado verde, vão aparecer as 6 possibilidades do dado azul. Acompanhe ramo por ramo.',
+      'info',
+      5000,
+    );
 
     async function runAnimation() {
       for (let branch = 1; branch <= 6; branch++) {
@@ -306,13 +312,23 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
         await new Promise(r => setTimeout(r, pause));
       }
 
+      if (animCancelled.current) return;
       playSound('/sounds/correct.mp3');
+      createAlert?.(
+        'Árvore completa!',
+        'Repare que cada face do verde abriu 6 ramos no azul — o mesmo padrão se repetiu em todos.',
+        'success',
+        4000,
+      );
       await new Promise(r => setTimeout(r, 500));
       setPhase('count');
     }
 
     runAnimation();
     return () => { animCancelled.current = true; };
+    // createAlert vem do pai e é estável; incluir reinjetaria a animação em
+    // rerenders desnecessários.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   // Redesenhar linhas quando animBlues muda
@@ -322,6 +338,22 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
       return () => cancelAnimationFrame(id);
     }
   }, [phase, animBlues, animBranch, drawLines]);
+
+  // Feedback ao chegar na visualização dos 36 pares — sinaliza ao aluno que
+  // a árvore terminou de virar lista e ele pode observar a coleção completa.
+  useEffect(() => {
+    if (phase !== 'pairs') return;
+    playSound('/sounds/correct.mp3');
+    createAlert?.(
+      'Espaço amostral completo',
+      'Os 36 pares ordenados estão organizados em colunas pelo dado verde. Observe a coleção antes de avançar.',
+      'info',
+      5000,
+    );
+    // createAlert é estável (vem do pai). Som + alert devem disparar uma única
+    // vez por entrada na fase.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   // ─── Validações ───
   const validateCount = useCallback(() => {
@@ -804,6 +836,12 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
           <div className="flex justify-center mt-macro">
             <Button style="primary" size="medium" onClick={() => {
               playSound('/sounds/nextChallenge.mp3');
+              createAlert?.(
+                'Próxima etapa',
+                'Vamos reorganizar esses 36 pares numa tabela 6×6 para visualizar melhor o espaço amostral.',
+                'info',
+                4000,
+              );
               onFinished();
             }}
               aria-label="Avançar para a tabela de pares ordenados">

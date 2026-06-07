@@ -589,8 +589,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   // Bloqueio temporário do botão Sortear entre sorteio e clique no carrinho correto
   const [raceBusy, setRaceBusy] = useState(false);
 
-  // Guards
+  // Guards — ref é a guarda síncrona dura (evita re-entrada em launchDice);
+  // isLaunching é o espelho React que desabilita o botão visualmente pra
+  // impedir cliques subsequentes do mesmo gesto (double-tap mobile).
   const rolling = useRef(false);
+  const [isLaunching, setIsLaunching] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Par para a pergunta pedagógica: pegar um par do histórico onde green !== blue
@@ -612,6 +615,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   const launchDice = useCallback(async () => {
     if (rolling.current) return;
     rolling.current = true;
+    setIsLaunching(true);
     setPhase('rolling');
 
     diceContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -652,6 +656,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
     cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     rolling.current = false;
+    setIsLaunching(false);
 
     setPickedGreen(null);
     setPickedBlue(null);
@@ -1260,7 +1265,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       playSound('/sounds/correct.mp3');
       createAlert?.(
         'Dados parados!',
-        `Soma sorteada: ${result.green} + ${result.blue} = ${sum}. Clique no carrinho ${sum} para avançá-lo.`,
+        'Some as faces de cima dos dois dados e clique no carrinho cujo número corresponde à soma.',
         'info',
         4500,
       );
@@ -2276,7 +2281,17 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <Button
               style="primary"
               size="small"
-              onClick={() => { scrollDiceToTop(); setPhase('tree'); playSound('/sounds/nextChallenge.mp3'); }}
+              onClick={() => {
+                scrollDiceToTop();
+                setPhase('tree');
+                playSound('/sounds/nextChallenge.mp3');
+                createAlert?.(
+                  'Vamos construir!',
+                  'Vamos enumerar as possibilidades verde por verde. Acompanhe e responda as perguntas que aparecerem ao longo do caminho.',
+                  'info',
+                  4500,
+                );
+              }}
               aria-label="Começar a construção do espaço amostral"
             >
               Começar
@@ -2343,7 +2358,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 </p>
               )}
               <div className="flex justify-center mb-micro">
-                <Button style="primary" size="small" onClick={launchDice}>
+                <Button style="primary" size="small" disabled={isLaunching} onClick={launchDice}>
                   🎲 Lançar dois dados
                 </Button>
               </div>
