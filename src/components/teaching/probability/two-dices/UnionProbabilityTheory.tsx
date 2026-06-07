@@ -2144,15 +2144,19 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Ao somar n(A) + n(B), os pares que pertencem a A ∩ B foram contados <strong>duas vezes</strong>.
             Para obter a contagem correta da união, precisamos subtrair n(A ∩ B):
           </p>
-          {/* Container com scroll horizontal pra fórmula. Antes o `<p>`
-              tinha whitespace-nowrap diretamente — em mobile (~340px) a
-              expressão "n(A ∪ B) = n(A) + n(B) − n(A ∩ B)" vazava. Agora
-              fica num wrapper centrado com overflow-x-auto: rola quando
-              não cabe, centraliza quando cabe. */}
-          <div className="bg-neutral-white rounded-md p-micro mt-micro border-2 border-brand-otimath-pure overflow-x-auto">
-            <p className="ds-heading-large text-brand-otimath-dark text-center whitespace-nowrap">
-              n(A ∪ B) = n(A) + n(B) − n(A ∩ B)
-            </p>
+          {/* Fórmula com quebra POR GRUPOS atômicos (sem barra de rolagem).
+              Cada n(X) e operador são atômicos; o flex-wrap quebra entre
+              eles quando o viewport mobile é estreito. */}
+          <div className="bg-neutral-white rounded-md p-micro mt-micro border-2 border-brand-otimath-pure">
+            <div className="ds-heading-large text-brand-otimath-dark flex flex-wrap items-center justify-center gap-x-micro gap-y-nano">
+              <span className="whitespace-nowrap">n(A ∪ B)</span>
+              <span className="whitespace-nowrap">=</span>
+              <span className="whitespace-nowrap">n(A)</span>
+              <span className="whitespace-nowrap">+</span>
+              <span className="whitespace-nowrap">n(B)</span>
+              <span className="whitespace-nowrap">−</span>
+              <span className="whitespace-nowrap">n(A ∩ B)</span>
+            </div>
           </div>
           <p className="ds-body text-neutral-black mt-micro text-center">
             Verificação numérica:

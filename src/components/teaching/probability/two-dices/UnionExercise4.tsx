@@ -1605,11 +1605,17 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               <p className="ds-body-bold text-center text-brand-otimath-dark">
                 Etapa 1 — Aplique a fórmula geral e substitua pelas probabilidades
               </p>
-              <p
-                className="ds-heading-large text-center mt-micro text-brand-otimath-dark whitespace-nowrap"
-              >
-                P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
-              </p>
+              {/* Fórmula com quebra POR GRUPOS atômicos. Antes era um `<p>`
+                  com whitespace-nowrap que estourava no mobile. */}
+              <div className="ds-heading-large mt-micro text-brand-otimath-dark flex flex-wrap items-center justify-center gap-x-micro gap-y-nano">
+                <span className="whitespace-nowrap">P(A ∪ B)</span>
+                <span className="whitespace-nowrap">=</span>
+                <span className="whitespace-nowrap">P(A)</span>
+                <span className="whitespace-nowrap">+</span>
+                <span className="whitespace-nowrap">P(B)</span>
+                <span className="whitespace-nowrap">−</span>
+                <span className="whitespace-nowrap">P(A ∩ B)</span>
+              </div>
               <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap mt-micro">
                 <FractionInput
                   num={g1CNum} den={g1CDen}

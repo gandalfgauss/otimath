@@ -3,9 +3,11 @@
 /* ═══════════════════════════════════════════════════════════════
    VennNumericPanel — diagrama de Venn numérico para exercícios.
 
-   Reusa a mesma geometria canônica do VennLaboratory (teoria):
-     • Círculos em (325, 210) e (475, 210), raio 150
-     • viewBox 800 × 400
+   Geometria local (LIGEIRAMENTE diferente do VennLaboratory) pra
+   acomodar inputs maiores e o círculo C complementar:
+     • Círculos A/B em (380, 310) e (580, 310), raio 200
+     • Círculo C em (855, 510), raio 90 (canto inferior direito)
+     • viewBox 960 × 640
      • Cores oficiais (EVENT_COLORS) para A, B, A∩B
 
    Diferença em relação ao VennLaboratory:
@@ -14,14 +16,13 @@
      • VennNumericPanel = exibição/edição de 4 cardinalidades numéricas
        (x, A−B, B−A, outros) com valores fixos vindos do enunciado.
 
-   Pedagogicamente: o aluno vê o MESMO diagrama da teoria —
-   coerência instrumental (TROUCHE, 2004).
+   Pedagogicamente: o aluno vê uma versão simplificada do diagrama
+   da teoria — coerência instrumental (TROUCHE, 2004).
    ═══════════════════════════════════════════════════════════════ */
 
 import React from 'react';
 import { EVENT_COLORS } from './eventPair';
 import {
-  defaultGeometry2Intersected,
   VIEWBOX_WIDTH, VIEWBOX_HEIGHT,
 } from '../venn/geometry';
 
@@ -51,7 +52,7 @@ interface VennNumericPanelProps {
 }
 
 function VennInput({
-  value, setValue, error, locked, ariaLabel, width = 100,
+  value, setValue, error, locked, ariaLabel, width = 150,
 }: {
   value: string;
   setValue?: (v: string) => void;
@@ -82,12 +83,12 @@ function VennInput({
       style={{
         border: `2px solid ${border}`,
         borderRadius: 6,
-        padding: '10px 12px',
+        padding: '14px 16px',
         width,
         textAlign: 'center',
         outline: 'none',
         fontWeight: 700,
-        fontSize: '1.05rem',
+        fontSize: '1.75rem',
         background: readOnly ? 'var(--color-neutral-lightest)' : 'var(--color-neutral-white)',
         color: readOnly ? 'var(--color-neutral-dark)' : undefined,
         cursor: readOnly ? 'not-allowed' : undefined,
@@ -106,48 +107,52 @@ export function VennNumericPanel({
   showW,
   locked,
 }: VennNumericPanelProps) {
-  const geo = defaultGeometry2Intersected();
-  const [A, B] = geo.circles;
+  // Geometria LOCAL (em vez do `defaultGeometry2Intersected()` compartilhado
+  // com o VennLaboratory) — círculos um pouco maiores que a geometria
+  // canônica (r=180→200), centros mais próximos das bordas pra liberar
+  // espaço pro C no canto inferior-direito sem encostar nas bordas. Mantém
+  // o viewBox em 960×640.
+  const A = { cx: 380, cy: 310, r: 200 };
+  const B = { cx: 580, cy: 310, r: 200 };
   const COLOR_A = EVENT_COLORS['A'];
   const COLOR_B = EVENT_COLORS['B'];
 
-  // Posições dos inputs — calculadas a partir da geometria canônica.
-  // A geometria canônica tem centros em (325, 210) e (475, 210), raio 150.
-  // Lunetes laterais e interseção têm largura horizontal ≈ 150 px cada;
-  // isso define o espaço máximo disponível para os retângulos de digitação.
-  // A−B: centroide da lunete esquerda (entre borda externa de A e interseção)
+  // Posições dos inputs — calculadas a partir da geometria canônica
+  // (cx=390/570, cy=320, r=180). Lunetes laterais e interseção têm largura
+  // horizontal ≈ 180 px cada; espaço máximo disponível pros retângulos.
   const amBX = ((A.cx - A.r) + (B.cx - B.r)) / 2;
-  // B−A: centroide da lunete direita
   const bmAX = ((A.cx + A.r) + (B.cx + B.r)) / 2;
-  // Interseção: entre os dois centros
   const xCx = (A.cx + B.cx) / 2;
-  // Todos os inputs alinhados na mesma linha vertical dos centros
-  const inputY = A.cy - 30;
+  const inputY = A.cy - 39;
 
-  // Rótulos A e B fora, no topo
-  const labelY = 54;
+  // Rótulos A e B posicionados PERTO do topo dos círculos. Antes era
+  // y=54 (calibrado pra viewBox 800×400 antigo) — quando bumpamos pro
+  // 960×640, os círculos passaram a começar em y=140 mas os rótulos
+  // ficaram em y=54, longe demais. Agora rente ao topo.
+  const labelY = A.cy - A.r + 36;
 
-  // Caixas de digitação ampliadas em ~30% sobre a versão anterior (104×60 → 135×78).
-  // Continuam cabendo nos 150 px horizontais disponíveis por região, com margem
-  // lateral simétrica de (150 − 135) / 2 ≈ 7 px.
-  const inputBoxW = 135, inputBoxH = 78;
+  // Caixas de digitação ajustadas pra encaixar na largura da lunete (200).
+  // Anterior era 180×116; agora 200×130.
+  const inputBoxW = 200, inputBoxH = 130;
 
-  // Círculo C (complementar da união A ∪ B) — menor que A e B, posicionado
-  // no canto inferior direito do retângulo S, matematicamente disjunto de
-  // A e B (dist. entre centros > soma dos raios). Representa w = S − c.
-  // Ampliado 30% sobre versão anterior (r: 58 → 75). cy ajustado para
-  // garantir que o círculo não ultrapasse a borda inferior do retângulo.
-  const C_CX = 700, C_CY = 315, C_R = 75;
-  const C_LABEL_Y = C_CY - C_R - 8;
-  // Placeholder do C ampliado 30% (wBoxW: 76 → 99; wBoxH: 48 → 62).
-  const wBoxW = 99, wBoxH = 62;
+  // Círculo C subido (era cy=555 → 510) e ampliado (r=78 → 90). Antes
+  // C encostava na borda inferior (555+78=633, viewBox 640 → margin 7);
+  // agora bottom em 510+90=600, margem inferior de 40 unidades.
+  // Garante NÃO sobrepor B (cx=580, cy=310, r=200):
+  //   distância(C, B) = √((855-580)² + (510-310)²) = √(75625+40000) ≈ 340
+  //   soma raios = 200 + 90 = 290
+  //   distância > soma → não colidem ✅
+  const C_CX = 855, C_CY = 510, C_R = 90;
+  const C_LABEL_Y = C_CY - C_R - 14;
+  // Placeholder ampliado: 120×72 → 140×84. Diagonal-meia = √(70² + 42²) ≈ 82 < 90 ✅
+  const wBoxW = 140, wBoxH = 84;
 
   return (
     <div className="w-full flex justify-center" style={{ overflowX: 'auto' }}>
       <svg
         viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
         width="100%"
-        style={{ maxWidth: 640 }}
+        style={{ maxWidth: 720 }}
         role="img"
         aria-label="Diagrama de Venn com cardinalidades"
       >
@@ -160,9 +165,12 @@ export function VennNumericPanel({
           stroke="var(--color-neutral-dark)"
           strokeWidth={2}
         />
+        {/* Rótulo "S = N" no canto superior direito. fontSize bumpado de
+            16 → 30 pra ficar legível no mobile (em viewBox 960 renderizado
+            ~340px, 16px viewBox = 5.6px tela, ilegível). */}
         <text
-          x={VIEWBOX_WIDTH - 24} y={34}
-          textAnchor="end" fontSize="16" fontWeight="700"
+          x={VIEWBOX_WIDTH - 28} y={62}
+          textAnchor="end" fontSize="44" fontWeight="700"
           fill="var(--color-neutral-darkest)"
         >
           S = {totalLabel}
@@ -174,9 +182,12 @@ export function VennNumericPanel({
           fill={COLOR_A} fillOpacity={0.18}
           stroke={COLOR_A} strokeWidth={2.5}
         />
+        {/* Rótulo A — fontSize bumpado 20 → 38 e posicionado JUNTO ao topo
+            do círculo (label dentro da borda superior-esquerda). Antes
+            ficava 86 unidades acima do topo do círculo (y=54 vs top=140). */}
         <text
-          x={A.cx - A.r + 18} y={labelY}
-          fontSize="20" fontWeight="800" fill={COLOR_A}
+          x={A.cx - A.r + 28} y={labelY}
+          fontSize="46" fontWeight="800" fill={COLOR_A}
         >
           A
         </text>
@@ -188,8 +199,8 @@ export function VennNumericPanel({
           stroke={COLOR_B} strokeWidth={2.5}
         />
         <text
-          x={B.cx + B.r - 32} y={labelY}
-          fontSize="20" fontWeight="800" fill={COLOR_B}
+          x={B.cx + B.r - 58} y={labelY}
+          fontSize="46" fontWeight="800" fill={COLOR_B}
         >
           B
         </text>
@@ -257,7 +268,7 @@ export function VennNumericPanel({
             <text
               x={C_CX} y={C_LABEL_Y}
               textAnchor="middle"
-              fontSize="20" fontWeight="800"
+              fontSize="42" fontWeight="800"
               fill="var(--color-neutral-dark)"
             >
               C
@@ -276,7 +287,7 @@ export function VennNumericPanel({
                   error={wError}
                   locked={locked}
                   ariaLabel="Cardinalidade do conjunto C (complementar de A ∪ B)"
-                  width={78}
+                  width={100}
                 />
               </div>
             </foreignObject>
