@@ -7,8 +7,13 @@ import {
   CircleGeometry, MembershipMask, VennGeometry, VennRegion, VennSize,
 } from './types';
 
-export const VIEWBOX_WIDTH = 800;
-export const VIEWBOX_HEIGHT = 400;
+// 960×640 (aspect 3:2, antes 2:1). A altura maior tem dois efeitos:
+//   - Desktop: SVG renderiza 960×640 dentro do `maxWidth: VIEWBOX_WIDTH`.
+//   - Mobile: SVG renderiza no width da viewport (ex.: 360px) com altura
+//     PROPORCIONAL → 360×240 (antes era 360×180). 33% mais alto, ocupa
+//     mais a tela e os símbolos ficam mais legíveis.
+export const VIEWBOX_WIDTH = 960;
+export const VIEWBOX_HEIGHT = 640;
 
 export function distanceToCenter(x: number, y: number, c: CircleGeometry): number {
   return Math.hypot(x - c.cx, y - c.cy);
@@ -49,30 +54,31 @@ export function regionAnchor(
   return { x: viewBoxWidth / 2, y: viewBoxHeight / 2 };
 }
 
-// Geometria inicial (disjuntos) para N=2
+// Geometria inicial (disjuntos) para N=2.
+// cy recentrado pra 320 (meio de viewBoxHeight=640).
 export function defaultGeometry2Disjoint(): VennGeometry {
   return {
     size: 2,
     circles: [
-      { cx: 200, cy: 210, r: 140 },
-      { cx: 600, cy: 210, r: 140 },
+      { cx: 240, cy: 320, r: 170 },
+      { cx: 720, cy: 320, r: 170 },
     ],
     viewBoxWidth: VIEWBOX_WIDTH,
     viewBoxHeight: VIEWBOX_HEIGHT,
   };
 }
 
-// Geometria canônica (com interseção) para N=2
-// Raio = 150 px, distância entre centros = 150 px
-// → sobreposição horizontal central = 150 px (cabe "n(A ∩ B)" sem exagero)
-// → lunetes laterais com ~150 px de largura (cabem "n(A − B)" / "n(B − A)")
-// cy = 210 para liberar ~40 px superiores aos rótulos externos.
+// Geometria canônica (com interseção) para N=2.
+// cy recentrado pra 320 (meio de viewBoxHeight=640).
+// Raio = 180 px, distância entre centros = 180 px
+// → sobreposição horizontal central com espaço pra "n(A ∩ B)".
+// → lunetes laterais com largura suficiente pra "n(A − B)" / "n(B − A)".
 export function defaultGeometry2Intersected(): VennGeometry {
   return {
     size: 2,
     circles: [
-      { cx: 325, cy: 210, r: 150 },
-      { cx: 475, cy: 210, r: 150 },
+      { cx: 390, cy: 320, r: 180 },
+      { cx: 570, cy: 320, r: 180 },
     ],
     viewBoxWidth: VIEWBOX_WIDTH,
     viewBoxHeight: VIEWBOX_HEIGHT,

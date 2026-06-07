@@ -995,6 +995,28 @@ function VennSVG({
   const [A, B] = geometry.circles;
   const [setA, setB] = sets;
 
+  // Escala de fonte adaptativa: o `fontSize` no SVG é em unidades do viewBox,
+  // que escalam com a largura renderizada do SVG. Em mobile, com o SVG
+  // espremido pra ~340px de tela, fontSize=14 vira ~6px de altura real,
+  // ilegível. Medimos a largura real renderizada e usamos uma escala
+  // SUAVIZADA (sqrt) pra subir o fontSize sem estourar os containers de
+  // tamanho fixo (foreignObject das descrições internas, input aritmético).
+  // Cap em 1.7 — escala maior deformava demais ou cortava texto.
+  const [textScale, setTextScale] = useState(1);
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const measure = () => {
+      const w = svgRef.current?.clientWidth ?? VIEWBOX_WIDTH;
+      // sqrt suaviza: 800/360≈2.22 → sqrt≈1.49 (em vez de 2.22 cru).
+      const raw = Math.sqrt(VIEWBOX_WIDTH / w);
+      setTextScale(Math.max(1, Math.min(1.7, raw)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(svgRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!clickable || !svgRef.current) return;
     const pt = svgRef.current.createSVGPoint();
@@ -1024,7 +1046,7 @@ function VennSVG({
       <g key={key} pointerEvents="none">
         <text
           x={anchor.x} y={anchor.y - 2}
-          textAnchor="middle" fontSize="28" fontWeight="700"
+          textAnchor="middle" fontSize={36 * textScale} fontWeight="700"
           fill={isHighlighted ? 'var(--color-feedback-success-dark)' : '#222'}
           style={{ paintOrder: 'stroke', stroke: '#fff', strokeWidth: 4, strokeLinejoin: 'round' }}
         >
@@ -1057,27 +1079,78 @@ function VennSVG({
           stroke="#bbb" strokeWidth={1.5}
           rx={8}
         />
-        <text x={30} y={32} fontSize="14" fontWeight="600" fill="#666">Ω</text>
+        {/* y deslocado pra acomodar fontSize escalado — antes y=36 cortava
+            o topo da letra quando textScale > 1.3 (fontSize 18*1.5 = 27, top
+            do glifo em y=36-27=9, abaixo da moldura em y=10). */}
+        <text x={30} y={26 + 18 * textScale} fontSize={18 * textScale} fontWeight="600" fill="#666">Ω</text>
 
-        {/* Rótulos externos (após reposicionamento) — alinhados às bordas
-            laterais opostas dos círculos para evitar sobreposição quando os
-            centros estão próximos. */}
-        {descriptionsOutside && (
+        {/* Rótulos externos — cada um ancorado JUNTO ao seu círculo (logo
+            acima do topo), com largura limitada pra não cruzar o eixo
+            central. Antes ficavam empilhados no topo do viewBox (y=10), longe
+            dos círculos e sobre o Ω. Agora seguem cada círculo:
+              - A: ancorado à borda esquerda externa de A, extends pra direita
+                até o eixo central com um gap; texto alinhado à esquerda.
+              - B: ancorado ao eixo central + gap, extends até a borda direita
+                externa de B; texto alinhado à direita.
+            wordBreak permite wrap quando o textScale do mobile aumenta o
+            tamanho do texto. */}
+        {descriptionsOutside && (() => {
+          const labelHeight = 80;
+          const gap = 10;
+          const centerX = (A.cx - A.r + B.cx + B.r) / 2;
+          const aLabelX = A.cx - A.r;
+          const aLabelW = centerX - aLabelX - gap;
+          const bLabelX = centerX + gap;
+          const bLabelW = (B.cx + B.r) - bLabelX;
+          // y posicionado logo acima do círculo mais alto (com folga pra
+          // wrap em 2 linhas). Mínimo de 5 pra não estourar a moldura no
+          // mobile com textScale alto.
+          const labelY = Math.max(5, Math.min(A.cy - A.r, B.cy - B.r) - labelHeight - 8);
+          return (
           <>
-            <text
-              x={A.cx - A.r} y={A.cy - A.r - 20}
-              textAnchor="start" fontSize="14" fontWeight="700" fill={setA.color}
+            <foreignObject
+              x={aLabelX}
+              y={labelY}
+              width={aLabelW}
+              height={labelHeight}
+              style={{ pointerEvents: 'none' }}
             >
-              A: {toLowercaseArticle(setA.description)}
-            </text>
-            <text
-              x={B.cx + B.r} y={B.cy - B.r - 20}
-              textAnchor="end" fontSize="14" fontWeight="700" fill={setB.color}
+              <div
+                style={{
+                  fontSize: 18 * textScale,
+                  fontWeight: 700,
+                  color: setA.color,
+                  textAlign: 'left',
+                  lineHeight: 1.2,
+                  wordBreak: 'break-word',
+                }}
+              >
+                A: {toLowercaseArticle(setA.description)}
+              </div>
+            </foreignObject>
+            <foreignObject
+              x={bLabelX}
+              y={labelY}
+              width={bLabelW}
+              height={labelHeight}
+              style={{ pointerEvents: 'none' }}
             >
-              B: {toLowercaseArticle(setB.description)}
-            </text>
+              <div
+                style={{
+                  fontSize: 18 * textScale,
+                  fontWeight: 700,
+                  color: setB.color,
+                  textAlign: 'right',
+                  lineHeight: 1.2,
+                  wordBreak: 'break-word',
+                }}
+              >
+                B: {toLowercaseArticle(setB.description)}
+              </div>
+            </foreignObject>
           </>
-        )}
+          );
+        })()}
 
         {/* Círculos com preenchimento translúcido */}
         <circle
@@ -1106,17 +1179,23 @@ function VennSVG({
         })}
 
         {/* Descrições verbais DENTRO dos círculos (antes do reposicionamento) */}
-        {!descriptionsOutside && (
+        {!descriptionsOutside && (() => {
+          // foreignObject precisa CRESCER com o textScale pra não cortar texto
+          // (height fixo 50 com fontSize 22+ estourava o container).
+          // Container cresce com a fonte. Base bumpada de 50/22 → 62/28 pra
+          // acomodar fontSize aumentado de 13 → 16.
+          const foHeight = 62 * textScale;
+          const foShiftY = 28 * textScale;
+          return (
           <>
             <foreignObject
-              x={A.cx - A.r * 0.75} y={A.cy - 22}
-              width={A.r * 1.5} height={50}
+              x={A.cx - A.r * 0.75} y={A.cy - foShiftY}
+              width={A.r * 1.5} height={foHeight}
               style={{ pointerEvents: 'none' }}
             >
               <div
-                
                 style={{
-                  textAlign: 'center', fontSize: 13, color: '#222',
+                  textAlign: 'center', fontSize: 16 * textScale, color: '#222',
                   lineHeight: 1.25, fontWeight: 500,
                 }}
               >
@@ -1125,14 +1204,13 @@ function VennSVG({
               </div>
             </foreignObject>
             <foreignObject
-              x={B.cx - B.r * 0.75} y={B.cy - 22}
-              width={B.r * 1.5} height={50}
+              x={B.cx - B.r * 0.75} y={B.cy - foShiftY}
+              width={B.r * 1.5} height={foHeight}
               style={{ pointerEvents: 'none' }}
             >
               <div
-                
                 style={{
-                  textAlign: 'center', fontSize: 13, color: '#222',
+                  textAlign: 'center', fontSize: 16 * textScale, color: '#222',
                   lineHeight: 1.25, fontWeight: 500,
                 }}
               >
@@ -1141,7 +1219,8 @@ function VennSVG({
               </div>
             </foreignObject>
           </>
-        )}
+          );
+        })()}
 
         {/* Cardinalidades reveladas nas regiões correspondentes */}
         {renderRegionCardinality([true, true])}
@@ -1158,8 +1237,8 @@ function VennSVG({
           return (
             <text
               key={`expr-${k}`}
-              x={anchor.x} y={anchor.y + 25}
-              textAnchor="middle" fontSize="14" fontWeight="700" fill={color}
+              x={anchor.x} y={anchor.y + 30}
+              textAnchor="middle" fontSize={18 * textScale} fontWeight="700" fill={color}
               style={{ paintOrder: 'stroke', stroke: '#fff', strokeWidth: 3, strokeLinejoin: 'round' }}
               pointerEvents="none"
             >
@@ -1227,8 +1306,10 @@ function VennSVG({
         {/* Input aritmético dentro da região pendente (A-B ou B-A) */}
         {arithmeticMask && (() => {
           const anchor = regionAnchor(arithmeticMask, geometry.circles);
-          const boxW = 120;
-          const boxH = 34;
+          // Box cresce com textScale pra acomodar fontSize escalado.
+          // Base bumpada de 120/34 → 144/42 acompanhando o fontSize 14 → 18.
+          const boxW = 144 * textScale;
+          const boxH = 42 * textScale;
           return (
             <foreignObject
               x={anchor.x - boxW / 2}
@@ -1250,7 +1331,7 @@ function VennSVG({
                 style={{
                   width: '100%', height: '100%', boxSizing: 'border-box',
                   textAlign: 'center',
-                  fontSize: 14, fontWeight: 700,
+                  fontSize: 18 * textScale, fontWeight: 700,
                   border: `2px solid ${arithmeticError ? 'var(--color-feedback-error-dark)' : 'var(--color-brand-otimath-pure)'}`,
                   borderRadius: 6,
                   background: 'var(--color-neutral-white)',
