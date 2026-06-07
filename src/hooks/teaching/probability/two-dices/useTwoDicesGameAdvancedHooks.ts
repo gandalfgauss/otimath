@@ -679,8 +679,18 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
   // virava no-op dentro da sequência e o aluno ficava sem âncora.
   const goToTopOfChallenge = () => {
     requestAnimationFrame(() => {
-      const target = document.getElementById('dois-dados') ?? document.getElementById('seq-dois-dados');
-      target?.scrollIntoView({ behavior: 'smooth' });
+      // Fallback chain — ordem importa:
+      //   1) "dois-dados": rota standalone do OVA (TwoDicesSection)
+      //   2) "apresentacao-dado": Grid raiz do OVA dentro da sequência
+      //      didática (TwoDicesPresentation). Sem este intermediário, o
+      //      scroll caía pra "seq-dois-dados" que ancora ANTES do header
+      //      do OVA — visualmente longe do conteúdo do Ex8.
+      //   3) "seq-dois-dados": Grid da página da sequência didática (last resort)
+      const target =
+        document.getElementById('dois-dados') ??
+        document.getElementById('apresentacao-dado') ??
+        document.getElementById('seq-dois-dados');
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   };
 

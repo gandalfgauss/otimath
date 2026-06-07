@@ -578,6 +578,21 @@ export const useTwoDicesSingleShotHooks = ({
   /* ──────────────────────────────────────────────────────────────
      HANDLERS DE BOTÃO (Conferir, Próximo, Limpar)
      ──────────────────────────────────────────────────────────── */
+  // Ancora no topo do OVA — usado em Conferir e Próximo passo. Tenta os 3
+  // IDs candidatos pra cobrir contextos diferentes (standalone, sequência
+  // didática como Grid raiz, ou outer da sequência). Sem isso, no Ex6 o
+  // aluno clicava Conferir lá embaixo e o alert + próximo passo
+  // carregavam fora da viewport.
+  const goToTopOfChallenge = () => {
+    requestAnimationFrame(() => {
+      const target =
+        document.getElementById('dois-dados') ??
+        document.getElementById('apresentacao-dado') ??
+        document.getElementById('seq-dois-dados');
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const checkOnClick = () => {
     const ok = checkSolution();
     // Instrumentação de log — registra cada tentativa com stepKind para
@@ -610,10 +625,12 @@ export const useTwoDicesSingleShotHooks = ({
       if (currentStep.kind === 'compute-probability') flagErrorOnProbabilities();
       onStepError?.(currentStep.kind);
     }
+    goToTopOfChallenge();
   };
 
   const goToNextStepOnClick = () => {
     advanceToNextStep();
+    goToTopOfChallenge();
   };
 
   const dicesChecksClearOnClick = () => {
