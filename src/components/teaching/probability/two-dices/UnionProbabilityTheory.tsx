@@ -646,6 +646,11 @@ export interface UnionTheoryHandle {
   back: () => void;
   canAdvance: () => boolean;
   canBack: () => boolean;
+  /** Restaura a sub-fase interna a partir de um id como 'markB' ou
+   *  'vennLab|createIntersection'. Usado pelo painel DEV ao navegar pra
+   *  trás (seta esquerda) — sem isso a fase interna do componente
+   *  desincronizava do snapshot e o cursor visualmente "ficava preso". */
+  setCurrentPhaseId: (phaseId: string) => void;
 }
 
 // Sequência linear de fases — usada pelas setinhas de navegação dev.
@@ -1248,6 +1253,21 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     back: backPhase,
     canAdvance: () => PHASE_SEQUENCE.indexOf(phase) >= 0,
     canBack: () => PHASE_SEQUENCE.indexOf(phase) > 0,
+    setCurrentPhaseId: (phaseId: string) => {
+      // 'vennLab|<sub>' → fase vennLab + delega sub-step pro VennLaboratory.
+      if (phaseId.startsWith('vennLab|')) {
+        setPhase('vennLab');
+        // Nota: VennLaboratory mantém seu próprio step interno sem setter
+        // público — restauramos só a fase pai (vennLab). Aceitável porque a
+        // sub-etapa do Venn é interativa (clique em região), não puramente
+        // sequencial — restaurar visualmente é menos crítico.
+        return;
+      }
+      // Fase plana — coincide com algum item de PHASE_SEQUENCE.
+      if (PHASE_SEQUENCE.includes(phaseId as UnionPhase)) {
+        setPhase(phaseId as UnionPhase);
+      }
+    },
   }), [advancePhase, backPhase, phase]);
 
   // ═══════════════════════════════════════════════════════════════

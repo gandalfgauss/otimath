@@ -173,6 +173,14 @@ export function VennLaboratory({
     playSound('/sounds/nextChallenge.mp3');
     setFeedback({ type: 'none' });
     setStep(next);
+    // Ancora no topo do OVA a cada transição de sub-etapa. Antes, vários
+    // botões do Venn ("Continuar", "Próximo passo", etc.) e callbacks de
+    // setTimeout (após acertar uma região) chamavam goTo SEM scroll —
+    // o aluno terminava lá embaixo na sub-etapa anterior e a próxima
+    // carregava sem trazer o enunciado/diagrama pra viewport.
+    requestAnimationFrame(() => {
+      document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }, []);
 
   // Notifica o pai a cada mudança de sub-etapa — entra no cenaId DEV.
@@ -272,6 +280,9 @@ export function VennLaboratory({
 
   // --- Sub-etapa 2: createIntersection ---
   const moveCircleB = useCallback((direction: 'left' | 'right') => {
+    // Som curto de clique a cada movimento — sem isso o aluno clica nos
+    // botões "◄ Aproximar B" / "Afastar B ►" e não tem feedback auditivo.
+    playSound('/sounds/click.mp3');
     setGeometry(prev => {
       const [A, B] = prev.circles;
       const delta = direction === 'left' ? -30 : 30;
@@ -303,6 +314,17 @@ export function VennLaboratory({
 
   // --- Sub-etapa 3/5/7: clique em região ---
   const handleRegionClick = useCallback((mask: MembershipMask) => {
+    // Ancora no topo do OVA em TODO clique de região que vai disparar feedback
+    // (alert/som). markUnion é a única sub-etapa que faz toggle silencioso de
+    // seleção sem alert — não precisa scrollar lá. Antes, depositar um valor
+    // (`fillIntersection`, `placeExpressions`, `writeUnionFormula`) mostrava
+    // o alert "Correto!" no topo da tela enquanto o aluno estava com a viewport
+    // descida no diagrama, e o feedback passava despercebido.
+    if (step !== 'markUnion') {
+      requestAnimationFrame(() => {
+        document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
     if (step === 'clickIntersection') {
       if (masksEqual(mask, [true, true])) {
         setIntersectionClicked(true);
@@ -546,9 +568,18 @@ export function VennLaboratory({
 
   // --- placeExpressions: clica expressão (arma) + clica região (deposita) ---
   const toggleArmedExpression = useCallback((expr: ExpressionId) => {
-    setArmedExpression(prev => prev === expr ? null : expr);
+    setArmedExpression(prev => {
+      const next = prev === expr ? null : expr;
+      // Som + alert ao armar; só som ao desarmar (alert seria spam).
+      playSound('/sounds/click.mp3');
+      if (next !== null && prev !== expr) {
+        const label = expr === 'AMinusB' ? 'n(A − B)' : expr === 'intersection' ? 'n(A ∩ B)' : 'n(B − A)';
+        createAlert?.('Expressão armada', `${label} pronta. Clique numa região do diagrama pra posicionar.`, 'info', 3000);
+      }
+      return next;
+    });
     setFeedback({ type: 'none' });
-  }, []);
+  }, [createAlert]);
 
   const confirmPlaceExpressions = useCallback(() => {
     scrollDiceToTop();
@@ -738,7 +769,15 @@ export function VennLaboratory({
         armable={step === 'fillIntersection' && !intersectionValueDeposited ? 'nI' : null}
         onChipClick={(chip) => {
           if (chip === 'nI') {
-            setArmedChip(prev => prev === 'nI' ? null : 'nI');
+            // Som + alert ao armar; só som ao desarmar.
+            playSound('/sounds/click.mp3');
+            setArmedChip(prev => {
+              const next = prev === 'nI' ? null : 'nI';
+              if (next === 'nI') {
+                createAlert?.('Valor armado', `n(A ∩ B) = ${nI} pronto. Clique na região A ∩ B do diagrama pra depositar.`, 'info', 3500);
+              }
+              return next;
+            });
             setFeedback({ type: 'none' });
           }
         }}
@@ -945,8 +984,16 @@ export function VennLaboratory({
         confirmPlaceExpressions={confirmPlaceExpressions}
         formulaSlots={formulaSlots}
         conclusionPhase={conclusionPhase}
-        onSumABClickA={() => { setSumABFilledA(true); playSound('/sounds/correct.mp3'); }}
-        onSumABClickB={() => { setSumABFilledB(true); playSound('/sounds/correct.mp3'); }}
+        onSumABClickA={() => {
+          setSumABFilledA(true);
+          playSound('/sounds/correct.mp3');
+          createAlert?.('n(A) incluído', 'O total do conjunto A foi adicionado à soma. Agora clique em B.', 'success', 3000);
+        }}
+        onSumABClickB={() => {
+          setSumABFilledB(true);
+          playSound('/sounds/correct.mp3');
+          createAlert?.('n(B) incluído', 'O total do conjunto B foi adicionado à soma.', 'success', 3000);
+        }}
         doubleCountChoice={doubleCountChoice}
         setDoubleCountChoice={setDoubleCountChoice}
         doubleCountConfirmed={doubleCountConfirmed}

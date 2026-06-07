@@ -2224,8 +2224,17 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         return;
       }
       if (phaseId.startsWith('unionTheory|')) {
-        // Idem: UnionProbabilityTheory mantém seu próprio phase + Venn sub-step.
+        // Propaga a sub-fase pra UnionProbabilityTheory via handle. Antes
+        // setávamos só a fase pai e a sub-fase ficava "presa" no valor
+        // antigo do componente filho — seta dev pra esquerda não voltava
+        // item por item dentro da teoria (intro, markA, countA, etc.).
+        const sub = phaseId.slice('unionTheory|'.length);
         setPhase('unionTheory');
+        // Em fluxo de restore (vindo de snapshot DEV), aguarda 1 frame pra
+        // garantir que o ref do UnionProbabilityTheory esteja montado.
+        requestAnimationFrame(() => {
+          unionTheoryRef?.current?.setCurrentPhaseId?.(sub);
+        });
         return;
       }
       setPhase(phaseId as Phase);
