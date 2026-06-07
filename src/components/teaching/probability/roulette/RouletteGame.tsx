@@ -400,11 +400,21 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
   useEffect(() => {
     if (!onProgressChange) return;
     const { stage, subStep } = gameState;
-    // Faixas de cada etapa no OVA inteiro
+    // Faixas re-balanceadas com base na CONTAGEM REAL de sub-steps únicos
+    // usados em cada etapa (verificado por grep no useRouletteHooks):
+    //   Stage 1: ~72 sub-steps únicos
+    //   Stage 2: ~26 sub-steps únicos
+    //   Stage 3: ~12 sub-steps únicos
+    //   Total: ~110, proporção 65% / 24% / 11%
+    //
+    // A alocação anterior (55% / 27% / 18%) subestimava Stage 1 e
+    // superestimava Stage 3 — quando o aluno entrava no Stage 3, a barra
+    // já saltava pra 82%, sugerindo "quase terminei" mas ainda restavam
+    // 12 sub-steps.
     const RANGES = {
-      1: { start: 0,   end: 0.55, maxSub: 16 },   // subSteps vão de 0 a ~15.7
-      2: { start: 0.55, end: 0.82, maxSub: 9.5 }, // subSteps vão até ~9.3
-      3: { start: 0.82, end: 1,    maxSub: 8.5 }, // subSteps vão até ~8.3
+      1: { start: 0,    end: 0.65, maxSub: 16 },  // subSteps vão de 0 a ~15.7
+      2: { start: 0.65, end: 0.89, maxSub: 9.5 }, // subSteps vão até ~9.3
+      3: { start: 0.89, end: 1,    maxSub: 8.5 }, // subSteps vão até ~8.3
     } as const;
     const range = RANGES[stage as 1 | 2 | 3] ?? RANGES[1];
     const within = Math.max(0, Math.min(1, subStep / range.maxSub));

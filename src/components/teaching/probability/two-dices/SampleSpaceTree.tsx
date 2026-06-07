@@ -363,7 +363,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   const validateTotal = useCallback(() => {
     scrollDiceToTop();
     if (totalAnswer.trim() !== '36') {
-      const msg = 'Lembre-se: 6 × 6 = 36 pares ordenados.';
+      const msg = 'Use a multiplicação que você acabou de validar pra encontrar o total de pares ordenados.';
       setTotalError(msg);
       playSound('/sounds/incorrect.mp3');
       createAlert?.('Tente novamente', msg, 'error', 4000);

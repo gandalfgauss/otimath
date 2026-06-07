@@ -4121,7 +4121,7 @@ export const useRouletteHooks = () => {
     const expectedColor = gameState.selectedColor;
 
     if (colorName !== expectedColor) {
-      createAlert("Ops!", `A cor sorteada foi ${expectedColor}. Registre a cor correta.`, "error", 4000);
+      createAlert("Ops!", `Essa não é a cor sorteada. Observe novamente o disco e registre a cor onde o ponteiro parou.`, "error", 4000);
       playSound("/sounds/incorrect.mp3");
       return;
     }
@@ -4392,7 +4392,7 @@ export const useRouletteHooks = () => {
         } else {
           playSound("/sounds/incorrect.mp3");
           setTrainIxInputs(prev => ({ ...prev, [color]: { ...prev[color], error: true } }));
-          createAlert("Tente novamente.", `A razão de ${color} é ${expectedI}. Escreva na forma ip.`, "error", 3000);
+          createAlert("Tente novamente.", `Conte quantos setores da cor ${color} aparecem no disco e escreva na forma ip.`, "error", 3000);
         }
         return;
       }
@@ -4435,7 +4435,7 @@ export const useRouletteHooks = () => {
         } else {
           playSound("/sounds/incorrect.mp3");
           setTrainProbInputs(prev => ({ ...prev, [color]: { ...prev[color], error: true } }));
-          createAlert("Tente novamente.", `Substitua p = 1/${tS} em ${expectedKi}·p.`, "error", 4000);
+          createAlert("Tente novamente.", `Use a razão ip que você preencheu antes e substitua p = 1/${tS}.`, "error", 4000);
         }
         return;
       }
@@ -4478,7 +4478,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Leia o conteúdo do balão e clique no <strong>Botão</strong> para continuar.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Tente novamente", `O número correto é ${targetSectorCount}. Tente novamente.`, "error", 4000);
+        createAlert("Tente novamente", `Volte ao disco e conte com calma os setores antes de informar o número.`, "error", 4000);
       }
       return;
     }
@@ -4958,7 +4958,7 @@ export const useRouletteHooks = () => {
         } else {
           playSound("/sounds/incorrect.mp3");
           setLgnInput(prev => ({ ...prev, error: true }));
-          createAlert("Incorreto", `Use P(${lgnParams.color})=1/${lgnN} e calcule ${lgnParams.m}×(1/${lgnN}) = ${lgnParams.m}/${lgnN}.`, "error", 5000);
+          createAlert("Incorreto", `Use P(${lgnParams.color})=1/${lgnN} e multiplique por ${lgnParams.m} repetições.`, "error", 5000);
         }
         return;
       }
@@ -6169,7 +6169,7 @@ export const useRouletteHooks = () => {
             ...prev,
             [color]: { ...prev[color], error: true }
           }));
-          createAlert("Tente novamente.", `A razão angular de ${color} é ${expectedI}. Escreva na forma ip.`, "error", 4000);
+          createAlert("Tente novamente.", `Some os ângulos dos setores da cor ${color} e divida pelo ângulo do setor menor pra obter a razão. Escreva na forma ip.`, "error", 4000);
         }
         return;
       }
@@ -6310,7 +6310,7 @@ export const useRouletteHooks = () => {
           ...prev,
           [color]: { ...prev[color], error: true }
         }));
-        createAlert("Tente novamente.", `Substitua p = 1/${S} em ${ki}·p.`, "error", 4000);
+        createAlert("Tente novamente.", `Use a razão ip que você preencheu antes e substitua p = 1/${S}.`, "error", 4000);
       }
       return;
     }

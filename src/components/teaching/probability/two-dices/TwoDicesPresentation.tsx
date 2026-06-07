@@ -878,15 +878,19 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
     if (!onProgressChange) return;
     if (done) { onProgressChange(1); return; }
 
-    // Faixas por cena (start, end) — Cena 7 é a mais longa
+    // Faixas por cena (start, end). Re-balanceadas com base no esforço real
+    // do aluno: Cena 7 (TwoDicesExperiment) contém complementaryEvents +
+    // unionTheory + 6 exercícios da união — é ~67% do trabalho total do
+    // OVA, NÃO 50% como na alocação anterior (que fazia a barra subir cedo
+    // demais quando o aluno entrava nas seções pesadas da Cena 7).
     const SCENE_RANGES: Record<number, [number, number]> = {
-      1: [0.00, 0.06],
-      2: [0.06, 0.12],
-      3: [0.12, 0.22],
-      4: [0.22, 0.30],
-      5: [0.30, 0.40],
-      6: [0.40, 0.50],
-      7: [0.50, 1.00],
+      1: [0.00, 0.03],
+      2: [0.03, 0.06],
+      3: [0.06, 0.13],
+      4: [0.13, 0.17],
+      5: [0.17, 0.25],
+      6: [0.25, 0.33],
+      7: [0.33, 1.00],
     };
     const [start, end] = SCENE_RANGES[scene] ?? [0, 1];
 
@@ -895,28 +899,47 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
     if (scene === 3) within = Math.min(1, scene3Step / 6);
     else if (scene === 4) within = Math.min(1, scene4Step / 3);
     else if (scene === 7) {
-      // Ordem natural das fases da Cena 7 (TwoDicesExperiment) — usa
-      // como índice de progresso. Fases não listadas (como subfases de
-      // delegados) caem no índice da fase pai mais recente.
-      const PHASE_ORDER: string[] = [
-        'intro', 'tree', 'ready', 'rolling', 'landed',
-        'pickPair', 'pickConfirm', 'markTable', 'feedback',
-        'pairQuestion', 'pairExplain', 'colorQuestion', 'colorExplain',
-        'sumInput', 'sumMarkTable', 'sumComplete',
-        'sumAlienIntro', 'sumPredictMax', 'sumPredictMin', 'sumImpossible', 'sumReveal',
-        'probPair', 'probPairReveal', 'probSumTable', 'probSumReveal',
-        'raceBet', 'raceRunning', 'raceFinished',
-        'complementaryEvents',
-        'unionTheory',
-        'unionExercises', 'unionExercise2', 'unionExercise3', 'unionExercise4',
-        'unionExercise5', 'unionExercise6',
-        'twoDicesGameFree', 'unionExercise8',
-        'closing', 'finished',
-      ];
-      // Fase atual pode vir como 'unionTheory|sub=...' ou só 'unionTheory'
+      // Pesos PEDAGÓGICOS por fase em vez de índice linear. Antes,
+      // `idx / (PHASE_ORDER.length - 1)` tratava cada fase como tendo o
+      // mesmo peso — mas unionTheory (1 entrada) tem 25 sub-fases e cada
+      // unionExerciseN é uma atividade longa. O resultado: a barra
+      // mostrava 87%+ quando o aluno entrava em unionTheory, mas ele
+      // ainda tinha 50% do trabalho real pela frente (theory + 6 exercises).
+      //
+      // Pesos abaixo são proporcionais ao número aproximado de
+      // interações/sub-fases de cada bloco. Fases opcionais (Ex7/Ex8)
+      // peso 0 — não contam pro progresso principal.
+      const PHASE_WEIGHTS: Record<string, number> = {
+        'intro': 1, 'tree': 1, 'ready': 0.5, 'rolling': 0.5, 'landed': 0.5,
+        'pickPair': 1, 'pickConfirm': 1, 'markTable': 1.5, 'feedback': 0.5,
+        'pairQuestion': 0.5, 'pairExplain': 0.5, 'colorQuestion': 0.5, 'colorExplain': 0.5,
+        'sumInput': 1, 'sumMarkTable': 1.5, 'sumComplete': 0.5,
+        'sumAlienIntro': 0.5, 'sumPredictMax': 1, 'sumPredictMin': 1, 'sumImpossible': 1, 'sumReveal': 0.5,
+        'probPair': 1, 'probPairReveal': 0.5, 'probSumTable': 2, 'probSumReveal': 0.5,
+        'raceBet': 1, 'raceRunning': 1, 'raceFinished': 0.5,
+        'complementaryEvents': 8,   // atividade grande com várias sub-fases
+        'unionTheory': 15,          // muito grande — ~25 sub-fases internas
+        'unionExercises': 5,        // Ex1
+        'unionExercise2': 4,
+        'unionExercise3': 4,
+        'unionExercise4': 6,        // mais complexo (4 caminhos)
+        'unionExercise5': 4,
+        'unionExercise6': 3,        // revisão
+        'twoDicesGameFree': 0,      // opcional — não conta
+        'unionExercise8': 0,        // opcional — não conta
+        'closing': 0.5,
+        'finished': 0,
+      };
+      const PHASE_ORDER = Object.keys(PHASE_WEIGHTS);
+      const totalWeight = Object.values(PHASE_WEIGHTS).reduce((s, w) => s + w, 0);
       const base = scene7ExperimentPhase.split('|')[0];
       const idx = PHASE_ORDER.indexOf(base);
-      within = idx >= 0 ? idx / (PHASE_ORDER.length - 1) : 0;
+      if (idx >= 0) {
+        // Soma os pesos das fases ATÉ a atual (exclusiva) = posição de início.
+        let cumulative = 0;
+        for (let i = 0; i < idx; i++) cumulative += PHASE_WEIGHTS[PHASE_ORDER[i]];
+        within = cumulative / totalWeight;
+      }
     }
 
     onProgressChange(start + within * (end - start));
@@ -1876,7 +1899,20 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                     // (TwoDicesExperiment) já toca o gameFinished.mp3
                     // antes de chamar este onFinished, manter aqui
                     // duplicava o som.
-                    setDone(true);
+                    //
+                    // Chama onFinished DIRETAMENTE (em vez de setDone(true)
+                    // + FinishedSignal deferido). Setar done=true fazia o
+                    // TwoDicesPresentation renderizar a branch `if (done)`
+                    // entre o clique e a transição pra stage 'complete' —
+                    // essa branch só monta o FinishedSignal (que retorna
+                    // null), causando um flash em branco perceptível.
+                    // Como esse `onFinished` é chamado de um event handler
+                    // (não render), o anti-padrão "setState durante render"
+                    // que motivou o FinishedSignal não se aplica aqui.
+                    // setDone(true) ainda é usado nos outros 2 sites
+                    // (devSimulateAdvance em scene 7) onde o
+                    // FinishedSignal segue necessário pra defer.
+                    onFinished?.();
                   }}
                 />
               </>

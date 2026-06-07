@@ -1275,7 +1275,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     if (carNumber !== racePendingSum) {
       setRaceClickError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Carrinho errado', `A soma sorteada foi ${racePendingSum}. Avance o carrinho ${racePendingSum}.`, 'error', 3500);
+      createAlert?.('Carrinho errado', `Some as faces dos dois dados de novo e avance o carrinho cujo número corresponde à soma.`, 'error', 3500);
       return;
     }
     // Acertou — avança o carrinho 1 célula

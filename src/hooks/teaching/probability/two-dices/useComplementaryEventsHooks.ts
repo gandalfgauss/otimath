@@ -747,7 +747,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             scrollDiceToTop();
           } else {
             setFormStep1Error(true);
-            createAlert('Ops!', 'A probabilidade do espaço amostral S é 1 (ou, equivalentemente, 100%), pois S é o evento certo!', 'error', 4500);
+            createAlert('Ops!', 'S é o EVENTO CERTO — ele engloba TODOS os resultados possíveis. Reveja a definição de probabilidade do evento certo.', 'error', 4500);
             playSound('/sounds/incorrect.mp3');
           }
         } else if (formStep === 2) {
