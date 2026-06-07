@@ -268,9 +268,13 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
   if (!open) return null;
 
   // ── Estilos ──────────────────────────────────────────────────
-  // zIndex: 1000 — pra ficar ACIMA do header sticky (z-99 em Header.tsx).
-  // Sem isso, ao arrastar a calculadora pra perto do topo, o header
-  // (que é fixo) sobrepunha a calculadora, escondendo controles.
+  // zIndex: 90 — ABAIXO dos alerts (z-97) e do header sticky (z-99),
+  // mas acima do conteúdo geral da página. Antes era 1000 (acima de
+  // tudo), o que fazia a calculadora cobrir os alerts de feedback —
+  // o aluno não enxergava o resultado de cada Conferir. Trade-off:
+  // se o aluno arrastar a calc pra cima do header sticky, o header
+  // a cobre — comportamento aceitável já que a posição padrão dela
+  // é y=100 (abaixo dos 68px do header).
   const wrapperStyle: React.CSSProperties = {
     position: 'fixed',
     left: pos.x,
@@ -279,7 +283,7 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
     height: size.h,
     minWidth: MIN_W,
     minHeight: MIN_H,
-    zIndex: 1000,
+    zIndex: 90,
     background: 'var(--color-neutral-white)',
     border: '2px solid var(--color-brand-otimath-darker)',
     borderRadius: 12,

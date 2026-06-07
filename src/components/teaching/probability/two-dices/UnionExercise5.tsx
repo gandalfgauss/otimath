@@ -32,7 +32,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import React, {
-  useState, useCallback, useMemo, useRef,
+  useState, useCallback, useMemo, useRef, useEffect,
   forwardRef, useImperativeHandle,
 } from 'react';
 import { Button } from '@/components/global/Button';
@@ -213,6 +213,15 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
     const [calcOpen, setCalcOpen] = useState(false);
     // Ref ao container da tabela — bounds da calculadora (não pode sair daqui)
     const tableBoundsRef = useRef<HTMLDivElement>(null);
+
+    // Fecha a calculadora a cada transição de step. Antes ela ficava aberta
+    // depois que o aluno avançava de tela e o botão CalculatorToggleButton
+    // só está em 2 panels (fillTotals e enunciadoView) — quando ia pra
+    // spiralOpen / goalAnim / roundFinished, a calculadora flutuava sobre
+    // o conteúdo SEM o botão visível pra fechá-la.
+    useEffect(() => {
+      setCalcOpen(false);
+    }, [step]);
 
     // Embaralhamento das alternativas
     const alternatives = useMemo<AlternativeOption[]>(() => {
@@ -535,13 +544,14 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
           onFinished={onGoalFinished}
         />
 
-        {/* Overlay da calculadora — restrita aos limites do container
-            da tabela (tableBoundsRef). Botão de abrir está INLINE
-            dentro dos painéis (próximo à tabela), não flutuante. */}
+        {/* Overlay da calculadora — SEM boundsRef pra permitir arrastar
+            por toda a viewport. Antes ficava restrita aos limites do
+            container da tabela (tableBoundsRef), no mobile isso fazia ela
+            tampar os valores da tabela sem deixar o aluno arrastá-la pra
+            uma área neutra. Botão de abrir continua INLINE nos painéis. */}
         <DraggableCalculator
           open={calcOpen}
           onClose={() => setCalcOpen(false)}
-          boundsRef={tableBoundsRef}
         />
       </div>
     );
@@ -914,9 +924,17 @@ function RoundFinishedPanel({
         }}
       >
         {isMandatoryPending ? (
-          <Button onClick={onNextMandatory} size="medium" style="primary">
-            Próxima rodada (mutuamente exclusivos)
-          </Button>
+          <div className="flex flex-col items-end gap-y-nano w-full">
+            {/* Texto descritivo separado do botão — antes vinha dentro do
+                <Button> e como o componente tem whitespace-nowrap no className,
+                vazava da viewport no mobile. */}
+            <p className="ds-small text-neutral-dark italic">
+              A próxima rodada usa eventos mutuamente exclusivos.
+            </p>
+            <Button onClick={onNextMandatory} size="medium" style="primary">
+              Próxima rodada
+            </Button>
+          </div>
         ) : (
           <>
             <Button onClick={onContinueStudying} size="medium" style="secondary">
