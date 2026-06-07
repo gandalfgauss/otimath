@@ -3528,14 +3528,19 @@ export const useRouletteHooks = () => {
     setValue: (val: string) => setTheoreticalQuestion2Input(prev => ({ ...prev, value: val }))
   });
 
+  // Previsão (Stage 1, subStep 6.5): aceita TEXTO LIVRE — o aluno pode responder
+  // "umas 2", "1 ou 2", "depende", etc. A validação a jusante apenas exige string
+  // não-vazia (não parseia número). `type: 'text'` garante `inputMode="text"` no
+  // mobile (teclado de texto, não numérico) e remove o strip de não-dígitos no
+  // setValue. Cap em 60 chars apenas para evitar abuso.
   const [predictionInput, setPredictionInput] = useState<TextInputInterface>({
     value: '',
     disabled: false,
     error: false,
-    type: 'natural-number',
+    type: 'text',
     setValue: (val: string) => setPredictionInput(prev => ({
       ...prev,
-      value: val.replace(/\D/g, '').slice(0, 5),
+      value: val.slice(0, 60),
     })),
   });
 
@@ -4172,16 +4177,23 @@ export const useRouletteHooks = () => {
         const observedCount = newFrequencies[predColor] || 0;
         const totalSpinsLocal = gameState.manualSpinsRequired;
 
-        const match = parseInt(predVal, 10) === observedCount;
+        // Previsão pode ser numérica ("2") ou qualitativa ("não dá pra prever",
+        // "depende"...). Só comparamos contagens se for puramente numérica;
+        // caso contrário, encaixar predVal em "apareceria X vez(es)" produz
+        // texto sem sentido (ex.: "apareceria Não se pode prever vez(es)").
+        const isNumericPrediction = /^\s*\d+\s*$/.test(predVal);
+        const match = isNumericPrediction && parseInt(predVal, 10) === observedCount;
         setGameState(prev => ({ ...prev, subStep: 7.1 }));
         setDisabledSpinButton(true);
         setShowInfoBox(true);
         setInfoBoxContent({
           type: match ? 'success' : 'info',
           title: 'Confronto: Previsão × Resultado',
-          message: `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${totalSpinsLocal} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
-            ? 'Sua previsão coincidiu com o resultado! Mas isso <strong>sempre</strong> aconteceria se repetíssemos o experimento?'
-            : 'Sua previsão não coincidiu com o resultado. Isso acontece porque cada giro é um <strong>experimento aleatório</strong> — não é possível prever com certeza o resultado.'}`
+          message: isNumericPrediction
+            ? `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${totalSpinsLocal} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
+                ? 'Sua previsão coincidiu com o resultado! Mas isso <strong>sempre</strong> aconteceria se repetíssemos o experimento?'
+                : 'Sua previsão não coincidiu com o resultado. Isso acontece porque cada giro é um <strong>experimento aleatório</strong> — não é possível prever com certeza o resultado.'}`
+            : `Sua previsão foi: <strong>“${predVal}”</strong>.<br/><br/>Resultado observado em ${totalSpinsLocal} giros: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>Cada giro é um <strong>experimento aleatório</strong> — mesmo conhecendo a probabilidade, não é possível prever com certeza o resultado.`
         });
         setInstructions(`<p class="ds-body"><strong>Confronto: Previsão × Resultado</strong></p>
           <p class="ds-body">Compare sua previsão com o que realmente aconteceu.</p>`);
@@ -4201,16 +4213,20 @@ export const useRouletteHooks = () => {
         const predVal = gameState.predictionValue;
         const observedCount = newFrequencies[predColor] || 0;
 
-        const match = parseInt(predVal, 10) === observedCount;
+        // Ver comentário equivalente no bloco do subStep 7.
+        const isNumericPrediction = /^\s*\d+\s*$/.test(predVal);
+        const match = isNumericPrediction && parseInt(predVal, 10) === observedCount;
         setGameState(prev => ({ ...prev, subStep: 7.1 }));
         setDisabledSpinButton(true);
         setShowInfoBox(true);
         setInfoBoxContent({
           type: match ? 'success' : 'info',
           title: 'Confronto: Previsão × Resultado',
-          message: `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${gameState.manualSpinsRequired} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
-            ? 'Sua previsão coincidiu com o resultado! Mas isso <strong>sempre</strong> aconteceria se repetíssemos o experimento?'
-            : 'Sua previsão não coincidiu com o resultado. Isso acontece porque cada giro é um <strong>experimento aleatório</strong> — não é possível prever com certeza o resultado.'}`
+          message: isNumericPrediction
+            ? `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${gameState.manualSpinsRequired} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
+                ? 'Sua previsão coincidiu com o resultado! Mas isso <strong>sempre</strong> aconteceria se repetíssemos o experimento?'
+                : 'Sua previsão não coincidiu com o resultado. Isso acontece porque cada giro é um <strong>experimento aleatório</strong> — não é possível prever com certeza o resultado.'}`
+            : `Sua previsão foi: <strong>“${predVal}”</strong>.<br/><br/>Resultado observado em ${gameState.manualSpinsRequired} giros: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>Cada giro é um <strong>experimento aleatório</strong> — mesmo conhecendo a probabilidade, não é possível prever com certeza o resultado.`
         });
         setInstructions(`<p class="ds-body"><strong>Confronto: Previsão × Resultado</strong></p>
           <p class="ds-body">Compare sua previsão com o que realmente aconteceu.</p>`);
@@ -13117,7 +13133,9 @@ export const useRouletteHooks = () => {
       const predColor = gameState.predictionColor;
       const predVal = gameState.predictionValue;
       const observedCount = freqs[predColor] || 0;
-      const match = parseInt(predVal, 10) === observedCount;
+      // Ver comentário equivalente no bloco do subStep 7 (handleSpinEnd).
+      const isNumericPrediction = /^\s*\d+\s*$/.test(predVal);
+      const match = isNumericPrediction && parseInt(predVal, 10) === observedCount;
       setGameState(prev => ({
         ...prev,
         subStep: 7.1,
@@ -13129,9 +13147,11 @@ export const useRouletteHooks = () => {
       setInfoBoxContent({
         type: match ? 'success' : 'info',
         title: 'Confronto: Previsão × Resultado',
-        message: `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${total} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
-          ? 'Sua previsão coincidiu com o resultado! Mas isso <strong>sempre</strong> aconteceria se repetíssemos o experimento?'
-          : 'Sua previsão não coincidiu com o resultado. Isso acontece porque cada giro é um <strong>experimento aleatório</strong> — não é possível prever com certeza o resultado.'}`,
+        message: isNumericPrediction
+          ? `Você previu que a cor <strong>${predColor}</strong> apareceria <strong>${predVal}</strong> vez(es) em ${total} giros.<br/><br/>Resultado observado: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>${match
+              ? 'Sua previsão coincidiu com o resultado! Mas isso <strong>sempre</strong> aconteceria se repetíssemos o experimento?'
+              : 'Sua previsão não coincidiu com o resultado. Isso acontece porque cada giro é um <strong>experimento aleatório</strong> — não é possível prever com certeza o resultado.'}`
+          : `Sua previsão foi: <strong>“${predVal}”</strong>.<br/><br/>Resultado observado em ${total} giros: <strong>${predColor}</strong> apareceu <strong>${observedCount}</strong> vez(es).<br/><br/>Cada giro é um <strong>experimento aleatório</strong> — mesmo conhecendo a probabilidade, não é possível prever com certeza o resultado.`,
       });
       setInstructions(`<p class="ds-body"><strong>Confronto: Previsão × Resultado</strong></p>
         <p class="ds-body">Compare sua previsão com o que realmente aconteceu.</p>`);
