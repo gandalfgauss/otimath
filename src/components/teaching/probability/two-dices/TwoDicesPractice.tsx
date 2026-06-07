@@ -86,6 +86,21 @@ const isDivisorOf = (n: number, m: number) => m % n === 0;
 const isPerfectSquare = (n: number) => [1, 4].includes(n);
 const isPowerOf2 = (n: number) => [1, 2, 4].includes(n);
 const divisorCount = (n: number) => { let c = 0; for (let i = 1; i <= n; i++) if (n % i === 0) c++; return c; };
+// Conta fatores primos DISTINTOS na decomposição (omega(n)). Para n ≤ 6:
+//   1 → 0, 2 → 1, 3 → 1, 4 → 1, 5 → 1, 6 → 2 (= 2 × 3)
+const distinctPrimeFactorCount = (n: number): number => {
+  if (n < 2) return 0;
+  let count = 0;
+  let m = n;
+  for (let p = 2; p * p <= m; p++) {
+    if (m % p === 0) {
+      count++;
+      while (m % p === 0) m /= p;
+    }
+  }
+  if (m > 1) count++;
+  return count;
+};
 const isSumOfTwoPrimes = (n: number) => {
   for (let i = 2; i <= n / 2; i++) if (isPrime(i) && isPrime(n - i)) return true;
   return false;
@@ -135,7 +150,12 @@ const A1: E[] = [
   e('Sair número que possui mais de dois divisores.', f => divisorCount(f) > 2),
   e('Sair número cujo único divisor além de 1 e dele mesmo não existe.', f => isPrime(f)),
   e('Sair número que pode ser decomposto em fatores primos.', f => f > 1),
-  e('Sair número que não pode ser decomposto em fatores primos distintos.', f => f === 1 || isPowerOf2(f)),
+  // "fatores primos DISTINTOS" = ter ≥ 2 primos diferentes na decomposição.
+  // O complemento é ter < 2 primos distintos: {1, 2, 3, 4, 5} (1 = sem fator,
+  // 2/3/5 = primo único, 4 = 2² → 1 primo distinto). 6 = 2×3 é o único com 2.
+  // Antes: `f === 1 || isPowerOf2(f)` retornava {1, 2, 4} — excluía 3 e 5
+  // injustamente, confundindo o aluno que aplicasse a definição padrão.
+  e('Sair número que não pode ser decomposto em fatores primos distintos.', f => distinctPrimeFactorCount(f) < 2),
   e('Sair número que é produto de dois números naturais menores que ele.', f => isComposite(f)),
   e('Sair número que não pode ser escrito como produto de dois naturais maiores que 1.', f => isPrime(f) || f === 1),
   e('Sair número divisor de 15.', f => isDivisorOf(f, 15)),
