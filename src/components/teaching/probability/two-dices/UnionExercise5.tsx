@@ -402,9 +402,11 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
       setWrongAttempts(0);
       setCalcOpen(false);
       setStep('intro');
+      scrollDiceToTop();
     }, [round]);
 
     const finishExercise = useCallback(() => {
+      scrollDiceToTop();
       onFinished();
     }, [onFinished]);
 
@@ -446,7 +448,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
             data={data}
             isMandatory={isMandatory}
             roundLabel={round === 0 ? 'primeira rodada' : round === 1 ? 'segunda rodada' : `rodada ${round + 1}`}
-            onContinue={() => setStep('fillTotals')}
+            onContinue={() => { setStep('fillTotals'); scrollDiceToTop(); }}
           />
         )}
 
@@ -507,6 +509,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
               playSound('/sounds/challengeFinished.mp3');
               createAlert?.('Parabéns!', 'Você finalizou esta rodada com sucesso!', 'success', 4500);
               setStep('roundFinished');
+              scrollDiceToTop();
             }}
           />
         )}
@@ -865,8 +868,8 @@ function ConditionalGlimpsePanel({
         P(♂ | {data.team1.shortName}) = {cellAB} / {totalA} ≈ {fmtPercent(cellAB, totalA, 1)}
       </p>
       <p className="ds-small" style={{ margin: 0, color: 'var(--color-neutral-dark)', fontStyle: 'italic' }}>
-        Isso é a <strong>probabilidade condicional</strong> — você verá esse
-        conceito a fundo nos próximos OVAs da sequência. Por enquanto,
+        Isso é a <strong>probabilidade condicional</strong> — um conceito que
+        futuramente pode ser inserido na sequência didática. Por enquanto,
         observe que ele depende de restringirmos o espaço amostral.
       </p>
       <div className="flex justify-end">

@@ -804,8 +804,19 @@ export const useTwoDicesHooks = () => {
   // sequência e o aluno ficava sem âncora visual após acertar.
   const goToTopOfChallenge = () => {
     requestAnimationFrame(() => {
-      const target = document.getElementById("dois-dados") ?? document.getElementById("seq-dois-dados");
-      target?.scrollIntoView({ behavior: 'smooth' });
+      // Fallback chain de IDs — ordem importa:
+      //   1) "dois-dados": ID da rota standalone do OVA (TwoDicesSection)
+      //   2) "apresentacao-dado": Grid raiz do OVA quando renderizado dentro
+      //      da Sequência Didática (TwoDicesPresentation) — sem este
+      //      fallback, Ex6/Ex7/Ex8 dentro da sequência caíam pro outer
+      //      "seq-dois-dados" que rolava pra antes do header do OVA
+      //   3) "seq-dois-dados": Grid da página da sequência didática (último
+      //      recurso — só usado se os dois anteriores não existirem)
+      const target =
+        document.getElementById("dois-dados") ??
+        document.getElementById("apresentacao-dado") ??
+        document.getElementById("seq-dois-dados");
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
 

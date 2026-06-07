@@ -208,19 +208,32 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       }
     }, [step]);
 
+    // Ancora no topo do OVA em cada transição de step. Antes nenhum botão
+    // do Ex6 ("Começar revisão", "Começar Rodada 2", "Finalizar OVA", as
+    // transições automáticas de fim de rodada) rolava — o aluno terminava
+    // a interação lá embaixo e a próxima tela carregava sem trazer o
+    // enunciado novo pra viewport.
+    const scrollDiceToTop = useCallback(() => {
+      requestAnimationFrame(() => {
+        document.getElementById('apresentacao-dado')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }, []);
+
     const handleRound1Finished = useCallback(() => {
       setRound1Outcome((p) => ({ ...p, finished: true }));
       setLastErrorStep(null);
       playSound('/sounds/challengeFinished.mp3');
       setStep('transition');
-    }, []);
+      scrollDiceToTop();
+    }, [scrollDiceToTop]);
 
     const handleRound2Finished = useCallback(() => {
       setRound2Outcome((p) => ({ ...p, finished: true }));
       setLastErrorStep(null);
       playSound('/sounds/gameFinished.mp3');
       setStep('finalSynthesis');
-    }, []);
+      scrollDiceToTop();
+    }, [scrollDiceToTop]);
 
     /* ──────────────────────────────────────────────────────────────
        SUGESTÃO DE VERBETES — derivada do último erro
@@ -288,7 +301,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
               maxWidthParagraph="max-w-[700px]"
               centralize={true}
             />
-            <Button style="primary" size="medium" onClick={() => setStep('round1')}>
+            <Button style="primary" size="medium" onClick={() => { setStep('round1'); scrollDiceToTop(); }}>
               Começar revisão
             </Button>
           </div>
@@ -326,7 +339,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
               </strong>
               . Use o Menu de Revisão se precisar.
             </p>
-            <Button style="primary" size="medium" onClick={() => { setLastErrorStep(null); setStep('round2'); }}>
+            <Button style="primary" size="medium" onClick={() => { setLastErrorStep(null); setStep('round2'); scrollDiceToTop(); }}>
               Começar Rodada 2
             </Button>
           </div>
@@ -380,7 +393,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
                     Ex7 — Concluído
                   </span>
                 ) : (
-                  <Button style="secondary" size="small" onClick={onRequestFreePlay}>
+                  <Button style="secondary" size="small" onClick={() => { onRequestFreePlay(); scrollDiceToTop(); }}>
                     Ex7 — Fixação básica (Opcional)
                   </Button>
                 )
@@ -396,12 +409,12 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
                     Ex8 — Concluído
                   </span>
                 ) : (
-                  <Button style="secondary" size="small" onClick={onRequestAdvancedFreePlay}>
+                  <Button style="secondary" size="small" onClick={() => { onRequestAdvancedFreePlay(); scrollDiceToTop(); }}>
                     Ex8 — Fixação avançada (Opcional)
                   </Button>
                 )
               )}
-              <Button style="primary" size="medium" onClick={onFinished}>
+              <Button style="primary" size="medium" onClick={() => { scrollDiceToTop(); onFinished(); }}>
                 Finalizar OVA
               </Button>
             </div>
