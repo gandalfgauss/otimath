@@ -2377,37 +2377,47 @@ function ExpressionChipsRow({
 // ═══════════════════════════════════════════════════════════════
 function FormulaSlotsRow({ slots }: { slots: string[] }) {
   return (
-    <div
-      className="flex justify-center items-center mb-micro overflow-x-auto"
-      style={{
-        gap: 6,
-        padding: '6px 12px',
-        borderRadius: 6,
-        background: 'var(--color-brand-otimath-lightest)',
-        border: '1px solid var(--color-brand-otimath-light)',
-        maxWidth: 'fit-content',
-        margin: '0 auto 12px',
-      }}
-    >
-      <span className="ds-body-bold" style={{ color: COLOR_U, whiteSpace: 'nowrap' }}>n(A ∪ B) =</span>
-      {slots.map((slot, i) => (
-        <React.Fragment key={i}>
-          <span
-            style={{
-              padding: '2px 10px',
-              borderRadius: 6,
-              border: slot ? `2px solid var(--color-brand-otimath-pure)` : '2px dashed var(--color-neutral-dark)',
-              minWidth: 80, minHeight: 28, textAlign: 'center',
-              color: slot ? '#222' : '#999',
-              fontWeight: 700,
-              background: 'var(--color-neutral-white)',
-            }}
-          >
-            {slot || '__'}
-          </span>
-          {i < slots.length - 1 && <span className="ds-body-bold text-neutral-black">+</span>}
-        </React.Fragment>
-      ))}
+    // Wrapper externo centra horizontalmente; o conteúdo expansível fica
+    // num filho com overflow-x-auto + maxWidth 100% pra que, quando os
+    // 3 slots + operadores não couberem no viewport mobile, ROLEM dentro
+    // da caixa em vez de serem CORTADOS. Antes era um único div com
+    // `maxWidth: 'fit-content'` + `margin: 0 auto` — quando o conteúdo
+    // ficava mais largo que o pai, o div esticava além da viewport (centro
+    // empurrando partes pra fora) e o overflow-x-auto não tinha pai
+    // constrangido pra ativar o scroll.
+    <div className="flex justify-center mb-micro" style={{ maxWidth: '100%' }}>
+      <div
+        className="flex items-center overflow-x-auto"
+        style={{
+          gap: 6,
+          padding: '6px 12px',
+          borderRadius: 6,
+          background: 'var(--color-brand-otimath-lightest)',
+          border: '1px solid var(--color-brand-otimath-light)',
+          maxWidth: '100%',
+        }}
+      >
+        <span className="ds-body-bold" style={{ color: COLOR_U, whiteSpace: 'nowrap' }}>n(A ∪ B) =</span>
+        {slots.map((slot, i) => (
+          <React.Fragment key={i}>
+            <span
+              style={{
+                padding: '2px 10px',
+                borderRadius: 6,
+                border: slot ? `2px solid var(--color-brand-otimath-pure)` : '2px dashed var(--color-neutral-dark)',
+                minWidth: 80, minHeight: 28, textAlign: 'center',
+                color: slot ? '#222' : '#999',
+                fontWeight: 700,
+                background: 'var(--color-neutral-white)',
+                flexShrink: 0,
+              }}
+            >
+              {slot || '__'}
+            </span>
+            {i < slots.length - 1 && <span className="ds-body-bold text-neutral-black" style={{ flexShrink: 0 }}>+</span>}
+          </React.Fragment>
+        ))}
+      </div>
     </div>
   );
 }

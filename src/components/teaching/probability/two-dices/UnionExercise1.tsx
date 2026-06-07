@@ -847,7 +847,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     // ═══════════════════════════════════════════════════════════════
 
     return (
-      <div className="w-full max-w-[1216px] mx-auto px-xxs py-xs">
+      <div className="w-full max-w-[1216px] mx-auto">
         <style>{`
           @keyframes exerciseFadeIn {
             from { opacity: 0; transform: translateY(6px); }
@@ -909,7 +909,21 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
             <ul className="ds-body text-neutral-black mb-micro pl-xxs list-disc leading-relaxed">
               <li>Marcar os casos favoráveis a <strong>A</strong>, <strong>B</strong> e <strong className="whitespace-nowrap">A ∩ B</strong> na tabela 6×6</li>
               <li>Calcular <strong className="whitespace-nowrap">P(A)</strong>, <strong className="whitespace-nowrap">P(B)</strong> e <strong className="whitespace-nowrap">P(A ∩ B)</strong></li>
-              <li>Aplicar a fórmula: <strong className="whitespace-nowrap">P(A ∪ B) = P(A) + P(B) − P(A ∩ B)</strong></li>
+              {/* Fórmula com quebra POR GRUPOS atômicos: cada P(X) e cada
+                  operador não quebram internamente; o flex-wrap permite a
+                  linha inteira quebrar entre dois grupos no mobile. */}
+              <li>
+                Aplicar a fórmula:{' '}
+                <span className="inline-flex flex-wrap items-center gap-x-[0.3em] gap-y-[0.1em] align-baseline font-bold">
+                  <span className="whitespace-nowrap">P(A ∪ B)</span>
+                  <span className="whitespace-nowrap">=</span>
+                  <span className="whitespace-nowrap">P(A)</span>
+                  <span className="whitespace-nowrap">+</span>
+                  <span className="whitespace-nowrap">P(B)</span>
+                  <span className="whitespace-nowrap">−</span>
+                  <span className="whitespace-nowrap">P(A ∩ B)</span>
+                </span>
+              </li>
             </ul>
             <p className="ds-small text-neutral-dark mb-micro text-justify italic">
               Sugestão: sempre que for calcular, consulte os <em>n</em>s congelados no histórico

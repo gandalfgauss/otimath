@@ -732,11 +732,25 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   const [predictJustFilled, setPredictJustFilled] = useState(false);
   const [nSumInput, setNSumInput] = useState('');
   const [nSumError, setNSumError] = useState(false);
+  // Trava o input + esconde Conferir SÓ depois do clique no Conferir,
+  // não na hora que o aluno digita o número certo. Antes, condições
+  // `parseInt(nSumInput) === expected` faziam o botão sumir antes do
+  // validateSumInput ser chamado — alert e som de acerto nunca disparavam.
+  const [nSumValidated, setNSumValidated] = useState(false);
   const [compareOp, setCompareOp] = useState<'>' | '<' | '=' | ''>('');
   const [compareError, setCompareError] = useState(false);
   const [pAUBNum, setPAUBNum] = useState('');
   const [pAUBDen, setPAUBDen] = useState('');
   const [pAUBError, setPAUBError] = useState(false);
+  // Estados `validated`: SÓ ficam true após clique no Conferir + acerto.
+  // Antes, condições usavam `isEquivalentFraction(num, den, ...)` direto —
+  // mas isso virava true ANTES do aluno clicar (no momento que ele digita
+  // a fração equivalente), fazendo o botão Conferir sumir e a validação
+  // (alert + som) nunca rodar.
+  const [pAUBValidated, setPAUBValidated] = useState(false);
+  const [pAValidated, setPAValidated] = useState(false);
+  const [pBValidated, setPBValidated] = useState(false);
+  const [pABValidated, setPABValidated] = useState(false);
   const [pANum, setPANum] = useState('');
   const [pADen, setPADen] = useState('');
   const [pAError, setPAError] = useState(false);
@@ -748,6 +762,11 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   const [pABError, setPABError] = useState(false);
   const [institutionalAnswer, setInstitutionalAnswer] = useState('');
   const [institutionalError, setInstitutionalError] = useState(false);
+  // Flag SÓ true após clique no Conferir + acerto. Antes condições usavam
+  // `institutionalAnswer === 'correct'` direto — só de clicar no radio
+  // certo a UI travava (radios disabled, Conferir some, mensagem "Correto"
+  // aparece) e `validateInstitutional` não rodava: alert + som perdidos.
+  const [institutionalValidated, setInstitutionalValidated] = useState(false);
 
   const correctSets = useMemo(() => {
     const A = pairsMatching(currentPair.eventA.predicate);
@@ -803,13 +822,13 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     setNIntersectionInput(''); setNIntersectionError(false);
     setNUnionInput(''); setNUnionError(false);
     setPredictionOp(''); setPredictionReason(''); setPredictionError(false);
-    setNSumInput(''); setNSumError(false);
+    setNSumInput(''); setNSumError(false); setNSumValidated(false);
     setCompareOp(''); setCompareError(false);
-    setPAUBNum(''); setPAUBDen(''); setPAUBError(false);
-    setPANum(''); setPADen(''); setPAError(false);
-    setPBNum(''); setPBDen(''); setPBError(false);
-    setPABNum(''); setPABDen(''); setPABError(false);
-    setInstitutionalAnswer(''); setInstitutionalError(false);
+    setPAUBNum(''); setPAUBDen(''); setPAUBError(false); setPAUBValidated(false);
+    setPANum(''); setPADen(''); setPAError(false); setPAValidated(false);
+    setPBNum(''); setPBDen(''); setPBError(false); setPBValidated(false);
+    setPABNum(''); setPABDen(''); setPABError(false); setPABValidated(false);
+    setInstitutionalAnswer(''); setInstitutionalError(false); setInstitutionalValidated(false);
     setCameFromPredict(false);
     setPredictReviewedEnum(false);
     setPredictJustFilled(false);
@@ -1079,6 +1098,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     const expected = correctSets.nA + correctSets.nB;
     if (v === expected) {
       setNSumError(false);
+      setNSumValidated(true);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `n(A) + n(B) = ${expected}.`, 'success', 3000);
     } else {
@@ -1123,6 +1143,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     scrollDiceToTop();
     if (isEquivalentFraction(pAUBNum, pAUBDen, correctSets.nU, 36)) {
       setPAUBError(false);
+      setPAUBValidated(true);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `P(A ∪ B) = ${correctSets.nU}/36.`, 'success', 3000);
       // Não avança aqui — o avanço é controlado pelo ProbTransferScreen
@@ -1138,6 +1159,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     scrollDiceToTop();
     if (isEquivalentFraction(pANum, pADen, correctSets.nA, 36)) {
       setPAError(false);
+      setPAValidated(true);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `P(A) = ${correctSets.nA}/36.`, 'success', 3000);
     } else {
@@ -1151,6 +1173,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     scrollDiceToTop();
     if (isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36)) {
       setPBError(false);
+      setPBValidated(true);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `P(B) = ${correctSets.nB}/36.`, 'success', 3000);
     } else {
@@ -1164,6 +1187,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     scrollDiceToTop();
     if (isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36)) {
       setPABError(false);
+      setPABValidated(true);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', `P(A ∩ B) = ${correctSets.nI}/36.`, 'success', 3000);
     } else {
@@ -1173,31 +1197,39 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     }
   }, [pABNum, pABDen, correctSets.nI, isEquivalentFraction, createAlert]);
 
-  // Todas as 3 probabilidades individuais foram validadas?
+  // Todas as 3 probabilidades individuais foram validadas (clique no Conferir
+  // + acerto)? Agora gateia no flag `validated` em vez de `isEquivalentFraction`
+  // direto pra não abrir o "Continuar" antes do aluno passar pelo Conferir.
   const allIndividualProbsValid = useMemo(() => {
-    return (
-      isEquivalentFraction(pANum, pADen, correctSets.nA, 36) &&
-      isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36) &&
-      isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36)
-    );
-  }, [pANum, pADen, pBNum, pBDen, pABNum, pABDen, correctSets.nA, correctSets.nB, correctSets.nI, isEquivalentFraction]);
+    return pAValidated && pBValidated && pABValidated;
+  }, [pAValidated, pBValidated, pABValidated]);
 
   const validateInstitutional = useCallback(() => {
-    scrollDiceToTop();
     if (institutionalAnswer === 'correct') {
       setInstitutionalError(false);
+      setInstitutionalValidated(true);
       playSound('/sounds/correct.mp3');
       createAlert?.('Correto!', 'Você dominou a fórmula da união.', 'success', 3000);
-      setPhase('done');
-      scrollDiceToTop();
+      // Avanço pra 'done' ocorre via clique no Continuar (renderizado quando
+      // institutionalValidated === true), não imediatamente — assim o aluno
+      // vê o feedback de acerto antes da transição.
     } else if (institutionalAnswer === '') {
       setInstitutionalError(true);
+      // Som de incorreto faltava neste branch — alert aparecia mudo,
+      // inconsistente com os outros dois branches que tocam som ao avisar.
+      playSound('/sounds/incorrect.mp3');
       createAlert?.('Falta escolher', 'Selecione uma alternativa antes de conferir.', 'error', 3500);
     } else {
       setInstitutionalError(true);
       playSound('/sounds/incorrect.mp3');
       createAlert?.('Tente novamente', 'Releia a fórmula geral e reconsidere a resposta.', 'error', 4000);
     }
+    // Ancora DEPOIS dos setState — assim o RAF do scrollDiceToTop captura
+    // o estado já com `institutionalValidated=true` (que adiciona o card
+    // "✓ Correto!" e remove o botão Conferir), reposicionando corretamente.
+    // Antes a âncora ficava no INÍCIO da função, mas o layout shift do
+    // re-render acabava cancelando o smooth scroll antes dele completar.
+    scrollDiceToTop();
   }, [institutionalAnswer, createAlert]);
 
   // ═══════════════════════════════════════════════════════════════
@@ -1209,6 +1241,10 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   // useImperativeHandle do Venn, ficando re-registrada toda hora.
   const onVennLabComplete = useCallback(() => {
     setPhase('sumCompareVisual');
+    // Ancora no topo do OVA quando sai do Venn lab — sem isso o aluno
+    // clicava "Continuar" lá no fim da derivação algébrica e a próxima
+    // fase (sumCompareVisual) carregava sem trazer o enunciado pra viewport.
+    scrollDiceToTop();
   }, []);
 
   // Guarda de re-entrada — DEV pode disparar advance() múltiplas vezes
@@ -2037,14 +2073,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                 aria-invalid={nSumError}
                 className="ds-body-bold"
                 style={{
-                  border: `2px solid ${nSumError ? 'var(--color-feedback-error-dark)' : (parseInt(nSumInput) === correctSets.nA + correctSets.nB ? 'var(--color-feedback-success-dark)' : 'var(--color-neutral-lighter)')}`,
+                  border: `2px solid ${nSumError ? 'var(--color-feedback-error-dark)' : (nSumValidated ? 'var(--color-feedback-success-dark)' : 'var(--color-neutral-lighter)')}`,
                   borderRadius: 8, padding: '8px 12px', width: 72, textAlign: 'center', outline: 'none',
                   minWidth: 0,
                 }}
-                disabled={parseInt(nSumInput) === correctSets.nA + correctSets.nB}
+                disabled={nSumValidated}
               />
             </div>
-            {parseInt(nSumInput) !== correctSets.nA + correctSets.nB && (
+            {!nSumValidated && (
               <Button style="primary" size="extra-small" onClick={validateSumInput}>Conferir</Button>
             )}
           </div>
@@ -2055,7 +2091,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           )}
 
           {/* Barra empilhada visual — aparece depois que o aluno acerta a soma */}
-          {parseInt(nSumInput) === correctSets.nA + correctSets.nB && (
+          {nSumValidated && (
             <>
               <StackedBarComparison
                 nA={correctSets.nA}
@@ -2108,22 +2144,29 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Ao somar n(A) + n(B), os pares que pertencem a A ∩ B foram contados <strong>duas vezes</strong>.
             Para obter a contagem correta da união, precisamos subtrair n(A ∩ B):
           </p>
-          <div
-            className="bg-neutral-white rounded-md p-micro text-center mt-micro border-2 border-brand-otimath-pure"
-          >
-            <p className="ds-heading-large text-brand-otimath-dark whitespace-nowrap">
+          {/* Container com scroll horizontal pra fórmula. Antes o `<p>`
+              tinha whitespace-nowrap diretamente — em mobile (~340px) a
+              expressão "n(A ∪ B) = n(A) + n(B) − n(A ∩ B)" vazava. Agora
+              fica num wrapper centrado com overflow-x-auto: rola quando
+              não cabe, centraliza quando cabe. */}
+          <div className="bg-neutral-white rounded-md p-micro mt-micro border-2 border-brand-otimath-pure overflow-x-auto">
+            <p className="ds-heading-large text-brand-otimath-dark text-center whitespace-nowrap">
               n(A ∪ B) = n(A) + n(B) − n(A ∩ B)
             </p>
           </div>
           <p className="ds-body text-neutral-black mt-micro text-center">
             Verificação numérica:
           </p>
-          <p className="ds-body-bold text-center" style={{ color: 'var(--color-brand-otimath-dark)', fontSize: '1.1rem', whiteSpace: 'nowrap' }}>
-            {correctSets.nU} = {correctSets.nA} + {correctSets.nB} − {correctSets.nI}
-          </p>
-          <p className="ds-body-bold text-center" style={{ color: 'var(--color-feedback-success-dark)', whiteSpace: 'nowrap' }}>
-            ✓ {correctSets.nU} = {correctSets.nA + correctSets.nB - correctSets.nI}
-          </p>
+          <div className="overflow-x-auto">
+            <p className="ds-body-bold text-center whitespace-nowrap" style={{ color: 'var(--color-brand-otimath-dark)', fontSize: '1.1rem' }}>
+              {correctSets.nU} = {correctSets.nA} + {correctSets.nB} − {correctSets.nI}
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <p className="ds-body-bold text-center whitespace-nowrap" style={{ color: 'var(--color-feedback-success-dark)' }}>
+              ✓ {correctSets.nU} = {correctSets.nA + correctSets.nB - correctSets.nI}
+            </p>
+          </div>
           <div className="flex justify-center mt-macro">
             <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probCalc'); scrollDiceToTop(); }}>
               Continuar
@@ -2179,6 +2222,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           setPAUBNum={setPAUBNum}
           setPAUBDen={setPAUBDen}
           pAUBError={pAUBError}
+          pAUBValidated={pAUBValidated}
           validatePAUB={validatePAUB}
           isEquivalentFraction={isEquivalentFraction}
           onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('synthM2'); scrollDiceToTop(); }}
@@ -2216,36 +2260,36 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
               <div className="flex items-center gap-x-nano">
                 <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(A) =</span>
-                <FractionInput num={pANum} den={pADen} setNum={setPANum} setDen={setPADen} error={pAError} onEnter={validatePA} disabled={isEquivalentFraction(pANum, pADen, correctSets.nA, 36)} />
+                <FractionInput num={pANum} den={pADen} setNum={setPANum} setDen={setPADen} error={pAError} onEnter={validatePA} disabled={pAValidated} />
               </div>
-              {!isEquivalentFraction(pANum, pADen, correctSets.nA, 36) && (
+              {!pAValidated && (
                 <Button style="primary" size="extra-small" onClick={validatePA}>Conferir</Button>
               )}
-              {isEquivalentFraction(pANum, pADen, correctSets.nA, 36) && (
+              {pAValidated && (
                 <span className="ds-body-bold text-feedback-success-dark">✓</span>
               )}
             </div>
             <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
               <div className="flex items-center gap-x-nano">
                 <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(B) =</span>
-                <FractionInput num={pBNum} den={pBDen} setNum={setPBNum} setDen={setPBDen} error={pBError} onEnter={validatePB} disabled={isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36)} />
+                <FractionInput num={pBNum} den={pBDen} setNum={setPBNum} setDen={setPBDen} error={pBError} onEnter={validatePB} disabled={pBValidated} />
               </div>
-              {!isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36) && (
+              {!pBValidated && (
                 <Button style="primary" size="extra-small" onClick={validatePB}>Conferir</Button>
               )}
-              {isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36) && (
+              {pBValidated && (
                 <span className="ds-body-bold text-feedback-success-dark">✓</span>
               )}
             </div>
             <div className="flex items-center justify-center gap-x-micro gap-y-nano flex-wrap">
               <div className="flex items-center gap-x-nano">
                 <span className="ds-body-bold text-neutral-black whitespace-nowrap">P(A ∩ B) =</span>
-                <FractionInput num={pABNum} den={pABDen} setNum={setPABNum} setDen={setPABDen} error={pABError} onEnter={validatePAB} disabled={isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36)} />
+                <FractionInput num={pABNum} den={pABDen} setNum={setPABNum} setDen={setPABDen} error={pABError} onEnter={validatePAB} disabled={pABValidated} />
               </div>
-              {!isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36) && (
+              {!pABValidated && (
                 <Button style="primary" size="extra-small" onClick={validatePAB}>Conferir</Button>
               )}
-              {isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36) && (
+              {pABValidated && (
                 <span className="ds-body-bold text-feedback-success-dark">✓</span>
               )}
             </div>
@@ -2311,13 +2355,13 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               { v: 'wrong2', label: 'P(A ∪ B) = P(A) × P(B)' },
               { v: 'wrong3', label: 'P(A ∪ B) = P(A) − P(B) + P(A ∩ B)' },
             ].map(opt => (
-              <label key={opt.v} className="flex items-center gap-x-micro" style={{ padding: '10px 6px', cursor: institutionalAnswer === 'correct' ? 'default' : 'pointer', minHeight: 44, borderRadius: 8, background: 'var(--color-neutral-lightest)' }}>
+              <label key={opt.v} className="flex items-center gap-x-micro" style={{ padding: '10px 6px', cursor: institutionalValidated ? 'default' : 'pointer', minHeight: 44, borderRadius: 8, background: 'var(--color-neutral-lightest)' }}>
                 <input
                   type="radio"
                   name="institutional"
                   value={opt.v}
                   checked={institutionalAnswer === opt.v}
-                  disabled={institutionalAnswer === 'correct'}
+                  disabled={institutionalValidated}
                   onChange={() => { setInstitutionalAnswer(opt.v); setInstitutionalError(false); }}
                   style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
                 />
@@ -2330,12 +2374,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               {institutionalAnswer === '' ? 'Escolha uma das alternativas.' : 'Não é essa. Pense na fórmula que acabamos de construir.'}
             </p>
           )}
-          {institutionalAnswer !== 'correct' && (
+          {!institutionalValidated && (
             <div className="flex justify-center mt-macro">
               <Button style="primary" size="small" onClick={validateInstitutional}>Conferir</Button>
             </div>
           )}
-          {institutionalAnswer === 'correct' && (
+          {institutionalValidated && (
             <>
               <p className="ds-body-bold text-center mt-macro text-feedback-success-dark">
                 ✓ Correto! Você construiu a fórmula geral.
@@ -2356,12 +2400,21 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           <p className="ds-heading-extra text-brand-otimath-dark text-center mb-micro">
             🎯 Fórmula geral da probabilidade da união
           </p>
-          <div
-            className="bg-neutral-white rounded-md p-micro text-center border-2 border-brand-otimath-pure"
-          >
-            <p className="ds-heading-large text-brand-otimath-dark whitespace-nowrap">
-              P(A ∪ B) = P(A) + P(B) − P(A ∩ B)
-            </p>
+          {/* Fórmula com quebra POR GRUPOS atômicos: cada termo P(X) +
+              operadores não quebram internamente (whitespace-nowrap em cada
+              span), mas o flex-wrap permite a linha INTEIRA quebrar entre
+              dois grupos quando não cabe no viewport mobile. Sem barra de
+              rolagem. */}
+          <div className="bg-neutral-white rounded-md p-micro border-2 border-brand-otimath-pure">
+            <div className="ds-heading-large text-brand-otimath-dark flex flex-wrap items-center justify-center gap-x-micro gap-y-nano">
+              <span className="whitespace-nowrap">P(A ∪ B)</span>
+              <span className="whitespace-nowrap">=</span>
+              <span className="whitespace-nowrap">P(A)</span>
+              <span className="whitespace-nowrap">+</span>
+              <span className="whitespace-nowrap">P(B)</span>
+              <span className="whitespace-nowrap">−</span>
+              <span className="whitespace-nowrap">P(A ∩ B)</span>
+            </div>
           </div>
           <p className="ds-body text-neutral-black mt-micro text-justify">
             Essa é a fórmula <strong>geral</strong> — funciona para quaisquer dois eventos A e B,
@@ -2600,6 +2653,11 @@ interface ProbTransferScreenProps {
   setPAUBNum: (v: string) => void;
   setPAUBDen: (v: string) => void;
   pAUBError: boolean;
+  /** Flag controlado pelo pai — só true após clique no Conferir + acerto.
+   *  Antes a UI checava `isEquivalentFraction(...)` direto, escondendo o
+   *  botão Conferir no exato momento que o aluno digitava a fração certa
+   *  e impedindo a validação (alert + som) de rodar. */
+  pAUBValidated: boolean;
   validatePAUB: () => void;
   isEquivalentFraction: (num: string, den: string, eNum: number, eDen: number) => boolean;
   onContinue: () => void;
@@ -2609,7 +2667,7 @@ function ProbTransferScreen({
   eventADescription, eventBDescription,
   nU,
   pAUBNum, pAUBDen, setPAUBNum, setPAUBDen,
-  pAUBError, validatePAUB, isEquivalentFraction, onContinue,
+  pAUBError, pAUBValidated, validatePAUB, isEquivalentFraction, onContinue,
 }: ProbTransferScreenProps) {
   // Animação estilo Laplace em passos:
   // 0 = só fórmula; 1 = legenda n(A∪B); 2 = legenda n(S); 3 = legenda P(A∪B)
@@ -2624,7 +2682,10 @@ function ProbTransferScreen({
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
-  const isCorrect = isEquivalentFraction(pAUBNum, pAUBDen, nU, 36);
+  // `isCorrect` agora é o flag validated controlado pelo pai (definido só
+  // após clique no Conferir + acerto). Os blocos de revelação (decimal,
+  // percent, "✓") seguem aparecendo só nesse estado.
+  const isCorrect = pAUBValidated;
 
   // Detecta qual parte está errada (apenas numerador, apenas denominador, ou ambos).
   // Usa a forma CANÔNICA (nU / 36) como referência para a dica direcionada.
