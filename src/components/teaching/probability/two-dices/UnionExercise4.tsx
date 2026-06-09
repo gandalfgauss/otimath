@@ -31,6 +31,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 import { selectExercise4Data, type Exercise4Data } from './shared/exercise4Data';
 import { EVENT_COLORS, isEquivalentFraction } from './shared/eventPair';
 import { FractionInput, FracH, formatDecimal, formatPercent } from './shared/FractionInput';
@@ -295,6 +296,32 @@ const CARD_OPTIONS = [
 export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Props>(
   function UnionExercise4({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
     const [step, setStep] = useState<Step>(initialStep ?? 'intro');
+    // Telemetria — descrição mostra a ETAPA atual do exercício pra
+    // facilitar análise posterior. Cada step do fluxo gera um exercício
+    // com a descrição correspondente.
+    const ex4StepDescriptions: Record<Step, string> = {
+      intro: 'Apresentação do problema dos torcedores no bar — leitura do enunciado.',
+      menu: 'Escolha do caminho: Cardinalidade, Diagrama de Venn ou Fórmula Geral.',
+      lapMenu: 'Abordagem Laplaciana — escolha entre Cardinalidade da União ou Diagrama de Venn.',
+      lapCard1: 'Etapa 1 — Complete a fórmula da cardinalidade da união n(A∪B) = n(A) + n(B) − n(A∩B).',
+      lapCard2: 'Etapa 2 — Substitua n(A∪B), n(A), n(B) pelos valores numéricos do enunciado.',
+      lapCard3: 'Etapa 3 — Isole n(A∩B) na equação da etapa anterior.',
+      lapCard3b: 'Etapa 3b — Calcule n(A − B) = n(A) − n(A∩B) para a região pedida.',
+      lapCard4: 'Etapa 4 — Aplique Laplace: divida pelo total para obter a probabilidade.',
+      lapVenn1: 'Etapa 1 (Venn) — Preencha a região de interseção do diagrama com a variável x.',
+      lapVenn2: 'Etapa 2 (Venn) — Preencha as regiões A−B, B−A e fora dos conjuntos.',
+      lapVenn3: 'Etapa 3 (Venn) — Identifique n(S) e aplique Laplace para a probabilidade pedida.',
+      general1: 'Etapa 1 (Fórmula Geral) — Substitua as 3 frações em P(A∪B) = P(A) + P(B) − P(A∩B).',
+      general2: 'Etapa 2 (Fórmula Geral) — Isole P(A∩B) e simplifique.',
+      general3: 'Etapa 3 (Fórmula Geral) — Ajuste para a pergunta: calcule P(A ∩ B̄) usando P(A) − P(A∩B).',
+      reasoningPlayback: 'Animação "Não sei realmente!" — replay do raciocínio passo a passo.',
+      correct: 'Resolução concluída — escolha próximo caminho ou avance.',
+    };
+    useTelemetryExercise(
+      'twoDices-cena7-unionExercise4',
+      'Exercício 4 — Torcedores no bar (P(A ∩ B))',
+      ex4StepDescriptions[step] ?? 'Cálculo de P(A∩B).',
+    );
     const [round, setRound] = useState(0);
     const [data, setData] = useState<Exercise4Data>(() => selectExercise4Data(0));
 

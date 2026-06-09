@@ -11,6 +11,10 @@ import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { playSound } from '@/hooks/global/useSound';
 import { useAlerts } from '@/hooks/global/useAlerts';
 import { useCanvasRevivalKey } from '@/hooks/global/useCanvasRevivalKey';
+import {
+  telemetryEnterExercise,
+  telemetryExitExercise,
+} from '@/hooks/teaching/probability/useTelemetry';
 import type { DiceSceneHandle } from './DiceScene';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
 import type { UnionTheoryHandle } from './UnionProbabilityTheory';
@@ -246,6 +250,31 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   // WebGL no segundo plano — corrige o bug do canvas em branco no Firefox
   // Android ao voltar do app switcher.
   const canvasRevivalKey = useCanvasRevivalKey();
+
+  // Telemetria por cena — apenas as cenas com validação contam como
+  // "exercício" pra estrutura de telemetria. As outras (visualização)
+  // ainda contribuem com cliques pro total_interacoes_ova via listener
+  // global, mas não geram entrada em `exercicios_interagidos`.
+  // Cenas 5/6/7 delegam pra TwoDicesPractice/DiceMachineExperiment/
+  // TwoDicesExperiment, que registram seus próprios sub-exercícios.
+  useEffect(() => {
+    if (scene === 3) {
+      telemetryEnterExercise(
+        'twoDices-cena3-espaco-amostral',
+        'Cena 3 — Espaço amostral do dado',
+        'Validação: n(S), P(S) e identificação do modelo equiprovável.',
+      );
+      return () => telemetryExitExercise('twoDices-cena3-espaco-amostral');
+    }
+    if (scene === 4) {
+      telemetryEnterExercise(
+        'twoDices-cena4-equilibrado-viciado',
+        'Cena 4 — Equilibrado × Viciado',
+        'Comparação visual entre dado honesto e viciado + identificação do modelo (radio).',
+      );
+      return () => telemetryExitExercise('twoDices-cena4-equilibrado-viciado');
+    }
+  }, [scene]);
 
   // Ref do dado 3D e seu container (para scroll programático)
   const diceRef = useRef<DiceSceneHandle>(null);

@@ -37,6 +37,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 import {
   selectExercise5Data, type Exercise5Data, reduceFraction, fractionsEquivalent,
 } from './shared/exercise5Data';
@@ -193,6 +194,11 @@ function buildReasoningLines(data: Exercise5Data): ReasoningLine[] {
 
 export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Props>(
   function UnionExercise5({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
+    useTelemetryExercise(
+      'twoDices-cena7-unionExercise5',
+      'Exercício 5 — Pesquisa em campo (tabela de contingência)',
+      'Aluno calcula P(A∪B) ou P(A∩B) lendo uma tabela de contingência (eventos não-exclusivos OU exclusivos).',
+    );
     const [step, setStep] = useState<Step>(initialStep ?? 'intro');
     const [round, setRound] = useState(0);
     const [data, setData] = useState<Exercise5Data>(() => selectExercise5Data(0));

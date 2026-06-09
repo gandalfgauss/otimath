@@ -5,6 +5,10 @@ import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
 import type { DiceSceneHandle, DiceColor } from './DiceScene';
 import type { AlertType } from '@/components/global/Alert';
+import {
+  telemetryEnterExercise,
+  telemetryExitExercise,
+} from '@/hooks/teaching/probability/useTelemetry';
 
 // Handle exposto ao pai (TwoDicesPresentation) para o painel DEV poder
 // avançar a Cena 5 simulando a interação natural do aluno em cada fase.
@@ -502,6 +506,36 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     // Exercícios: alternam a partir da cor oposta da última experimentação
     return exerciseIdx % 2 === 0 ? colors[0] : colors[1];
   };
+
+  // Telemetria — cada fase principal vira um "exercício" no JSON estruturado.
+  // Mapeamento:
+  //   experimentA/B → uma rodada cada
+  //   exercises (com exerciseIdx 0–3) → 4 exercícios distintos
+  //   intro/finished → não registra (apenas transição)
+  useEffect(() => {
+    if (mainPhase === 'experimentA') {
+      const id = 'twoDices-cena5-experimentacao-1';
+      telemetryEnterExercise(id, 'Praticando com um dado — Rodada 1 (azul)',
+        'Aposta numa face do dado, lançamento e marcação do resultado real.');
+      return () => telemetryExitExercise(id);
+    }
+    if (mainPhase === 'experimentB') {
+      const id = 'twoDices-cena5-experimentacao-2';
+      telemetryEnterExercise(id, 'Praticando com um dado — Rodada 2 (verde)',
+        'Aposta numa face do dado, lançamento e marcação do resultado real (segundo dado).');
+      return () => telemetryExitExercise(id);
+    }
+    if (mainPhase === 'exercises') {
+      const num = exerciseIdx + 1;
+      const id = `twoDices-cena5-exercicio-${num}`;
+      telemetryEnterExercise(
+        id,
+        `Praticando com um dado — Exercício ${num} de 4`,
+        'Identificação de evento, cálculo de P(A) e P(Ā) a partir do resultado do dado.',
+      );
+      return () => telemetryExitExercise(id);
+    }
+  }, [mainPhase, exerciseIdx]);
 
   // Mudar cor do dado e modo ao mudar fase/exercício
   const lastColorRef = useRef<DiceColor | null>(null);

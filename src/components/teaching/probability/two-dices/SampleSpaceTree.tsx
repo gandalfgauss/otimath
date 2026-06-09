@@ -28,6 +28,7 @@ import { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHand
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
 import type { AlertType } from '@/components/global/Alert';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 
 // Handle exposto ao pai (TwoDicesExperiment) para o painel DEV
 // avançar pela árvore do espaço amostral simulando a interação natural
@@ -128,6 +129,13 @@ const BRANCH_COLOR = '#8b1a1a'; // vermelho escuro
 
 export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTreeProps>(
   function SampleSpaceTree({ onFinished, diceSceneRef, onPhaseChange, createAlert }, ref) {
+  // Telemetria — toda a construção da árvore (seleção, animação, contagem,
+  // multiplicação e visualização dos 36 pares) conta como UM exercício.
+  useTelemetryExercise(
+    'twoDices-cena7-espaco-amostral-6x6',
+    'Espaço amostral 6×6 — construção via árvore',
+    'Aluno seleciona faces do azul, vê a árvore ser construída ramo a ramo e valida n(S) = 36.',
+  );
   const [phase, setPhase] = useState<Phase>('select1');
   const [selectedFaces, setSelectedFaces] = useState<Set<number>>(new Set());
   const [selectError, setSelectError] = useState('');

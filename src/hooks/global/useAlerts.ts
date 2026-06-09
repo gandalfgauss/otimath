@@ -11,7 +11,15 @@ import { AlertType, AlertInterface } from '@/components/global/Alert';
    didática sem auditar dezenas de validators.
    ───────────────────────────────────────────────────────────────── */
 
-type AlertObserver = (type: AlertType, title: string) => void;
+/** Callback dos observadores de alerta.
+ *
+ *  `userResponse` carrega a resposta REAL do usuário (o que ele
+ *  marcou/escreveu/escolheu) quando o validator passou esse argumento
+ *  no `createAlert`. Quando não passou, fica `undefined` e o consumidor
+ *  decide o fallback (geralmente usar o `title`). Útil pra telemetria:
+ *  a telemetria precisa registrar a resposta do aluno, e o título do
+ *  alerta ("Tente novamente") não é a resposta do aluno. */
+type AlertObserver = (type: AlertType, title: string, userResponse?: string) => void;
 const alertObservers: AlertObserver[] = [];
 
 /** Inscreve um observador para todos os alertas criados via
@@ -27,12 +35,19 @@ export function subscribeToAlerts(fn: AlertObserver): () => void {
 export const useAlerts = () => {
   const [alerts, setAlerts] = useState<AlertInterface[]>([]);
 
-  const createAlert = useCallback((title: string, description: string, type: AlertType, timeout: number = 3000) => {
+  /**
+   * @param userResponse Opcional. Quando validators chamam alerts de
+   *   `success` ou `error`, é interessante registrar o que o ALUNO marcou
+   *   /escreveu na telemetria (ex.: `"slider em 5"`, `"P = 7/36"`). Esse
+   *   5º parâmetro repassa ao observador (vide subscribeToAlerts) sem
+   *   afetar o display do toast.
+   */
+  const createAlert = useCallback((title: string, description: string, type: AlertType, timeout: number = 3000, userResponse?: string) => {
     setAlerts(prev => [...prev, {title: title, description:description, type: type, status: "show", timeout: timeout}]);
     // Notifica observadores síncronos. Erros nos observers não devem
     // quebrar a criação do alerta — engolimos defensivamente.
     for (const obs of alertObservers) {
-      try { obs(type, title); } catch { /* ignorar */ }
+      try { obs(type, title, userResponse); } catch { /* ignorar */ }
     }
   }, []);
 

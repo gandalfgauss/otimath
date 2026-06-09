@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/global/Button";
 import { RefreshCw, Check, X, ArrowRight, CheckSquare } from "lucide-react";
+import { useTelemetryExercise } from "@/hooks/teaching/probability/useTelemetry";
 import { TwoDicesTable } from "./TwoDicesTable";
 import { useTwoDicesHooks } from "@/hooks/teaching/probability/two-dices/useTwoDicesHooks";
 import { Alerts } from "@/components/global/Alerts";
@@ -18,6 +19,16 @@ interface TwoDicesGameProps {
 }
 
 export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGameProps> = {}) {
+  // Telemetria — Ex7: jogo livre com a tabela 6×6 (eventos pré-definidos
+  // ou modo "marcar tudo"). `enableMarkAll=true` em Ex7 (exercícios de
+  // fixação); `false` na seção introdutória da Cena 7.
+  useTelemetryExercise(
+    enableMarkAll ? 'twoDices-cena7-twoDicesGame-ex7' : 'twoDices-cena7-twoDicesGame-intro',
+    enableMarkAll
+      ? 'Exercício 7 — Marcação livre da tabela 6×6 (fixação)'
+      : 'Apresentação da tabela 6×6 — primeira marcação',
+    'Aluno marca células favoráveis a um evento sorteado e identifica P(A) via Laplace.',
+  );
   const {
     instructions,
     resetGameOnClick,

@@ -40,6 +40,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 import {
   EventPair,
   selectPairForRound, verifyEventTableConsistency,
@@ -233,6 +234,11 @@ function validateFractionSeparate(
 
 export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Props>(
   function UnionExercise3({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
+    useTelemetryExercise(
+      'twoDices-cena7-unionExercise3',
+      'Exercício 3 — Diferenças de eventos (A − B e B − A)',
+      'Aluno marca os eventos A−B e B−A na tabela e calcula P(A−B) e P(B−A).',
+    );
     const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
     const [round, setRound] = useState(0);
     const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());

@@ -2,6 +2,10 @@
 
 import React, { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
+import {
+  telemetryEnterExercise,
+  telemetryExitExercise,
+} from '@/hooks/teaching/probability/useTelemetry';
 import { playSound } from '@/hooks/global/useSound';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
 import type { DiceMachineSceneHandle } from './DiceMachineScene';
@@ -392,6 +396,41 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     createAlert,
   }, ref) {
   const [phase, setPhase] = useState<Phase>('intro');
+
+  // Telemetria — agrupa as fases NÃO-DELEGADAS em "exercícios" lógicos.
+  // Fases delegadas (tree, complementaryEvents, unionTheory, unionExercise2-6,
+  // twoDicesGameFree, unionExercise8) registram a si mesmas via seus componentes.
+  // intro/finished/closing são transições — não registram.
+  useEffect(() => {
+    const rollPhases: Phase[] = [
+      'ready', 'rolling', 'landed',
+      'pickPair', 'pickConfirm', 'markTable', 'feedback',
+      'sumInput', 'sumMarkTable', 'sumComplete',
+      'sumAlienIntro', 'sumPredictMax', 'sumPredictMin', 'sumImpossible', 'sumReveal',
+      'probPair', 'probPairReveal', 'probSumTable', 'probSumReveal',
+      'pairQuestion', 'pairExplain', 'colorQuestion', 'colorExplain',
+    ];
+    const racePhases: Phase[] = ['raceBet', 'raceRunning', 'raceFinished'];
+    if (rollPhases.includes(phase)) {
+      const id = 'twoDices-cena7-sistematizacao-tabular';
+      telemetryEnterExercise(
+        id,
+        'Sistematização tabular do espaço amostral 6×6',
+        'Aluno rola dois dados, identifica o par ordenado na tabela, calcula somas e explora distinções por cor.',
+      );
+      return () => telemetryExitExercise(id);
+    }
+    if (racePhases.includes(phase)) {
+      const id = 'twoDices-cena7-corrida-carrinhos';
+      telemetryEnterExercise(
+        id,
+        'Corrida dos Carrinhos — soma de dois dados',
+        'Aluno aposta numa soma e avança o carrinho correspondente a cada lançamento; observa distribuição não-uniforme das somas.',
+      );
+      return () => telemetryExitExercise(id);
+    }
+  }, [phase]);
+
   // Handle do SampleSpaceTree (sub-componente da fase 'tree') —
   // permite ao painel DEV avançar pelas 7 sub-fases internas em vez
   // de pular tudo de uma vez.

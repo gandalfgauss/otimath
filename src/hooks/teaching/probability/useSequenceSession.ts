@@ -43,6 +43,11 @@ import {
   logAttempt as logRouletteAttempt,
 } from './roulette/useRouletteLog';
 import { subscribeToAlerts } from '@/hooks/global/useAlerts';
+import {
+  telemetryReset,
+  telemetrySetActiveOva,
+  initTelemetryListeners,
+} from './useTelemetry';
 
 export type OvaKey = 'roulette' | 'twoDices';
 
@@ -52,6 +57,15 @@ export type OvaKey = 'roulette' | 'twoDices';
 
 let sessionStartTime: number | null = null;
 let sessionEndTime: number | null = null;
+/** Quando a sessão é pausada (ex.: ao perder internet), guardamos o
+ *  instante AQUI e SUBTRAÍMOS no getElapsedTotalMs. Evita riscar o
+ *  cronograma da sessão por inatividade involuntária do aluno. */
+let sessionPausedAt: number | null = null;
+let sessionPausedAccumMs = 0;
+/** Lembra se o OVA ativo foi pausado por motivo de OFFLINE — só assim
+ *  o resumeSession sabe que pode retomar o cronômetro do OVA. (Se o
+ *  OVA já estava 'paused' ou 'frozen' por outra razão, não mexer.) */
+let pausedOvaByOffline: OvaKey | null = null;
 
 /** Estado de cada cronômetro de OVA:
  *  • `running`  — tempo corrido sendo somado em `accumMs`
@@ -135,10 +149,18 @@ export function startSequence(): void {
   clearTwoDicesLog();
   sessionStartTime = Date.now();
   sessionEndTime = null;
+  sessionPausedAt = null;
+  sessionPausedAccumMs = 0;
+  pausedOvaByOffline = null;
   ovaTimer.roulette = { state: 'paused', accumMs: 0, startedAt: null };
   ovaTimer.twoDices = { state: 'paused', accumMs: 0, startedAt: null };
   activeOva = null;
   setupAlertObserver();
+  // Telemetria: zera o snapshot e garante listeners globais instalados.
+  // `initTelemetryListeners` é idempotente — chamar a cada start é no-op
+  // depois da primeira vez.
+  telemetryReset();
+  initTelemetryListeners();
 }
 
 /** Define qual OVA o aluno está agora trabalhando (ou null durante
@@ -159,6 +181,8 @@ export function setActiveOva(next: OvaKey | null): void {
     ovaTimer[next].state = 'running';
     ovaTimer[next].startedAt = Date.now();
   }
+  // Telemetria: espelha a troca de OVA no snapshot estruturado.
+  telemetrySetActiveOva(next);
 }
 
 /** Congela o cronômetro de um OVA — chamado pela própria tela terminal
@@ -194,13 +218,61 @@ export function endSequence(): void {
 }
 
 /* ─────────────────────────────────────────────────────────────────
+   Pause / Resume da sessão — chamados pelo OfflineOverlay quando
+   a internet cai/volta. Pausa cronômetro global + cronômetro do
+   OVA ativo. NÃO mexe em OVA congelado (tela final) — esses ficam
+   intactos.
+   ───────────────────────────────────────────────────────────────── */
+
+export function pauseSession(): void {
+  // Não tem o que pausar se a sessão nem começou ou já acabou.
+  if (sessionStartTime === null || sessionEndTime !== null) return;
+  if (sessionPausedAt !== null) return; // já pausado
+  sessionPausedAt = Date.now();
+  // Pausa o cronômetro do OVA ativo (se estiver running).
+  if (activeOva && ovaTimer[activeOva].state === 'running') {
+    commitElapsed(activeOva);
+    ovaTimer[activeOva].state = 'paused';
+    pausedOvaByOffline = activeOva;
+  }
+}
+
+export function resumeSession(): void {
+  if (sessionStartTime === null || sessionEndTime !== null) return;
+  if (sessionPausedAt === null) return; // já corrente
+  sessionPausedAccumMs += Date.now() - sessionPausedAt;
+  sessionPausedAt = null;
+  // Retoma o OVA ativo APENAS se nós que pausamos por OFFLINE — sem
+  // isso, retomar acidentalmente um OVA congelado pela tela terminal
+  // remeteria o cronômetro pra rodar errado.
+  if (pausedOvaByOffline && activeOva === pausedOvaByOffline) {
+    if (ovaTimer[pausedOvaByOffline].state === 'paused') {
+      ovaTimer[pausedOvaByOffline].state = 'running';
+      ovaTimer[pausedOvaByOffline].startedAt = Date.now();
+    }
+  }
+  pausedOvaByOffline = null;
+}
+
+export function isSessionPaused(): boolean {
+  return sessionPausedAt !== null;
+}
+
+/* ─────────────────────────────────────────────────────────────────
    Getters de tempo
    ───────────────────────────────────────────────────────────────── */
 
 export function getElapsedTotalMs(): number {
   if (sessionStartTime === null) return 0;
   const end = sessionEndTime ?? Date.now();
-  return Math.max(0, end - sessionStartTime);
+  // Subtrai o acumulado total de tempo pausado + o intervalo atual
+  // de pausa em curso (se houver). O cronômetro só conta tempo REAL
+  // de presença ativa com internet.
+  let elapsed = end - sessionStartTime - sessionPausedAccumMs;
+  if (sessionPausedAt !== null && sessionEndTime === null) {
+    elapsed -= Date.now() - sessionPausedAt;
+  }
+  return Math.max(0, elapsed);
 }
 
 export function getElapsedOvaMs(ova: OvaKey): number {

@@ -32,6 +32,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 import {
   EventPair,
   selectPairForRound, verifyEventTableConsistency,
@@ -314,6 +315,11 @@ function ProgressIndicator({ step }: { step: ExStep }) {
 
 export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Props>(
   function UnionExercise1({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
+    useTelemetryExercise(
+      'twoDices-cena7-unionExercise1',
+      'Exercício 1 — Probabilidade da união (caso geral)',
+      'Aluno identifica eventos A, B e A∩B na tabela 6×6 e calcula P(A∪B) por contagem ou fórmula.',
+    );
     // ── Estado de rodada e par ───────────────────────────────────
     const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
     const [round, setRound] = useState(0);

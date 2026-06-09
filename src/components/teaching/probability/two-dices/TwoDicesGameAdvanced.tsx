@@ -40,6 +40,7 @@ import {
   type AdvancedStepKind,
 } from '@/hooks/teaching/probability/two-dices/useTwoDicesGameAdvancedHooks';
 import { logStudyMenuOpened } from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 
 interface TwoDicesGameAdvancedProps {
   /** Disparado quando o estudante conclui o último step do último desafio. */
@@ -49,6 +50,11 @@ interface TwoDicesGameAdvancedProps {
 export function TwoDicesGameAdvanced({
   onGameFinished,
 }: Readonly<TwoDicesGameAdvancedProps> = {}) {
+  useTelemetryExercise(
+    'twoDices-cena7-twoDicesGameAdvanced-ex8',
+    'Exercício 8 — Operações avançadas com eventos (livre)',
+    'Aluno encadeia união, interseção e complementar em desafios variados, com acesso a glossário.',
+  );
   const [studyMenuOpen, setStudyMenuOpen] = useState(false);
   const [lastErrorStep, setLastErrorStep] = useState<AdvancedStepKind | null>(null);
   const [pulseHelp, setPulseHelp] = useState(false);

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HeroBanner } from "@/components/global/HeroBanner";
 import { OvaCredits } from "@/components/global/OvaCredits";
+import { PostSequenceForm } from "@/components/global/PostSequenceForm";
 import { TextBlock } from "@/components/global/TextBlock";
 import { Button } from "@/components/global/Button";
 import { Grid } from "@/components/global/Grid";
@@ -29,6 +30,7 @@ import {
 import { playSound } from "@/hooks/global/useSound";
 import { useAlerts } from "@/hooks/global/useAlerts";
 import { Alerts } from "@/components/global/Alerts";
+import { OfflineOverlay } from "@/components/global/OfflineOverlay";
 import heroBannerProbabilityImage from '@/images/teaching/probability/probabilityBanner.webp';
 
 type Stage = 'intro' | 'roulette' | 'transition' | 'twoDices' | 'complete';
@@ -204,6 +206,11 @@ export default function DidacticSequencePage() {
 
   return (
     <main>
+      {/* Bloqueio global se internet cair — `OfflineOverlay` se auto-monta
+          em tela cheia (z-2000) e some quando reconecta. Crítico pra quando
+          começarmos a chamar APIs externas: o aluno não fica clicando em
+          vão num formulário que vai falhar. */}
+      <OfflineOverlay />
       {/* Overlay global de alerts da página da sequência. Renderizado no topo
           do <main> pra ficar visível em qualquer stage (intro, OVAs, complete). */}
       <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts} />
@@ -240,6 +247,8 @@ export default function DidacticSequencePage() {
           </div>
         ))}
       </div>
+
+      <PostSequenceForm/>
 
       <OvaCredits/>
       

@@ -52,6 +52,7 @@ import { logStudyMenuOpened } from '@/hooks/teaching/probability/two-dices/useTw
 import { BookOpen, Check } from 'lucide-react';
 import { SequenceStatsCard } from '@/components/teaching/probability/SequenceStatsCard';
 import { freezeOva, getSequenceStats, unfreezeOva, useSequenceTick } from '@/hooks/teaching/probability/useSequenceSession';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 
 type Step = 'intro' | 'round1' | 'transition' | 'round2' | 'finalSynthesis';
 
@@ -107,6 +108,11 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
     },
     ref,
   ) {
+    useTelemetryExercise(
+      'twoDices-cena7-unionExercise6-review',
+      'Exercício 6 — Revisão obrigatória das operações entre eventos',
+      'Aluno joga 2 rodadas (uma União, uma Interseção) sorteadas entre pares curados, calculando n(D)/n(S).',
+    );
     const [step, setStep] = useState<Step>(initialStep);
     const [session] = useState<readonly [Ex6Round, Ex6Round]>(() => buildEx6Session());
 

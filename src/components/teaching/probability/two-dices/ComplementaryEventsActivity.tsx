@@ -17,6 +17,7 @@
 
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 import { Alerts } from '@/components/global/Alerts';
 import { Modal } from '@/components/global/Modal';
 import { TextBlock } from '@/components/global/TextBlock';
@@ -50,6 +51,11 @@ export const ComplementaryEventsActivity = forwardRef<
   ComplementaryEventsActivityHandle,
   ComplementaryEventsActivityProps
 >(function ComplementaryEventsActivity({ onContinue, onPhaseChange }, ref) {
+  useTelemetryExercise(
+    'twoDices-cena7-complementaryEvents',
+    'Eventos complementares — descoberta e formalização',
+    'Aluno descobre P(A) + P(Ā) = 1 explorando casos na tabela 6×6 e formaliza P(Ā) = 1 − P(A).',
+  );
   const [reviewOpen, setReviewOpen] = useState(false);
   const h = useComplementaryEventsHooks({ onContinue });
 

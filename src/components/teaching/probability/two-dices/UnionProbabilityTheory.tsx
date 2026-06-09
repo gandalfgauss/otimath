@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 import { playSound } from '@/hooks/global/useSound';
 import { VennLaboratory, type VennLaboratoryHandle } from './venn/VennLaboratory';
 
@@ -679,6 +680,11 @@ const PHASE_SEQUENCE: UnionPhase[] = [
 ];
 
 export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabilityTheoryProps>(function UnionProbabilityTheory({ onFinished, initialPhase, createAlert, onPhaseChange }, ref) {
+  useTelemetryExercise(
+    'twoDices-cena7-unionTheory',
+    'Fundamentação da União — Macro 1 a 3',
+    'Aluno percorre Contagem, União por Laplace e Fórmula Geral; passa por VennLab, ProbCalc e institucionalização da fórmula geral.',
+  );
   const [phase, setPhase] = useState<UnionPhase>(initialPhase ?? 'intro');
   // Sub-step do VennLaboratory (notificado via onSubStepChange) — entra no
   // cenaId composto para que o painel DEV capture cada sub-etapa do Venn.

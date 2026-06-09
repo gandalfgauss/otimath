@@ -16,6 +16,7 @@ import { useRouletteHooks } from "@/hooks/teaching/probability/roulette/useRoule
 import { playSound } from "@/hooks/global/useSound";
 import { SequenceStatsCard } from "@/components/teaching/probability/SequenceStatsCard";
 import { freezeOva, getSequenceStats, logOvaInteraction, setActiveOva, unfreezeOva, useSequenceTick } from "@/hooks/teaching/probability/useSequenceSession";
+import { useTelemetryExercise } from "@/hooks/teaching/probability/useTelemetry";
 import { StudyMenu } from "@/components/teaching/probability/two-dices/shared/StudyMenu";
 import { DISCO_GLOSSARY, DISCO_GROUPS } from "@/components/teaching/probability/two-dices/shared/studyMenuContent";
 import { BookOpen } from "lucide-react";
@@ -439,6 +440,32 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     if (atFinalScreen) freezeOva('roulette');
     else                unfreezeOva('roulette');
   }, [gameState.stage, gameState.subStep]);
+
+  // Telemetria por etapa — cada uma das 3 etapas conta como um "contexto/seção"
+  // distinto. Cada Conferir vira um EXERCÍCIO novo no JSON estruturado.
+  const rouletteStageInfo: Record<number, { title: string; fallback: string }> = {
+    1: { title: 'OVA do Disco — Etapa 1: Experimentação',
+         fallback: 'Aluno faz giros manuais, observa frequências relativas e formula previsões.' },
+    2: { title: 'OVA do Disco — Etapa 2: Probabilidade teórica',
+         fallback: 'Cálculo de P(E) por Laplace + leitura progressiva do ângulo no disco.' },
+    3: { title: 'OVA do Disco — Etapa 3: Evento complementar',
+         fallback: 'Treino de P(Ā) = 1 − P(A) e generalização para um dado equilibrado.' },
+  };
+  const stageInfo = rouletteStageInfo[gameState.stage] ?? rouletteStageInfo[1];
+  // Descrição dinâmica — extrai texto livre do `instructions` (HTML) atual
+  // pra que o JSON capture O QUE O ALUNO ESTÁ FAZENDO no momento da
+  // validação, não a descrição genérica da etapa. Fallback quando vazio.
+  const liveDescricao = (instructions || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 280) // limita pra ID compacto no console
+    || stageInfo.fallback;
+  useTelemetryExercise(
+    `roulette-stage-${gameState.stage}`,
+    stageInfo.title,
+    liveDescricao,
+  );
 
   return (
     <div className="flex flex-col gap-y-xxs">

@@ -160,7 +160,6 @@ const RANDOM_EXAMPLES = [
   'Numa cidade onde 10% dos habitantes possuem determinada moléstia, selecionar 20 pessoas e observar o número de portadores da moléstia.',
   'Observar o tempo que um certo aluno gasta para ir de ônibus de sua casa até a escola.',
   'Injetar uma dose de insulina em uma pessoa e observar a quantidade de açúcar que diminuiu.',
-  'Sujeitar uma barra metálica à tração e observar sua resistência.',
   'Lançar três moedas e observar o número de caras obtidas.',
   'Lançar dois dados e observar a soma dos números obtidos.',
   'Lançar dois dados e observar o maior número obtido.',
@@ -3904,8 +3903,8 @@ export const useRouletteHooks = () => {
   // duplicada aqui geraria contagem dobrada de tentativas no OVA do
   // Disco quando executado dentro da sequência didática.
   const gameStateRef = useRef<{ stage: number; subStep: number }>({ stage: 1, subStep: 0 });
-  const createAlert = useCallback((title: string, message: string, type: AlertType, duration?: number) => {
-    _createAlert(title, message, type, duration);
+  const createAlert = useCallback((title: string, message: string, type: AlertType, duration?: number, userResponse?: string) => {
+    _createAlert(title, message, type, duration, userResponse);
   }, [_createAlert]);
 
   // Refs
@@ -4350,6 +4349,14 @@ export const useRouletteHooks = () => {
     goToTopOfChallenge();
     const { stage, subStep, targetSectorCount, sectors } = gameState;
 
+    // Helper: traduz `selectedOption` (value) no texto que o aluno
+    // realmente leu/clicou (label). Usado pra preencher `resposta_usuario`
+    // no createAlert com a opção exibida em vez do ID interno.
+    const optionLabelOf = (value: string): string => {
+      const opt = currentQuestion?.options?.find(o => o.value === value);
+      return opt?.label ?? value;
+    };
+
     // TREINOS: lógica de verificação inline se treino ativo
     if (stage === 2 && trainingState.active) {
       const { phase, sectors: tSectors, ki: tKi, S: tS, m: tM, angles: tAngles, tableIndex: tIdx } = trainingState;
@@ -4480,7 +4487,7 @@ export const useRouletteHooks = () => {
         }));
 
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "O disco foi dividido corretamente!", "success", 3000);
+        createAlert("Parabéns!", "O disco foi dividido corretamente!", "success", 3000, `slider em ${sliderValue}`);
 
         // Mostrar primeiro balão conceitual
         setShowInfoBox(true);
@@ -4494,7 +4501,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Leia o conteúdo do balão e clique no <strong>Botão</strong> para continuar.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Tente novamente", `Volte ao disco e conte com calma os setores antes de informar o número.`, "error", 4000);
+        createAlert("Tente novamente", `Volte ao disco e conte com calma os setores antes de informar o número.`, "error", 4000, `slider em ${sliderValue}`);
       }
       return;
     }
@@ -4503,7 +4510,7 @@ export const useRouletteHooks = () => {
     if (stage === 1 && subStep === 1) {
       if (selectedOption === 'correct') {
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "Você identificou corretamente o experimento aleatório!", "success", 3000);
+        createAlert("Parabéns!", "Você identificou corretamente o experimento aleatório!", "success", 3000, `marcou: "${optionLabelOf(selectedOption)}"`);
 
         // Ir para a fase de experimentação (3 tentativas antes da questão)
         experimentBetLockedRef.current = false;
@@ -4523,7 +4530,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Antes de girar o disco, clique diretamente em uma cor do disco e aposte em qual resultado você acredita que irá ocorrer.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Tente novamente", "⚠️ Atenção! Um experimento aleatório é o procedimento que pode ser repetido nas mesmas condições, mas cujo resultado não pode ser previsto antes de acontecer. Ele descreve o que é feito e o que será observado, e não cálculos, escolhas antecipadas ou análises dos resultados.", "error", 8000);
+        createAlert("Tente novamente", "⚠️ Atenção! Um experimento aleatório é o procedimento que pode ser repetido nas mesmas condições, mas cujo resultado não pode ser previsto antes de acontecer. Ele descreve o que é feito e o que será observado, e não cálculos, escolhas antecipadas ou análises dos resultados.", "error", 8000, `marcou: "${optionLabelOf(selectedOption)}"`);
       }
       return;
     }
@@ -4540,7 +4547,10 @@ export const useRouletteHooks = () => {
 
       if (allChecked) {
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "Você identificou corretamente todas as características do experimento aleatório!", "success", 3000);
+        const checkedTexts = selectedCharacteristics
+          .map(i => `[${i + 1}] ${(RANDOM_EXPERIMENT_CHARACTERISTICS[i] ?? '').slice(0, 90)}`)
+          .join(' | ');
+        createAlert("Parabéns!", "Você identificou corretamente todas as características do experimento aleatório!", "success", 3000, `marcou todas (${selectedCharacteristics.length}/${RANDOM_EXPERIMENT_CHARACTERISTICS.length}): ${checkedTexts}`);
 
         // Limpa o resumo da experimentação (tabela das 3 tentativas) — agora
         // o foco passa a ser o balão conceitual de Espaço Amostral.
@@ -4558,11 +4568,14 @@ export const useRouletteHooks = () => {
       } else if (selectedCharacteristics.length > 0) {
         // Algumas marcadas, mas não todas
         playSound("/sounds/incorrect.mp3");
-        createAlert("Correto! Mas está incompleto.", "", "warning", 4000);
+        const checkedTexts = selectedCharacteristics
+          .map(i => `[${i + 1}] ${(RANDOM_EXPERIMENT_CHARACTERISTICS[i] ?? '').slice(0, 90)}`)
+          .join(' | ');
+        createAlert("Correto! Mas está incompleto.", "", "warning", 4000, `marcou ${selectedCharacteristics.length}/${RANDOM_EXPERIMENT_CHARACTERISTICS.length}: ${checkedTexts}`);
       } else {
         // Nenhuma marcada
         playSound("/sounds/incorrect.mp3");
-        createAlert("Atenção!", "Marque as características que você considera verdadeiras.", "error", 3000);
+        createAlert("Atenção!", "Marque as características que você considera verdadeiras.", "error", 3000, 'não marcou nenhuma característica');
       }
       return;
     }
@@ -4572,7 +4585,7 @@ export const useRouletteHooks = () => {
       const colors = sectors.map(s => s.colorName);
       if (validateSampleSpace(sampleSpaceInput.value || '', colors)) {
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "Você identificou corretamente o espaço amostral!", "success", 3000);
+        createAlert("Parabéns!", "Você identificou corretamente o espaço amostral!", "success", 3000, `escreveu: "${sampleSpaceInput.value}"`);
 
         setGameState(prev => ({ ...prev, subStep: 3 }));
         setInstructions(`<p class="ds-body"><strong>Quantidade de Elementos</strong></p>
@@ -4580,7 +4593,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setSampleSpaceInput(prev => ({ ...prev, error: true }));
-        createAlert("Tente novamente", "Quando gira o disco quais as possibilidades para o ponteiro indicar?", "error", 5000);
+        createAlert("Tente novamente", "Quando gira o disco quais as possibilidades para o ponteiro indicar?", "error", 5000, `escreveu: "${sampleSpaceInput.value}"`);
       }
       return;
     }
@@ -4590,7 +4603,7 @@ export const useRouletteHooks = () => {
       const inputCount = parseInt(sampleSpaceCountInput.value || '');
       if (inputCount === targetSectorCount) {
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "Correto!", "success", 3000);
+        createAlert("Parabéns!", "Correto!", "success", 3000, `digitou: "${sampleSpaceCountInput.value}"`);
 
         // Gerar eventos A e B dinamicamente (CONTRATO FORMAL)
         // Seja S o espaço amostral do disco atual (conjunto das cores)
@@ -4638,7 +4651,7 @@ export const useRouletteHooks = () => {
     if (stage === 1 && subStep === 4) {
       if (selectedOption === 'nao') {
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "Correto! Os setores são iguais, então todas as cores têm a mesma chance.", "success", 3000);
+        createAlert("Parabéns!", "Correto! Os setores são iguais, então todas as cores têm a mesma chance.", "success", 3000, `marcou: "${optionLabelOf(selectedOption)}"`);
 
         // Mostrar informação com n dinâmico
         setShowInfoBox(true);
@@ -4651,7 +4664,7 @@ export const useRouletteHooks = () => {
         setGameState(prev => ({ ...prev, subStep: 4.5 }));
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Tente novamente", "Observe que todos os setores têm o mesmo tamanho (mesmo ângulo central). Não há razão para uma cor ter mais chance que outra.", "error", 5000);
+        createAlert("Tente novamente", "Observe que todos os setores têm o mesmo tamanho (mesmo ângulo central). Não há razão para uma cor ter mais chance que outra.", "error", 5000, `marcou: "${optionLabelOf(selectedOption)}"`);
       }
       return;
     }
@@ -4660,7 +4673,7 @@ export const useRouletteHooks = () => {
     if (stage === 1 && subStep === 5) {
       if (selectedOption === 'equiprovavel') {
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "Correto! O espaço amostral é equiprovável.", "success", 3000);
+        createAlert("Parabéns!", "Correto! O espaço amostral é equiprovável.", "success", 3000, `marcou: "${optionLabelOf(selectedOption)}"`);
 
         // Mostrar balão sobre evento certo
         setShowInfoBox(true);
@@ -4673,7 +4686,7 @@ export const useRouletteHooks = () => {
         setGameState(prev => ({ ...prev, subStep: 5.5 }));
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Tente novamente", "Como os setores são iguais, o espaço amostral é equiprovável.", "error", 4000);
+        createAlert("Tente novamente", "Como os setores são iguais, o espaço amostral é equiprovável.", "error", 4000, `marcou: "${optionLabelOf(selectedOption)}"`);
       }
       return;
     }
@@ -4683,7 +4696,7 @@ export const useRouletteHooks = () => {
       const value = (theoreticalQuestion1Input.value || '').trim();
       if (areFractionsEquivalent(value, '1')) {
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "Correto! A probabilidade do evento certo é 1 (ou 100%).", "success", 3000);
+        createAlert("Parabéns!", "Correto! A probabilidade do evento certo é 1 (ou 100%).", "success", 3000, `digitou: "${value}"`);
 
         // Mostrar balão de Definição de Probabilidade (subStep 5.75)
         setShowInfoBox(true);
@@ -4697,7 +4710,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setTheoreticalQuestion1Input(prev => ({ ...prev, error: true }));
-        createAlert("Tente novamente", "O evento certo sempre ocorre. Qual é a probabilidade de algo que sempre acontece?", "error", 4000);
+        createAlert("Tente novamente", "O evento certo sempre ocorre. Qual é a probabilidade de algo que sempre acontece?", "error", 4000, `digitou: "${value}"`);
       }
       return;
     }

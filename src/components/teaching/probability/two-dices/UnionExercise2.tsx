@@ -26,6 +26,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 import {
   EventPair,
   verifyEventTableConsistency,
@@ -141,6 +142,11 @@ function ProgressIndicator({ step }: { step: ExStep }) {
 
 export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Props>(
   function UnionExercise2({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
+    useTelemetryExercise(
+      'twoDices-cena7-unionExercise2',
+      'Exercício 2 — União de eventos mutuamente exclusivos',
+      'Aluno valida que A∩B=∅ e aplica a fórmula reduzida P(A∪B) = P(A) + P(B).',
+    );
     // ── Estado de rodada e par ───────────────────────────────────
     const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
     const [round, setRound] = useState(0);
