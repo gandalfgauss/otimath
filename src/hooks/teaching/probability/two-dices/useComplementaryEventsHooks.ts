@@ -22,6 +22,8 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { AlertType } from '@/components/global/Alert';
+import { telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import { CheckboxInterface } from '@/components/global/Checkbox';
 import { useAlerts } from '@/hooks/global/useAlerts';
 import { useModal } from '@/hooks/global/useModal';
@@ -230,13 +232,101 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
 
 
   // ─── Globais ──────────────────────────────────────────────────
-  const { alerts, createAlert, updateAlert, deleteAlerts } = useAlerts();
+  const { alerts, createAlert: _createAlert, updateAlert, deleteAlerts } = useAlerts();
   const { modal, updateModal } = useModal();
+
+  // ── TELEMETRIA — wrapper inteligente do createAlert ──────────────
+  // Mesmo padrão do useTwoDicesHooks: 28 createAlerts no hook, a maior
+  // parte sem 5º param. Quando vem vazio, derivamos do snapshot atual
+  // de marcações + frações + fase.
+  const studentInputRef = useRef<{
+    checkboxes: EventCheckboxes;
+    probInputs: ProbabilitiesTextInputs;
+    activeEvents: Event[];
+    round: number;
+    subPhase: string;
+  }>({
+    checkboxes: {},
+    probInputs: {} as ProbabilitiesTextInputs,
+    activeEvents: [],
+    round: 0,
+    subPhase: 'strategyChoice',
+  });
+
+  const createAlert = useCallback((title: string, message: string, type: AlertType, duration?: number, userResponse?: string) => {
+    let resolved = userResponse;
+    if (resolved === undefined) {
+      const s = studentInputRef.current;
+      const parts: string[] = [];
+      for (const ev of s.activeEvents) {
+        const name = ev.name ?? '';
+        const grid = s.checkboxes[name];
+        if (!grid) continue;
+        let count = 0;
+        const marked: string[] = [];
+        for (let r = 0; r < grid.length; r++) {
+          for (let c = 0; c < grid[r].length; c++) {
+            if (grid[r][c]?.checked) { count++; marked.push(`(${r + 1},${c + 1})`); }
+          }
+        }
+        if (count > 0) {
+          const shown = marked.length <= 8 ? marked.join(';') : `${marked.slice(0, 8).join(';')}...+${marked.length - 8}`;
+          parts.push(`evento ${name}: ${count} célula(s) [${shown}]`);
+        }
+      }
+      const p = s.probInputs;
+      if (p?.numerator?.value || p?.denominator?.value) {
+        parts.push(`P(${p.eventName ?? '?'}) = ${p.numerator?.value || '_'} / ${p.denominator?.value || '_'}`);
+      }
+      if (p?.hasComplementary && (p?.complementaryNumerator?.value || p?.complementaryDenominator?.value)) {
+        parts.push(`P(complementar) = ${p.complementaryNumerator?.value || '_'} / ${p.complementaryDenominator?.value || '_'}`);
+      }
+      parts.push(`fase: ${s.subPhase}, rodada ${s.round + 1}`);
+      if (parts.length > 0) resolved = parts.join(' | ');
+    }
+    _createAlert(title, message, type, duration, resolved);
+  }, [_createAlert]);
 
   const roundRef = useRef<number>(0);
   useEffect(() => { roundRef.current = round; }, [round]);
   const dataRef = useRef<ComplementaryEventData | null>(null);
   useEffect(() => { dataRef.current = data; }, [data]);
+
+  // Sincroniza snapshot do aluno pro wrapper do createAlert.
+  useEffect(() => {
+    studentInputRef.current = {
+      checkboxes: eventsCheckboxes,
+      probInputs: probabilitiesTextInputs,
+      activeEvents,
+      round,
+      subPhase,
+    };
+  });
+
+  // Change-detection das FRAÇÕES (numerador/denominador) com debounce.
+  const prevFractionsRef = useRef<{ n: string; d: string; cn: string; cd: string } | null>(null);
+  useEffect(() => {
+    const cur = {
+      n: probabilitiesTextInputs?.numerator?.value ?? '',
+      d: probabilitiesTextInputs?.denominator?.value ?? '',
+      cn: probabilitiesTextInputs?.complementaryNumerator?.value ?? '',
+      cd: probabilitiesTextInputs?.complementaryDenominator?.value ?? '',
+    };
+    const prev = prevFractionsRef.current;
+    if (prev === null) { prevFractionsRef.current = cur; return; }
+    if (prev.n === cur.n && prev.d === cur.d && prev.cn === cur.cn && prev.cd === cur.cd) return;
+    prevFractionsRef.current = cur;
+    const handle = window.setTimeout(() => {
+      const parts: string[] = [];
+      if (prev.n !== cur.n || prev.d !== cur.d) parts.push(`P principal: ${cur.n || '_'} / ${cur.d || '_'}`);
+      if (prev.cn !== cur.cn || prev.cd !== cur.cd) parts.push(`P complementar: ${cur.cn || '_'} / ${cur.cd || '_'}`);
+      if (parts.length === 0) return;
+      telemetryRecordInteracaoExercicio(
+        `digitou fração — ${parts.join(' ; ')} (fase ${subPhase}, rodada ${round + 1})`
+      );
+    }, 600);
+    return () => window.clearTimeout(handle);
+  }, [probabilitiesTextInputs, round, subPhase]);
 
   // ════════════════════════════════════════════════════════════
   // INSTRUÇÕES POR SUB-FASE
@@ -557,6 +647,11 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
 
   const updateEventsCheckboxes = useCallback(
     (eventName: string, diceGreen: number, diceBlue: number, checked: boolean, disabled: boolean) => {
+      // Telemetria — clique do aluno numa célula (chamada SÓ por user
+      // input; resets sistêmicos vão direto em setEventsCheckboxes).
+      telemetryRecordInteracaoExercicio(
+        `${checked ? 'marcou' : 'desmarcou'} célula (verde=${diceGreen}, azul=${diceBlue}) do evento "${eventName}"`
+      );
       setEventsCheckboxes(prev => {
         const updated = { ...prev };
         if (!updated[eventName]) return prev;
@@ -571,8 +666,14 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     [],
   );
 
-  const setStrategyChoice = (choice: string) => setStrategyChoiceState(choice);
+  const setStrategyChoice = (choice: string) => {
+    telemetryRecordInteracaoExercicio(`escolheu estratégia inicial: "${choice}"`);
+    setStrategyChoiceState(choice);
+  };
   const setReviewChoice = (choice: 'keep' | 'change') => {
+    telemetryRecordInteracaoExercicio(
+      `decidiu sobre estratégia: "${choice === 'keep' ? 'manter' : 'mudar'}"`
+    );
     setReviewChoiceState(choice);
     setReviewError(false);
   };

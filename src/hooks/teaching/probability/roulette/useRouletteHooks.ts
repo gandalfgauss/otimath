@@ -12,6 +12,11 @@ import { TextInputInterface } from '@/components/global/TextInput';
 import { QuestionOption } from '@/components/teaching/probability/roulette/RouletteQuestion';
 import { AlertType } from '@/components/global/Alert';
 import { logTransition, logAttempt, logText, logBet, logSpinResult, downloadLog, getLogSummary } from './useRouletteLog';
+import {
+  telemetryRecordRegistro,
+  telemetryRecordInteracaoExercicio,
+  telemetryUpdateSectionMeta,
+} from '@/hooks/teaching/probability/useTelemetry';
 
 // Cores disponíveis para o disco
 const AVAILABLE_COLORS = ['Vermelho', 'Azul', 'Verde', 'Amarelo', 'Roxo', 'Rosa'];
@@ -3903,9 +3908,81 @@ export const useRouletteHooks = () => {
   // duplicada aqui geraria contagem dobrada de tentativas no OVA do
   // Disco quando executado dentro da sequência didática.
   const gameStateRef = useRef<{ stage: number; subStep: number }>({ stage: 1, subStep: 0 });
+
+  // ─────────────────────────────────────────────────────────────────
+  // RESPOSTA DO ALUNO — fallback automático
+  //
+  // O wrapper `createAlert` abaixo aceita um 5º param `userResponse`
+  // (texto livre que vai pra `resposta_usuario` da telemetria). Cerca
+  // de 70 dos ~220 createAlerts do hook já passam esse param
+  // EXPLICITAMENTE — e quando não, o observador da telemetria caía
+  // no título do alert ("Parabéns!", "Tente novamente"), perdendo a
+  // ação real do aluno.
+  //
+  // Pra fechar essa lacuna SEM precisar editar cada validator, a ref
+  // abaixo guarda um SNAPSHOT do estado atual de cada input/seleção
+  // relevante. Quando `userResponse` não vem, derivamos automaticamente
+  // a partir desse snapshot. Validators que QUEREM customizar (ex.: pra
+  // traduzir um value pra label legível) continuam passando o param e
+  // sobrescrevem o fallback.
+  // ─────────────────────────────────────────────────────────────────
+  const studentInputRef = useRef<{
+    sliderValue: number;
+    selectedOption: string;
+    // Pergunta ATIVA — usada pra traduzir `selectedOption` (value
+    // tipo "correct" / "nao" / "distractor_2") no LABEL legível
+    // que o aluno realmente leu na tela. Crítico: ler "correct" no
+    // JSON não diz nada do que o aluno marcou; ler o label do
+    // distrator escolhido diz tudo sobre o RACIOCÍNIO do erro.
+    currentQuestion: CurrentQuestion | null;
+    sampleSpaceText: string;
+    sampleSpaceCount: string;
+    predictionText: string;
+    selectedCharacteristics: number[];
+  }>({
+    sliderValue: 1,
+    selectedOption: '',
+    currentQuestion: null,
+    sampleSpaceText: '',
+    sampleSpaceCount: '',
+    predictionText: '',
+    selectedCharacteristics: [],
+  });
+
+  /**
+   * Traduz o `value` interno de uma opção (radio/dropdown) no `label`
+   * que o aluno leu na tela. Usado tanto pelo wrapper do `createAlert`
+   * quanto pelos efeitos de telemetria do RouletteGame (via export).
+   * Falha pra trás retornando o próprio value se a pergunta não tiver
+   * a opção correspondente.
+   */
+  const labelOfOption = useCallback((value: string, question: CurrentQuestion | null): string => {
+    if (!value) return value;
+    const opt = question?.options?.find(o => o.value === value);
+    return opt?.label ?? value;
+  }, []);
+
   const createAlert = useCallback((title: string, message: string, type: AlertType, duration?: number, userResponse?: string) => {
-    _createAlert(title, message, type, duration, userResponse);
-  }, [_createAlert]);
+    let resolved = userResponse;
+    if (resolved === undefined) {
+      const s = studentInputRef.current;
+      const parts: string[] = [];
+      if (s.selectedOption) {
+        // SEMPRE traduz pra label legível (não o value interno).
+        const label = labelOfOption(s.selectedOption, s.currentQuestion);
+        parts.push(`opção marcada: "${label}"`);
+      }
+      if (s.sampleSpaceText.trim()) parts.push(`espaço amostral digitado: "${s.sampleSpaceText.trim()}"`);
+      if (s.sampleSpaceCount.trim()) parts.push(`quantidade digitada: "${s.sampleSpaceCount.trim()}"`);
+      if (s.predictionText.trim()) parts.push(`previsão digitada: "${s.predictionText.trim()}"`);
+      if (s.selectedCharacteristics.length > 0) parts.push(`características marcadas: [${s.selectedCharacteristics.map(i => i + 1).join(', ')}]`);
+      // Slider só entra como fallback quando nada mais foi setado —
+      // senão polui em cenas onde o slider é só decoração de tela anterior.
+      if (parts.length === 0 && s.sliderValue !== 1) parts.push(`slider em ${s.sliderValue}`);
+      if (parts.length > 0) resolved = parts.join(' | ');
+    }
+    _createAlert(title, message, type, duration, resolved);
+  }, [_createAlert, labelOfOption]);
 
   // Refs
   const restartChallenge1Ref = useRef<() => void>(() => {});
@@ -3922,6 +3999,20 @@ export const useRouletteHooks = () => {
   // Melhoria 12 — Log de desempenho: registrar transições de subStep
   const prevSubStepRef = useRef<number>(-1);
   const prevStageRef = useRef<number>(-1);
+  // Snapshot do estado do aluno pra fallback do `createAlert`. Atualizado
+  // a cada render — ver bloco de RESPOSTA DO ALUNO acima.
+  useEffect(() => {
+    studentInputRef.current = {
+      sliderValue,
+      selectedOption,
+      currentQuestion,
+      sampleSpaceText: sampleSpaceInput?.value ?? '',
+      sampleSpaceCount: sampleSpaceCountInput?.value ?? '',
+      predictionText: predictionInput?.value ?? '',
+      selectedCharacteristics,
+    };
+  });
+
   useEffect(() => {
     gameStateRef.current = { stage: gameState.stage, subStep: gameState.subStep };
     if (prevSubStepRef.current !== gameState.subStep || prevStageRef.current !== gameState.stage) {
@@ -7426,6 +7517,16 @@ export const useRouletteHooks = () => {
     playSound("/sounds/click.mp3");
     logBet(gameState.stage, gameState.subStep, clickedColor);
 
+    // Telemetria — investigação inicial (Etapa 2 0.15): cada clique numa
+    // cor antes do Sortear é uma escolha exploratória da aposta. Captura
+    // a troca quando o aluno muda de ideia.
+    const previousBet = experimentationState.wageredColor;
+    telemetryRecordInteracaoExercicio(
+      previousBet && previousBet !== clickedColor
+        ? `mudou aposta da investigação inicial: ${previousBet} → ${clickedColor}`
+        : `selecionou aposta da investigação inicial: ${clickedColor}`
+    );
+
     setExperimentationState(prev => ({
       ...prev,
       wageredColor: clickedColor
@@ -7436,7 +7537,7 @@ export const useRouletteHooks = () => {
     setInstructions(`<p class="ds-body"><strong>Investigação Inicial</strong></p>
       <p class="ds-body"><strong>Aposta registrada: ${clickedColor}</strong></p>
       <p class="ds-body">Agora clique em <strong>Sortear</strong> para girar o disco.</p>`);
-  }, [gameState.stage, gameState.subStep, gameState.isSpinning]);
+  }, [gameState.stage, gameState.subStep, gameState.isSpinning, experimentationState.wageredColor]);
 
   // Handler: giro do disco na investigação (Etapa 2, subStep 0.15)
   const spinRouletteS2 = useCallback(() => {
@@ -8283,6 +8384,15 @@ export const useRouletteHooks = () => {
     if (!clickedColor) return;
     // Bloqueia mesma cor do 1o giro
     if (s2SpinReflection.betConstraint === 'not_same' && clickedColor === s2SpinReflection.spin1Color) return;
+    // Telemetria — captura a 2ª aposta com contexto da restrição (regra
+    // "não pode ser igual à cor do 1º giro") pra que o histórico explique
+    // a escolha do aluno DENTRO da restrição.
+    const previousBet = s2SpinReflection.bet2Color;
+    telemetryRecordInteracaoExercicio(
+      previousBet && previousBet !== clickedColor
+        ? `mudou aposta do 2º giro: ${previousBet} → ${clickedColor} (restrição: não pode ser ${s2SpinReflection.spin1Color})`
+        : `selecionou aposta do 2º giro: ${clickedColor} (restrição: não pode ser ${s2SpinReflection.spin1Color})`
+    );
     setS2SpinReflection(prev => ({ ...prev, bet2Color: clickedColor, phase: 'spinning' }));
     setDisabledSpinButton(false);
   }, [gameState, s2SpinReflection]);
@@ -10202,7 +10312,15 @@ export const useRouletteHooks = () => {
     const predictionLabel = predictionColor === 'iguais'
       ? 'que todas as cores ocupam o mesmo espaço'
       : `na cor ${predictionColor}`;
-    createAlert("Previsão registrada!", `Você previu ${predictionLabel}. Agora faça sua aposta clicando em um setor do disco.`, "info", 4000);
+    // Telemetria — a previsão visual É a resposta do aluno (pré-cálculo).
+    telemetryRecordRegistro(`previsão visual: ${predictionColor}`);
+    createAlert(
+      "Previsão registrada!",
+      `Você previu ${predictionLabel}. Agora faça sua aposta clicando em um setor do disco.`,
+      "info",
+      4000,
+      `previsão: ${predictionColor}`,
+    );
     setS3State(prev => ({ ...prev, predictionColor }));
     setGameState(prev => ({ ...prev, subStep: 1 }));
     setInstructions(`<p class="ds-body"><strong>Etapa 3 — Espaços Amostrais e Vieses Cognitivos</strong></p>
@@ -10219,6 +10337,16 @@ export const useRouletteHooks = () => {
 
     logBet(gameState.stage, gameState.subStep, sector.colorName);
 
+    // Telemetria — captura a EXPLORAÇÃO antes do Confirmar. Se o aluno
+    // troca de aposta várias vezes, cada clique vira uma entrada com a
+    // cor anterior e a nova, dando trilha completa da decisão.
+    const previousBet = s3State.betColor;
+    telemetryRecordInteracaoExercicio(
+      previousBet && previousBet !== sector.colorName
+        ? `mudou aposta: ${previousBet} → ${sector.colorName} (setor ${sectorIndex + 1})`
+        : `selecionou aposta: ${sector.colorName} (setor ${sectorIndex + 1})`
+    );
+
     setS3State(prev => ({
       ...prev,
       betColor: sector.colorName,
@@ -10229,7 +10357,7 @@ export const useRouletteHooks = () => {
       ...prev,
       selectedSectors: [sectorIndex]
     }));
-  }, [gameState.stage, gameState.subStep, gameState.sectors]);
+  }, [gameState.stage, gameState.subStep, gameState.sectors, s3State.betColor]);
 
   // Handler: confirmar aposta → avançar para questão diagnóstica
   const handleS3ConfirmBet = useCallback(() => {
@@ -10237,8 +10365,18 @@ export const useRouletteHooks = () => {
     s3BetLockedRef.current = true; // trava mudança de aposta a partir daqui
     goToTopOfChallenge();
 
+    // Telemetria — registra a APOSTA como resposta validada do aluno.
+    // O 5º param do createAlert vai pro `resposta_usuario` do JSON.
+    telemetryRecordRegistro(`aposta confirmada: ${s3State.betColor} (setor ${s3State.betSector + 1})`);
+
     playSound("/sounds/correct.mp3");
-    createAlert("Aposta registrada!", `Você apostou na cor ${s3State.betColor}. Agora justifique sua escolha.`, "success", 3000);
+    createAlert(
+      "Aposta registrada!",
+      `Você apostou na cor ${s3State.betColor}. Agora justifique sua escolha.`,
+      "success",
+      3000,
+      `aposta: ${s3State.betColor}`,
+    );
     setGameState(prev => ({
       ...prev,
       subStep: 1.5,
@@ -13393,6 +13531,8 @@ export const useRouletteHooks = () => {
     selectedOption,
     setSelectedOption,
     currentQuestion,
+    // Helper de telemetria — traduz value de option no label legível.
+    labelOfOption,
 
     // Inputs
     sampleSpaceInput,

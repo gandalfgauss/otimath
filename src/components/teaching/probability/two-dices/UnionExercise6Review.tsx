@@ -52,7 +52,7 @@ import { logStudyMenuOpened } from '@/hooks/teaching/probability/two-dices/useTw
 import { BookOpen, Check } from 'lucide-react';
 import { SequenceStatsCard } from '@/components/teaching/probability/SequenceStatsCard';
 import { freezeOva, getSequenceStats, unfreezeOva, useSequenceTick } from '@/hooks/teaching/probability/useSequenceSession';
-import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
 
 type Step = 'intro' | 'round1' | 'transition' | 'round2' | 'finalSynthesis';
 
@@ -114,6 +114,14 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       'Aluno joga 2 rodadas (uma União, uma Interseção) sorteadas entre pares curados, calculando n(D)/n(S).',
     );
     const [step, setStep] = useState<Step>(initialStep);
+    // Telemetria — leitura do enunciado do Ex.6 (revisão).
+    const confirmReadIntro = useReadingTelemetry(
+      step === 'intro',
+      'twoDices-cena7-unionExercise6-intro',
+      'Leitura — Enunciado do Exercício 6 (revisão união + interseção)',
+      'Painel inicial — descrição das 2 rodadas e botão para abrir o menu de ajuda/revisão.',
+      'confirmou leitura do enunciado e clicou em "Começar revisão"',
+    );
     const [session] = useState<readonly [Ex6Round, Ex6Round]>(() => buildEx6Session());
 
     const [studyMenuOpen, setStudyMenuOpen] = useState(false);
@@ -329,7 +337,7 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
               maxWidthParagraph="max-w-[700px]"
               centralize={true}
             />
-            <Button style="primary" size="medium" onClick={() => { setStep('round1'); scrollDiceToTop(); }}>
+            <Button style="primary" size="medium" onClick={() => { confirmReadIntro(); setStep('round1'); scrollDiceToTop(); }}>
               Começar revisão
             </Button>
           </div>

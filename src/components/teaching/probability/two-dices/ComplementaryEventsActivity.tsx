@@ -51,13 +51,36 @@ export const ComplementaryEventsActivity = forwardRef<
   ComplementaryEventsActivityHandle,
   ComplementaryEventsActivityProps
 >(function ComplementaryEventsActivity({ onContinue, onPhaseChange }, ref) {
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const h = useComplementaryEventsHooks({ onContinue });
+
+  // Contexto dinâmico do aluno — sub-fase + escolhas registradas, pra
+  // que o JSON da seção mostre QUE ESTRATÉGIA ele apostou primeiro,
+  // que decisão tomou no confronto, frações que digitou, etc.
+  const contextParts: string[] = [];
+  if (h.subPhase) contextParts.push(`sub-fase: ${h.subPhase}`);
+  if (h.strategyChoice) contextParts.push(`estratégia inicial: "${h.strategyChoice}"`);
+  if (h.reviewChoice) contextParts.push(`decisão pós-confronto: ${h.reviewChoice === 'keep' ? 'manter' : 'mudar'}`);
+  // Marcações resumidas por evento.
+  const cellSummary = Object.entries(h.eventsCheckboxes ?? {})
+    .map(([name, grid]) => {
+      let n = 0; for (const row of grid) for (const cell of row) if (cell?.checked) n++;
+      return n > 0 ? `${name}=${n}` : '';
+    }).filter(Boolean).join(' ');
+  if (cellSummary) contextParts.push(`marcações: ${cellSummary}`);
+  // Fração principal digitada.
+  const pp = h.probabilitiesTextInputs;
+  if (pp?.numerator?.value || pp?.denominator?.value) {
+    contextParts.push(`P(${pp.eventName ?? '?'})=${pp.numerator?.value || '_'}/${pp.denominator?.value || '_'}`);
+  }
   useTelemetryExercise(
     'twoDices-cena7-complementaryEvents',
     'Eventos complementares — descoberta e formalização',
-    'Aluno descobre P(A) + P(Ā) = 1 explorando casos na tabela 6×6 e formaliza P(Ā) = 1 − P(A).',
+    [
+      'Aluno descobre P(A) + P(Ā) = 1 explorando casos na tabela 6×6 e formaliza P(Ā) = 1 − P(A).',
+      contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
+    ].filter(Boolean).join(' '),
   );
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const h = useComplementaryEventsHooks({ onContinue });
 
   // Computa o phaseId composto (inclui formStep durante a formalização) e
   // notifica o pai a cada mudança. Sem isso, o pai mantém scene7ExperimentPhase

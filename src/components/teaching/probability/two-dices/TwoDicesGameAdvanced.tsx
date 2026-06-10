@@ -50,11 +50,6 @@ interface TwoDicesGameAdvancedProps {
 export function TwoDicesGameAdvanced({
   onGameFinished,
 }: Readonly<TwoDicesGameAdvancedProps> = {}) {
-  useTelemetryExercise(
-    'twoDices-cena7-twoDicesGameAdvanced-ex8',
-    'Exercício 8 — Operações avançadas com eventos (livre)',
-    'Aluno encadeia união, interseção e complementar em desafios variados, com acesso a glossário.',
-  );
   const [studyMenuOpen, setStudyMenuOpen] = useState(false);
   const [lastErrorStep, setLastErrorStep] = useState<AdvancedStepKind | null>(null);
   const [pulseHelp, setPulseHelp] = useState(false);
@@ -85,6 +80,44 @@ export function TwoDicesGameAdvanced({
     onStepError: handleStepError,
     onGameFinished,
   });
+
+  // Telemetria — Ex8: operações avançadas com eventos. Descrição
+  // dinâmica refletindo o estado atual do aluno.
+  const activeEventDescriptions = (activeEvents ?? [])
+    .map((e, i) => `${e.name ?? `E${i + 1}`}: ${e.description}`)
+    .join(' | ');
+  const cellSummary = Object.entries(eventsCheckboxes ?? {})
+    .map(([eventName, grid]) => {
+      let count = 0;
+      for (const row of grid) for (const cell of row) if (cell?.checked) count++;
+      return count > 0 ? `${eventName}=${count}` : '';
+    })
+    .filter(Boolean)
+    .join(' ');
+  const fracSummary = (() => {
+    const p = probabilitiesTextInputs;
+    if (!p?.numerator?.value && !p?.denominator?.value) return '';
+    return `P(${p.eventName ?? '?'})=${p.numerator?.value || '_'}/${p.denominator?.value || '_'}`;
+  })();
+  const selectSummary = (() => {
+    const s = operationSelectInputs;
+    if (!s?.eventsA?.value && !s?.operations?.value && !s?.eventsB?.value) return '';
+    return `select(A=${s.eventsA?.value || '_'} op=${s.operations?.value || '_'} B=${s.eventsB?.value || '_'})`;
+  })();
+  const contextParts = [
+    activeEventDescriptions && `eventos: [${activeEventDescriptions}]`,
+    cellSummary && `marcações: ${cellSummary}`,
+    fracSummary,
+    selectSummary,
+  ].filter(Boolean);
+  useTelemetryExercise(
+    'twoDices-cena7-twoDicesGameAdvanced-ex8',
+    'Exercício 8 — Operações avançadas com eventos (livre)',
+    [
+      'Aluno encadeia união, interseção e complementar em desafios variados, com acesso a glossário.',
+      contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
+    ].filter(Boolean).join(' '),
+  );
 
   /* ──────────────────────────────────────────────────────────────
      PULSO DO BOTÃO AJUDA APÓS ERRO

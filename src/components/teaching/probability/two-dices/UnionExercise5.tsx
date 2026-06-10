@@ -37,7 +37,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
-import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
 import {
   selectExercise5Data, type Exercise5Data, reduceFraction, fractionsEquivalent,
 } from './shared/exercise5Data';
@@ -200,6 +200,14 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
       'Aluno calcula P(A∪B) ou P(A∩B) lendo uma tabela de contingência (eventos não-exclusivos OU exclusivos).',
     );
     const [step, setStep] = useState<Step>(initialStep ?? 'intro');
+    // Telemetria — leitura do enunciado do Ex.5.
+    const confirmReadIntro = useReadingTelemetry(
+      step === 'intro',
+      'twoDices-cena7-unionExercise5-intro',
+      'Leitura — Enunciado do Exercício 5 (torcedores no estádio, tabela de contingência)',
+      'Painel inicial — contexto da pesquisa + instrução pra calcular os 5 totais da tabela.',
+      'confirmou leitura do enunciado e clicou em "Começar"',
+    );
     const [round, setRound] = useState(0);
     const [data, setData] = useState<Exercise5Data>(() => selectExercise5Data(0));
 
@@ -454,7 +462,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
             data={data}
             isMandatory={isMandatory}
             roundLabel={round === 0 ? 'primeira rodada' : round === 1 ? 'segunda rodada' : `rodada ${round + 1}`}
-            onContinue={() => { setStep('fillTotals'); scrollDiceToTop(); }}
+            onContinue={() => { confirmReadIntro(); setStep('fillTotals'); scrollDiceToTop(); }}
           />
         )}
 

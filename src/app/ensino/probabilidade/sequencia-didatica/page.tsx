@@ -206,11 +206,6 @@ export default function DidacticSequencePage() {
 
   return (
     <main>
-      {/* Bloqueio global se internet cair — `OfflineOverlay` se auto-monta
-          em tela cheia (z-2000) e some quando reconecta. Crítico pra quando
-          começarmos a chamar APIs externas: o aluno não fica clicando em
-          vão num formulário que vai falhar. */}
-      <OfflineOverlay />
       {/* Overlay global de alerts da página da sequência. Renderizado no topo
           do <main> pra ficar visível em qualquer stage (intro, OVAs, complete). */}
       <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts} />
@@ -240,7 +235,12 @@ export default function DidacticSequencePage() {
           cada OVA. */}
       <SequenceProgressBar progress={globalProgress} currentStageIndex={stageIndex} />
 
-      <div ref={ovaContainerRef}>
+      {/* `relative` + `OfflineOverlay` aqui dentro: quando a internet cai,
+          o overlay cobre APENAS o miolo das cenas (este div), preservando
+          a barra de progresso acima e o que vier abaixo (PostSequenceForm,
+          OvaCredits, DevPanel). */}
+      <div ref={ovaContainerRef} className="relative">
+        <OfflineOverlay />
         {STAGES.map(s => (
           <div key={s} className={stage === s ? 'block' : 'hidden'}>
             {(stage === s || devMode) && renderStage(s)}

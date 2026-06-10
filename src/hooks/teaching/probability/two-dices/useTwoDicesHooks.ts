@@ -3,11 +3,13 @@
 import { CheckboxInterface } from '@/components/global/Checkbox';
 import { TextInputInterface } from '@/components/global/TextInput';
 import { SelectInputInterface } from '@/components/global/SelectInput';
-import { useState, useEffect} from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { AlertType } from '@/components/global/Alert';
 import { useAlerts } from '@/hooks/global/useAlerts';
 import { useModal } from '@/hooks/global/useModal';
 import { playSound } from '@/hooks/global/useSound';
 import { logAttempt, logMarkAllUsed } from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
+import { telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 
 export interface EventCheckboxes {
   [eventName: string]: CheckboxInterface[][];
@@ -253,11 +255,86 @@ export const useTwoDicesHooks = () => {
 
   const [game, setGame] = useState(() => getNewGame(events, operations));
 
-  const {alerts, createAlert, updateAlert, deleteAlerts} = useAlerts();
+  const {alerts, createAlert: _createAlert, updateAlert, deleteAlerts} = useAlerts();
   const {modal, updateModal} = useModal();
   const [disabledCheckButton, setDisabledCheckButton] = useState(false);
   const [disabledNextStepButton, setDisabledNextStepButton] = useState(true);
   const [disabledClearButton, setDisabledClearButton] = useState(false);
+
+  // ─────────────────────────────────────────────────────────────────
+  // TELEMETRIA — `createAlert` inteligente
+  //
+  // Mesmo padrão da Roleta: 7 createAlerts no hook, a maioria sem 5º
+  // param `userResponse`. Quando não vem, o wrapper deriva do estado
+  // atual do aluno (células marcadas, selects, frações digitadas).
+  // Ref sincronizada a cada render mantém o snapshot atualizado.
+  // ─────────────────────────────────────────────────────────────────
+  const studentInputRef = useRef<{
+    checkboxes: EventCheckboxes;
+    probInputs: ProbabilitiesTextInputs;
+    selectInputs: OperationSelectInputs;
+    activeEvents: Event[];
+    challenge: number;
+    step: number;
+  }>({
+    checkboxes: {},
+    probInputs: {} as ProbabilitiesTextInputs,
+    selectInputs: {} as OperationSelectInputs,
+    activeEvents: [],
+    challenge: 0,
+    step: 0,
+  });
+
+  /** Resume o estado de células marcadas — "evento X: 4 células (1,2;3,5;...)". */
+  const summarizeCheckboxes = (cbs: EventCheckboxes, events: Event[]): string[] => {
+    const parts: string[] = [];
+    for (const ev of events) {
+      const name = ev.name ?? '';
+      const grid = cbs[name];
+      if (!grid) continue;
+      const marked: string[] = [];
+      for (let r = 0; r < grid.length; r++) {
+        for (let c = 0; c < grid[r].length; c++) {
+          if (grid[r][c]?.checked) marked.push(`(${r + 1},${c + 1})`);
+        }
+      }
+      if (marked.length > 0) {
+        // Limita a 8 células listadas pra não explodir o JSON.
+        const shown = marked.length <= 8 ? marked.join(';') : `${marked.slice(0, 8).join(';')}...+${marked.length - 8}`;
+        parts.push(`evento ${name}: ${marked.length} célula(s) [${shown}]`);
+      }
+    }
+    return parts;
+  };
+
+  const createAlert = useCallback((title: string, message: string, type: AlertType, duration?: number, userResponse?: string) => {
+    let resolved = userResponse;
+    if (resolved === undefined) {
+      const s = studentInputRef.current;
+      const parts: string[] = [];
+      const checkboxParts = summarizeCheckboxes(s.checkboxes, s.activeEvents);
+      if (checkboxParts.length > 0) parts.push(checkboxParts.join(' | '));
+      // Frações (numerador/denominador) — evento principal + complementar.
+      const p = s.probInputs;
+      if (p?.numerator?.value || p?.denominator?.value) {
+        parts.push(`P(${p.eventName ?? '?'}) = ${p.numerator?.value || '_'} / ${p.denominator?.value || '_'}`);
+      }
+      if (p?.hasComplementary && (p?.complementaryNumerator?.value || p?.complementaryDenominator?.value)) {
+        parts.push(`P(complementar) = ${p.complementaryNumerator?.value || '_'} / ${p.complementaryDenominator?.value || '_'}`);
+      }
+      // Select inputs (eventoA / operação / eventoB).
+      const sel = s.selectInputs;
+      const eA = sel?.eventsA?.value;
+      const op = sel?.operations?.value;
+      const eB = sel?.eventsB?.value;
+      if (eA || op || eB) {
+        parts.push(`select: A="${eA || '_'}" op="${op || '_'}" B="${eB || '_'}"`);
+      }
+      parts.push(`desafio ${s.challenge + 1}, passo ${s.step + 1}`);
+      if (parts.length > 0) resolved = parts.join(' | ');
+    }
+    _createAlert(title, message, type, duration, resolved);
+  }, [_createAlert]);
 
   useEffect(() => {
     startGame();
@@ -265,6 +342,84 @@ export const useTwoDicesHooks = () => {
     // mas só queremos disparar uma vez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Snapshot do input atual do aluno — alimenta o wrapper do createAlert.
+  // Roda em todo render (sem deps).
+  useEffect(() => {
+    studentInputRef.current = {
+      checkboxes: eventsCheckboxes,
+      probInputs: probabilitiesTextInputs,
+      selectInputs: operationSelectInputs,
+      activeEvents,
+      challenge,
+      step,
+    };
+  });
+
+  // Change-detection dos SELECTS (evento A / operação / evento B) — cada
+  // mudança real vira `interacao_exercicio`. Sem isso, a sequência de
+  // experimentação do aluno fica invisível na coleta. Sentinel `null`
+  // pula o mount inicial; reset (== reabrir desafio) também não loga.
+  const prevSelectsRef = useRef<{ a: string; o: string; b: string } | null>(null);
+  useEffect(() => {
+    const cur = {
+      a: operationSelectInputs?.eventsA?.value ?? '',
+      o: operationSelectInputs?.operations?.value ?? '',
+      b: operationSelectInputs?.eventsB?.value ?? '',
+    };
+    const prev = prevSelectsRef.current;
+    // Inicializa snapshot SEM logar — primeiro render do desafio.
+    if (prev === null) {
+      prevSelectsRef.current = cur;
+      return;
+    }
+    // Sem mudança real (mesmo objeto referencial, mas valores idênticos).
+    if (prev.a === cur.a && prev.o === cur.o && prev.b === cur.b) return;
+    prevSelectsRef.current = cur;
+    // Identifica QUAL select mudou pra mensagem ficar específica.
+    const changed: string[] = [];
+    if (prev.a !== cur.a) changed.push(`Evento A: "${prev.a || '_'}" → "${cur.a || '_'}"`);
+    if (prev.o !== cur.o) changed.push(`Operação: "${prev.o || '_'}" → "${cur.o || '_'}"`);
+    if (prev.b !== cur.b) changed.push(`Evento B: "${prev.b || '_'}" → "${cur.b || '_'}"`);
+    if (changed.length === 0) return;
+    telemetryRecordInteracaoExercicio(
+      `select ${changed.join(' ; ')} (desafio ${challenge + 1}, passo ${step + 1})`
+    );
+  }, [operationSelectInputs, challenge, step]);
+
+  // Change-detection das FRAÇÕES (numerador/denominador). Debounce 600ms
+  // pra capturar o valor "final" depois que o aluno termina de digitar
+  // (cada keystroke faria spam). Não loga vazio inicial.
+  const prevFractionsRef = useRef<{ n: string; d: string; cn: string; cd: string } | null>(null);
+  useEffect(() => {
+    const cur = {
+      n: probabilitiesTextInputs?.numerator?.value ?? '',
+      d: probabilitiesTextInputs?.denominator?.value ?? '',
+      cn: probabilitiesTextInputs?.complementaryNumerator?.value ?? '',
+      cd: probabilitiesTextInputs?.complementaryDenominator?.value ?? '',
+    };
+    const prev = prevFractionsRef.current;
+    if (prev === null) {
+      prevFractionsRef.current = cur;
+      return;
+    }
+    if (prev.n === cur.n && prev.d === cur.d && prev.cn === cur.cn && prev.cd === cur.cd) return;
+    prevFractionsRef.current = cur;
+    const handle = window.setTimeout(() => {
+      const parts: string[] = [];
+      if (prev.n !== cur.n || prev.d !== cur.d) {
+        parts.push(`P principal: ${cur.n || '_'} / ${cur.d || '_'}`);
+      }
+      if (prev.cn !== cur.cn || prev.cd !== cur.cd) {
+        parts.push(`P complementar: ${cur.cn || '_'} / ${cur.cd || '_'}`);
+      }
+      if (parts.length === 0) return;
+      telemetryRecordInteracaoExercicio(
+        `digitou fração — ${parts.join(' ; ')} (desafio ${challenge + 1}, passo ${step + 1})`
+      );
+    }, 600);
+    return () => window.clearTimeout(handle);
+  }, [probabilitiesTextInputs, challenge, step]);
 
   const disabledCheckboxesState = (eventsCheckboxesActual=eventsCheckboxes) => {
     const newState: EventCheckboxes = {...eventsCheckboxesActual};
@@ -321,6 +476,13 @@ export const useTwoDicesHooks = () => {
   };
 
   const updateEventsCheckboxes = (eventName: string, diceGreen: number, diceBlue: number, checked: boolean, disabled: boolean) => {
+    // Telemetria — clique do aluno numa célula. Esta função SÓ é
+    // chamada por click do usuário (resets sistêmicos usam outros
+    // setters via `setEventsCheckboxes` direto). Logamos APÓS o
+    // toggle, refletindo o novo estado.
+    telemetryRecordInteracaoExercicio(
+      `${checked ? 'marcou' : 'desmarcou'} célula (verde=${diceGreen}, azul=${diceBlue}) do evento "${eventName}"`
+    );
     setEventsCheckboxes(prev => {
       const updated = { ...prev };
       updated[eventName][diceGreen-1][diceBlue-1] = {

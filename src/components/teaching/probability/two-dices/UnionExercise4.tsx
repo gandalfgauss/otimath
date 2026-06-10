@@ -31,7 +31,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
-import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
 import { selectExercise4Data, type Exercise4Data } from './shared/exercise4Data';
 import { EVENT_COLORS, isEquivalentFraction } from './shared/eventPair';
 import { FractionInput, FracH, formatDecimal, formatPercent } from './shared/FractionInput';
@@ -296,6 +296,14 @@ const CARD_OPTIONS = [
 export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Props>(
   function UnionExercise4({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
     const [step, setStep] = useState<Step>(initialStep ?? 'intro');
+    // Telemetria — leitura do enunciado do Ex.4.
+    const confirmReadIntro = useReadingTelemetry(
+      step === 'intro',
+      'twoDices-cena7-unionExercise4-intro',
+      'Leitura — Enunciado do Exercício 4 (torcedores no bar, P(A∩B))',
+      'Painel inicial — contexto do problema e três estratégias de resolução disponíveis.',
+      'confirmou leitura do enunciado e clicou em "Começar"',
+    );
     // Telemetria — descrição mostra a ETAPA atual do exercício pra
     // facilitar análise posterior. Cada step do fluxo gera um exercício
     // com a descrição correspondente.
@@ -1099,7 +1107,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               <Button
                 style="primary"
                 size="medium"
-                onClick={() => { playSound('/sounds/nextChallenge.mp3'); setStep('menu'); }}
+                onClick={() => { confirmReadIntro(); playSound('/sounds/nextChallenge.mp3'); setStep('menu'); }}
               >
                 Começar
               </Button>

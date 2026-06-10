@@ -7,25 +7,35 @@ import { pauseSession, resumeSession } from '@/hooks/teaching/probability/useSeq
 import { telemetryPause, telemetryResume } from '@/hooks/teaching/probability/useTelemetry';
 
 /* ═══════════════════════════════════════════════════════════════════
-   OfflineOverlay — Bloqueio de tela quando offline
+   OfflineOverlay — Bloqueio LOCAL do miolo da sequência quando offline
 
-   Renderiza UM overlay full-screen que cobre toda a UI da sequência
-   didática quando o navegador detecta `offline`. Some sozinho assim
-   que a conexão volta (evento `online`).
+   Renderiza um overlay que cobre APENAS o container das cenas dos OVAs
+   (o "miolo" da sequência) quando o navegador detecta `offline`. A
+   SequenceProgressBar, o HeroBanner, a PostSequenceForm, a OvaCredits e
+   o DevPanel ficam INTACTOS — o aluno pode rolar a página e ver o que
+   estava ao redor, mas não consegue interagir com as cenas em curso.
 
    USO
-     Montar uma única vez no nível mais alto possível (page raiz da
-     sequência). Não precisa de props — gerencia tudo via `useOnlineStatus`.
+     Montar dentro de um elemento com `position: relative` (esse será o
+     contêiner que vai ficar coberto). Tipicamente é o `<div>` que
+     embrulha os STAGES no page.tsx da sequência.
+
+       <div className="relative" ref={ovaContainerRef}>
+         <OfflineOverlay />
+         {STAGES.map(...)}
+       </div>
 
    Z-INDEX
-     `z-[2000]` — acima de tudo (Header z-99, Alerts z-97, Calculadora
-     z-90). Garante que o aluno não consiga interagir com nada por trás.
+     `z-50` — local dentro do contêiner. Suficiente pra cobrir todas as
+     cenas internas sem competir com outros elementos da página fora do
+     contêiner. Não precisa do z-[2000] global de antes, porque o
+     overlay já está confinado pelo overflow/posição do pai.
 
    ACESSIBILIDADE
      • `role="dialog" aria-modal="true"` — anuncia como modal a leitores
        de tela.
      • Foco não é trapado (não há controles dentro): o aluno só pode
-       esperar a conexão voltar.
+       esperar a conexão voltar OU navegar pelo resto da página.
    ═══════════════════════════════════════════════════════════════════ */
 
 export function OfflineOverlay() {
@@ -55,7 +65,7 @@ export function OfflineOverlay() {
       aria-modal="true"
       aria-labelledby="offline-overlay-title"
       aria-describedby="offline-overlay-description"
-      className="fixed inset-0 z-[2000] flex items-center justify-center p-xxxs"
+      className="absolute inset-0 z-50 flex items-center justify-center p-xxxs"
       style={{
         background: 'rgba(15, 23, 42, 0.72)',
         backdropFilter: 'blur(4px)',

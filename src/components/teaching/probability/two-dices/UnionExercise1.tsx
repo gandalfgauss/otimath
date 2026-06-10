@@ -32,7 +32,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
-import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
 import {
   EventPair,
   selectPairForRound, verifyEventTableConsistency,
@@ -322,6 +322,17 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     );
     // ── Estado de rodada e par ───────────────────────────────────
     const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
+
+    // Telemetria da LEITURA do enunciado (step 'intro') — quando o aluno
+    // sai do 'intro' pra 'markA' clicando "Começar", isso é uma leitura
+    // confirmada com duração medida do que ele gastou lendo o enunciado.
+    const confirmReadIntro = useReadingTelemetry(
+      step === 'intro',
+      'twoDices-cena7-unionExercise1-intro',
+      'Leitura — Enunciado do Exercício 1 (união geral)',
+      'Painel inicial com o enunciado das 4 perguntas encadeadas + sugestão de uso da memória externa.',
+      'confirmou leitura do enunciado e clicou em "Começar"',
+    );
     const [round, setRound] = useState(0);
     const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());
     const [currentPair, setCurrentPair] = useState<EventPair>(
@@ -987,6 +998,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
                 style="primary"
                 size="medium"
                 onClick={() => {
+                  confirmReadIntro();
                   playSound('/sounds/nextChallenge.mp3');
                   setStep('markA');
                 }}

@@ -16,7 +16,7 @@ import { useRouletteHooks } from "@/hooks/teaching/probability/roulette/useRoule
 import { playSound } from "@/hooks/global/useSound";
 import { SequenceStatsCard } from "@/components/teaching/probability/SequenceStatsCard";
 import { freezeOva, getSequenceStats, logOvaInteraction, setActiveOva, unfreezeOva, useSequenceTick } from "@/hooks/teaching/probability/useSequenceSession";
-import { useTelemetryExercise } from "@/hooks/teaching/probability/useTelemetry";
+import { useTelemetryExercise, telemetryRecordInteracaoExercicio, useReadingTelemetry } from "@/hooks/teaching/probability/useTelemetry";
 import { StudyMenu } from "@/components/teaching/probability/two-dices/shared/StudyMenu";
 import { DISCO_GLOSSARY, DISCO_GROUPS } from "@/components/teaching/probability/two-dices/shared/studyMenuContent";
 import { BookOpen } from "lucide-react";
@@ -73,6 +73,7 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     selectedOption,
     setSelectedOption,
     currentQuestion,
+    labelOfOption,
 
     // Inputs
     sampleSpaceInput,
@@ -432,6 +433,83 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     setActiveOva('roulette');
   }, [isActiveStage]);
 
+  // ─────────────────────────────────────────────────────────────────
+  // TELEMETRIA — captura interações EXPLORATÓRIAS (mexer no slider,
+  // trocar opção em radio etc.). Cada interação real do aluno vira uma
+  // entrada `interacao_exercicio` no histórico.
+  //
+  // ARMADILHA QUE EVITAMOS: `useEffect` dispara em CADA mudança nas
+  // deps. Se incluirmos `gameState.stage`/`subStep` nas deps, qualquer
+  // transição de sub-step dispara um evento falso (mesmo o aluno só
+  // tendo clicado "Li." numa tela de leitura, sem tocar no input).
+  //
+  // FIX: change-detection EXPLÍCITA via ref. Só dispara quando o valor
+  // do INPUT (sliderValue/selectedOption) realmente muda — não quando
+  // sub-step ou stage mudam ao redor. Sentinel `null` no ref pra pular
+  // o mount inicial (sliderValue=1 default, selectedOption='' default
+  // não são interações do aluno).
+  //
+  // Quando o OVA desativa (isActiveStage=false), o ref é resetado pra
+  // null pra que reativações + resets de sistema (startStage1 zera o
+  // slider) não virem "slider: 5 → 1" espúrio.
+  // ─────────────────────────────────────────────────────────────────
+
+  // SLIDER — change-detection + debounce de 500ms (drag faz onChange
+  // disparar a cada tick; debounce captura o valor "estável" depois que
+  // o aluno solta).
+  const prevSliderRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!isActiveStage) {
+      prevSliderRef.current = null;
+      return;
+    }
+    const prev = prevSliderRef.current;
+    if (prev === sliderValue) return;
+    prevSliderRef.current = sliderValue;
+    if (prev === null) return; // skip initial mount/reativação
+    // Captura stage/subStep AQUI (não nas deps) pra timer ter referência
+    // correta mesmo se o aluno apertou Conferir entre a alteração e o
+    // disparo do timer.
+    const stageNow = gameState.stage;
+    const subStepNow = gameState.subStep;
+    const handle = window.setTimeout(() => {
+      telemetryRecordInteracaoExercicio(
+        `slider: ${prev} → ${sliderValue} (etapa ${stageNow}, subpasso ${subStepNow})`
+      );
+    }, 500);
+    return () => window.clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sliderValue, isActiveStage]);
+
+  // SELECTED OPTION — change-detection sem debounce (clique em radio é
+  // intencional). Ignora resets pra '' (mudança de tela do sistema).
+  const prevSelectedOptionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isActiveStage) {
+      prevSelectedOptionRef.current = null;
+      return;
+    }
+    const prev = prevSelectedOptionRef.current;
+    if (prev === selectedOption) return;
+    prevSelectedOptionRef.current = selectedOption;
+    if (prev === null) return; // skip initial mount/reativação
+    if (!selectedOption) return; // reset pra '' não é interação
+    const stageNow = gameState.stage;
+    const subStepNow = gameState.subStep;
+    // Traduz value → label legível. `currentQuestion` reflete a pergunta
+    // ATUAL — se o aluno mudou de opção antes de trocar de pergunta, é a
+    // mesma pergunta pra ambos os values. Em casos de race onde a pergunta
+    // já mudou, labelOfOption cai pro próprio value (não quebra).
+    const currentLabel = labelOfOption(selectedOption, currentQuestion);
+    const prevLabel = prev ? labelOfOption(prev, currentQuestion) : prev;
+    telemetryRecordInteracaoExercicio(
+      prevLabel
+        ? `mudou opção: "${prevLabel}" → "${currentLabel}" (etapa ${stageNow}, subpasso ${subStepNow})`
+        : `selecionou opção: "${currentLabel}" (etapa ${stageNow}, subpasso ${subStepNow})`
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOption, isActiveStage]);
+
   // Congela o cronômetro do OVA quando o aluno chega na tela
   // "Atividade Concluída" (Stage 3 SubStep 10). Descongela se ele
   // voltar para qualquer cena anterior via DEV.
@@ -455,16 +533,86 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
   // Descrição dinâmica — extrai texto livre do `instructions` (HTML) atual
   // pra que o JSON capture O QUE O ALUNO ESTÁ FAZENDO no momento da
   // validação, não a descrição genérica da etapa. Fallback quando vazio.
-  const liveDescricao = (instructions || '')
+  const baseInstructions = (instructions || '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 280) // limita pra ID compacto no console
-    || stageInfo.fallback;
+    .slice(0, 240); // deixa margem pros sufixos de contexto abaixo
+  // Sufixos de CONTEXTO DO ALUNO — anexados ao final pra que, lendo só
+  // a `descricao` no JSON, dê pra entender O QUE o aluno apostou /
+  // previu na hora do evento. Sem isso, "Qual a probabilidade da cor
+  // apostada?" fica sem âncora — não dá pra saber qual foi a aposta.
+  const contextTags: string[] = [];
+  // Etapa 1 sub 0 e Etapa 2 sub 0/1: aluno mexendo no slider pra contar
+  // setores do disco. O valor atual é importante pra entender se ele tá
+  // perto/longe da resposta certa.
+  if (gameState.stage === 1 && gameState.subStep === 0) {
+    contextTags.push(`slider em ${sliderValue}`);
+  }
+  if (gameState.stage === 2 && (gameState.subStep === 0 || gameState.subStep === 1)) {
+    contextTags.push(`slider em ${sliderValue}`);
+  }
+  // Etapa 1 (1.1 / 1.17) e Etapa 2 (0.15-0.17): "investigação inicial"
+  // com aposta exploratória via `experimentationState.wageredColor`.
+  if ((gameState.stage === 1 || gameState.stage === 2) && experimentationState.wageredColor) {
+    contextTags.push(`apostou na investigação: ${experimentationState.wageredColor}`);
+  }
+  // Opção atualmente marcada (radio/dropdown da pergunta corrente). Útil
+  // em quase TODOS os subSteps com múltipla escolha. Traduz pro label
+  // legível em vez do value interno.
+  if (selectedOption) {
+    contextTags.push(`opção marcada: "${labelOfOption(selectedOption, currentQuestion)}"`);
+  }
+  if (gameState.stage === 2 && s2SpinReflection.bet1Color) {
+    contextTags.push(`apostou no 1º giro: ${s2SpinReflection.bet1Color}`);
+  }
+  if (gameState.stage === 2 && s2SpinReflection.bet2Color) {
+    contextTags.push(`apostou no 2º giro: ${s2SpinReflection.bet2Color}`);
+  }
+  if (gameState.stage === 2 && s2SpinReflection.spin1Color) {
+    contextTags.push(`saiu no 1º giro: ${s2SpinReflection.spin1Color}`);
+  }
+  if (gameState.stage === 2 && s2SpinReflection.spin2Color) {
+    contextTags.push(`saiu no 2º giro: ${s2SpinReflection.spin2Color}`);
+  }
+  if (gameState.stage === 3 && s3State.predictionColor) {
+    contextTags.push(`previu: ${s3State.predictionColor}`);
+  }
+  if (gameState.stage === 3 && s3State.betColor) {
+    contextTags.push(`apostou na cor ${s3State.betColor} (setor ${s3State.betSector + 1})`);
+  }
+  if (gameState.stage === 3 && s3State.newBetColor) {
+    contextTags.push(`mudou aposta para: ${s3State.newBetColor}`);
+  }
+  const contextSuffix = contextTags.length > 0
+    ? ` | [aluno ${contextTags.join('; aluno ')}]`
+    : '';
+  const liveDescricao = (baseInstructions + contextSuffix) || stageInfo.fallback;
   useTelemetryExercise(
     `roulette-stage-${gameState.stage}`,
     stageInfo.title,
     liveDescricao,
+  );
+
+  // ─── Telemetria de LEITURA do balão (InfoBox) ────────────────────
+  // Cada balão conceitual com botão "Li." vira um EXERCÍCIO ATÔMICO
+  // de tipo `interacao_usuario`. O `id` inclui stage+subStep+título pra
+  // diferenciar balões com mesmo título reutilizado (ex.: "Informação")
+  // em contextos diferentes. Quando `showInfoBox` vira true, a leitura
+  // começa; quando o aluno clica "Li.", o `confirmReadingBalao()`
+  // materializa o exercício com a duração da leitura.
+  const balaoTitulo = infoBoxContent?.title ?? '(sem título)';
+  const balaoMensagem = (infoBoxContent?.message ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 280);
+  const confirmReadingBalao = useReadingTelemetry(
+    showInfoBox && !!infoBoxContent,
+    `roulette-s${gameState.stage}-sub${gameState.subStep}-balao-${balaoTitulo}`,
+    `Leitura — ${balaoTitulo} (Etapa ${gameState.stage})`,
+    balaoMensagem || `Balão conceitual exibido na Etapa ${gameState.stage}, subpasso ${gameState.subStep}.`,
+    `confirmou leitura: "${balaoTitulo}"`,
   );
 
   return (
@@ -978,7 +1126,7 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                 (gameState.subStep >= 6.85 && gameState.subStep <= 6.93) ? false :
                 true
               }
-              onConfirm={handleInfoBoxConfirm}
+              onConfirm={() => { confirmReadingBalao(); handleInfoBoxConfirm(); }}
               confirmButtonText={
                 gameState.subStep === 6.70 && compPhase === 'intro' ? 'Agora é sua vez!' :
                 gameState.subStep === 6.70 && compPhase === 'show_both' && compExamplesViewed >= 3 ? 'PRÓXIMO!' :

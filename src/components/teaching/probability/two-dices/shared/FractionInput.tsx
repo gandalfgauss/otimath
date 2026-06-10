@@ -10,7 +10,8 @@
    qualquer fração matematicamente equivalente (R14).
    ═══════════════════════════════════════════════════════════════ */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 
 export interface FractionInputProps {
   num: string;
@@ -20,10 +21,37 @@ export interface FractionInputProps {
   error: boolean;
   onEnter?: () => void;
   disabled?: boolean;
+  /** Rótulo curto do que a fração representa (ex.: "P(A)", "P(A∩B)").
+   *  Usado na telemetria pra contextualizar a entrada — sem isso,
+   *  o JSON só mostraria "digitou X/Y" sem âncora. Opcional pra não
+   *  quebrar callsites antigos; quando ausente, cai pra "fração". */
+  telemetryLabel?: string;
 }
 
-export function FractionInput({ num, den, setNum, setDen, error, onEnter, disabled }: FractionInputProps) {
+export function FractionInput({ num, den, setNum, setDen, error, onEnter, disabled, telemetryLabel }: FractionInputProps) {
   const border = error ? 'var(--color-feedback-error-dark)' : 'var(--color-neutral-lighter)';
+
+  // Telemetria — captura num/den DEPOIS de 600ms estável, evitando spam
+  // de eventos por keystroke. Skip initial mount (sentinel null).
+  const prevRef = useRef<{ n: string; d: string } | null>(null);
+  useEffect(() => {
+    const cur = { n: num, d: den };
+    const prev = prevRef.current;
+    if (prev === null) { prevRef.current = cur; return; }
+    if (prev.n === cur.n && prev.d === cur.d) return;
+    prevRef.current = cur;
+    const handle = window.setTimeout(() => {
+      const label = telemetryLabel || 'fração';
+      const changed: string[] = [];
+      if (prev.n !== cur.n) changed.push(`numerador "${prev.n || '_'}" → "${cur.n || '_'}"`);
+      if (prev.d !== cur.d) changed.push(`denominador "${prev.d || '_'}" → "${cur.d || '_'}"`);
+      telemetryRecordInteracaoExercicio(
+        `${label}: ${changed.join(', ')} (estado atual: ${cur.n || '_'}/${cur.d || '_'})`
+      );
+    }, 600);
+    return () => window.clearTimeout(handle);
+  }, [num, den, telemetryLabel]);
+
   return (
     <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', margin: '0 6px' }}>
       <input

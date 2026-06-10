@@ -19,16 +19,6 @@ interface TwoDicesGameProps {
 }
 
 export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGameProps> = {}) {
-  // Telemetria — Ex7: jogo livre com a tabela 6×6 (eventos pré-definidos
-  // ou modo "marcar tudo"). `enableMarkAll=true` em Ex7 (exercícios de
-  // fixação); `false` na seção introdutória da Cena 7.
-  useTelemetryExercise(
-    enableMarkAll ? 'twoDices-cena7-twoDicesGame-ex7' : 'twoDices-cena7-twoDicesGame-intro',
-    enableMarkAll
-      ? 'Exercício 7 — Marcação livre da tabela 6×6 (fixação)'
-      : 'Apresentação da tabela 6×6 — primeira marcação',
-    'Aluno marca células favoráveis a um evento sorteado e identifica P(A) via Laplace.',
-  );
   const {
     instructions,
     resetGameOnClick,
@@ -41,6 +31,51 @@ export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGamePro
     modal, updateModal,
     markAllOnClick,
   } = useTwoDicesHooks();
+
+  // Telemetria — Ex7: jogo livre com a tabela 6×6 (eventos pré-definidos
+  // ou modo "marcar tudo"). Enriquece a `descricao` com CONTEXTO do
+  // aluno (eventos ativos, células marcadas, frações digitadas) pra que
+  // o JSON dê pra reconstituir o exercício sem precisar abrir a tela.
+  const activeEventDescriptions = (activeEvents ?? [])
+    .map((e, i) => `${e.name ?? `E${i + 1}`}: ${e.description}`)
+    .join(' | ');
+  const cellSummary = Object.entries(eventsCheckboxes ?? {})
+    .map(([eventName, grid]) => {
+      let count = 0;
+      for (const row of grid) for (const cell of row) if (cell?.checked) count++;
+      return count > 0 ? `${eventName}=${count}` : '';
+    })
+    .filter(Boolean)
+    .join(' ');
+  const fracSummary = (() => {
+    const p = probabilitiesTextInputs;
+    if (!p?.numerator?.value && !p?.denominator?.value) return '';
+    return `P(${p.eventName ?? '?'})=${p.numerator?.value || '_'}/${p.denominator?.value || '_'}`;
+  })();
+  const selectSummary = (() => {
+    const s = operationSelectInputs;
+    if (!s?.eventsA?.value && !s?.operations?.value && !s?.eventsB?.value) return '';
+    return `select(A=${s.eventsA?.value || '_'} op=${s.operations?.value || '_'} B=${s.eventsB?.value || '_'})`;
+  })();
+  const contextParts = [
+    activeEventDescriptions && `eventos: [${activeEventDescriptions}]`,
+    cellSummary && `marcações: ${cellSummary}`,
+    fracSummary,
+    selectSummary,
+  ].filter(Boolean);
+  const enrichedDescricao = [
+    enableMarkAll
+      ? 'Aluno marca células favoráveis a eventos compostos (modo livre).'
+      : 'Aluno marca células favoráveis a um evento sorteado e identifica P(A) via Laplace.',
+    contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
+  ].filter(Boolean).join(' ');
+  useTelemetryExercise(
+    enableMarkAll ? 'twoDices-cena7-twoDicesGame-ex7' : 'twoDices-cena7-twoDicesGame-intro',
+    enableMarkAll
+      ? 'Exercício 7 — Marcação livre da tabela 6×6 (fixação)'
+      : 'Apresentação da tabela 6×6 — primeira marcação',
+    enrichedDescricao,
+  );
 
   return (
     <div className="flex flex-col gap-y-xxs">

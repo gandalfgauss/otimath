@@ -16,6 +16,7 @@
 
 import React from 'react';
 import { EVENT_COLORS, MarkMatrix } from './eventPair';
+import { telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 
 // ─── DieFace ────────────────────────────────────────────────────
 
@@ -174,12 +175,24 @@ export function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks, blink
                       {eventLabel && (
                         <label
                           className="flex items-center gap-x-nano cursor-pointer select-none"
-                         
+
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={() => onToggle(row, col)}
+                            onChange={() => {
+                              // Telemetria — cada toggle de célula vira
+                              // `interacao_exercicio`. Logamos o estado QUE
+                              // VAI VIRAR (oposto do atual) e o nome do
+                              // evento ativo pra reconstruir a trajetória
+                              // (qual célula o aluno marcou, em qual ordem,
+                              // se desmarcou e remarcou, etc).
+                              const willBe = !isChecked;
+                              telemetryRecordInteracaoExercicio(
+                                `${willBe ? 'marcou' : 'desmarcou'} célula (verde=${r}, azul=${c}) do evento "${eventLabel}"`
+                              );
+                              onToggle(row, col);
+                            }}
                             aria-label={`${eventLabel} em (${r},${c})`}
                             style={{
                               width: 18, height: 18,

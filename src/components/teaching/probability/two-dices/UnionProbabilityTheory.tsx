@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
-import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
 import { playSound } from '@/hooks/global/useSound';
 import { VennLaboratory, type VennLaboratoryHandle } from './venn/VennLaboratory';
 
@@ -686,6 +686,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     'Aluno percorre Contagem, União por Laplace e Fórmula Geral; passa por VennLab, ProbCalc e institucionalização da fórmula geral.',
   );
   const [phase, setPhase] = useState<UnionPhase>(initialPhase ?? 'intro');
+  // Telemetria — leitura do enunciado teórico (fase 'intro').
+  const confirmReadTheoryIntro = useReadingTelemetry(
+    phase === 'intro',
+    'twoDices-cena7-unionTheory-intro',
+    'Leitura — Introdução à teoria da união (P(A∪B))',
+    'Painel inicial descrevendo o problema concreto que será resolvido para descobrir a fórmula geral.',
+    'confirmou leitura da introdução teórica e clicou em "Começar"',
+  );
   // Sub-step do VennLaboratory (notificado via onSubStepChange) — entra no
   // cenaId composto para que o painel DEV capture cada sub-etapa do Venn.
   const [vennSubStep, setVennSubStep] = useState<string>('intro');
@@ -1403,7 +1411,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             </p>
 
             <div className="flex justify-center mt-macro">
-              <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markA'); scrollDiceToTop(); }}>
+              <Button style="primary" size="small" onClick={() => { confirmReadTheoryIntro(); playSound('/sounds/nextChallenge.mp3'); setPhase('markA'); scrollDiceToTop(); }}>
                 Começar
               </Button>
             </div>

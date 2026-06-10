@@ -36,7 +36,7 @@
      um objeto NOVO (não é mutado retroativamente).
    ═══════════════════════════════════════════════════════════════════ */
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { subscribeToAlerts } from '@/hooks/global/useAlerts';
 import type { AlertType } from '@/components/global/Alert';
 // Importa a fonte canônica do cronômetro da sessão pra evitar drift entre
@@ -53,19 +53,59 @@ import { getElapsedTotalMs } from './useSequenceSession';
 
 // ─── Tipos do JSON de saída ─────────────────────────────────────────
 
-export type TelemetryActivityType = 'acerto' | 'erro' | 'interacao_registro';
+/**
+ * Tipos de evento no histórico de um exercício:
+ *
+ *  • `acerto` — validação correta. FECHA o exercício.
+ *  • `erro` — validação incorreta. Mantém aberto pra próxima tentativa.
+ *  • `interacao_registro` — input/checkbox/radio que conta como registro
+ *    da resposta atual do aluno (mas ainda não foi validado). Ex.: ele
+ *    marcou um checkbox; antes de clicar em Conferir, isso é um registro.
+ *  • `interacao_exercicio` — qualquer outra ação exploratória do aluno
+ *    dentro do exercício: trocar de cor selecionada, abrir/fechar painel,
+ *    arrastar uma peça sem soltar, mudar de opinião, clicar em botão
+ *    auxiliar, etc. NÃO altera registros e NÃO fecha o exercício; serve
+ *    pra reconstituir a trajetória de pensamento do aluno na análise.
+ *  • `interacao_usuario` — leitura confirmada (clique em "Li.", "Continuar"
+ *    após uma tela conceitual, etc.). Diferente dos outros tipos, cada
+ *    `interacao_usuario` é ESCRITA NO SEU PRÓPRIO exercício "atômico"
+ *    com 1 item de histórico — assim a duração da leitura fica medida
+ *    isolada (tempo_inicio_exercicio = balão exibido,
+ *    tempo_fim_exercicio = clique em "Li."). Use as APIs
+ *    `telemetryStartReading(id)` + `telemetryConfirmReading(id, ...)`.
+ */
+export type TelemetryActivityType =
+  | 'acerto'
+  | 'erro'
+  | 'interacao_registro'
+  | 'interacao_exercicio'
+  | 'interacao_usuario';
 
 export interface TelemetryActivity {
   tipo: TelemetryActivityType;
   resposta_usuario: string;
-  /** Tempo decorrido dentro do exercício no momento do evento (MM:SS). */
+  /** Momento do evento na linha do tempo TOTAL da sessão (MM:SS) —
+   *  mesma referência do cronômetro do topo. */
   timestamp: string;
+  /** Momento do evento na linha do tempo INTERNA do exercício (MM:SS)
+   *  — quanto tempo o aluno já estava trabalhando neste exercício
+   *  quando o evento ocorreu. Útil pra medir "quão rápido ele errou
+   *  desde que abriu" sem precisar fazer aritmética entre timestamps. */
+  timestamp_no_exercicio: string;
 }
 
 export interface TelemetryExercise {
   id: string;
   title: string;
   descricao: string;
+  /** Quando o aluno começou esse exercício, na linha do tempo da
+   *  sessão (MM:SS). Começa a contar na entrada da seção ou logo após
+   *  o acerto do exercício anterior. */
+  tempo_inicio_exercicio: string;
+  /** Quando o exercício foi finalizado, na linha do tempo da sessão
+   *  (MM:SS). `null` se o exercício ainda está em andamento no momento
+   *  do snapshot (acerto pendente). */
+  tempo_fim_exercicio: string | null;
   tempo_gasto_exercicio: string;
   total_interacoes_exercicio: number;
   total_acertos_exercicio: number;
@@ -117,7 +157,16 @@ interface OpenExercise {
   accumMs: number;
   /** Quando começou o chunk atual de execução, ou null se pausado. */
   runningStartedAt: number | null;
-  registros: number;
+  /** Momento da abertura na linha do tempo TOTAL da sessão (ms desde
+   *  o sessionStart, descontado tempo de pausa). Capturado no instante
+   *  em que o exercício é criado e nunca mais muda — alimenta o campo
+   *  `tempo_inicio_exercicio` do JSON. */
+  startedAtSessionTime: number;
+  /** Quantidade de interações exploratórias — soma de eventos do tipo
+   *  `interacao_registro` E `interacao_exercicio`. NÃO inclui acertos
+   *  nem erros (esses têm contadores próprios). Vai pro campo
+   *  `total_interacoes_exercicio` do JSON. */
+  totalInteracoes: number;
   acertos: number;
   erros: number;
   history: TelemetryActivity[];
@@ -145,6 +194,11 @@ interface SectionContext {
    *  exercício seria sempre "00:00" — o aluno passa um tempo lendo o
    *  enunciado antes de interagir, e esse tempo precisa contar. */
   nextQuestionStartedAt: number;
+  /** Versão SESSION-RELATIVE de `nextQuestionStartedAt` — capturada via
+   *  `getElapsedTotalMs()` no mesmo instante. Não muda com pausa porque
+   *  o relógio da sessão também não anda enquanto pausado. É copiada
+   *  pro `startedAtSessionTime` de cada OpenExercise novo na criação. */
+  nextQuestionSessionTime: number;
 }
 
 interface FinalizedExercise {
@@ -153,7 +207,13 @@ interface FinalizedExercise {
   descricao: string;
   durationMs: number;
   finishedAt: number;
-  totalRegistros: number;
+  /** Momento da abertura na linha do tempo TOTAL da sessão (copiado do
+   *  OpenExercise no fechamento). */
+  startedAtSessionTime: number;
+  /** Momento do fechamento na linha do tempo TOTAL da sessão (acerto OU
+   *  troca de seção). */
+  finishedAtSessionTime: number;
+  totalInteracoes: number;
   totalAcertos: number;
   totalErros: number;
   history: TelemetryActivity[];
@@ -209,16 +269,42 @@ const session: SessionRuntime = {
  *   • resumeTelemetry restaura tudo. */
 let telemetryPausedAt: number | null = null;
 
+/** Leituras em andamento — `telemetryStartReading(id)` marca aqui o
+ *  instante (em SESSION TIME) em que o conteúdo apareceu na tela. Quando
+ *  o aluno clica "Li.", `telemetryConfirmReading(id, ...)` materializa
+ *  um exercício atômico cuja duração é `agora − startedAt`. Sobrevive
+ *  pausa por offline (o session time é congelado, não o wall clock). */
+const pendingReadings = new Map<string, { startedAtSessionTime: number; ovaId: OvaId }>();
+
 // ─── Helpers de tempo ───────────────────────────────────────────────
 
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
-function fmtMmSs(ms: number): string {
+/** Converte ms → segundos (floor, nunca negativo). Single source of truth
+ *  pra arredondamento: usar `secOf(ms)` em TODO lugar que precisa do
+ *  valor inteiro em segundos, e nunca chamar `Math.floor(ms/1000)`
+ *  direto — assim as invariantes do JSON são preservadas (ver
+ *  comentário em `finalizedToJson`). */
+function secOf(ms: number): number {
   if (ms < 0) ms = 0;
-  const totalSec = Math.floor(ms / 1000);
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  return `${pad2(min)}:${pad2(sec)}`;
+  return Math.floor(ms / 1000);
+}
+
+/** Formata um total já em SEGUNDOS (inteiro) como "MM:SS". */
+function fmtSec(sec: number): string {
+  if (sec < 0) sec = 0;
+  const min = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${pad2(min)}:${pad2(s)}`;
+}
+
+/** Atalho: ms → "MM:SS". Usar pra valores que NÃO participam de
+ *  invariantes aritméticas no JSON (tempo_total_ova, tempo_total_sequencia).
+ *  Pra campos onde a invariante importa (tempo_inicio/fim/gasto e
+ *  timestamps do histórico), usar `secOf(ms)` + `fmtSec(sec)`
+ *  combinados — ver comentário em finalizedToJson. */
+function fmtMmSs(ms: number): string {
+  return fmtSec(secOf(ms));
 }
 
 function nowMs(): number {
@@ -269,7 +355,23 @@ function activeOva(): OvaRuntime | null {
  *  ao trocar de seção/OVA: se ficou registros sem validação ou tentativas
  *  erradas sem acerto, ainda preserva no JSON como "exercício aberto sem
  *  resolução". */
-function finalizeOpen(section: SectionContext, ova: OvaRuntime): void {
+/**
+ * Finaliza o exercício aberto, opcionalmente recebendo o instante de
+ * fechamento já capturado pelo chamador.
+ *
+ * Quando o chamador é o acerto: passa o mesmo `getElapsedTotalMs()` que
+ * usou pra montar o `timestamp` do item de acerto no histórico — assim
+ * `tempo_fim_exercicio` coincide ao segundo com o `timestamp` do último
+ * item do histórico (invariante de consistência exigida pelo JSON).
+ *
+ * Quando o chamador é troca de seção/OVA: não precisa passar nada;
+ * `getElapsedTotalMs()` é chamado aqui.
+ */
+function finalizeOpen(
+  section: SectionContext,
+  ova: OvaRuntime,
+  finishedAtSessionTimeMs?: number,
+): void {
   if (!section.open) return;
   const open = section.open;
   const endAt = nowMs();
@@ -279,7 +381,9 @@ function finalizeOpen(section: SectionContext, ova: OvaRuntime): void {
     descricao: open.descricao,
     durationMs: openElapsedMs(open),
     finishedAt: endAt,
-    totalRegistros: open.registros,
+    startedAtSessionTime: open.startedAtSessionTime,
+    finishedAtSessionTime: finishedAtSessionTimeMs ?? getElapsedTotalMs(),
+    totalInteracoes: open.totalInteracoes,
     totalAcertos: open.acertos,
     totalErros: open.erros,
     history: open.history.slice(),
@@ -315,7 +419,11 @@ function ensureOpenExercise(section: SectionContext): OpenExercise {
     descricao: section.descricao,
     accumMs: initialAccumMs,
     runningStartedAt: isPaused ? null : nowMs(),
-    registros: 0,
+    // Mesmo instante session-relative em que `nextQuestionStartedAt`
+    // foi setado pra última vez (entrada de seção ou último acerto).
+    // Imutável depois disso.
+    startedAtSessionTime: section.nextQuestionSessionTime,
+    totalInteracoes: 0,
     acertos: 0,
     erros: 0,
     history: [],
@@ -425,6 +533,7 @@ export function telemetryEnterExercise(id: string, title: string, descricao: str
     // lendo o enunciado antes de fazer qualquer interação, esses 30s
     // entram no timestamp da primeira entrada do histórico.
     nextQuestionStartedAt: nowMs(),
+    nextQuestionSessionTime: getElapsedTotalMs(),
   };
 }
 
@@ -437,22 +546,171 @@ export function telemetryExitExercise(id?: string): void {
   ova.currentSection = null;
 }
 
-/** Adiciona um registro (input/checkbox sem certo/errado) ao exercício
- *  aberto da seção atual. Cria o exercício se não houver um aberto. */
+/** Adiciona um REGISTRO (input/checkbox/radio que captura a resposta
+ *  atual do aluno mas ainda não foi validada) ao exercício aberto da
+ *  seção atual. Cria o exercício se não houver um aberto.
+ *
+ *  Diferença pra `telemetryRecordInteracaoExercicio`: registro = "esta
+ *  é a resposta atual do aluno no momento"; interacao_exercicio = "o
+ *  aluno mexeu/explorou algo no caminho até chegar na resposta". Ambos
+ *  contam pra `total_interacoes_exercicio` e vão pro histórico. */
 export function telemetryRecordRegistro(resposta: string): void {
   const ova = activeOva();
   if (!ova?.currentSection) return;
   const open = ensureOpenExercise(ova.currentSection);
-  open.registros += 1;
+  open.totalInteracoes += 1;
+  // CAPTURA ÚNICA em segundos: o `timestamp_no_exercicio` é DERIVADO de
+  // `timestamp - tempo_inicio_exercicio` (ambos em segundos), garantindo
+  // que `Δtimestamp == Δtimestamp_no_exercicio` entre eventos consecutivos
+  // pelo SIMPLES fato de que ambos compartilham `tempo_inicio_exercicio`
+  // como referencial. Em ms, `getElapsedTotalMs() - startedAtSessionTime`
+  // já é exatamente `openElapsedMs(open)` (sessão e exercício pausam
+  // juntos), então estamos só evitando o off-by-one da truncação dupla.
+  const tsSec = secOf(getElapsedTotalMs());
+  const inicioSec = secOf(open.startedAtSessionTime);
   open.history.push({
     tipo: 'interacao_registro',
     resposta_usuario: resposta,
-    // Timestamp = mesma referência do cronômetro do topo (tempo total
-    // da sessão, descontado pause offline). Assim o aluno consegue
-    // correlacionar o JSON com o que viu na barra de progresso.
-    timestamp: fmtMmSs(getElapsedTotalMs()),
+    timestamp: fmtSec(tsSec),
+    timestamp_no_exercicio: fmtSec(tsSec - inicioSec),
   });
   printSnapshot('registro', openToJson(open));
+}
+
+/**
+ * Adiciona uma INTERAÇÃO DE EXERCÍCIO ao exercício aberto atual. Use
+ * pra capturar qualquer ação exploratória do aluno DENTRO do contexto
+ * do exercício que NÃO é um registro definitivo e NÃO é uma validação.
+ *
+ * EXEMPLOS de quando chamar:
+ *   • Aluno clica numa cor da roleta pra apostar (antes do Conferir)
+ *   • Aluno muda de opinião e clica em outra cor
+ *   • Aluno digita parcialmente um número no campo numerador
+ *   • Aluno arrasta uma peça mas solta de volta
+ *   • Aluno abre/fecha um painel auxiliar (exemplos, calculadora)
+ *   • Aluno marca/desmarca um checkbox
+ *   • Aluno seleciona uma célula de uma tabela
+ *   • Aluno limpa o campo de resposta
+ *
+ * RESPOSTA RECOMENDADA — seja SUFICIENTEMENTE descritivo pra que, ao
+ * ler o histórico, dê pra reconstruir a trajetória de pensamento do
+ * aluno. Ex.:
+ *   ✗ ruim: "clicou"
+ *   ✓ bom: "selecionou cor da aposta: amarelo"
+ *   ✗ ruim: "input"
+ *   ✓ bom: "digitou no numerador: 3 (campo numerador da fração da cor amarelo)"
+ *   ✓ bom: "trocou cor da aposta: amarelo → vermelho"
+ *
+ * Idempotência: se nenhum exercício está aberto e a seção tampouco
+ * existe (chamado fora de contexto), é silenciosamente ignorado pra
+ * evitar registros órfãos sem contexto.
+ */
+export function telemetryRecordInteracaoExercicio(detalhe: string): void {
+  const ova = activeOva();
+  if (!ova?.currentSection) return;
+  const open = ensureOpenExercise(ova.currentSection);
+  open.totalInteracoes += 1;
+  const tsSec = secOf(getElapsedTotalMs());
+  const inicioSec = secOf(open.startedAtSessionTime);
+  open.history.push({
+    tipo: 'interacao_exercicio',
+    resposta_usuario: detalhe,
+    timestamp: fmtSec(tsSec),
+    timestamp_no_exercicio: fmtSec(tsSec - inicioSec),
+  });
+  printSnapshot('interacao_exercicio', openToJson(open));
+}
+
+/**
+ * Marca o INÍCIO de uma leitura — chamar quando o conteúdo conceitual
+ * (balão, info-box, texto explicativo) aparece na tela. Vai parear com
+ * uma chamada futura de `telemetryConfirmReading(id, ...)` no clique
+ * do "Li." / "Continuar".
+ *
+ * O `id` precisa ser ÚNICO por leitura. Use algo descritivo tipo
+ * `roulette-s1-balao-experimento-deterministico` ou
+ * `twoDices-cena3-introducao-espaco-amostral`. Idempotente — chamar
+ * duas vezes com mesmo id sobrescreve o `startedAt` (caso o componente
+ * remonte ou re-exiba o conteúdo). Se nenhum OVA estiver ativo,
+ * silenciosamente ignorado.
+ *
+ * O par start/confirm trabalha em PARALELO com o `currentSection` do
+ * OVA — não interfere em exercícios já abertos. A leitura é um
+ * exercício ATÔMICO próprio dentro de `exercicios_interagidos`.
+ */
+export function telemetryStartReading(id: string): void {
+  if (!session.activeOvaId) return;
+  pendingReadings.set(id, {
+    startedAtSessionTime: getElapsedTotalMs(),
+    ovaId: session.activeOvaId,
+  });
+}
+
+/**
+ * Confirma a leitura — gera um exercício ATÔMICO com 1 entrada de
+ * histórico do tipo `interacao_usuario`. Chamado no handler do clique
+ * em "Li." / "Continuar" / equivalente.
+ *
+ * O exercício é adicionado em `exercicios_interagidos` do OVA que
+ * estava ativo no `telemetryStartReading` correspondente — mesmo que
+ * o OVA ativo tenha mudado entre start e confirm (caso raro). Se não
+ * houver start prévio com o `id` dado, `tempo_inicio_exercicio` cai
+ * pro instante do confirm (duração zero), evitando perder o evento.
+ *
+ * PARÂMETROS
+ *  • `id`         — mesmo usado em `telemetryStartReading`. Único.
+ *  • `title`      — título do exercício (ex.: "Leitura — Experimento determinístico").
+ *  • `descricao`  — descrição da seção/contexto pedagógico.
+ *  • `detalhe`    — o que vai pro `resposta_usuario` da entrada de
+ *                   histórico (ex.: "confirmou leitura do balão
+ *                   'Experimento determinístico'").
+ */
+export function telemetryConfirmReading(
+  id: string,
+  title: string,
+  descricao: string,
+  detalhe: string,
+): void {
+  const pending = pendingReadings.get(id);
+  pendingReadings.delete(id);
+  // Resolve o OVA dono: prefere o do start (em caso raro de troca de
+  // OVA entre start e confirm). Fallback: OVA ativo atual.
+  const ovaId = pending?.ovaId ?? session.activeOvaId;
+  if (!ovaId) return;
+  const ova = session.ovas.get(ovaId);
+  if (!ova) return;
+  const finishedAtSessionTime = getElapsedTotalMs();
+  const startedAtSessionTime = pending?.startedAtSessionTime ?? finishedAtSessionTime;
+  const finSec = secOf(finishedAtSessionTime);
+  const iniSec = secOf(startedAtSessionTime);
+  const exercise: FinalizedExercise = {
+    id,
+    title,
+    descricao,
+    durationMs: Math.max(0, finishedAtSessionTime - startedAtSessionTime),
+    finishedAt: nowMs(),
+    startedAtSessionTime,
+    finishedAtSessionTime,
+    totalInteracoes: 1,
+    totalAcertos: 0,
+    totalErros: 0,
+    history: [{
+      tipo: 'interacao_usuario',
+      resposta_usuario: detalhe,
+      // Timestamp do evento (confirmação) = MM:SS da sessão.
+      timestamp: fmtSec(finSec),
+      // Tempo dentro do exercício de leitura = duração total da leitura.
+      timestamp_no_exercicio: fmtSec(finSec - iniSec),
+    }],
+  };
+  ova.exercises.push(exercise);
+  // O OVA conta esta leitura nas interações totais (alimenta
+  // `total_interacoes_ova`).
+  ova.totalInteractions += 1;
+  // Também conta na sessão total — mantém coerência com o que o
+  // global click listener já faz pros outros tipos.
+  session.totalInteractions += 1;
+  printSnapshot('interacao_usuario', finalizedToJson(exercise));
 }
 
 /**
@@ -512,20 +770,26 @@ function recordValidation(tipo: 'acerto' | 'erro', resposta: string, explicit: b
     // Validação fora de seção — fallback orfão pra não perder o evento.
     const orphanIdx = ova.exercises.filter((e) => e.id.includes('-orfao-')).length + 1;
     const orphanId = `${ova.id}-orfao-q${orphanIdx}`;
+    const nowSessionTime = getElapsedTotalMs();
+    const nowSec = secOf(nowSessionTime);
     const orphan: FinalizedExercise = {
       id: orphanId,
       title: `${ova.id} — Pergunta órfã ${orphanIdx}`,
       descricao: 'Validação fora de contexto de seção explícito.',
       durationMs: 0,
       finishedAt: nowMs(),
-      totalRegistros: 0,
+      // Órfão é criado e fechado no mesmo instante — início = fim.
+      startedAtSessionTime: nowSessionTime,
+      finishedAtSessionTime: nowSessionTime,
+      totalInteracoes: 0,
       totalAcertos: tipo === 'acerto' ? 1 : 0,
       totalErros: tipo === 'erro' ? 1 : 0,
       history: [{
         tipo,
         resposta_usuario: resposta,
-        // Igual aos outros casos: timestamp relativo à sessão (cronômetro do topo).
-        timestamp: fmtMmSs(getElapsedTotalMs()),
+        timestamp: fmtSec(nowSec),
+        // Órfão começou e terminou no mesmo evento — 00:00 dentro de si.
+        timestamp_no_exercicio: '00:00',
       }],
     };
     ova.exercises.push(orphan);
@@ -534,23 +798,37 @@ function recordValidation(tipo: 'acerto' | 'erro', resposta: string, explicit: b
   }
 
   const open = ensureOpenExercise(section);
+  // Captura ÚNICA do instante do evento em MS. Todos os campos derivados
+  // abaixo (timestamp, timestamp_no_exercicio, finishedAtSessionTime do
+  // acerto, e nextQuestionSessionTime do próximo exercício) compartilham
+  // ESTA referência. Sem isso, chamadas sequenciais a getElapsedTotalMs()
+  // podem cair em milissegundos diferentes — e após truncar pra segundos,
+  // o JSON fica com `timestamp_último_item ≠ tempo_fim_exercicio` (e
+  // `Q1.tempo_fim ≠ Q2.tempo_inicio`). Captura única + secOf garantem as
+  // invariantes por construção.
+  const nowSessionMs = getElapsedTotalMs();
+  const tsSec = secOf(nowSessionMs);
+  const inicioSec = secOf(open.startedAtSessionTime);
   open.history.push({
     tipo,
     resposta_usuario: resposta,
-    // Timestamp = mesma referência do cronômetro do topo (vide comentário
-    // equivalente no telemetryRecordRegistro acima).
-    timestamp: fmtMmSs(getElapsedTotalMs()),
+    timestamp: fmtSec(tsSec),
+    timestamp_no_exercicio: fmtSec(tsSec - inicioSec),
   });
   let focus: TelemetryExercise;
   if (tipo === 'acerto') {
     open.acertos += 1;
     // Acerto FECHA o exercício — move pra lista de finalizados.
     open.closed = true;
-    finalizeOpen(section, ova);
+    // Passa o MESMO instante usado no timestamp do item → garante que
+    // `tempo_fim_exercicio` (no JSON) bate com `timestamp` do acerto.
+    finalizeOpen(section, ova, nowSessionMs);
     // Próximo exercício da seção começa a contar AGORA (não no momento
     // da próxima interação) — assim o tempo entre "acertei" e "comecei
     // a fazer a próxima" entra no cronômetro do próximo exercício.
+    // Mesma referência → `Q2.tempo_inicio_exercicio === Q1.tempo_fim_exercicio`.
     section.nextQuestionStartedAt = nowMs();
+    section.nextQuestionSessionTime = nowSessionMs;
     // Como acabou de ser finalizado, o foco é o ÚLTIMO da lista de
     // exercícios do OVA (acabou de ser empurrado por finalizeOpen).
     const last = ova.exercises[ova.exercises.length - 1];
@@ -602,28 +880,13 @@ function buildSnapshot(): TelemetrySnapshot {
     // tempo real). O aberto entra com snapshot do estado atual; quando
     // fechar (por acerto ou troca de seção) ele já está no array
     // `ova.exercises` e o cálculo abaixo o ignora aqui.
-    const exercicios: TelemetryExercise[] = ova.exercises.map((ex) => ({
-      id: ex.id,
-      title: ex.title,
-      descricao: ex.descricao,
-      tempo_gasto_exercicio: fmtMmSs(ex.durationMs),
-      total_interacoes_exercicio: ex.totalRegistros,
-      total_acertos_exercicio: ex.totalAcertos,
-      total_erros_exercicio: ex.totalErros,
-      historico_atividades: ex.history.slice(),
-    }));
+    // Reusa as conversões canônicas (`finalizedToJson` / `openToJson`)
+    // que já implementam a derivação por subtração em segundos —
+    // mantendo o snapshot do buildSnapshot 1-pra-1 com o que é emitido
+    // como `focusExercise` nos `printSnapshot` individuais.
+    const exercicios: TelemetryExercise[] = ova.exercises.map(finalizedToJson);
     if (ova.currentSection?.open && !ova.currentSection.open.closed) {
-      const open = ova.currentSection.open;
-      exercicios.push({
-        id: open.id,
-        title: open.title,
-        descricao: open.descricao,
-        tempo_gasto_exercicio: fmtMmSs(openElapsedMs(open)),
-        total_interacoes_exercicio: open.registros,
-        total_acertos_exercicio: open.acertos,
-        total_erros_exercicio: open.erros,
-        historico_atividades: open.history.slice(),
-      });
+      exercicios.push(openToJson(ova.currentSection.open));
     }
     return {
       ova_id: id,
@@ -649,28 +912,58 @@ export function getTelemetrySnapshot(): TelemetrySnapshot {
   return buildSnapshot();
 }
 
-/** Converte o exercício ABERTO atual pro formato público. */
+/** Converte o exercício ABERTO atual pro formato público.
+ *
+ *  Pra manter a invariante "Δsegundo entre eventos é o mesmo entre
+ *  timestamp e timestamp_no_exercicio" também consistente com o
+ *  `tempo_gasto_exercicio` do snapshot atual, derivamos esse campo de
+ *  `secOf(getElapsedTotalMs()) - secOf(startedAtSessionTime)` em vez de
+ *  `openElapsedMs(open)`. Em ms ambos batem (sessão e exercício pausam
+ *  juntos); a derivação garante o alinhamento de segundos por
+ *  construção. */
 function openToJson(open: OpenExercise): TelemetryExercise {
+  const inicioSec = secOf(open.startedAtSessionTime);
+  const agoraSec = secOf(getElapsedTotalMs());
   return {
     id: open.id,
     title: open.title,
     descricao: open.descricao,
-    tempo_gasto_exercicio: fmtMmSs(openElapsedMs(open)),
-    total_interacoes_exercicio: open.registros,
+    tempo_inicio_exercicio: fmtSec(inicioSec),
+    // Ainda aberto → ainda não finalizou.
+    tempo_fim_exercicio: null,
+    tempo_gasto_exercicio: fmtSec(agoraSec - inicioSec),
+    total_interacoes_exercicio: open.totalInteracoes,
     total_acertos_exercicio: open.acertos,
     total_erros_exercicio: open.erros,
     historico_atividades: open.history.slice(),
   };
 }
 
-/** Converte um exercício já FINALIZADO pro formato público. */
+/** Converte um exercício já FINALIZADO pro formato público.
+ *
+ *  INVARIANTE ARITMÉTICA garantida aqui:
+ *    tempo_fim_exercicio - tempo_inicio_exercicio === tempo_gasto_exercicio
+ *
+ *  Pra isso, `tempo_gasto_exercicio` é DERIVADO (em segundos) de
+ *  `fimSec - inicioSec`, e NÃO de `fin.durationMs`. Em ms eles são
+ *  equivalentes (sessão e exercício pausam juntos), mas truncar dois
+ *  números ms diferentes pra segundos pode resultar em off-by-one
+ *  (`floor(a) - floor(b) ≠ floor(a-b)` quando atravessa fronteira de
+ *  segundo). A subtração inteira evita isso por construção.
+ *
+ *  O campo `durationMs` interno continua sendo populado com o valor real
+ *  medido (openElapsedMs) — útil pra debug e potencial análise futura. */
 function finalizedToJson(fin: FinalizedExercise): TelemetryExercise {
+  const inicioSec = secOf(fin.startedAtSessionTime);
+  const fimSec = secOf(fin.finishedAtSessionTime);
   return {
     id: fin.id,
     title: fin.title,
     descricao: fin.descricao,
-    tempo_gasto_exercicio: fmtMmSs(fin.durationMs),
-    total_interacoes_exercicio: fin.totalRegistros,
+    tempo_inicio_exercicio: fmtSec(inicioSec),
+    tempo_fim_exercicio: fmtSec(fimSec),
+    tempo_gasto_exercicio: fmtSec(fimSec - inicioSec),
+    total_interacoes_exercicio: fin.totalInteracoes,
     total_acertos_exercicio: fin.totalAcertos,
     total_erros_exercicio: fin.totalErros,
     historico_atividades: fin.history.slice(),
@@ -769,4 +1062,47 @@ export function useTelemetryExercise(id: string, title: string, descricao: strin
   useEffect(() => {
     telemetryUpdateSectionMeta(id, title, descricao);
   }, [id, title, descricao]);
+}
+
+/**
+ * Helper React pra leituras: chama `telemetryStartReading(id)` quando
+ * `active` vira true (ou no mount se já estava true) e retorna uma
+ * função `confirm()` que chama `telemetryConfirmReading(id, ...)`.
+ *
+ * USO TÍPICO — componente que mostra um balão/info com botão "Li.":
+ *
+ *   const confirmRead = useReadingTelemetry(
+ *     showInfoBox,
+ *     `roulette-s1-balao-${infoBoxContent.title}`,
+ *     `Leitura — ${infoBoxContent.title}`,
+ *     'Conteúdo conceitual exibido durante a Etapa 1.',
+ *     `confirmou leitura: "${infoBoxContent.title}"`,
+ *   );
+ *
+ *   <Button onClick={() => { confirmRead(); dismissInfoBox(); }}>Li.</Button>
+ *
+ * SEMÂNTICA
+ *  • `active=true` (mount ou transição false→true): chama `start(id)`.
+ *  • `id` mudou enquanto active: novo start sobrescreve o anterior.
+ *  • `active` volta pra false sem `confirm()` ter sido chamado: o
+ *    `pendingReadings` mantém o `startedAt` em memória até confirm
+ *    futuro ou nova start. Sem leak — Map mantém poucas entradas.
+ *
+ * O `confirm` retornado é estável por id+title+descricao+detalhe (via
+ * `useCallback`). É seguro passar pra eventos sem re-criar bindings.
+ */
+export function useReadingTelemetry(
+  active: boolean,
+  id: string,
+  title: string,
+  descricao: string,
+  detalhe: string,
+): () => void {
+  useEffect(() => {
+    if (!active) return;
+    telemetryStartReading(id);
+  }, [active, id]);
+  return useCallback(() => {
+    telemetryConfirmReading(id, title, descricao, detalhe);
+  }, [id, title, descricao, detalhe]);
 }
