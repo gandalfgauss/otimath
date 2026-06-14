@@ -680,12 +680,13 @@ const PHASE_SEQUENCE: UnionPhase[] = [
 ];
 
 export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabilityTheoryProps>(function UnionProbabilityTheory({ onFinished, initialPhase, createAlert, onPhaseChange }, ref) {
+  const [phase, setPhase] = useState<UnionPhase>(initialPhase ?? 'intro');
+  // SEÇÃO POR PHASE — cada fase da teoria é uma tela diferente.
   useTelemetryExercise(
-    'twoDices-cena7-unionTheory',
+    `twoDices-cena7-unionTheory-${phase}`,
     'Fundamentação da União — Macro 1 a 3',
     'Aluno percorre Contagem, União por Laplace e Fórmula Geral; passa por VennLab, ProbCalc e institucionalização da fórmula geral.',
   );
-  const [phase, setPhase] = useState<UnionPhase>(initialPhase ?? 'intro');
   // Telemetria — leitura do enunciado teórico (fase 'intro').
   const confirmReadTheoryIntro = useReadingTelemetry(
     phase === 'intro',

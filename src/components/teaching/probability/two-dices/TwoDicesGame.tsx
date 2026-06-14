@@ -30,6 +30,8 @@ export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGamePro
     alerts, updateAlert, deleteAlerts,
     modal, updateModal,
     markAllOnClick,
+    challenge,
+    step,
   } = useTwoDicesHooks();
 
   // Telemetria — Ex7: jogo livre com a tabela 6×6 (eventos pré-definidos
@@ -69,8 +71,12 @@ export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGamePro
       : 'Aluno marca células favoráveis a um evento sorteado e identifica P(A) via Laplace.',
     contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
   ].filter(Boolean).join(' ');
+  // SEÇÃO POR (challenge, step) — cada desafio do jogo é uma "tela"
+  // diferente; cada step dentro dele (marcação, fração, complementar)
+  // também. Mudou desafio ou step → nova seção telemétrica.
+  const baseId = enableMarkAll ? 'twoDices-cena7-twoDicesGame-ex7' : 'twoDices-cena7-twoDicesGame-intro';
   useTelemetryExercise(
-    enableMarkAll ? 'twoDices-cena7-twoDicesGame-ex7' : 'twoDices-cena7-twoDicesGame-intro',
+    `${baseId}-c${challenge}-s${step}`,
     enableMarkAll
       ? 'Exercício 7 — Marcação livre da tabela 6×6 (fixação)'
       : 'Apresentação da tabela 6×6 — primeira marcação',

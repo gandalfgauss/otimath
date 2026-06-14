@@ -507,34 +507,37 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     return exerciseIdx % 2 === 0 ? colors[0] : colors[1];
   };
 
-  // Telemetria — cada fase principal vira um "exercício" no JSON estruturado.
-  // Mapeamento:
-  //   experimentA/B → uma rodada cada
-  //   exercises (com exerciseIdx 0–3) → 4 exercícios distintos
-  //   intro/finished → não registra (apenas transição)
+  // Telemetria — TODA fase principal vira uma seção, inclusive 'intro'
+  // e 'finished' (eram ignoradas antes). Pra `exercises`, granularidade
+  // adicional via `exerciseIdx` (0-3) → 4 seções distintas.
   useEffect(() => {
-    if (mainPhase === 'experimentA') {
-      const id = 'twoDices-cena5-experimentacao-1';
-      telemetryEnterExercise(id, 'Praticando com um dado — Rodada 1 (azul)',
-        'Aposta numa face do dado, lançamento e marcação do resultado real.');
-      return () => telemetryExitExercise(id);
-    }
-    if (mainPhase === 'experimentB') {
-      const id = 'twoDices-cena5-experimentacao-2';
-      telemetryEnterExercise(id, 'Praticando com um dado — Rodada 2 (verde)',
-        'Aposta numa face do dado, lançamento e marcação do resultado real (segundo dado).');
-      return () => telemetryExitExercise(id);
-    }
-    if (mainPhase === 'exercises') {
+    let id: string, title: string, descricao: string;
+    if (mainPhase === 'intro') {
+      id = 'twoDices-cena5-intro';
+      title = 'Praticando com um dado — Introdução';
+      descricao = 'Tela inicial da cena 5.';
+    } else if (mainPhase === 'experimentA') {
+      id = 'twoDices-cena5-experimentacao-1';
+      title = 'Praticando com um dado — Rodada 1 (azul)';
+      descricao = 'Aposta numa face do dado, lançamento e marcação do resultado real.';
+    } else if (mainPhase === 'experimentB') {
+      id = 'twoDices-cena5-experimentacao-2';
+      title = 'Praticando com um dado — Rodada 2 (verde)';
+      descricao = 'Aposta numa face do dado, lançamento e marcação do resultado real (segundo dado).';
+    } else if (mainPhase === 'exercises') {
       const num = exerciseIdx + 1;
-      const id = `twoDices-cena5-exercicio-${num}`;
-      telemetryEnterExercise(
-        id,
-        `Praticando com um dado — Exercício ${num} de 4`,
-        'Identificação de evento, cálculo de P(A) e P(Ā) a partir do resultado do dado.',
-      );
-      return () => telemetryExitExercise(id);
+      id = `twoDices-cena5-exercicio-${num}`;
+      title = `Praticando com um dado — Exercício ${num} de 4`;
+      descricao = 'Identificação de evento, cálculo de P(A) e P(Ā) a partir do resultado do dado.';
+    } else if (mainPhase === 'finished') {
+      id = 'twoDices-cena5-finished';
+      title = 'Praticando com um dado — Concluído';
+      descricao = 'Tela final da cena 5 — todos os exercícios completados.';
+    } else {
+      return;
     }
+    telemetryEnterExercise(id, title, descricao);
+    return () => telemetryExitExercise(id);
   }, [mainPhase, exerciseIdx]);
 
   // Mudar cor do dado e modo ao mudar fase/exercício

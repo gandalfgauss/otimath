@@ -17,6 +17,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { telemetryRecordAtomicInteraction } from '@/hooks/teaching/probability/useTelemetry';
 
 interface DraggableCalculatorProps {
   open: boolean;
@@ -50,6 +51,18 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
   const [prev, setPrev] = useState<number | null>(null);
   const [op, setOp] = useState<string | null>(null);
   const [justEval, setJustEval] = useState(false);
+
+  // Telemetria — abertura da calculadora vira evento atômico próprio
+  // pra registrar QUANDO o aluno recorreu a ela. Útil pra análise de
+  // como o aluno usa ferramentas auxiliares.
+  useEffect(() => {
+    if (!open) return;
+    telemetryRecordAtomicInteraction(
+      'Calculadora — aberta',
+      'Aluno abriu a calculadora auxiliar pra calcular algo no exercício corrente.',
+      'abriu calculadora',
+    );
+  }, [open]);
 
   // ── Geometria (em coordenadas VIEWPORT — fixed positioning) ──
   const [size, setSize] = useState<Size>({ w: 240, h: 320 });
@@ -220,6 +233,13 @@ export function DraggableCalculator({ open, onClose, boundsRef }: DraggableCalcu
     if (prev === null || op === null) return;
     const cur = parseNum(display);
     const r = compute(prev, cur, op);
+    // Telemetria — cada "=" da calculadora cria seu próprio exercício
+    // atômico, mostrando a operação completa que o aluno executou.
+    telemetryRecordAtomicInteraction(
+      'Calculadora — operação',
+      `Aluno usou a calculadora pra calcular: ${prev} ${op} ${cur} = ${fmt(r)}`,
+      `calculadora: ${prev} ${op} ${cur} = ${fmt(r)}`,
+    );
     setDisplay(fmt(r));
     setPrev(null);
     setOp(null);

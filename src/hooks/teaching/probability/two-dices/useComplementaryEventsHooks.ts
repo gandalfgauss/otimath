@@ -281,7 +281,8 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
       if (p?.hasComplementary && (p?.complementaryNumerator?.value || p?.complementaryDenominator?.value)) {
         parts.push(`P(complementar) = ${p.complementaryNumerator?.value || '_'} / ${p.complementaryDenominator?.value || '_'}`);
       }
-      parts.push(`fase: ${s.subPhase}, rodada ${s.round + 1}`);
+      // (Numeração interna de rodada/fase NÃO entra — o `title`/
+      // `descricao` da seção já dão o contexto pedagógico.)
       if (parts.length > 0) resolved = parts.join(' | ');
     }
     _createAlert(title, message, type, duration, resolved);
@@ -322,7 +323,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
       if (prev.cn !== cur.cn || prev.cd !== cur.cd) parts.push(`P complementar: ${cur.cn || '_'} / ${cur.cd || '_'}`);
       if (parts.length === 0) return;
       telemetryRecordInteracaoExercicio(
-        `digitou fração — ${parts.join(' ; ')} (fase ${subPhase}, rodada ${round + 1})`
+        `digitou fração — ${parts.join(' ; ')}`
       );
     }, 600);
     return () => window.clearTimeout(handle);

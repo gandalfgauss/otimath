@@ -194,12 +194,12 @@ function buildReasoningLines(data: Exercise5Data): ReasoningLine[] {
 
 export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Props>(
   function UnionExercise5({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
+    const [step, setStep] = useState<Step>(initialStep ?? 'intro');
     useTelemetryExercise(
-      'twoDices-cena7-unionExercise5',
+      `twoDices-cena7-unionExercise5-${step}`,
       'Exercício 5 — Pesquisa em campo (tabela de contingência)',
       'Aluno calcula P(A∪B) ou P(A∩B) lendo uma tabela de contingência (eventos não-exclusivos OU exclusivos).',
     );
-    const [step, setStep] = useState<Step>(initialStep ?? 'intro');
     // Telemetria — leitura do enunciado do Ex.5.
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',

@@ -234,12 +234,13 @@ function validateFractionSeparate(
 
 export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Props>(
   function UnionExercise3({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
+    const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
+    // SEÇÃO POR STEP — cada tela vira uma seção telemétrica própria.
     useTelemetryExercise(
-      'twoDices-cena7-unionExercise3',
+      `twoDices-cena7-unionExercise3-${step}`,
       'Exercício 3 — Diferenças de eventos (A − B e B − A)',
       'Aluno marca os eventos A−B e B−A na tabela e calcula P(A−B) e P(B−A).',
     );
-    const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
     // Telemetria — leitura do enunciado do Ex.3.
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',

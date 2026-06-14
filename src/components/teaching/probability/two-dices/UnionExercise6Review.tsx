@@ -108,12 +108,12 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
     },
     ref,
   ) {
+    const [step, setStep] = useState<Step>(initialStep);
     useTelemetryExercise(
-      'twoDices-cena7-unionExercise6-review',
+      `twoDices-cena7-unionExercise6-review-${step}`,
       'Exercício 6 — Revisão obrigatória das operações entre eventos',
       'Aluno joga 2 rodadas (uma União, uma Interseção) sorteadas entre pares curados, calculando n(D)/n(S).',
     );
-    const [step, setStep] = useState<Step>(initialStep);
     // Telemetria — leitura do enunciado do Ex.6 (revisão).
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',

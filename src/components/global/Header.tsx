@@ -16,11 +16,14 @@ export function Header() {
   ]
 
   return (
-    <Grid 
-      id="header" 
+    <Grid
+      id="header"
       backgroundColor='bg-neutral-white'
       styles='shadow-level-4 sticky z-99 top-[0px] h-[68px]'
       tag="header"
+      // Cliques no menu do app não fazem parte do percurso pedagógico —
+      // ignorados pelo contador de interações da telemetria.
+      dataSkipTelemetry
     >
       <GridItem cols="col-[1_/_13]">
         <div className="flex items-center h-full gap-x-lg">

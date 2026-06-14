@@ -315,13 +315,17 @@ function ProgressIndicator({ step }: { step: ExStep }) {
 
 export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Props>(
   function UnionExercise1({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
+    // ── Estado de rodada e par ───────────────────────────────────
+    const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
+    // SEÇÃO POR STEP — cada tela do exercício é uma seção telemétrica
+    // independente. Trocou de step → seção anterior é finalizada e nova
+    // começa, evitando que eventos de telas diferentes compartilhem o
+    // mesmo exercício no `exercicios_interagidos`.
     useTelemetryExercise(
-      'twoDices-cena7-unionExercise1',
+      `twoDices-cena7-unionExercise1-${step}`,
       'Exercício 1 — Probabilidade da união (caso geral)',
       'Aluno identifica eventos A, B e A∩B na tabela 6×6 e calcula P(A∪B) por contagem ou fórmula.',
     );
-    // ── Estado de rodada e par ───────────────────────────────────
-    const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
 
     // Telemetria da LEITURA do enunciado (step 'intro') — quando o aluno
     // sai do 'intro' pra 'markA' clicando "Começar", isso é uma leitura

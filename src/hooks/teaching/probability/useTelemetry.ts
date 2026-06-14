@@ -269,12 +269,23 @@ const session: SessionRuntime = {
  *   • resumeTelemetry restaura tudo. */
 let telemetryPausedAt: number | null = null;
 
+/** MODO DEV — quando true, a telemetria SILENCIA toda gravação de
+ *  eventos e impressão no console. Estágios/seções continuam sendo
+ *  rastreados (telemetryEnterExercise/Exit, telemetryUpdateSectionMeta,
+ *  telemetrySetActiveOva mantêm o contexto correto) — só a coleta de
+ *  acertos/erros/registros/interações/leituras é pulada. Assim a
+ *  navegação via setas do DevPanel não polui a coleta real do aluno.
+ *
+ *  Setado via `telemetrySetDevMode(true|false)` — em geral wirado num
+ *  useEffect na page raiz que observa o `devMode` do componente. */
+let devModeActive = false;
+
 /** Leituras em andamento — `telemetryStartReading(id)` marca aqui o
  *  instante (em SESSION TIME) em que o conteúdo apareceu na tela. Quando
  *  o aluno clica "Li.", `telemetryConfirmReading(id, ...)` materializa
  *  um exercício atômico cuja duração é `agora − startedAt`. Sobrevive
  *  pausa por offline (o session time é congelado, não o wall clock). */
-const pendingReadings = new Map<string, { startedAtSessionTime: number; ovaId: OvaId }>();
+const pendingReadings = new Map<string, { startedAtSessionTime: number; ovaId: OvaId | null }>();
 
 // ─── Helpers de tempo ───────────────────────────────────────────────
 
@@ -435,6 +446,21 @@ function ensureOpenExercise(section: SectionContext): OpenExercise {
 
 // ─── API pública ────────────────────────────────────────────────────
 
+/**
+ * Liga/desliga o modo DEV da telemetria. Quando ligado, todas as
+ * APIs de GRAVAÇÃO (acerto/erro/registro/interação/leitura/click)
+ * viram NO-OP e nenhum snapshot é impresso no console. APIs de
+ * CONTEXTO (enter/exit/updateSectionMeta/setActiveOva) continuam
+ * funcionando — assim quando o aluno desliga DEV e volta a jogar de
+ * verdade, a seção em curso já reflete onde ele aterrissou.
+ *
+ * Wirar via `useEffect(() => telemetrySetDevMode(devMode), [devMode])`
+ * na page raiz que controla o painel DEV.
+ */
+export function telemetrySetDevMode(active: boolean): void {
+  devModeActive = active;
+}
+
 /** Reseta o estado interno. Chamar ao começar uma nova sequência. */
 export function telemetryReset(): void {
   session.startedAt = null;
@@ -443,6 +469,10 @@ export function telemetryReset(): void {
   session.ovas = new Map(OVA_IDS.map((id) => [id, makeOvaRuntime(id)] as const));
   session.lastExplicitAt = { acerto: 0, erro: 0 };
   telemetryPausedAt = null;
+  // Limpa leituras pendentes pra que um restart da sequência não
+  // carregue resíduos de sessões anteriores.
+  pendingReadings.clear();
+  atomicInteractionCounter = 0;
 }
 
 /** Pausa os cronômetros da telemetria (OVA ativa + exercício aberto).
@@ -510,12 +540,32 @@ export function telemetrySetActiveOva(ovaId: string | null): void {
   printSnapshot('ova-switch');
 }
 
+/**
+ * Verifica se um `id` de seção pertence ao OVA ativo. Útil pra evitar
+ * que componentes MONTADOS-MAS-NÃO-ATIVOS (caso típico do `devMode` da
+ * Sequência Didática, que renderiza todos os stages em paralelo)
+ * sobrescrevam o `currentSection` do OVA realmente em uso.
+ *
+ * Convenção: section ids começam com o `ovaId` ('roulette-...' ou
+ * 'twoDices-...'). Quando esse padrão não bate com o OVA ativo,
+ * `enter`/`exit` retornam early.
+ */
+function idBelongsToActiveOva(id: string, ovaId: OvaId): boolean {
+  return id.startsWith(`${ovaId}-`);
+}
+
 /** Entra num CONTEXTO/SEÇÃO. Cada Conferir dentro dela gera (ou
  *  acumula em) um exercício. */
 export function telemetryEnterExercise(id: string, title: string, descricao: string): void {
   ensureSessionStarted();
   const ova = activeOva();
   if (!ova) return;
+  // Ignora chamadas vindas de componentes montados-mas-não-ativos.
+  // Sem isso, em devMode (que mantém todos os stages montados em
+  // paralelo) cada stage não-ativo sobrescreveria a `currentSection`
+  // do stage realmente em uso, e na saída do devMode (quando os
+  // não-ativos desmontariam) zerariam essa seção via `exitExercise`.
+  if (!idBelongsToActiveOva(id, ova.id)) return;
   if (ova.currentSection?.id === id) {
     // Mesma seção — atualiza só metadados (rerender com props novas)
     ova.currentSection.title = title;
@@ -542,6 +592,9 @@ export function telemetryExitExercise(id?: string): void {
   const ova = activeOva();
   if (!ova || !ova.currentSection) return;
   if (id !== undefined && ova.currentSection.id !== id) return;
+  // Não nulifica seção via id que não pertence ao OVA ativo — vide
+  // comentário em `telemetryEnterExercise`.
+  if (id !== undefined && !idBelongsToActiveOva(id, ova.id)) return;
   finalizeOpen(ova.currentSection, ova);
   ova.currentSection = null;
 }
@@ -555,6 +608,7 @@ export function telemetryExitExercise(id?: string): void {
  *  aluno mexeu/explorou algo no caminho até chegar na resposta". Ambos
  *  contam pra `total_interacoes_exercicio` e vão pro histórico. */
 export function telemetryRecordRegistro(resposta: string): void {
+  if (devModeActive) return; // navegação DEV não polui coleta real
   const ova = activeOva();
   if (!ova?.currentSection) return;
   const open = ensureOpenExercise(ova.currentSection);
@@ -606,6 +660,7 @@ export function telemetryRecordRegistro(resposta: string): void {
  * evitar registros órfãos sem contexto.
  */
 export function telemetryRecordInteracaoExercicio(detalhe: string): void {
+  if (devModeActive) return; // navegação DEV não polui coleta real
   const ova = activeOva();
   if (!ova?.currentSection) return;
   const open = ensureOpenExercise(ova.currentSection);
@@ -619,6 +674,73 @@ export function telemetryRecordInteracaoExercicio(detalhe: string): void {
     timestamp_no_exercicio: fmtSec(tsSec - inicioSec),
   });
   printSnapshot('interacao_exercicio', openToJson(open));
+}
+
+/**
+ * Cria um exercício ATÔMICO de tipo `interacao_exercicio` — UM
+ * exercício separado com UM item de histórico, independente do open
+ * exercise da seção atual.
+ *
+ * Use pra ações exploratórias onde CADA CLIQUE deve ser registrado
+ * como um exercício próprio (não acumulado num histórico). Ex.:
+ * "Ver mais exemplos" — cada exemplo que o aluno consulta vira um
+ * exercício separado em `exercicios_interagidos`, facilitando análise
+ * de quantos exemplos consultou e quais.
+ *
+ * Diferença pro `telemetryRecordInteracaoExercicio`:
+ *   • `…InteracaoExercicio` → ADICIONA ao exercício aberto corrente
+ *     (acumula no histórico).
+ *   • `…AtomicInteraction` → CRIA exercício novo, finalizado, atômico.
+ *     Não interfere no exercício aberto da seção corrente.
+ *
+ * O exercício gerado tem duração 0 (start = end), porque representa
+ * um evento instantâneo. `startedAtSessionTime` e `finishedAtSessionTime`
+ * coincidem com o momento do clique.
+ *
+ * @param title — Título humano do exercício atômico (ex.: "Exemplo de
+ *   experimento determinístico").
+ * @param descricao — Descrição/contexto pedagógico do que aconteceu
+ *   (ex.: "Aluno pediu novo exemplo: 'Executar um algoritmo...'").
+ * @param detalhe — Vai pro `resposta_usuario` do único item do
+ *   histórico (ex.: "pediu novo exemplo de experimento determinístico:
+ *   \"...\"").
+ */
+let atomicInteractionCounter = 0;
+export function telemetryRecordAtomicInteraction(
+  title: string,
+  descricao: string,
+  detalhe: string,
+): void {
+  if (devModeActive) return;
+  const ova = activeOva();
+  if (!ova) return;
+  atomicInteractionCounter += 1;
+  const nowSessionTime = getElapsedTotalMs();
+  const nowSec = secOf(nowSessionTime);
+  const id = `${ova.id}-atomic-${atomicInteractionCounter}`;
+  const exercise: FinalizedExercise = {
+    id,
+    title,
+    descricao,
+    durationMs: 0,
+    finishedAt: nowMs(),
+    startedAtSessionTime: nowSessionTime,
+    finishedAtSessionTime: nowSessionTime,
+    totalInteracoes: 1,
+    totalAcertos: 0,
+    totalErros: 0,
+    history: [{
+      tipo: 'interacao_exercicio',
+      resposta_usuario: detalhe,
+      timestamp: fmtSec(nowSec),
+      // Duração interna = 0 → tudo aconteceu "no mesmo instante".
+      timestamp_no_exercicio: '00:00',
+    }],
+  };
+  ova.exercises.push(exercise);
+  ova.totalInteractions += 1;
+  session.totalInteractions += 1;
+  printSnapshot('interacao_exercicio_atomica', finalizedToJson(exercise));
 }
 
 /**
@@ -639,7 +761,10 @@ export function telemetryRecordInteracaoExercicio(detalhe: string): void {
  * exercício ATÔMICO próprio dentro de `exercicios_interagidos`.
  */
 export function telemetryStartReading(id: string): void {
-  if (!session.activeOvaId) return;
+  if (devModeActive) return; // navegação DEV não polui coleta real
+  // Armazena pending SEMPRE — mesmo se ainda não há OVA ativo (race
+  // condition rara: balão aparece antes do useEffect que faz
+  // `setActiveOva` rodar). O OVA dono é resolvido no `confirm`.
   pendingReadings.set(id, {
     startedAtSessionTime: getElapsedTotalMs(),
     ovaId: session.activeOvaId,
@@ -653,9 +778,13 @@ export function telemetryStartReading(id: string): void {
  *
  * O exercício é adicionado em `exercicios_interagidos` do OVA que
  * estava ativo no `telemetryStartReading` correspondente — mesmo que
- * o OVA ativo tenha mudado entre start e confirm (caso raro). Se não
- * houver start prévio com o `id` dado, `tempo_inicio_exercicio` cai
- * pro instante do confirm (duração zero), evitando perder o evento.
+ * o OVA ativo tenha mudado entre start e confirm (caso raro).
+ *
+ * IDEMPOTENTE: se não há pending com o `id` dado (porque já foi
+ * confirmado ou nunca foi iniciado), retorna sem fazer nada — não cria
+ * exercício vazio. Isso permite que tanto o handler explícito do "Li."
+ * quanto o auto-confirm via cleanup do `useReadingTelemetry` chamem
+ * essa função, e só a primeira chamada efetiva materialize o exercício.
  *
  * PARÂMETROS
  *  • `id`         — mesmo usado em `telemetryStartReading`. Único.
@@ -671,16 +800,25 @@ export function telemetryConfirmReading(
   descricao: string,
   detalhe: string,
 ): void {
+  if (devModeActive) {
+    // Em DEV, descarta o pending (se existir) sem registrar nada.
+    pendingReadings.delete(id);
+    return;
+  }
   const pending = pendingReadings.get(id);
+  // Sem pending = já confirmado ou nunca iniciado → no-op idempotente.
+  if (!pending) return;
   pendingReadings.delete(id);
-  // Resolve o OVA dono: prefere o do start (em caso raro de troca de
-  // OVA entre start e confirm). Fallback: OVA ativo atual.
-  const ovaId = pending?.ovaId ?? session.activeOvaId;
+  // Resolve o OVA dono — prefere o registrado no start (preserva
+  // contexto se OVA ativo mudou entre start e confirm); cai pro OVA
+  // ativo atual se o start aconteceu antes do `setActiveOva` (race
+  // condition rara mas possível em re-mounts/login flow).
+  const ovaId = pending.ovaId ?? session.activeOvaId;
   if (!ovaId) return;
-  const ova = session.ovas.get(ovaId);
+  const ova = session.ovas.get(ovaId as OvaId);
   if (!ova) return;
   const finishedAtSessionTime = getElapsedTotalMs();
-  const startedAtSessionTime = pending?.startedAtSessionTime ?? finishedAtSessionTime;
+  const startedAtSessionTime = pending.startedAtSessionTime;
   const finSec = secOf(finishedAtSessionTime);
   const iniSec = secOf(startedAtSessionTime);
   const exercise: FinalizedExercise = {
@@ -751,6 +889,7 @@ export function telemetryRecordErro(resposta: string): void {
 }
 
 function recordValidation(tipo: 'acerto' | 'erro', resposta: string, explicit: boolean): void {
+  if (devModeActive) return; // navegação DEV não polui coleta real
   const ova = activeOva();
   if (!ova) return;
 
@@ -845,6 +984,7 @@ function recordValidation(tipo: 'acerto' | 'erro', resposta: string, explicit: b
  *  global. Conta pra interações da sequência/OVA, mas NÃO pro campo
  *  total_interacoes_exercicio (esse campo conta apenas registros). */
 export function telemetryRecordInteraction(): void {
+  if (devModeActive) return; // cliques DEV (setas, jumps) não contam
   ensureSessionStarted();
   session.totalInteractions += 1;
   const ova = activeOva();
@@ -971,6 +1111,9 @@ function finalizedToJson(fin: FinalizedExercise): TelemetryExercise {
 }
 
 function printSnapshot(trigger: string, focusExercise?: TelemetryExercise): void {
+  // Em DEV, nada vai pro console mesmo que algum caller tenha escapado
+  // do guard `if (devModeActive) return;` lá no topo da API pública.
+  if (devModeActive) return;
   if (typeof console === 'undefined') return;
   const snap = buildSnapshot();
   // eslint-disable-next-line no-console
@@ -1007,6 +1150,13 @@ export function initTelemetryListeners(): () => void {
   const onClick = (e: MouseEvent) => {
     const target = e.target as Element | null;
     if (!isInteractiveTarget(target)) return;
+    // Escape-hatch: qualquer elemento (ou ancestral) com o atributo
+    // `data-skip-telemetry` sinaliza "essa árvore não deve alimentar a
+    // coleta". Usado em regiões que não fazem parte do percurso
+    // pedagógico do aluno (ex.: modal/botão de acesso ao questionário
+    // pós-sequência). Mais granular que o `devMode` global porque é
+    // declarativo por subárvore.
+    if (target?.closest('[data-skip-telemetry]')) return;
     telemetryRecordInteraction();
   };
   document.addEventListener('click', onClick, { capture: true, passive: true });
@@ -1047,27 +1197,37 @@ export function initTelemetryListeners(): () => void {
  *  ativa SEM finalizar o exercício em curso. O próximo exercício
  *  aberto (após um acerto ou após troca de seção) usará os metadados
  *  mais recentes. Útil pra mostrar a descricao DO MOMENTO no JSON
- *  (ex.: "Etapa 1 — Complete a fórmula"). */
-export function useTelemetryExercise(id: string, title: string, descricao: string): void {
+ *  (ex.: "Etapa 1 — Complete a fórmula").
+ *
+ *  PARÂMETRO `enabled` (default `true`) — quando `false`, o hook é NO-OP
+ *  (não chama enter/exit/updateMeta). USE quando o componente pode estar
+ *  MONTADO mas NÃO ATIVO — caso típico do `devMode` da Sequência Didática
+ *  que mantém todos os stages montados em paralelo: passe `isActiveStage`
+ *  como `enabled` pra que só o stage VISÍVEL reivindique a `currentSection`.
+ *  Sem isso, stages não-ativos sobrescreveriam o contexto da seção uns
+ *  dos outros e na saída do devMode (quando desmontariam) zerariam a
+ *  `currentSection` do stage ativo. */
+export function useTelemetryExercise(id: string, title: string, descricao: string, enabled: boolean = true): void {
   // Effect 1: enter na entrada, exit na saída. Só dispara em mudança de `id`.
   useEffect(() => {
+    if (!enabled) return;
     telemetryEnterExercise(id, title, descricao);
     return () => telemetryExitExercise(id);
     // title/descricao são atualizados pelo effect 2 sem finalizar; por isso
     // ficam fora das deps daqui.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, enabled]);
 
   // Effect 2: propaga mudanças de title/descricao SEM resetar exercício.
   useEffect(() => {
+    if (!enabled) return;
     telemetryUpdateSectionMeta(id, title, descricao);
-  }, [id, title, descricao]);
+  }, [id, title, descricao, enabled]);
 }
 
 /**
- * Helper React pra leituras: chama `telemetryStartReading(id)` quando
- * `active` vira true (ou no mount se já estava true) e retorna uma
- * função `confirm()` que chama `telemetryConfirmReading(id, ...)`.
+ * Helper React pra leituras: gerencia o ciclo `start` → `confirm`
+ * automaticamente conforme a prop `active` muda.
  *
  * USO TÍPICO — componente que mostra um balão/info com botão "Li.":
  *
@@ -1082,14 +1242,21 @@ export function useTelemetryExercise(id: string, title: string, descricao: strin
  *   <Button onClick={() => { confirmRead(); dismissInfoBox(); }}>Li.</Button>
  *
  * SEMÂNTICA
- *  • `active=true` (mount ou transição false→true): chama `start(id)`.
- *  • `id` mudou enquanto active: novo start sobrescreve o anterior.
- *  • `active` volta pra false sem `confirm()` ter sido chamado: o
- *    `pendingReadings` mantém o `startedAt` em memória até confirm
- *    futuro ou nova start. Sem leak — Map mantém poucas entradas.
+ *  • `active=true`: chama `telemetryStartReading(id)`.
+ *  • `active=false` OU `id` muda OU componente desmonta: o cleanup do
+ *    useEffect dispara `telemetryConfirmReading` AUTOMATICAMENTE com
+ *    os valores que estavam ativos. Isso garante que TODOS os caminhos
+ *    de dispensa (botão "Li.", auto-dismiss programático, mudança de
+ *    cena, mudança de stage, navegação DEV) viram exercício de leitura.
+ *  • A função `confirm()` retornada continua disponível pra callers
+ *    que querem disparar o confirm ANTES da animação de dispensa
+ *    (ex.: pra som de feedback). É IDEMPOTENTE — se já foi confirmado
+ *    via cleanup, a chamada manual é no-op.
  *
- * O `confirm` retornado é estável por id+title+descricao+detalhe (via
- * `useCallback`). É seguro passar pra eventos sem re-criar bindings.
+ * Sem esse auto-confirm, balões dispensados por handlers que não
+ * passam pelo onConfirm (vários `setShowInfoBox(false)` espalhados no
+ * useRouletteHooks) ficavam sem exercício gerado — start sem confirm,
+ * pending leak.
  */
 export function useReadingTelemetry(
   active: boolean,
@@ -1101,7 +1268,19 @@ export function useReadingTelemetry(
   useEffect(() => {
     if (!active) return;
     telemetryStartReading(id);
-  }, [active, id]);
+    // Cleanup roda quando:
+    //   • `active` muda pra false (dispensa do balão)
+    //   • `id` muda (novo balão substitui o atual)
+    //   • Componente desmonta (navegação, troca de stage, logout)
+    // Confirma com os valores DESTE ciclo (closure capturada agora,
+    // não os de um ciclo futuro). Idempotente: se foi chamado
+    // manualmente via `confirm()` antes, o `telemetryConfirmReading`
+    // detecta que o pending já foi consumido e vira no-op.
+    return () => {
+      telemetryConfirmReading(id, title, descricao, detalhe);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, id]); // title/descricao/detalhe lidos via closure — mudanças não disparam novo ciclo
   return useCallback(() => {
     telemetryConfirmReading(id, title, descricao, detalhe);
   }, [id, title, descricao, detalhe]);

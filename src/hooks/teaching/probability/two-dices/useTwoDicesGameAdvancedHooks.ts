@@ -370,7 +370,8 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
       if (eA || op || eB) {
         parts.push(`select: A="${eA || '_'}" op="${op || '_'}" B="${eB || '_'}"`);
       }
-      parts.push(`desafio ${s.challenge + 1}, passo ${s.step + 1}`);
+      // (Numeração interna do desafio/passo NÃO entra — o `title`/
+      // `descricao` da seção já dão o contexto pedagógico.)
       if (parts.length > 0) resolved = parts.join(' | ');
     }
     _createAlert(title, message, type, duration, resolved);
@@ -411,7 +412,7 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
     if (prev.b !== cur.b) changed.push(`Evento B: "${prev.b || '_'}" → "${cur.b || '_'}"`);
     if (changed.length === 0) return;
     telemetryRecordInteracaoExercicio(
-      `select ${changed.join(' ; ')} (desafio ${challenge + 1}, passo ${step + 1})`
+      `select ${changed.join(' ; ')}`
     );
   }, [operationSelectInputs, challenge, step]);
 
@@ -434,7 +435,7 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
       if (prev.cn !== cur.cn || prev.cd !== cur.cd) parts.push(`P complementar: ${cur.cn || '_'} / ${cur.cd || '_'}`);
       if (parts.length === 0) return;
       telemetryRecordInteracaoExercicio(
-        `digitou fração — ${parts.join(' ; ')} (desafio ${challenge + 1}, passo ${step + 1})`
+        `digitou fração — ${parts.join(' ; ')}`
       );
     }, 600);
     return () => window.clearTimeout(handle);

@@ -73,21 +73,22 @@ export const ComplementaryEventsActivity = forwardRef<
   if (pp?.numerator?.value || pp?.denominator?.value) {
     contextParts.push(`P(${pp.eventName ?? '?'})=${pp.numerator?.value || '_'}/${pp.denominator?.value || '_'}`);
   }
-  useTelemetryExercise(
-    'twoDices-cena7-complementaryEvents',
-    'Eventos complementares — descoberta e formalização',
-    [
-      'Aluno descobre P(A) + P(Ā) = 1 explorando casos na tabela 6×6 e formaliza P(Ā) = 1 − P(A).',
-      contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
-    ].filter(Boolean).join(' '),
-  );
-
   // Computa o phaseId composto (inclui formStep durante a formalização) e
   // notifica o pai a cada mudança. Sem isso, o pai mantém scene7ExperimentPhase
   // em 'complementaryEvents' o tempo todo e o painel DEV não captura snapshots
   // das sub-fases internas — o contador não anda mesmo a seta funcionando.
   const composedPhaseId =
     h.subPhase === 'formalization' ? `formalization|step=${h.formStep}` : h.subPhase;
+  // SEÇÃO POR SUB-FASE (+ formStep) — cada tela vira uma seção própria.
+  // Mudou a fase → seção anterior é finalizada, exercícios não se misturam.
+  useTelemetryExercise(
+    `twoDices-cena7-complementaryEvents-${composedPhaseId}`,
+    'Eventos complementares — descoberta e formalização',
+    [
+      'Aluno descobre P(A) + P(Ā) = 1 explorando casos na tabela 6×6 e formaliza P(Ā) = 1 − P(A).',
+      contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
+    ].filter(Boolean).join(' '),
+  );
   useEffect(() => {
     onPhaseChange?.(composedPhaseId);
   }, [composedPhaseId, onPhaseChange]);

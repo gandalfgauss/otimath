@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
+import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
 import {
   VennRegion, VennSetSpec, VennGeometry, MembershipMask, maskKey, masksEqual,
 } from './types';
@@ -122,6 +123,15 @@ export function VennLaboratory({
   );
 
   const [step, setStep] = useState<VennSubStep>('intro');
+  // SEÇÃO POR SUB-ETAPA — cada uma das ~17 sub-etapas do laboratório
+  // Venn (intro → createIntersection → ... → conclusion) é uma tela
+  // distinta. Mudou de step → nova seção telemétrica, exercícios não
+  // se misturam entre etapas.
+  useTelemetryExercise(
+    `twoDices-cena7-venn-${step}`,
+    'Laboratório de Venn — descoberta da fórmula da união',
+    `Construção do diagrama de Venn (N=2). Sub-etapa: ${step}.`,
+  );
   const [geometry, setGeometry] = useState<VennGeometry>(defaultGeometry2Disjoint);
   const [descriptionsOutside, setDescriptionsOutside] = useState(false);
 

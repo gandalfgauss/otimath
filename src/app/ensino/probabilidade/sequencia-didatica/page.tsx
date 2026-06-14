@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { HeroBanner } from "@/components/global/HeroBanner";
 import { OvaCredits } from "@/components/global/OvaCredits";
 import { PostSequenceForm } from "@/components/global/PostSequenceForm";
+import { SequenceLogin } from "@/components/global/SequenceLogin";
+import { SequenceLogout } from "@/components/global/SequenceLogout";
 import { TextBlock } from "@/components/global/TextBlock";
 import { Button } from "@/components/global/Button";
 import { Grid } from "@/components/global/Grid";
 import { GridItem } from "@/components/global/GridItem";
-import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { RouletteGame } from "@/components/teaching/probability/roulette/RouletteGame";
 import { TwoDicesPresentation } from "@/components/teaching/probability/two-dices/TwoDicesPresentation";
 import { StudyMenu } from "@/components/teaching/probability/two-dices/shared/StudyMenu";
@@ -27,6 +29,7 @@ import {
   getSequenceStats,
   useSequenceTick,
 } from "@/hooks/teaching/probability/useSequenceSession";
+import { telemetrySetDevMode } from "@/hooks/teaching/probability/useTelemetry";
 import { playSound } from "@/hooks/global/useSound";
 import { useAlerts } from "@/hooks/global/useAlerts";
 import { Alerts } from "@/components/global/Alerts";
@@ -47,6 +50,59 @@ const STAGE_LABELS: Record<Stage, string> = {
 export default function DidacticSequencePage() {
   const [stage, setStage] = useState<Stage>('intro');
   const [devMode, setDevMode] = useState(false);
+
+  // ─── Login gate (3-state) ───────────────────────────────────────
+  // O conteúdo "interno" (barra de progresso, OVAs, questionário e
+  // créditos) só aparece depois de o aluno se autenticar. Banner (hero),
+  // menu e rodapé continuam visíveis em volta — fornecem identidade e
+  // navegação enquanto o aluno chega.
+  //
+  // Persistência em localStorage pra que o aluno não precise logar
+  // toda vez que abrir a página (UX de pesquisa, não de banco).
+  //
+  // ESTADO DE 3 FASES — evita o "flash do login screen" que aparecia
+  // antes pra quem JÁ estava logado:
+  //   • 'checking' — inicial (SSR + primeiro render no client).
+  //     Renderiza placeholder de loading. Esse estado COBRE também o
+  //     intervalo entre `setLoginState('logged-in')` e o commit da
+  //     árvore pesada da sequência (React mantém o render anterior
+  //     na tela enquanto faz a transição).
+  //   • 'logged-out' — sem credencial salva → mostra SequenceLogin.
+  //   • 'logged-in' — credencial válida no localStorage → mostra
+  //     todo o conteúdo da sequência.
+  //
+  // SSR-SAFE: o estado inicial é sempre 'checking' (server + client
+  // concordam), e o useEffect abaixo lê o localStorage só no client.
+  type LoginState = 'checking' | 'logged-in' | 'logged-out';
+  const [loginState, setLoginState] = useState<LoginState>('checking');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('otimath-seq-loggedIn');
+    setLoginState(stored === 'true' ? 'logged-in' : 'logged-out');
+  }, []);
+  const handleLogin = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('otimath-seq-loggedIn', 'true');
+    }
+    setLoginState('logged-in');
+  }, []);
+  // Logout: limpa o flag persistido + cai pro `SequenceLogin`. Não
+  // resetamos estado dos OVAs aqui — eles vão desmontar/remontar
+  // quando o aluno relogar; estado é reinicializado naturalmente.
+  const handleLogout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('otimath-seq-loggedIn');
+    }
+    setLoginState('logged-out');
+  }, []);
+
+  // Silencia a telemetria enquanto o painel DEV está aberto — navegação
+  // via setas, jumps de subStep e cliques nos controles DEV não devem
+  // poluir a coleta real do aluno. O contexto (enter/exit/section)
+  // continua sendo rastreado, só a GRAVAÇÃO de eventos é pulada.
+  useEffect(() => {
+    telemetrySetDevMode(devMode);
+  }, [devMode]);
   // Progresso interno do OVA ativo (0..1) — reportado pelos OVAs via
   // callback `onProgressChange`. Mapeado para a faixa global do estágio
   // (roulette: 0→0.25; twoDices: 0.5→0.75) na barra do topo.
@@ -228,36 +284,92 @@ export default function DidacticSequencePage() {
         image={heroBannerProbabilityImage}
       />
 
-      {/* Barra de progresso da trilha — bloco normal, rola junto com a
-          página. Posicionada logo abaixo do banner para servir de
-          cabeçalho dos cinco marcos (Início → OVA do Disco → Transição →
-          OVA Dois Dados → Fim) e do preenchimento contínuo dentro de
-          cada OVA. */}
-      <SequenceProgressBar progress={globalProgress} currentStageIndex={stageIndex} />
-
-      {/* `relative` + `OfflineOverlay` aqui dentro: quando a internet cai,
-          o overlay cobre APENAS o miolo das cenas (este div), preservando
-          a barra de progresso acima e o que vier abaixo (PostSequenceForm,
-          OvaCredits, DevPanel). */}
-      <div ref={ovaContainerRef} className="relative">
-        <OfflineOverlay />
-        {STAGES.map(s => (
-          <div key={s} className={stage === s ? 'block' : 'hidden'}>
-            {(stage === s || devMode) && renderStage(s)}
+      {/* Conteúdo gateado por login — só aparece após autenticação.
+          Banner (hero) acima fica visível independente do login pra dar
+          identidade enquanto o aluno chega; menu e rodapé do layout
+          também. */}
+      {loginState === 'checking' ? (
+        // ─── PLACEHOLDER DE LOADING ───────────────────────────────
+        // Aparece em 2 momentos:
+        //   1. Render SSR + primeiro render no client (antes do
+        //      useEffect ler o localStorage).
+        //   2. Transição entre `setLoginState('logged-in')` e o
+        //      commit da árvore pesada da sequência — React mantém
+        //      o último render na tela durante a reconciliação, então
+        //      o loading "cobre" o atraso de mount dos OVAs.
+        // Mesma linguagem visual do SequenceLogin (gradient-level-5
+        // + card central) pra que a transição quando o status muda
+        // pareça contínua. */
+        <Grid paddings="pt-xl pb-xl" backgroundColor="bg-linear-(--color-gradient-level-5)">
+          <GridItem cols="col-[4_/_10] max-md:col-[2_/_12] max-sm:col-[1_/_13]">
+            <div
+              className="rounded-lg shadow-level-1 bg-linear-(--color-gradient-level-1) p-xs flex flex-col items-center gap-y-xs text-center"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="w-14 h-14 rounded-full bg-brand-otimath-lightest flex items-center justify-center">
+                <Loader2
+                  size={28}
+                  className="text-brand-otimath-pure animate-spin"
+                  aria-hidden="true"
+                />
+              </div>
+              <span className="ds-overline text-brand-otimath-pure tracking-wider">
+                CARREGANDO
+              </span>
+              <h2 className="ds-heading-mega text-brand-otimath-dark max-w-[480px]">
+                Preparando a sequência didática
+              </h2>
+              <div className="w-12 h-0.5 bg-brand-otimath-pure rounded-full" />
+              <p className="ds-body text-neutral-darkest max-w-[480px] leading-relaxed">
+                Verificando seu acesso e carregando os OVAs. Isso leva
+                só alguns instantes.
+              </p>
+            </div>
+          </GridItem>
+        </Grid>
+      ) : loginState === 'logged-in' ? (
+        <>
+          {/* Faixa acima da barra de progresso — alinha o botão de
+              logout à direita. Padding lateral espelha o do Grid (col 1
+              de 13) pra ficar bem no canto, sem grudar na borda. */}
+          <div className="flex justify-end pt-micro pb-micro pl-xxs pr-xxs">
+            <SequenceLogout onLogout={handleLogout} />
           </div>
-        ))}
-      </div>
+          {/* Barra de progresso da trilha — bloco normal, rola junto com a
+              página. Posicionada logo abaixo do banner para servir de
+              cabeçalho dos cinco marcos (Início → OVA do Disco → Transição →
+              OVA Dois Dados → Fim) e do preenchimento contínuo dentro de
+              cada OVA. */}
+          <SequenceProgressBar progress={globalProgress} currentStageIndex={stageIndex} />
 
-      <PostSequenceForm/>
+          {/* `relative` + `OfflineOverlay` aqui dentro: quando a internet cai,
+              o overlay cobre APENAS o miolo das cenas (este div), preservando
+              a barra de progresso acima e o que vier abaixo (PostSequenceForm,
+              OvaCredits, DevPanel). */}
+          <div ref={ovaContainerRef} className="relative">
+            <OfflineOverlay />
+            {STAGES.map(s => (
+              <div key={s} className={stage === s ? 'block' : 'hidden'}>
+                {(stage === s || devMode) && renderStage(s)}
+              </div>
+            ))}
+          </div>
 
-      <OvaCredits/>
-      
-      <DevPanel
-        devMode={devMode}
-        setDevMode={setDevMode}
-        stage={stage}
-        goToStage={goToStage}
-      />
+          <PostSequenceForm/>
+
+          <OvaCredits/>
+
+          <DevPanel
+            devMode={devMode}
+            setDevMode={setDevMode}
+            stage={stage}
+            goToStage={goToStage}
+          />
+        </>
+      ) : (
+        <SequenceLogin onLogin={handleLogin} />
+      )}
     </main>
   );
 }
@@ -315,6 +427,11 @@ function DevPanel({
   if (devMode) {
     return (
       <div
+        // Cliques no painel DEV não fazem parte do percurso pedagógico —
+        // ignorados pelo listener global de interações em useTelemetry.ts
+        // (que já tem o `if (devModeActive) return;` em todas APIs de
+        // gravação, mas o contador global de cliques é separado).
+        data-skip-telemetry
         className="fixed top-1/2 -translate-y-1/2 left-micro z-50 bg-neutral-white p-micro rounded-md shadow-lg border border-neutral-light flex flex-col gap-y-micro min-w-[220px]"
         role="region"
         aria-label="Painel de desenvolvimento da sequência didática"
@@ -380,7 +497,12 @@ function DevPanel({
   }
 
   return (
-    <div className="fixed bottom-xs right-xs z-50 flex items-center gap-x-quarck">
+    <div
+      // Cliques na bolinha de acesso ao DEV + input de senha são
+      // ignorados pelo contador global de interações.
+      data-skip-telemetry
+      className="fixed bottom-xs right-xs z-50 flex items-center gap-x-quarck"
+    >
       {inputVisible && (
         <input
           ref={secretInputRef}

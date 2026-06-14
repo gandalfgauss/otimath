@@ -330,7 +330,9 @@ export const useTwoDicesHooks = () => {
       if (eA || op || eB) {
         parts.push(`select: A="${eA || '_'}" op="${op || '_'}" B="${eB || '_'}"`);
       }
-      parts.push(`desafio ${s.challenge + 1}, passo ${s.step + 1}`);
+      // (Não anexamos `desafio X, passo Y` aqui — quem lê a telemetria
+      // já tem o `title`/`descricao` da seção como âncora pedagógica.
+      // Numeração interna polui sem agregar.)
       if (parts.length > 0) resolved = parts.join(' | ');
     }
     _createAlert(title, message, type, duration, resolved);
@@ -383,7 +385,7 @@ export const useTwoDicesHooks = () => {
     if (prev.b !== cur.b) changed.push(`Evento B: "${prev.b || '_'}" → "${cur.b || '_'}"`);
     if (changed.length === 0) return;
     telemetryRecordInteracaoExercicio(
-      `select ${changed.join(' ; ')} (desafio ${challenge + 1}, passo ${step + 1})`
+      `select ${changed.join(' ; ')}`
     );
   }, [operationSelectInputs, challenge, step]);
 
@@ -415,7 +417,7 @@ export const useTwoDicesHooks = () => {
       }
       if (parts.length === 0) return;
       telemetryRecordInteracaoExercicio(
-        `digitou fração — ${parts.join(' ; ')} (desafio ${challenge + 1}, passo ${step + 1})`
+        `digitou fração — ${parts.join(' ; ')}`
       );
     }, 600);
     return () => window.clearTimeout(handle);
@@ -1138,5 +1140,9 @@ export const useTwoDicesHooks = () => {
      *  quando recebe a prop `enableMarkAll`. Seção introdutória do OVA
      *  permanece inalterada (não passa a prop). */
     markAllOnClick,
+    // Expostos pra que o componente possa usar como discriminadores
+    // de "tela atual" na telemetria (id da seção muda quando mudam).
+    challenge,
+    step,
   };
 };

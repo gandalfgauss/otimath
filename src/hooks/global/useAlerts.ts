@@ -41,9 +41,17 @@ export const useAlerts = () => {
    *   /escreveu na telemetria (ex.: `"slider em 5"`, `"P = 7/36"`). Esse
    *   5º parâmetro repassa ao observador (vide subscribeToAlerts) sem
    *   afetar o display do toast.
+   * @param silent Opcional, default `false`. Quando `true`, o alerta é
+   *   exibido normalmente mas os observadores (telemetria etc.) NÃO são
+   *   notificados. Use em alerts que carregam tipo `error`/`success`
+   *   mas conceitualmente NÃO são respostas a exercícios — ex.: erro
+   *   de senha do questionário pós-sequência. Sem este flag, esses
+   *   eventos virariam pseudo-erros no JSON de telemetria do OVA ativo
+   *   (poluiriam o dataset). Não afeta o display do toast.
    */
-  const createAlert = useCallback((title: string, description: string, type: AlertType, timeout: number = 3000, userResponse?: string) => {
+  const createAlert = useCallback((title: string, description: string, type: AlertType, timeout: number = 3000, userResponse?: string, silent: boolean = false) => {
     setAlerts(prev => [...prev, {title: title, description:description, type: type, status: "show", timeout: timeout}]);
+    if (silent) return;
     // Notifica observadores síncronos. Erros nos observers não devem
     // quebrar a criação do alerta — engolimos defensivamente.
     for (const obs of alertObservers) {

@@ -1165,14 +1165,16 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
         <>
           <FinishedSignal onFinished={onFinished} />
           {devMode && (
-            <TwoDicesDevNav
-              historyRef={devHistoryRef}
-              cursorRef={devCursorRef}
-              restoringRef={devRestoringRef}
-              onCursorChange={() => setDevHistoryTick(c => c + 1)}
-              onSimulateAdvance={devSimulateAdvance}
-              applyDevSnapshot={applyDevSnapshot}
-            />
+            <div data-skip-telemetry>
+              <TwoDicesDevNav
+                historyRef={devHistoryRef}
+                cursorRef={devCursorRef}
+                restoringRef={devRestoringRef}
+                onCursorChange={() => setDevHistoryTick(c => c + 1)}
+                onSimulateAdvance={devSimulateAdvance}
+                applyDevSnapshot={applyDevSnapshot}
+              />
+            </div>
           )}
         </>
       );
@@ -1187,14 +1189,16 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   return (
     <main className="bg-brand-otimath-lightest">
       {devMode && (
-        <TwoDicesDevNav
-          historyRef={devHistoryRef}
-          cursorRef={devCursorRef}
-          restoringRef={devRestoringRef}
-          onCursorChange={() => setDevHistoryTick(c => c + 1)}
-          onSimulateAdvance={devSimulateAdvance}
-          applyDevSnapshot={applyDevSnapshot}
-        />
+        <div data-skip-telemetry>
+          <TwoDicesDevNav
+            historyRef={devHistoryRef}
+            cursorRef={devCursorRef}
+            restoringRef={devRestoringRef}
+            onCursorChange={() => setDevHistoryTick(c => c + 1)}
+            onSimulateAdvance={devSimulateAdvance}
+            applyDevSnapshot={applyDevSnapshot}
+          />
+        </div>
       )}
       <Grid id="apresentacao-dado" paddings="pt-md" noEdgeMargins>
         <GridItem cols="col-[1_/_13]">

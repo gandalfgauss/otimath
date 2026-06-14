@@ -467,14 +467,12 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     if (prev === sliderValue) return;
     prevSliderRef.current = sliderValue;
     if (prev === null) return; // skip initial mount/reativação
-    // Captura stage/subStep AQUI (não nas deps) pra timer ter referência
-    // correta mesmo se o aluno apertou Conferir entre a alteração e o
-    // disparo do timer.
-    const stageNow = gameState.stage;
-    const subStepNow = gameState.subStep;
+    // (Não anotamos stage/subStep no texto — quem lê o JSON já tem o
+    // `title`/`descricao` da seção corrente como âncora. Numeração
+    // interna polui sem agregar.)
     const handle = window.setTimeout(() => {
       telemetryRecordInteracaoExercicio(
-        `slider: ${prev} → ${sliderValue} (etapa ${stageNow}, subpasso ${subStepNow})`
+        `slider: ${prev} → ${sliderValue}`
       );
     }, 500);
     return () => window.clearTimeout(handle);
@@ -494,8 +492,6 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     prevSelectedOptionRef.current = selectedOption;
     if (prev === null) return; // skip initial mount/reativação
     if (!selectedOption) return; // reset pra '' não é interação
-    const stageNow = gameState.stage;
-    const subStepNow = gameState.subStep;
     // Traduz value → label legível. `currentQuestion` reflete a pergunta
     // ATUAL — se o aluno mudou de opção antes de trocar de pergunta, é a
     // mesma pergunta pra ambos os values. Em casos de race onde a pergunta
@@ -504,8 +500,8 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     const prevLabel = prev ? labelOfOption(prev, currentQuestion) : prev;
     telemetryRecordInteracaoExercicio(
       prevLabel
-        ? `mudou opção: "${prevLabel}" → "${currentLabel}" (etapa ${stageNow}, subpasso ${subStepNow})`
-        : `selecionou opção: "${currentLabel}" (etapa ${stageNow}, subpasso ${subStepNow})`
+        ? `mudou opção: "${prevLabel}" → "${currentLabel}"`
+        : `selecionou opção: "${currentLabel}"`
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOption, isActiveStage]);
@@ -530,28 +526,64 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
          fallback: 'Treino de P(Ā) = 1 − P(A) e generalização para um dado equilibrado.' },
   };
   const stageInfo = rouletteStageInfo[gameState.stage] ?? rouletteStageInfo[1];
-  // Descrição dinâmica — extrai texto livre do `instructions` (HTML) atual
-  // pra que o JSON capture O QUE O ALUNO ESTÁ FAZENDO no momento da
-  // validação, não a descrição genérica da etapa. Fallback quando vazio.
-  const baseInstructions = (instructions || '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 240); // deixa margem pros sufixos de contexto abaixo
+  // ─── Construção da DESCRIÇÃO DINÂMICA ───────────────────────────
+  //
+  // A descricao do exercício na telemetria precisa capturar TUDO que o
+  // aluno está vendo na hora da interação — não só o cabeçalho de
+  // instruções no topo. Quem analisa os dados depois precisa entender
+  // qual pergunta foi feita, quais opções estavam disponíveis, qual
+  // balão conceitual estava em destaque, etc.
+  //
+  // Helper pra strip HTML + colapsar espaços + truncar com elipse.
+  const stripText = (raw: string, max: number): string => {
+    const cleaned = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
+  };
+  const descricaoParts: string[] = [];
+  // 1. Instruções do topo (cabeçalho da etapa)
+  if (instructions) {
+    const txt = stripText(instructions, 200);
+    if (txt) descricaoParts.push(`Topo: ${txt}`);
+  }
+  // 2. Balão conceitual visível (InfoBox) — quando aparece, é onde o
+  //    aluno está realmente olhando. Sem isso, "Li." vira clique sem
+  //    contexto na coleta. Limitamos a 200 chars do message pra não
+  //    inflar a descricao quando o balão tem texto muito longo.
+  if (showInfoBox && infoBoxContent) {
+    const balaoMsg = stripText(infoBoxContent.message || '', 200);
+    descricaoParts.push(
+      `Balão "${infoBoxContent.title || 'sem título'}": ${balaoMsg}`,
+    );
+  }
+  // 3. Pergunta corrente (currentQuestion.question) — o enunciado
+  //    específico do exercício. Crítico — antes a descricao só pegava
+  //    "Identificação do Experimento Aleatório" (cabeçalho genérico)
+  //    e não o enunciado "Tem-se um disco dividido em setores...".
+  if (currentQuestion?.question) {
+    descricaoParts.push(
+      `Pergunta: ${stripText(currentQuestion.question, 280)}`,
+    );
+  }
+  // 4. Opções da pergunta — as escolhas que o aluno vê na tela. Sem
+  //    isso, "marcou 'distractor_2'" no resposta_usuario fica sem
+  //    âncora — não dá pra saber qual era o texto da opção errada.
+  //    Numeramos (a)/(b)/(c) pra ficar legível.
+  if (currentQuestion?.options && currentQuestion.options.length > 0) {
+    const opts = currentQuestion.options
+      .map((o, i) => `(${String.fromCharCode(97 + i)}) ${stripText(o.label || o.value, 100)}`)
+      .join('; ');
+    descricaoParts.push(`Opções: ${opts.slice(0, 400)}`);
+  }
+  const baseInstructions = descricaoParts.join(' || ');
   // Sufixos de CONTEXTO DO ALUNO — anexados ao final pra que, lendo só
   // a `descricao` no JSON, dê pra entender O QUE o aluno apostou /
   // previu na hora do evento. Sem isso, "Qual a probabilidade da cor
   // apostada?" fica sem âncora — não dá pra saber qual foi a aposta.
   const contextTags: string[] = [];
-  // Etapa 1 sub 0 e Etapa 2 sub 0/1: aluno mexendo no slider pra contar
-  // setores do disco. O valor atual é importante pra entender se ele tá
-  // perto/longe da resposta certa.
-  if (gameState.stage === 1 && gameState.subStep === 0) {
-    contextTags.push(`slider em ${sliderValue}`);
-  }
-  if (gameState.stage === 2 && (gameState.subStep === 0 || gameState.subStep === 1)) {
-    contextTags.push(`slider em ${sliderValue}`);
-  }
+  // (O valor atual do slider NÃO entra na `descricao` — a movimentação
+  // do slider já gera eventos `interacao_exercicio` no histórico, e o
+  // valor confirmado vai no `resposta_usuario` do acerto/erro via
+  // wrapper do createAlert. Repetir aqui só polui o texto da seção.)
   // Etapa 1 (1.1 / 1.17) e Etapa 2 (0.15-0.17): "investigação inicial"
   // com aposta exploratória via `experimentationState.wageredColor`.
   if ((gameState.stage === 1 || gameState.stage === 2) && experimentationState.wageredColor) {
@@ -588,10 +620,47 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     ? ` | [aluno ${contextTags.join('; aluno ')}]`
     : '';
   const liveDescricao = (baseInstructions + contextSuffix) || stageInfo.fallback;
+  // SEÇÃO POR (SUBPASSO + SUB-FASE) — cada "tela" da Roleta é uma seção
+  // telemétrica independente. Além do subStep, incluímos TODOS os
+  // phases internos relevantes pra que mudanças de cena DENTRO de um
+  // mesmo subStep (ex.: disjoint 'selecting_A' → 'selecting_B') também
+  // gerem seções distintas.
+  //
+  // Cada marcador só entra no id se o valor for truthy — assim subSteps
+  // que não usam um determinado phase não recebem sufixo desnecessário.
+  // Resultado: ids tipo `roulette-stage-1-sub6.55-disj=selecting_A`
+  // quando a fase está ativa, ou `roulette-stage-1-sub0.1` quando não há
+  // sub-fase ativa.
+  const phaseMarkers: string[] = [];
+  if (disjointExercisePhase && disjointExercisePhase !== 'none') {
+    phaseMarkers.push(`disj=${disjointExercisePhase}`);
+  }
+  if (unionPhase) phaseMarkers.push(`union=${unionPhase}`);
+  if (compPhase) phaseMarkers.push(`comp=${compPhase}`);
+  if (s2RatioPhase) phaseMarkers.push(`ratio=${s2RatioPhase}`);
+  if (s2IxPhase) phaseMarkers.push(`ix=${s2IxPhase}`);
+  if (typeof s2IxCalcStep === 'number') phaseMarkers.push(`ixCalc=${s2IxCalcStep}`);
+  if (s2SpinReflection?.phase) phaseMarkers.push(`spinRefl=${s2SpinReflection.phase}`);
+  if (typeof s2AngleReadingStep === 'number') phaseMarkers.push(`angleRead=${s2AngleReadingStep}`);
+  if (typeof progressiveReadingStep === 'number') phaseMarkers.push(`progRead=${progressiveReadingStep}`);
+  if (freqRelConceptPhase) phaseMarkers.push(`freqRel=${freqRelConceptPhase}`);
+  if (interpretationPhase) phaseMarkers.push(`interp=${interpretationPhase}`);
+  if (lgnPhase) phaseMarkers.push(`lgn=${lgnPhase}`);
+  if (trainingState?.phase && trainingState.active) {
+    phaseMarkers.push(`train=${trainingState.phase}`);
+  }
+  if (typeof fracTraining?.currentTraining === 'number' && fracTraining.currentTraining > 0) {
+    phaseMarkers.push(`fracTrain=${fracTraining.currentTraining}`);
+  }
+  if (typeof compCalcExampleNum === 'number' && compCalcExampleNum > 0) {
+    phaseMarkers.push(`compCalc=${compCalcExampleNum}`);
+  }
+  const phaseSuffix = phaseMarkers.length > 0 ? `-${phaseMarkers.join(',')}` : '';
   useTelemetryExercise(
-    `roulette-stage-${gameState.stage}`,
+    `roulette-stage-${gameState.stage}-sub${gameState.subStep}${phaseSuffix}`,
     stageInfo.title,
     liveDescricao,
+    isActiveStage,
   );
 
   // ─── Telemetria de LEITURA do balão (InfoBox) ────────────────────
@@ -609,30 +678,37 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     .slice(0, 280);
   const confirmReadingBalao = useReadingTelemetry(
     showInfoBox && !!infoBoxContent,
+    // O `id` é interno e PRECISA ser único — mantemos stage+subStep
+    // só pra evitar colisão entre balões de mesmo título em pontos
+    // diferentes do OVA. Não aparece em texto exibido pro analista.
     `roulette-s${gameState.stage}-sub${gameState.subStep}-balao-${balaoTitulo}`,
-    `Leitura — ${balaoTitulo} (Etapa ${gameState.stage})`,
-    balaoMensagem || `Balão conceitual exibido na Etapa ${gameState.stage}, subpasso ${gameState.subStep}.`,
+    `Leitura — ${balaoTitulo}`,
+    balaoMensagem || 'Balão conceitual sem texto definido.',
     `confirmou leitura: "${balaoTitulo}"`,
   );
 
   return (
     <div className="flex flex-col gap-y-xxs">
       {devMode && (
-        <RouletteDevNav
-          stage={gameState.stage}
-          historyRef={devHistoryRef}
-          cursorRef={devCursorRef}
-          restoringRef={devRestoringRef}
-          historyTick={devHistoryTick}
-          onCursorChange={() => setDevHistoryTick(c => c + 1)}
-          onSimulateAdvance={devSimulateAdvance}
-          applyDevSnapshot={applyDevSnapshot}
-          onStartStage={(n) => {
-            if (n === 1) startStage1();
-            else if (n === 2) startStage2();
-            else startStage3();
-          }}
-        />
+        // Wrapper com `data-skip-telemetry` — cliques nas setinhas DEV
+        // de avanço/retorno + jumps de subStep não contam como interações.
+        <div data-skip-telemetry>
+          <RouletteDevNav
+            stage={gameState.stage}
+            historyRef={devHistoryRef}
+            cursorRef={devCursorRef}
+            restoringRef={devRestoringRef}
+            historyTick={devHistoryTick}
+            onCursorChange={() => setDevHistoryTick(c => c + 1)}
+            onSimulateAdvance={devSimulateAdvance}
+            applyDevSnapshot={applyDevSnapshot}
+            onStartStage={(n) => {
+              if (n === 1) startStage1();
+              else if (n === 2) startStage2();
+              else startStage3();
+            }}
+          />
+        </div>
       )}
       {/* Indicador visual das etapas — não são botões, apenas ilustram em
           qual etapa o aluno está e quais já foram concluídas. A navegação

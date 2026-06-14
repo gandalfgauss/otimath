@@ -142,13 +142,14 @@ function ProgressIndicator({ step }: { step: ExStep }) {
 
 export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Props>(
   function UnionExercise2({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
+    // ── Estado de rodada e par ───────────────────────────────────
+    const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
+    // SEÇÃO POR STEP — cada tela vira uma seção telemétrica própria.
     useTelemetryExercise(
-      'twoDices-cena7-unionExercise2',
+      `twoDices-cena7-unionExercise2-${step}`,
       'Exercício 2 — União de eventos mutuamente exclusivos',
       'Aluno valida que A∩B=∅ e aplica a fórmula reduzida P(A∪B) = P(A) + P(B).',
     );
-    // ── Estado de rodada e par ───────────────────────────────────
-    const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
 
     // Telemetria — leitura do enunciado do Ex.2 ('intro' → 'markA').
     const confirmReadIntro = useReadingTelemetry(

@@ -13,6 +13,14 @@ interface GridProps {
    *  dentro da Sequência Didática) já gerencia a respiração horizontal por conta
    *  própria e a margem do Grid acaba comprimindo o conteúdo. */
   noEdgeMargins?: boolean;
+  /** Quando true, aplica `data-skip-telemetry` no elemento raiz. Cliques
+   *  dentro do Grid são ignorados pelo listener global de interações em
+   *  useTelemetry.ts. Usado por Header/Footer (chrome do app, não fazem
+   *  parte do percurso pedagógico) e contextos similares.
+   *  Preferimos esta prop em vez de envolver em um `<div>` extra pra
+   *  não quebrar `sticky` do Header (que depende do containing block
+   *  ser o `<body>`). */
+  dataSkipTelemetry?: boolean;
 }
 
 export function Grid({
@@ -24,12 +32,17 @@ export function Grid({
   tag: Tag = 'section',
   styles = '',
   noEdgeMargins = false,
+  dataSkipTelemetry = false,
 }: Readonly<GridProps>) {
   const edgeMargins = noEdgeMargins
     ? ''
     : 'ml-xs mr-xs max-xlg:ml-xxs max-xlg:mr-xxs max-lg:ml-xxxs max-lg:mr-xxxs';
   return (
-    <Tag id={id} className={`flex justify-center w-full overflow-hidden ${styles} ${paddings} ${backgroundColor}`}>
+    <Tag
+      id={id}
+      className={`flex justify-center w-full overflow-hidden ${styles} ${paddings} ${backgroundColor}`}
+      {...(dataSkipTelemetry ? { 'data-skip-telemetry': true } : {})}
+    >
       <div
         className={`flex w-full max-w-[1216px] ${edgeMargins}`}
       >

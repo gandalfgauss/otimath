@@ -15,6 +15,7 @@ import { logTransition, logAttempt, logText, logBet, logSpinResult, downloadLog,
 import {
   telemetryRecordRegistro,
   telemetryRecordInteracaoExercicio,
+  telemetryRecordAtomicInteraction,
   telemetryUpdateSectionMeta,
 } from '@/hooks/teaching/probability/useTelemetry';
 
@@ -3939,6 +3940,40 @@ export const useRouletteHooks = () => {
     sampleSpaceCount: string;
     predictionText: string;
     selectedCharacteristics: number[];
+    // ── Inputs por COR (objetos `{ [color]: { value, ... } }`) ──
+    // Capturados como snapshot serializado pra que o fallback do
+    // wrapper consiga relatar valores que o aluno digitou em qualquer
+    // input por cor sem precisar editar cada validator individualmente.
+    countInputs: Record<string, { value?: string }>;
+    probInputs: Record<string, { value?: string; num?: string; den?: string }>;
+    s2RatioInputs: Record<string, { value?: string }>;
+    s2IxInputs: Record<string, { value?: string }>;
+    s2NumProbInputs: Record<string, { value?: string; num?: string; den?: string }>;
+    s2AngleProbInputs: Record<string, { value?: string; num?: string; den?: string }>;
+    s2FreqAbsInputs: Record<string, { value?: string }>;
+    s2FreqRelInputs: Record<string, { value?: string; num?: string; den?: string }>;
+    trainRatioInputs: Record<string, { value?: string }>;
+    trainIxInputs: Record<string, { value?: string }>;
+    trainProbInputs: Record<string, { value?: string; num?: string; den?: string }>;
+    colorCountInputs: Record<string, { value?: string }>;
+    // ── Inputs simples ──
+    s2SumEquationText: string;
+    s2XText: string;
+    s2ReasoningText: string;
+    s2ConclusionText: string;
+    trainSumText: string;
+    convergenceText: string;
+    theoreticalQuestion1Text: string;
+    theoreticalQuestion2Text: string;
+    favorableCasesText: string;
+    exerciseNEText: string;
+    exerciseNSText: string;
+    exercisePENumText: string;
+    exercisePEDenText: string;
+    diceText: string;
+    lgnText: string;
+    // ── Frações θ/360 (treino de fração angular) ──
+    fracThetaInputs: Record<string, { value?: string }>;
   }>({
     sliderValue: 1,
     selectedOption: '',
@@ -3947,6 +3982,34 @@ export const useRouletteHooks = () => {
     sampleSpaceCount: '',
     predictionText: '',
     selectedCharacteristics: [],
+    countInputs: {},
+    probInputs: {},
+    s2RatioInputs: {},
+    s2IxInputs: {},
+    s2NumProbInputs: {},
+    s2AngleProbInputs: {},
+    s2FreqAbsInputs: {},
+    s2FreqRelInputs: {},
+    trainRatioInputs: {},
+    trainIxInputs: {},
+    trainProbInputs: {},
+    colorCountInputs: {},
+    s2SumEquationText: '',
+    s2XText: '',
+    s2ReasoningText: '',
+    s2ConclusionText: '',
+    trainSumText: '',
+    convergenceText: '',
+    theoreticalQuestion1Text: '',
+    theoreticalQuestion2Text: '',
+    favorableCasesText: '',
+    exerciseNEText: '',
+    exerciseNSText: '',
+    exercisePENumText: '',
+    exercisePEDenText: '',
+    diceText: '',
+    lgnText: '',
+    fracThetaInputs: {},
   });
 
   /**
@@ -3962,6 +4025,23 @@ export const useRouletteHooks = () => {
     return opt?.label ?? value;
   }, []);
 
+  // Helper — resume inputs por COR num formato compacto. Aceita inputs
+  // com `value` (string) OU com `num`/`den` (fração). Só lista cores que
+  // têm valor preenchido (não inunda a resposta com cores vazias).
+  const summarizeColorInputs = (inputs: Record<string, { value?: string; num?: string; den?: string }>): string => {
+    if (!inputs) return '';
+    const parts: string[] = [];
+    for (const [color, input] of Object.entries(inputs)) {
+      if (!input) continue;
+      const v = input.value?.trim();
+      const n = input.num?.trim();
+      const d = input.den?.trim();
+      if (v) parts.push(`${color}=${v}`);
+      else if (n || d) parts.push(`${color}=${n || '_'}/${d || '_'}`);
+    }
+    return parts.join(', ');
+  };
+
   const createAlert = useCallback((title: string, message: string, type: AlertType, duration?: number, userResponse?: string) => {
     let resolved = userResponse;
     if (resolved === undefined) {
@@ -3976,6 +4056,47 @@ export const useRouletteHooks = () => {
       if (s.sampleSpaceCount.trim()) parts.push(`quantidade digitada: "${s.sampleSpaceCount.trim()}"`);
       if (s.predictionText.trim()) parts.push(`previsão digitada: "${s.predictionText.trim()}"`);
       if (s.selectedCharacteristics.length > 0) parts.push(`características marcadas: [${s.selectedCharacteristics.map(i => i + 1).join(', ')}]`);
+      // Inputs simples (textos curtos).
+      if (s.s2SumEquationText.trim()) parts.push(`soma das probs: "${s.s2SumEquationText.trim()}"`);
+      if (s.s2XText.trim()) parts.push(`x (valor de p): "${s.s2XText.trim()}"`);
+      if (s.s2ReasoningText.trim()) parts.push(`raciocínio: "${s.s2ReasoningText.trim()}"`);
+      if (s.s2ConclusionText.trim()) parts.push(`conclusão: "${s.s2ConclusionText.trim()}"`);
+      if (s.trainSumText.trim()) parts.push(`treino soma: "${s.trainSumText.trim()}"`);
+      if (s.convergenceText.trim()) parts.push(`convergência: "${s.convergenceText.trim()}"`);
+      if (s.theoreticalQuestion1Text.trim()) parts.push(`teórica Q1: "${s.theoreticalQuestion1Text.trim()}"`);
+      if (s.theoreticalQuestion2Text.trim()) parts.push(`teórica Q2: "${s.theoreticalQuestion2Text.trim()}"`);
+      if (s.favorableCasesText.trim()) parts.push(`casos favoráveis: "${s.favorableCasesText.trim()}"`);
+      if (s.exerciseNEText.trim() || s.exerciseNSText.trim()) parts.push(`n(E)=${s.exerciseNEText.trim() || '_'}, n(S)=${s.exerciseNSText.trim() || '_'}`);
+      if (s.exercisePENumText.trim() || s.exercisePEDenText.trim()) parts.push(`P(E)=${s.exercisePENumText.trim() || '_'}/${s.exercisePEDenText.trim() || '_'}`);
+      if (s.diceText.trim()) parts.push(`dado: "${s.diceText.trim()}"`);
+      if (s.lgnText.trim()) parts.push(`LGN: "${s.lgnText.trim()}"`);
+      // Inputs POR COR — só lista os que têm valor.
+      const probColor = summarizeColorInputs(s.probInputs);
+      if (probColor) parts.push(`P por cor: {${probColor}}`);
+      const countColor = summarizeColorInputs(s.countInputs);
+      if (countColor) parts.push(`freq.rel. por cor: {${countColor}}`);
+      const ratioColor = summarizeColorInputs(s.s2RatioInputs);
+      if (ratioColor) parts.push(`razões por cor: {${ratioColor}}`);
+      const ixColor = summarizeColorInputs(s.s2IxInputs);
+      if (ixColor) parts.push(`i·p por cor: {${ixColor}}`);
+      const numProbColor = summarizeColorInputs(s.s2NumProbInputs);
+      if (numProbColor) parts.push(`P numérica por cor: {${numProbColor}}`);
+      const angleProbColor = summarizeColorInputs(s.s2AngleProbInputs);
+      if (angleProbColor) parts.push(`P angular por cor: {${angleProbColor}}`);
+      const freqAbsColor = summarizeColorInputs(s.s2FreqAbsInputs);
+      if (freqAbsColor) parts.push(`freq.abs. por cor: {${freqAbsColor}}`);
+      const freqRelColor = summarizeColorInputs(s.s2FreqRelInputs);
+      if (freqRelColor) parts.push(`freq.rel. (s2) por cor: {${freqRelColor}}`);
+      const trainRatioColor = summarizeColorInputs(s.trainRatioInputs);
+      if (trainRatioColor) parts.push(`treino razões: {${trainRatioColor}}`);
+      const trainIxColor = summarizeColorInputs(s.trainIxInputs);
+      if (trainIxColor) parts.push(`treino i·p: {${trainIxColor}}`);
+      const trainProbColor = summarizeColorInputs(s.trainProbInputs);
+      if (trainProbColor) parts.push(`treino P por cor: {${trainProbColor}}`);
+      const colorCountColor = summarizeColorInputs(s.colorCountInputs);
+      if (colorCountColor) parts.push(`contagem por cor: {${colorCountColor}}`);
+      const fracThetaColor = summarizeColorInputs(s.fracThetaInputs);
+      if (fracThetaColor) parts.push(`θ/360 por cor: {${fracThetaColor}}`);
       // Slider só entra como fallback quando nada mais foi setado —
       // senão polui em cenas onde o slider é só decoração de tela anterior.
       if (parts.length === 0 && s.sliderValue !== 1) parts.push(`slider em ${s.sliderValue}`);
@@ -4010,6 +4131,34 @@ export const useRouletteHooks = () => {
       sampleSpaceCount: sampleSpaceCountInput?.value ?? '',
       predictionText: predictionInput?.value ?? '',
       selectedCharacteristics,
+      countInputs: probabilityInputs as Record<string, { value?: string }>,
+      probInputs: relativeFrequencyInputs as Record<string, { value?: string; num?: string; den?: string }>,
+      s2RatioInputs: s2RatioInputs as Record<string, { value?: string }>,
+      s2IxInputs: s2IxInputs as Record<string, { value?: string }>,
+      s2NumProbInputs: s2NumProbInputs as Record<string, { value?: string; num?: string; den?: string }>,
+      s2AngleProbInputs: s2AngleProbInputs as Record<string, { value?: string; num?: string; den?: string }>,
+      s2FreqAbsInputs: s2FreqAbsInputs as Record<string, { value?: string }>,
+      s2FreqRelInputs: s2FreqRelInputs as Record<string, { value?: string; num?: string; den?: string }>,
+      trainRatioInputs: trainRatioInputs as Record<string, { value?: string }>,
+      trainIxInputs: trainIxInputs as Record<string, { value?: string }>,
+      trainProbInputs: trainProbInputs as Record<string, { value?: string; num?: string; den?: string }>,
+      colorCountInputs: colorCountInputs as Record<string, { value?: string }>,
+      s2SumEquationText: s2SumEquationInput?.value ?? '',
+      s2XText: s2XInput?.value ?? '',
+      s2ReasoningText: s2ReasoningInput ?? '',
+      s2ConclusionText: s2ConclusionInput?.value ?? '',
+      trainSumText: trainSumInput?.value ?? '',
+      convergenceText: convergenceInputs?.convergence?.value ?? '',
+      theoreticalQuestion1Text: theoreticalQuestion1Input?.value ?? '',
+      theoreticalQuestion2Text: theoreticalQuestion2Input?.value ?? '',
+      favorableCasesText: favorableCasesInput?.value ?? '',
+      exerciseNEText: exerciseNEInput?.value ?? '',
+      exerciseNSText: exerciseNSInput?.value ?? '',
+      exercisePENumText: exercisePENumeratorInput?.value ?? '',
+      exercisePEDenText: exercisePEDenominatorInput?.value ?? '',
+      diceText: diceInput?.value ?? '',
+      lgnText: lgnInput?.value ?? '',
+      fracThetaInputs: fracThetaInputs as Record<string, { value?: string }>,
     };
   });
 
@@ -7291,6 +7440,17 @@ export const useRouletteHooks = () => {
     playSound("/sounds/click.mp3");
     logBet(gameState.stage, gameState.subStep, clickedColor);
 
+    // Telemetria — captura a aposta da fase de Experimentação (Etapa 1
+    // SubStep 1.1). Cada clique numa cor antes do Sortear é uma escolha
+    // exploratória. Captura troca quando o aluno muda de ideia.
+    const previousBet = experimentationState.wageredColor;
+    const attemptNum = experimentationState.currentAttempt;
+    telemetryRecordInteracaoExercicio(
+      previousBet && previousBet !== clickedColor
+        ? `mudou aposta da Experimentação (tentativa ${attemptNum}/3): ${previousBet} → ${clickedColor}`
+        : `selecionou aposta da Experimentação (tentativa ${attemptNum}/3): ${clickedColor}`
+    );
+
     setExperimentationState(prev => ({
       ...prev,
       wageredColor: clickedColor
@@ -7302,7 +7462,7 @@ export const useRouletteHooks = () => {
     setInstructions(`<p class="ds-body"><strong>Experimentação — Tentativa ${attempt} de 3</strong></p>
       <p class="ds-body"><strong>Cor apostada: ${clickedColor}</strong></p>
       <p class="ds-body">Agora clique em <strong>Sortear</strong> para girar o disco.</p>`);
-  }, [gameState, experimentationState.currentAttempt]);
+  }, [gameState, experimentationState.currentAttempt, experimentationState.wageredColor]);
 
   // Função para confirmar o resultado na fase de experimentação (clique na cor onde parou)
   const handleResultConfirmation = useCallback((clickedColor: string) => {
@@ -7320,7 +7480,13 @@ export const useRouletteHooks = () => {
       resultConfirmationLockedRef.current = true;
       // Acertou a confirmação - revelar a cor sorteada
       playSound("/sounds/correct.mp3");
-      createAlert("✅ Cor confirmada!", "", "success", 2000);
+      createAlert(
+        "✅ Cor confirmada!",
+        "",
+        "success",
+        2000,
+        `clicou na cor ${clickedColor} (correta — cor sorteada)`,
+      );
 
       // Revelar a cor sorteada no indicador
       setExperimentationState(prev => ({
@@ -7413,7 +7579,13 @@ export const useRouletteHooks = () => {
     } else {
       // Errou a confirmação
       playSound("/sounds/incorrect.mp3");
-      createAlert("❌ Essa não é a cor em que o ponteiro parou.", "Observe o ponteiro e clique novamente na cor correta.", "error", 4000);
+      createAlert(
+        "❌ Essa não é a cor em que o ponteiro parou.",
+        "Observe o ponteiro e clique novamente na cor correta.",
+        "error",
+        4000,
+        `clicou na cor ${clickedColor} (esperado: ${correctColor})`,
+      );
     }
   }, [gameState, experimentationState, createAlert]);
 
@@ -8470,6 +8642,15 @@ export const useRouletteHooks = () => {
   // Função para mostrar mais exemplos de experimento determinístico
   const handleSeeMoreDeterministicExamples = useCallback(() => {
     const newExample = DETERMINISTIC_EXAMPLES[Math.floor(Math.random() * DETERMINISTIC_EXAMPLES.length)];
+    // Telemetria — cada clique em "Ver mais exemplos!" cria seu PRÓPRIO
+    // exercício atômico (1 item de histórico). Permite contar quantos
+    // exemplos o aluno consultou e ver QUAIS sem que tudo vire um único
+    // histórico misturado.
+    telemetryRecordAtomicInteraction(
+      'Exemplo de experimento determinístico',
+      `Aluno pediu novo exemplo de experimento determinístico. Texto exibido: "${newExample}"`,
+      `pediu novo exemplo de experimento determinístico: "${newExample}"`,
+    );
     setInfoBoxContent({
       type: 'concept',
       title: 'Experimento determinístico',
@@ -8481,6 +8662,11 @@ export const useRouletteHooks = () => {
   // Função para mostrar mais exemplos de experimento aleatório
   const handleSeeMoreRandomExamples = useCallback(() => {
     const newExample = RANDOM_EXAMPLES[Math.floor(Math.random() * RANDOM_EXAMPLES.length)];
+    telemetryRecordAtomicInteraction(
+      'Exemplo de experimento aleatório',
+      `Aluno pediu novo exemplo de experimento aleatório. Texto exibido: "${newExample}"`,
+      `pediu novo exemplo de experimento aleatório: "${newExample}"`,
+    );
     setInfoBoxContent({
       type: 'concept',
       title: 'Experimento aleatório',
@@ -8509,6 +8695,15 @@ export const useRouletteHooks = () => {
       challenge1SectorNumbers: newNums
     }));
     setDisjointNeedsNumbers(exampleText.needsNumbers);
+
+    // Telemetria — cada clique em "Próximo exemplo!" cria seu próprio
+    // exercício atômico com o par A/B do novo exemplo de eventos
+    // disjuntos.
+    telemetryRecordAtomicInteraction(
+      'Exemplo de eventos mutuamente exclusivos',
+      `Aluno pediu novo exemplo de eventos disjuntos. A = "${exampleText.textA}" → ${exampleText.setA}; B = "${exampleText.textB}" → ${exampleText.setB}`,
+      `pediu novo exemplo de eventos disjuntos: A=${exampleText.textA}, B=${exampleText.textB}`,
+    );
 
     setInfoBoxContent({
       type: 'concept',
@@ -8570,17 +8765,27 @@ export const useRouletteHooks = () => {
   // Handler de clique em setor durante exercício de disjuntos
   const handleDisjointSectorClick = useCallback((index: number) => {
     if (disjointExercisePhase === 'selecting_A') {
+      const wasMarked = disjointUserSelectA.includes(index);
+      const sectorColor = gameState.sectors[index]?.colorName ?? '?';
+      telemetryRecordInteracaoExercicio(
+        `${wasMarked ? 'desmarcou' : 'marcou'} setor #${index + 1} (cor: ${sectorColor}) do evento A — exercício de eventos disjuntos`
+      );
       setDisjointUserSelectA(prev =>
         prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
       );
     } else if (disjointExercisePhase === 'selecting_B') {
       // Não permitir selecionar setores já marcados como A
       if (disjointUserSelectA.includes(index)) return;
+      const wasMarked = disjointUserSelectB.includes(index);
+      const sectorColor = gameState.sectors[index]?.colorName ?? '?';
+      telemetryRecordInteracaoExercicio(
+        `${wasMarked ? 'desmarcou' : 'marcou'} setor #${index + 1} (cor: ${sectorColor}) do evento B — exercício de eventos disjuntos`
+      );
       setDisjointUserSelectB(prev =>
         prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
       );
     }
-  }, [disjointExercisePhase, disjointUserSelectA]);
+  }, [disjointExercisePhase, disjointUserSelectA, disjointUserSelectB, gameState.sectors]);
 
   // Confirmar seleção do evento A → validar e, se correto, passar para B
   const handleDisjointConfirmA = useCallback(() => {
@@ -8746,10 +8951,17 @@ export const useRouletteHooks = () => {
       .flatMap(e => e.sectorIndices);
     if (confirmedIndices.includes(index)) return;
 
+    const wasMarked = unionSelectedSectors.includes(index);
+    const sectorColor = gameState.sectors[index]?.colorName ?? '?';
+    const currentEventLabel = unionEvents[unionCurrentEventIdx]?.label ?? '?';
+    telemetryRecordInteracaoExercicio(
+      `${wasMarked ? 'desmarcou' : 'marcou'} setor #${index + 1} (cor: ${sectorColor}) do evento ${currentEventLabel} — exercício de união`
+    );
+
     setUnionSelectedSectors(prev =>
       prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
     );
-  }, [unionPhase, unionEvents]);
+  }, [unionPhase, unionEvents, unionSelectedSectors, unionCurrentEventIdx, gameState.sectors]);
 
   const handleUnionConfirmSelection = useCallback(() => {
     const currentEventLabel = unionEvents[unionCurrentEventIdx]?.label ?? '';
@@ -10862,16 +11074,25 @@ export const useRouletteHooks = () => {
 
   // 3. Toggle setor na seleção complementar (parte 1)
   const handleCompSectorClick = useCallback((index: number) => {
+    const sectorColor = gameState.sectors[index]?.colorName ?? '?';
     if (compPhase === 'selecting_A') {
+      const wasMarked = compUserSelectA.includes(index);
+      telemetryRecordInteracaoExercicio(
+        `${wasMarked ? 'desmarcou' : 'marcou'} setor #${index + 1} (cor: ${sectorColor}) do evento A — exercício de eventos complementares`
+      );
       setCompUserSelectA(prev =>
         prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
       );
     } else if (compPhase === 'selecting_Abar' || compPhase === 'calc_selectAbar') {
+      const wasMarked = compUserSelectAbar.includes(index);
+      telemetryRecordInteracaoExercicio(
+        `${wasMarked ? 'desmarcou' : 'marcou'} setor #${index + 1} (cor: ${sectorColor}) do evento Ā (complementar) — exercício de eventos complementares`
+      );
       setCompUserSelectAbar(prev =>
         prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
       );
     }
-  }, [compPhase]);
+  }, [compPhase, compUserSelectA, compUserSelectAbar, gameState.sectors]);
 
   // 4. Confirmar seleção de A
   const handleCompConfirmA = useCallback(() => {
@@ -10984,6 +11205,14 @@ export const useRouletteHooks = () => {
 
   // 7. Ver mais exemplos (após 3 obrigatórios)
   const handleCompSeeMoreExamples = useCallback(() => {
+    // Telemetria — cada clique em "Ver mais exemplos" gera seu próprio
+    // exercício atômico. O `handleStartCompExercise` (chamado abaixo)
+    // gera o próximo par A/Ā.
+    telemetryRecordAtomicInteraction(
+      'Exemplo de eventos complementares',
+      'Aluno pediu novo exemplo de eventos complementares.',
+      'pediu novo exemplo de eventos complementares',
+    );
     handleStartCompExercise();
   }, [handleStartCompExercise]);
 

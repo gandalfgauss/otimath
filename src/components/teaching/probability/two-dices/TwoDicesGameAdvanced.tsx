@@ -76,6 +76,8 @@ export function TwoDicesGameAdvanced({
     markAllOnClick,
     disabledMarkAllButton,
     currentStepKind,
+    challenge,
+    step,
   } = useTwoDicesGameAdvancedHooks({
     onStepError: handleStepError,
     onGameFinished,
@@ -110,8 +112,9 @@ export function TwoDicesGameAdvanced({
     fracSummary,
     selectSummary,
   ].filter(Boolean);
+  // SEÇÃO POR (challenge, step) — vide TwoDicesGame.
   useTelemetryExercise(
-    'twoDices-cena7-twoDicesGameAdvanced-ex8',
+    `twoDices-cena7-twoDicesGameAdvanced-ex8-c${challenge}-s${step}`,
     'Exercício 8 — Operações avançadas com eventos (livre)',
     [
       'Aluno encadeia união, interseção e complementar em desafios variados, com acesso a glossário.',

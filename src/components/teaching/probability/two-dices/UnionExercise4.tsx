@@ -325,8 +325,11 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       reasoningPlayback: 'Animação "Não sei realmente!" — replay do raciocínio passo a passo.',
       correct: 'Resolução concluída — escolha próximo caminho ou avance.',
     };
+    // SEÇÃO POR STEP — descricao já era step-aware via
+    // `ex4StepDescriptions`, mas o `id` era estático: várias telas
+    // compartilhavam a mesma seção. Agora id também muda por step.
     useTelemetryExercise(
-      'twoDices-cena7-unionExercise4',
+      `twoDices-cena7-unionExercise4-${step}`,
       'Exercício 4 — Torcedores no bar (P(A ∩ B))',
       ex4StepDescriptions[step] ?? 'Cálculo de P(A∩B).',
     );

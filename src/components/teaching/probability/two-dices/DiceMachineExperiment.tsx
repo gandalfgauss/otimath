@@ -431,27 +431,34 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
   }, ref) {
   const [phase, setPhase] = useState<Phase>('intro');
 
-  // Telemetria — cada um dos 3 lançamentos (L1, L2, L3) é um exercício distinto.
-  // O prefix da fase (`s1-`, `s2-`, `s3-`) determina qual lançamento está ativo.
-  // `intro` e `bridge` (transição final) não registram.
+  // Telemetria — SEÇÃO POR FASE COMPLETA (não só por lançamento). Cada
+  // tela dentro de um lançamento — incluindo intro, observar, registrar
+  // par, calcular soma, prever, justificar, comparar — vira uma seção
+  // telemétrica própria. Isso garante que mudou de tela → exercício
+  // separado no `exercicios_interagidos`. `intro` e `bridge` (transição
+  // entre cenas) também registram pra cobrir TUDO.
   useEffect(() => {
-    if (phase === 'intro' || phase === 'bridge') return;
-    let id: string, title: string, descricao: string;
-    if (phase.startsWith('s1')) {
-      id = 'twoDices-cena6-lancamento-1';
-      title = 'Máquina de dois dados — Lançamento 1 (observação)';
-      descricao = 'Aluno aciona a máquina, observa o par (verde, azul) e registra via pickers.';
+    let title: string, descricao: string;
+    if (phase === 'intro') {
+      title = 'Máquina de dois dados — Introdução';
+      descricao = 'Tela inicial da cena 6 — introdução à máquina dos 2 dados.';
+    } else if (phase === 'bridge') {
+      title = 'Máquina de dois dados — Transição final';
+      descricao = 'Tela de ponte para a Cena 7 (tabela 6×6).';
+    } else if (phase.startsWith('s1')) {
+      title = `Máquina de dois dados — Lançamento 1 (${phase})`;
+      descricao = 'L1: aluno aciona máquina, observa par (verde,azul) e registra via pickers.';
     } else if (phase.startsWith('s2')) {
-      id = 'twoDices-cena6-lancamento-2';
-      title = 'Máquina de dois dados — Lançamento 2 (observação + soma)';
-      descricao = 'Registro do par + cálculo da soma das faces.';
+      title = `Máquina de dois dados — Lançamento 2 (${phase})`;
+      descricao = 'L2: registro do par + cálculo da soma das faces.';
     } else if (phase.startsWith('s3')) {
-      id = 'twoDices-cena6-lancamento-3';
-      title = 'Máquina de dois dados — Lançamento 3 (previsão)';
-      descricao = 'Aluno faz previsão da soma ANTES do lançamento + justificativa, depois compara.';
+      title = `Máquina de dois dados — Lançamento 3 (${phase})`;
+      descricao = 'L3: previsão da soma ANTES do lançamento + justificativa, depois compara.';
     } else {
-      return;
+      title = `Máquina de dois dados — ${phase}`;
+      descricao = `Fase ${phase} da Cena 6.`;
     }
+    const id = `twoDices-cena6-${phase}`;
     telemetryEnterExercise(id, title, descricao);
     return () => telemetryExitExercise(id);
   }, [phase]);

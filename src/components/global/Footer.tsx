@@ -10,12 +10,14 @@ export function Footer() {
     transition-[color] duration-300 ease-in-out
   `;
   return (
-    <Grid 
-      id="footer" 
-      paddings={`pt-md pb-md`} 
+    <Grid
+      id="footer"
+      paddings={`pt-md pb-md`}
       rowGaps='gap-y-xxs'
       backgroundColor='bg-brand-otimath-dark'
       tag="footer"
+      // Cliques no rodapé do app não fazem parte do percurso pedagógico.
+      dataSkipTelemetry
     >
       <GridItem cols="col-[1_/_13]">
         <ul className="flex items-center gap-x-xs">

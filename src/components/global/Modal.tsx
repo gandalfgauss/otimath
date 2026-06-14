@@ -14,11 +14,43 @@ export interface ModalInterface {
 interface ModalProps {
   modal: ModalInterface;
   updateModal: (modal: ModalInterface) => void;
+  /**
+   * Conteúdo customizado (opcional) que SUBSTITUI a descrição padrão
+   * (`modal.description`) do modal. Quando omitido, o modal usa o
+   * comportamento legado.
+   *
+   * Aceita duas formas:
+   *  • ReactNode direto — quando o conteúdo não precisa fechar o modal
+   *    com animação (pode fechar via `updateModal({status: 'hide'})`).
+   *  • Render prop `(helpers) => ReactNode` — recebe `{ close }` pra
+   *    disparar o fade-out animado do modal sem reimplementar a lógica.
+   *
+   * O `children` é renderizado na área ROLÁVEL do modal — é o que
+   * scrolla quando o conteúdo excede a altura disponível. Footer
+   * (botões) é controlado separadamente via prop `footer`.
+   */
+  children?: React.ReactNode | ((helpers: { close: () => void }) => React.ReactNode);
+  /**
+   * Rodapé customizado FIXO no fundo do modal. Não rola — fica sempre
+   * visível mesmo quando o `children` extrapola a altura.
+   *
+   * Quando OMITIDO + `children` também OMITIDO: o modal renderiza os
+   * botões legados (Voltar/Confirmar) como rodapé fixo.
+   * Quando OMITIDO + `children` PROVIDO: nenhum rodapé fixo (caller é
+   * responsável por incluir os botões no `children`, mas eles rolarão
+   * com o conteúdo).
+   *
+   * Aceita as mesmas duas formas do `children` (ReactNode ou render prop
+   * com helper `close`).
+   */
+  footer?: React.ReactNode | ((helpers: { close: () => void }) => React.ReactNode);
 }
 
 export function Modal({
   modal,
   updateModal,
+  children,
+  footer,
 }: Readonly<ModalProps>) {
   const scrollPositionRef = useRef<number>(0);
   const divRef = useRef<HTMLDivElement>(null);
@@ -70,6 +102,21 @@ export function Modal({
 
     return () => {
       document.removeEventListener("keydown", handleEsc);
+      // DEFESA EM PROFUNDIDADE — restaura body styles no unmount/transição.
+      //
+      // CASO QUE EXIGIU ISSO: SequenceLogout chama `onLogout()` direto
+      // ao validar a senha. O parent troca o estado e desmonta a árvore
+      // inteira (incluindo o Modal) ANTES do `closeModal` rodar — o que
+      // deixava `overflow-y-scroll fixed w-full h-full` pendurados no
+      // <body> e fazia a barra de rolagem sumir na tela de login.
+      //
+      // Removemos as classes idempotentemente (no-op se já estavam
+      // limpas via closeModal normal). Não chamamos `scrollTo` aqui
+      // porque na transição pra tela de login o scroll relevante é o
+      // do novo conteúdo, não o que existia antes do modal abrir.
+      document.body.classList.remove("overflow-y-scroll", "fixed", "w-full", "h-full");
+      document.body.style.top = '';
+      document.documentElement.classList.add('scroll-smooth');
     };
   }, [modal.status, handleEsc]);
 
@@ -85,21 +132,61 @@ export function Modal({
         className={`w-full h-full fixed bg-opacity-modal flex items-center justify-center z-[1000] top-0 left-0
         opacity-level-transparent transition-[opacity] duration-300 ease-in-out`}
       >
+        {/*
+          ALTURA MÁXIMA + SCROLL INTERNO
+          • `max-h-[calc(100dvh-32px)]` evita que o modal vaze do viewport
+            em telas de altura pequena (mobile landscape, laptops 13",
+            DevTools aberto). `dvh` lida com a barra de URL dinâmica do
+            iOS Safari.
+          • `overflow-hidden` no <dialog> clipa o que passar do max-h.
+          • O HEADER (título + X) é `shrink-0` pra ficar SEMPRE visível;
+            só o miolo (descrição/children + ações) rola via container
+            interno `overflow-y-auto`.
+        */}
         <dialog
-          className={`w-[600px] h-fit max-w-[calc(100%-32px)] flex flex-col left-[50%] -translate-x-[50%]
-            rounded-md solid border-hairline border-neutral-lightest bg-neutral-white`}
+          className={`w-[600px] h-fit max-w-[calc(100%-32px)] max-h-[calc(100dvh-32px)] flex flex-col left-[50%] -translate-x-[50%]
+            rounded-md solid border-hairline border-neutral-lightest bg-neutral-white overflow-hidden`}
         >
-          <div className="p-xxxs flex justify-between">
+          <div className="p-xxxs flex justify-between shrink-0">
             <h3 className="ds-body-large-bold text-brand-otimath-pure">{modal.title}</h3>
-            <Button style="neutral" size="medium" icon={<X />} onClick={closeModal} ariaLabel="Fechar modal"/>
+            <Button style="neutral" size="medium" icon={<X aria-hidden="true" />} onClick={closeModal} ariaLabel="Fechar modal"/>
           </div>
-          <div className="pt-micro pb-micro pl-xxxs pr-xxxs border-t-hairline border-neutral-lightest">
-            <p className="ds-body">{modal.description}</p>
+          {/* Container ROLÁVEL — só o body scrolla. Header (acima) e
+              footer (abaixo) ficam fixos. `min-h-0` é necessário pra
+              que `flex-1` + `overflow-y-auto` cooperem dentro de um
+              flex-col container — sem isso o miolo infla e o scroll
+              não dispara. */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {children !== undefined ? (
+              // Slot do caller — preserva o wrapper visual (border-top +
+              // padding) pra que a transição entre uso default e custom
+              // seja consistente.
+              <div className="pt-micro pb-micro pl-xxxs pr-xxxs border-t-hairline border-neutral-lightest">
+                {typeof children === 'function' ? children({ close: closeModal }) : children}
+              </div>
+            ) : (
+              <div className="pt-micro pb-micro pl-xxxs pr-xxxs border-t-hairline border-neutral-lightest">
+                <p className="ds-body">{modal.description}</p>
+              </div>
+            )}
           </div>
-          <div className="p-xxxs flex justify-end gap-xxs">
-            <Button style="secondary" size="small" onClick={closeModal}>Voltar</Button>
-            <Button style="primary" size="small" onClick={confirmModal}>Confirmar</Button>
-          </div>
+          {/* Footer FIXO no fundo. Três casos:
+              1. `footer` prop provido → renderiza ele.
+              2. Nenhum `children` (legacy) → renderiza botões padrão
+                 Voltar/Confirmar.
+              3. `children` provido sem `footer` → sem rodapé fixo (caso
+                 raro; o caller embute os botões no próprio children e
+                 eles rolam junto). */}
+          {footer !== undefined ? (
+            <div className="p-xxxs flex items-center justify-end gap-xxs shrink-0 border-t-hairline border-neutral-lightest">
+              {typeof footer === 'function' ? footer({ close: closeModal }) : footer}
+            </div>
+          ) : children === undefined ? (
+            <div className="p-xxxs flex items-center justify-end gap-xxs shrink-0 border-t-hairline border-neutral-lightest">
+              <Button style="secondary" size="small" onClick={closeModal}>Voltar</Button>
+              <Button style="primary" size="small" onClick={confirmModal}>Confirmar</Button>
+            </div>
+          ) : null}
         </dialog>
       </div>
     )
