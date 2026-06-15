@@ -4083,7 +4083,11 @@ export const useRouletteHooks = () => {
       if (sub === 6.67) return new Set(['exerciseNSText']);
       if (sub === 6.5 || sub === 7.5 || sub === 9.2) return new Set(['selectedOption']);
       if (sub === 9) return new Set(['countInputs']);
-      if (sub === 9.5) return new Set(['favorableCasesText']); // freqRelInput, mas não está no ref; fallback
+      // 8.5 (frequência absoluta) e 9.5 (frequência relativa) usam inputs
+      // que NÃO estão no studentInputRef (freqAbsInput, freqRelInput são
+      // refs próprias do RouletteGame). Set vazio → wrapper não polui;
+      // validators passam 5º param explícito.
+      if (sub === 8.5 || sub === 9.5) return new Set();
       if (sub === 11) return new Set(['convergenceText']);
       if (sub === 12) return new Set(['theoreticalQuestion1Text']);
       if (sub === 13) return new Set(['theoreticalQuestion2Text']);
@@ -4360,6 +4364,27 @@ export const useRouletteHooks = () => {
   const spinRoulette = useCallback(() => {
     if (gameState.isSpinning || gameState.sectors.length === 0) return;
 
+    // Telemetria — cada clique em Sortear vira um interacao_exercicio com
+    // o número do giro atual e o progresso (ex.: "giro 2 de 5"). Sem isso,
+    // o histórico só registrava a registerColor que segue, sem mostrar a
+    // sequência de cliques no botão de sortear.
+    //
+    // CADA SUB-FASE TEM SEU PRÓPRIO TOTAL DE GIROS:
+    //   • subStep 7  (1ª rodada de giros manuais): manualSpinsRequired
+    //   • subStep 7.6 (giros extras pós padrão perfeito): manualSpinsRequired
+    //   • subStep 8  (2ª rodada com Y giros aleatórios 8-15): ySpins
+    // Usar `manualSpinsRequired` em todas dava "giro 1/5" mesmo quando a
+    // rodada exigia 14 — confundia a coleta.
+    const currentSpinNum = (gameState.manualSpinsDone ?? 0) + 1;
+    const requiredSpins = gameState.subStep === 8
+      ? (gameState.ySpins ?? 0)
+      : (gameState.manualSpinsRequired ?? 0);
+    telemetryRecordInteracaoExercicio(
+      requiredSpins > 0
+        ? `clicou em Sortear (giro ${currentSpinNum}/${requiredSpins})`
+        : `clicou em Sortear`,
+    );
+
     // Ancora no disco — sem isso, em mobile/viewports pequenas o aluno
     // clica "Girar" com o disco fora da viewport e perde a animação.
     goToTopOfChallenge();
@@ -4379,7 +4404,7 @@ export const useRouletteHooks = () => {
     }));
 
     setDisabledSpinButton(true);
-  }, [gameState.isSpinning, gameState.sectors.length, gameState.currentRotation]);
+  }, [gameState.isSpinning, gameState.sectors.length, gameState.currentRotation, gameState.manualSpinsDone, gameState.manualSpinsRequired, gameState.subStep, gameState.ySpins]);
 
   // Função para determinar a cor onde o ponteiro parou
   const getColorAtAngle = useCallback((angle: number): string => {
@@ -4471,7 +4496,7 @@ export const useRouletteHooks = () => {
     const expectedColor = gameState.selectedColor;
 
     if (colorName !== expectedColor) {
-      createAlert("Ops!", `Essa não é a cor sorteada. Observe novamente o disco e registre a cor onde o ponteiro parou.`, "error", 4000);
+      createAlert("Ops!", `Essa não é a cor sorteada. Observe novamente o disco e registre a cor onde o ponteiro parou.`, "error", 4000, `clicou em "${colorName}" (sorteada foi "${expectedColor}")`);
       playSound("/sounds/incorrect.mp3");
       return;
     }
@@ -4492,7 +4517,11 @@ export const useRouletteHooks = () => {
     }));
 
     playSound("/sounds/correct.mp3");
-    createAlert("Correto!", `Cor ${colorName} registrada.`, "success", 2000);
+    // Mesma lógica do spinRoulette: subStep 8 usa ySpins; demais usam manualSpinsRequired.
+    const totalForMessage = gameState.subStep === 8
+      ? (gameState.ySpins ?? '?')
+      : (gameState.manualSpinsRequired ?? '?');
+    createAlert("Correto!", `Cor ${colorName} registrada.`, "success", 2000, `registrou cor "${colorName}" (giro ${newManualSpinsDone}/${totalForMessage})`);
     logSpinResult(gameState.stage, gameState.subStep, colorName);
 
     // Verificar se completou os giros manuais da primeira rodada (subStep 7)
@@ -5258,7 +5287,7 @@ export const useRouletteHooks = () => {
 
       if (!isNaN(userVal) && userVal === expected) {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "A frequência absoluta corresponde ao número de ocorrências observadas.", "success", 3000);
+        createAlert("Correto!", "A frequência absoluta corresponde ao número de ocorrências observadas.", "success", 3000, `freq.abs. cor ${freqAbsQuestion.color} — digitou: "${freqAbsInput.value}"`);
         // Ir para tela conceitual de frequência relativa
         setFreqRelConceptPhase('definition');
         setGameState(prev => ({ ...prev, subStep: 8.6 }));
@@ -5267,7 +5296,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setFreqAbsInput(prev => ({ ...prev, error: true }));
-        createAlert("Incorreto", "Observe novamente a tabela: frequência absoluta é a quantidade de vezes que a cor apareceu.", "error", 5000);
+        createAlert("Incorreto", "Observe novamente a tabela: frequência absoluta é a quantidade de vezes que a cor apareceu.", "error", 5000, `freq.abs. cor ${freqAbsQuestion.color} — digitou: "${freqAbsInput.value}"`);
       }
       return;
     }
@@ -5287,9 +5316,12 @@ export const useRouletteHooks = () => {
         }
       });
 
+      const relFreqSummary = Object.entries(relativeFrequencyInputs)
+        .map(([c, i]) => `${c}=${i.value || '(vazio)'}`)
+        .join(', ');
       if (allCorrect) {
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "Frequências relativas corretas!", "success", 3000);
+        createAlert("Parabéns!", "Frequências relativas corretas!", "success", 3000, `freq.rel. por cor — digitou: ${relFreqSummary}`);
 
         // Ir para verificação conceitual de frequência relativa (subStep 9.5)
         const colors = sectors.map(s => s.colorName);
@@ -5302,7 +5334,7 @@ export const useRouletteHooks = () => {
       } else {
         setRelativeFrequencyInputs(updatedInputs);
         playSound("/sounds/incorrect.mp3");
-        createAlert("Tente novamente", `Lembre-se: frequência relativa = frequência absoluta / total de giros (${gameState.ySpins}).`, "error", 5000);
+        createAlert("Tente novamente", `Lembre-se: frequência relativa = frequência absoluta / total de giros (${gameState.ySpins}).`, "error", 5000, `freq.rel. por cor — digitou: ${relFreqSummary}`);
       }
       return;
     }
@@ -5318,7 +5350,7 @@ export const useRouletteHooks = () => {
 
       if (!isNaN(userVal) && Math.abs(userVal - expectedPercent) < 0.15) {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "A frequência relativa representa a porcentagem de ocorrências observadas.", "success", 3000);
+        createAlert("Correto!", "A frequência relativa representa a porcentagem de ocorrências observadas.", "success", 3000, `freq.rel. cor ${freqRelQuestion.color} — digitou: "${freqRelInput.value}%"`);
         // Transição para Giros Automáticos (subStep 10)
         setGameState(prev => ({ ...prev, subStep: 10, currentAutoBatchIndex: 0 }));
         setShowAutoSpinButtons(true);
@@ -5328,7 +5360,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setFreqRelInput(prev => ({ ...prev, error: true }));
-        createAlert("Incorreto", "Observe novamente a tabela: frequência relativa é a porcentagem de vezes que a cor apareceu.", "error", 5000);
+        createAlert("Incorreto", "Observe novamente a tabela: frequência relativa é a porcentagem de vezes que a cor apareceu.", "error", 5000, `freq.rel. cor ${freqRelQuestion.color} — digitou: "${freqRelInput.value}%"`);
       }
       return;
     }
@@ -5339,7 +5371,7 @@ export const useRouletteHooks = () => {
         const userVal = parseInt(lgnInput.value, 10);
         if (!isNaN(userVal) && userVal === lgnParams.answer1) {
           playSound("/sounds/correct.mp3");
-          createAlert("Correto!", `Como P(${lgnParams.color})=1/${lgnN}, a quantidade esperada é ${lgnParams.m}×(1/${lgnN}) = ${lgnParams.answer1}.`, "success", 5000);
+          createAlert("Correto!", `Como P(${lgnParams.color})=1/${lgnN}, a quantidade esperada é ${lgnParams.m}×(1/${lgnN}) = ${lgnParams.answer1}.`, "success", 5000, `LGN Problema 1 (cor ${lgnParams.color}, ${lgnParams.m} giros) — digitou: "${lgnInput.value}"`);
           setLgnPhase('problem2');
           setLgnInput({ value: '', error: false });
           setInstructions(`<p class="ds-body"><strong>Problema 2: Medicamento</strong></p>
@@ -5347,7 +5379,7 @@ export const useRouletteHooks = () => {
         } else {
           playSound("/sounds/incorrect.mp3");
           setLgnInput(prev => ({ ...prev, error: true }));
-          createAlert("Incorreto", `Use P(${lgnParams.color})=1/${lgnN} e multiplique por ${lgnParams.m} repetições.`, "error", 5000);
+          createAlert("Incorreto", `Use P(${lgnParams.color})=1/${lgnN} e multiplique por ${lgnParams.m} repetições.`, "error", 5000, `LGN Problema 1 (cor ${lgnParams.color}, ${lgnParams.m} giros) — digitou: "${lgnInput.value}"`);
         }
         return;
       }
@@ -5355,14 +5387,14 @@ export const useRouletteHooks = () => {
         const userVal = parseInt(lgnInput.value, 10);
         if (!isNaN(userVal) && userVal === lgnParams.answer2) {
           playSound("/sounds/correct.mp3");
-          createAlert("Correto!", `A chance ${lgnParams.p}% corresponde a ${lgnParams.p}/100. Logo, o esperado é ${lgnParams.m}×(${lgnParams.p}/100) = ${lgnParams.answer2}.`, "success", 5000);
+          createAlert("Correto!", `A chance ${lgnParams.p}% corresponde a ${lgnParams.p}/100. Logo, o esperado é ${lgnParams.m}×(${lgnParams.p}/100) = ${lgnParams.answer2}.`, "success", 5000, `LGN Problema 2 (medicamento, ${lgnParams.p}%, ${lgnParams.m} pacientes) — digitou: "${lgnInput.value}"`);
           setLgnPhase('note');
           setInstructions(`<p class="ds-body"><strong>Reflexão</strong></p>
             <p class="ds-body">Leia a nota apresentada.</p>`);
         } else {
           playSound("/sounds/incorrect.mp3");
           setLgnInput(prev => ({ ...prev, error: true }));
-          createAlert("Incorreto", `Converta ${lgnParams.p}% em ${lgnParams.p}/100 e calcule ${lgnParams.m}×(${lgnParams.p}/100).`, "error", 5000);
+          createAlert("Incorreto", `Converta ${lgnParams.p}% em ${lgnParams.p}/100 e calcule ${lgnParams.m}×(${lgnParams.p}/100).`, "error", 5000, `LGN Problema 2 (medicamento, ${lgnParams.p}%, ${lgnParams.m} pacientes) — digitou: "${lgnInput.value}"`);
         }
         return;
       }
@@ -10310,6 +10342,12 @@ export const useRouletteHooks = () => {
   const startAutoSpins = useCallback((batchSize: number) => {
     if (gameState.isAutoSpinning) return;
 
+    // Telemetria — registra o clique no botão do bloco de giros automáticos
+    // (50/100/150/200 etc.) ANTES da animação começar.
+    telemetryRecordInteracaoExercicio(
+      `clicou em "Girar ${batchSize} vezes" (giros automáticos)`,
+    );
+
     // Ancora no disco — o aluno precisa ver a sequência de giros automáticos.
     goToTopOfChallenge();
 
@@ -11533,11 +11571,21 @@ export const useRouletteHooks = () => {
   // Handler para perguntas de Interpretação dos Resultados (subStep 14)
   // Handler: "Li." na tela conceitual de frequência relativa (subStep 8.6)
   const handleFreqRelConceptLi = useCallback(() => {
+    telemetryRecordAtomicInteraction(
+      'Frequência Relativa — Definição',
+      'Frequência relativa de um evento é a proporção entre o número de ocorrências do evento e o total de repetições do experimento, podendo ser expressa como fração, número decimal ou porcentagem. É a porcentagem de vezes em que um evento ocorreu após determinado número de giros, no caso particular do disco.',
+      'leu a definição de Frequência Relativa e clicou em Li.',
+    );
     setFreqRelConceptPhase('example');
   }, []);
 
   // Handler: "Continuar" na tela conceitual de frequência relativa (subStep 8.6)
   const handleFreqRelConceptContinue = useCallback(() => {
+    telemetryRecordAtomicInteraction(
+      'Frequência Relativa — Exemplo',
+      'Se uma cor apareceu 3 vezes em N giros, então: 3/N = decimal ≈ percentual%. Agora é a sua vez de calcular as frequências relativas observando a tabela.',
+      'leu o exemplo de Frequência Relativa e clicou em Continuar',
+    );
     moveToRelativeFrequencyInput();
   }, [moveToRelativeFrequencyInput]);
 
@@ -11545,23 +11593,26 @@ export const useRouletteHooks = () => {
     const n = gameState.targetSectorCount;
     const probPercent = ((1 / n) * 100).toFixed(1).replace('.', ',');
 
+    const yesNoLabel = (v: string) => v === 'sim' ? 'Sim' : v === 'nao' ? 'Não' : v;
     if (interpretationPhase === 'q1') {
+      const q1Label = yesNoLabel(interpretationSelected);
       if (interpretationSelected === 'nao') {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "De fato, as frequências relativas variaram entre os setores.", "success", 3000);
+        createAlert("Correto!", "De fato, as frequências relativas variaram entre os setores.", "success", 3000, `Q1 — marcou: "${q1Label}"`);
         setInterpretationPhase('q2');
         setInterpretationSelected('');
       } else if (interpretationSelected) {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Incorreto", "Observe os valores na coluna de frequência relativa. Eles são todos iguais?", "error", 4000);
+        createAlert("Incorreto", "Observe os valores na coluna de frequência relativa. Eles são todos iguais?", "error", 4000, `Q1 — marcou: "${q1Label}"`);
       }
       return;
     }
 
     if (interpretationPhase === 'q2') {
+      const q2Label = yesNoLabel(interpretationSelected);
       if (interpretationSelected === 'nao') {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", `As frequências relativas ficaram próximas, mas não exatamente iguais a 1/${n} (≈${probPercent}%).`, "success", 3000);
+        createAlert("Correto!", `As frequências relativas ficaram próximas, mas não exatamente iguais a 1/${n} (≈${probPercent}%).`, "success", 3000, `Q2 — marcou: "${q2Label}"`);
 
         // Gerar alternativas dinâmicas para q3
         const setA = [
@@ -11607,20 +11658,21 @@ export const useRouletteHooks = () => {
         setInterpretationSelected('');
       } else if (interpretationSelected) {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Incorreto", `Compare os valores percentuais com ${probPercent}%. São realmente muito próximos?`, "error", 4000);
+        createAlert("Incorreto", `Compare os valores percentuais com ${probPercent}%. São realmente muito próximos?`, "error", 4000, `Q2 — marcou: "${q2Label}"`);
       }
       return;
     }
 
     if (interpretationPhase === 'q3') {
+      const q3Label = interpretationQ3?.alternatives.find(a => a.id === interpretationSelected)?.text ?? interpretationSelected;
       if (interpretationQ3 && interpretationSelected === interpretationQ3.correctId) {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "Diferenças em relação ao valor teórico são esperadas devido à variabilidade amostral quando o número de repetições ainda é limitado.", "success", 4000);
+        createAlert("Correto!", "Diferenças em relação ao valor teórico são esperadas devido à variabilidade amostral quando o número de repetições ainda é limitado.", "success", 4000, `Q3 — marcou: "${q3Label.slice(0, 140)}"`);
         setInterpretationPhase('feedback');
         setInterpretationSelected('');
       } else if (interpretationSelected) {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Incorreto", "As frequências relativas tendem ao valor teórico quando o número de repetições aumenta, mas não precisam coincidir exatamente em um experimento finito.", "error", 5000);
+        createAlert("Incorreto", "As frequências relativas tendem ao valor teórico quando o número de repetições aumenta, mas não precisam coincidir exatamente em um experimento finito.", "error", 5000, `Q3 — marcou: "${q3Label.slice(0, 140)}"`);
       }
       return;
     }
@@ -11648,6 +11700,11 @@ export const useRouletteHooks = () => {
 
   // Handler para "Continuar" após explicação → consolidação verbal (Melhoria 7)
   const handleLgnContinue = useCallback(() => {
+    telemetryRecordAtomicInteraction(
+      'LGN — nota lida',
+      'Mesmo conhecendo a probabilidade de cura, o resultado real pode variar porque cada paciente é um caso sujeito ao acaso. O valor calculado representa o número esperado: um valor em torno do qual os resultados tendem a se aproximar quando repetimos o experimento muitas vezes. Isso é uma consequência da Lei dos Grandes Números.',
+      'leu a nota da LGN e clicou em Continuar',
+    );
     goToTopOfChallenge();
     setLgnPhase('verbal');
     setLgnVerbalInput({ value: '', error: false });
@@ -11661,7 +11718,7 @@ export const useRouletteHooks = () => {
     if (text.length < 10) {
       playSound("/sounds/incorrect.mp3");
       setLgnVerbalInput(prev => ({ ...prev, error: true }));
-      createAlert("Resposta muito curta", "Escreva uma explicação com pelo menos 10 caracteres.", "error", 3000);
+      createAlert("Resposta muito curta", "Escreva uma explicação com pelo menos 10 caracteres.", "error", 3000, `consolidação verbal — digitou: "${lgnVerbalInput.value}"`);
       return;
     }
 
@@ -11669,7 +11726,7 @@ export const useRouletteHooks = () => {
     logText(1, 15, 'consolidacao_verbal_lgn', text);
 
     playSound("/sounds/correct.mp3");
-    createAlert("Resposta registrada!", "Sua explicação foi registrada. Leia a formalização da Lei dos Grandes Números.", "success", 4000);
+    createAlert("Resposta registrada!", "Sua explicação foi registrada. Leia a formalização da Lei dos Grandes Números.", "success", 4000, `consolidação verbal — digitou: "${text}"`);
     setShowInfoBox(true);
     setInfoBoxContent({
       type: 'concept',
@@ -11686,6 +11743,7 @@ export const useRouletteHooks = () => {
   const handleDiceRoll = useCallback(() => {
     if (diceState.rolling) return;
     const finalFace = Math.floor(Math.random() * 6) + 1;
+    telemetryRecordInteracaoExercicio(`clicou em Lançar o dado (face sorteada: ${finalFace})`);
     // Iniciar rotação 3D — definir face final e ativar rolling
     setDiceState({ face: finalFace, rolling: true, rolled: false, answered: false });
     playSound("/sounds/nextChallenge.mp3");
@@ -11702,7 +11760,7 @@ export const useRouletteHooks = () => {
     const val = diceInput.value.trim();
     if (areFractionsEquivalent(val, '1/6')) {
       playSound("/sounds/correct.mp3");
-      createAlert("Correto!", "Cada face do dado tem probabilidade 1/6. Leia a generalização da Lei dos Grandes Números.", "success", 5000);
+      createAlert("Correto!", "Cada face do dado tem probabilidade 1/6. Leia a generalização da Lei dos Grandes Números.", "success", 5000, `Generalização dado — digitou: "${val}"`);
       logText(1, 15.6, 'descontextualizacao_dado', val);
       setDiceState(prev => ({ ...prev, answered: true }));
       setGameState(prev => ({ ...prev, subStep: 15.7 }));
@@ -11723,7 +11781,7 @@ export const useRouletteHooks = () => {
     } else {
       playSound("/sounds/incorrect.mp3");
       setDiceInput(prev => ({ ...prev, error: true }));
-      createAlert("Tente novamente", "Pense: o dado tem 6 faces iguais. Qual a probabilidade de cada face? Use a notação de fração.", "error", 5000);
+      createAlert("Tente novamente", "Pense: o dado tem 6 faces iguais. Qual a probabilidade de cada face? Use a notação de fração.", "error", 5000, `Generalização dado — digitou: "${diceInput.value}"`);
     }
   }, [diceInput.value, createAlert]);
 
@@ -13922,6 +13980,11 @@ export const useRouletteHooks = () => {
 
   // Handler para avançar do feedback para fase LGN (subStep 15)
   const handleInterpretationContinue = useCallback(() => {
+    telemetryRecordAtomicInteraction(
+      'Interpretação — feedback',
+      'A variabilidade amostral diminui quando o número de repetições cresce, mas não desaparece completamente. Mesmo com muitas repetições, os resultados observados raramente ficam exatamente iguais à probabilidade teórica. A Lei dos Grandes Números afirma apenas que eles tendem a se aproximar.',
+      'leu o feedback e clicou em Continuar',
+    );
     setInterpretationPhase('done');
     const n = gameState.targetSectorCount;
     const params = generateLgnParams(n, gameState.sectors);

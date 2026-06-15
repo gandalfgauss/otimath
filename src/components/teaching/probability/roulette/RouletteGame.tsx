@@ -536,6 +536,31 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
   useTextInputTracker('P(E) numerador', exercisePENumeratorInput?.value, isActiveStage, gameState.subStep);
   useTextInputTracker('P(E) denominador', exercisePEDenominatorInput?.value, isActiveStage, gameState.subStep);
 
+  // INTERPRETATION RADIOS — cada mudança na seleção (Sim/Não/alternativa)
+  // vira interacao_exercicio. Sem isso, só o Conferir gerava evento — o
+  // aluno podia mudar de ideia várias vezes antes de confirmar e nada disso
+  // ficava no histórico.
+  const prevInterpRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isActiveStage) { prevInterpRef.current = null; return; }
+    const cur = interpretationSelected;
+    const prev = prevInterpRef.current;
+    if (prev === cur) return;
+    prevInterpRef.current = cur;
+    if (prev === null) return; // mount inicial
+    if (!cur) return; // reset programático
+    // Resolve label legível: 'sim'/'nao' direto; em q3, o id ('correct'/'e0'/...)
+    // não é informativo, então usamos o texto da alternativa se disponível.
+    const q3Label = interpretationQ3?.alternatives.find(a => a.id === cur)?.text;
+    const label = cur === 'sim' ? 'Sim'
+                : cur === 'nao' ? 'Não'
+                : q3Label?.slice(0, 140) ?? cur;
+    telemetryRecordInteracaoExercicio(
+      `marcou opção (Interpretação ${interpretationPhase}): "${label}"`,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interpretationSelected, isActiveStage, interpretationPhase]);
+
   // SELECTED OPTION — change-detection sem debounce (clique em radio é
   // intencional). Ignora resets pra '' (mudança de tela do sistema).
   const prevSelectedOptionRef = useRef<string | null>(null);
@@ -813,10 +838,39 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
           description: `A = "${gameState.compEventA?.textA ?? ''}". Cadeia de cálculo P(Ā) = 1 − P(A) = n/n − m/n = (n−m)/n.`,
         };
       }
+      if (sub === 7) {
+        if (gameState.pendingRegistration) {
+          return {
+            title: 'Registre a cor que saiu',
+            description: 'Clique no botão correspondente à cor onde o ponteiro parou.',
+          };
+        }
+        return {
+          title: 'Giros Manuais',
+          description: `Gire o disco ${gameState.manualSpinsRequired ?? 5} vezes clicando em Sortear. Após cada giro, registre a cor que saiu clicando no botão correspondente. Giros realizados: ${gameState.manualSpinsDone ?? 0}/${gameState.manualSpinsRequired ?? 5}.`,
+        };
+      }
       if (sub === 7.6) {
         return {
           title: 'Padrão Interessante Detectado!',
           description: `Você obteve cada cor exatamente uma vez. Isso acontece sempre? Continue girando o disco para observar o que acontece. Giros extras realizados: ${gameState.perfectPatternExtraSpinsDone} / ${gameState.manualSpinsRequired}.`,
+        };
+      }
+      if (sub === 8) {
+        // SubStep 8 (Stage 1) é a 2ª rodada de giros MANUAIS com Y giros
+        // aleatórios (8-15) — NÃO os automáticos. Diferenciamos pelo
+        // estado `pendingRegistration` (registro de cor após cada giro
+        // é exclusivo dos giros manuais).
+        const total = gameState.ySpins ?? 0;
+        if (gameState.pendingRegistration) {
+          return {
+            title: 'Registre a cor que saiu',
+            description: 'Clique no botão correspondente à cor onde o ponteiro parou.',
+          };
+        }
+        return {
+          title: 'Giros Manuais (2ª rodada)',
+          description: `Realize ${total} giros e registre as frequências. Giros realizados: ${gameState.manualSpinsDone ?? 0}/${total}.`,
         };
       }
       if (sub === 9) {
@@ -834,6 +888,7 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
       if (sub === 11) {
         return {
           title: 'Convergência das Frequências Relativas',
+          description: 'À medida que o número de giros do disco se torna muito grande, as frequências relativas estão se aproximando de qual número?',
         };
       }
     }
@@ -6016,7 +6071,10 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                   style="primary"
                   size="small"
                   icon={<ArrowRight />}
-                  onClick={nextStep}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`clicou em "Próxima Etapa" (Etapa ${gameState.stage} → ${gameState.stage + 1})`);
+                    nextStep();
+                  }}
                   disabled={disabledNextButton}
                 >
                   Próxima Etapa
