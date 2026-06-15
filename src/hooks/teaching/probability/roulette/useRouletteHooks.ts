@@ -9134,6 +9134,7 @@ export const useRouletteHooks = () => {
         `Clique nos setores que pertencem ao evento ${currentEventLabel} antes de confirmar.`,
         "error",
         4000,
+        `tentou confirmar ${currentEventLabel} sem selecionar setores`,
       );
       return;
     }
@@ -9146,19 +9147,22 @@ export const useRouletteHooks = () => {
     const won = sortedUser.length === sortedCorrect.length &&
       sortedUser.every((val, idx) => val === sortedCorrect[idx]);
 
+    const userSelSummary = sortedUser
+      .map(i => `#${i + 1}(${gameState.sectors[i]?.colorName ?? '?'})`)
+      .join(', ');
     if (won) {
       playSound("/sounds/correct.mp3");
       setUnionPhase('filling_prob');
       setUnionProbNumInput({ value: '', error: false });
       setUnionProbDenInput({ value: '', error: false });
 
-      createAlert("Correto!", `Setores do evento ${currentEvent.label} identificados!`, "success", 2000);
+      createAlert("Correto!", `Setores do evento ${currentEvent.label} identificados!`, "success", 2000, `evento ${currentEvent.label} — selecionou setores: ${userSelSummary}`);
       setInstructions(`<p class="ds-body"><strong>Correto!</strong> Agora calcule P(${currentEvent.label}) como fração.</p>`);
     } else {
       playSound("/sounds/incorrect.mp3");
-      createAlert("Tente novamente", `Verifique quais setores pertencem ao evento ${currentEvent.label}: ${currentEvent.description}. Tente novamente.`, "error", 5000);
+      createAlert("Tente novamente", `Verifique quais setores pertencem ao evento ${currentEvent.label}: ${currentEvent.description}. Tente novamente.`, "error", 5000, `evento ${currentEvent.label} — selecionou setores: ${userSelSummary}`);
     }
-  }, [unionSelectedSectors, unionEvents, unionCurrentEventIdx, createAlert]);
+  }, [unionSelectedSectors, unionEvents, unionCurrentEventIdx, gameState.sectors, createAlert]);
 
   const handleUnionConfirmProb = useCallback(() => {
     goToTopOfChallenge();
@@ -9188,7 +9192,7 @@ export const useRouletteHooks = () => {
         setUnionPhase('selecting');
 
         const nextEvent = unionEvents[nextIdx];
-        createAlert("Correto!", `P(${currentEvent.label}) = ${expectedNum}/${expectedDen}`, "success", 2000);
+        createAlert("Correto!", `P(${currentEvent.label}) = ${expectedNum}/${expectedDen}`, "success", 2000, `P(${currentEvent.label}) — digitou: ${unionProbNumInput.value || '_'}/${unionProbDenInput.value || '_'}`);
         setInstructions(`<p class="ds-body"><strong>P(${currentEvent.label}) = ${expectedNum}/${expectedDen} ✓</strong></p>
           <p class="ds-body">Agora marque os setores do <strong>evento ${nextEvent.label}</strong> (${nextEvent.description}).</p>`);
       } else {
@@ -9199,7 +9203,7 @@ export const useRouletteHooks = () => {
 
         const unionLabel = updatedEvents.map(e => e.label).join('∪');
         const probList = updatedEvents.map(e => `P(${e.label}) = ${e.probNumerator}/${e.probDenominator}`).join(', ');
-        createAlert("Correto!", `P(${currentEvent.label}) = ${expectedNum}/${expectedDen}`, "success", 2000);
+        createAlert("Correto!", `P(${currentEvent.label}) = ${expectedNum}/${expectedDen}`, "success", 2000, `P(${currentEvent.label}) — digitou: ${unionProbNumInput.value || '_'}/${unionProbDenInput.value || '_'}`);
         setInstructions(`<p class="ds-body"><strong>Probabilidades individuais confirmadas!</strong></p>
           <p class="ds-body">${probList}</p>
           <p class="ds-body">Agora calcule <strong>P(${unionLabel})</strong>.</p>`);
@@ -9208,7 +9212,7 @@ export const useRouletteHooks = () => {
       playSound("/sounds/incorrect.mp3");
       setUnionProbNumInput(prev => ({ ...prev, error: true }));
       setUnionProbDenInput(prev => ({ ...prev, error: true }));
-      createAlert("Tente novamente", `P(${currentEvent.label}) = n(${currentEvent.label}) / n(S). Conte quantos setores pertencem ao evento e quantos setores tem o disco.`, "error", 5000);
+      createAlert("Tente novamente", `P(${currentEvent.label}) = n(${currentEvent.label}) / n(S). Conte quantos setores pertencem ao evento e quantos setores tem o disco.`, "error", 5000, `P(${currentEvent.label}) — digitou: ${unionProbNumInput.value || '_'}/${unionProbDenInput.value || '_'}`);
     }
   }, [unionProbNumInput, unionProbDenInput, unionEvents, unionCurrentEventIdx, gameState.sectors, createAlert]);
 
@@ -9234,6 +9238,7 @@ export const useRouletteHooks = () => {
         `P(${unionLabel}) = ${expectedNum}/${expectedDen} = ${percentageVal}%`,
         "success",
         3500,
+        `P(${unionLabel}) — digitou: ${unionFinalNumInput.value || '_'}/${unionFinalDenInput.value || '_'}`,
       );
 
       setShowInfoBox(true);
@@ -9259,7 +9264,7 @@ export const useRouletteHooks = () => {
       setUnionFinalNumInput(prev => ({ ...prev, error: true }));
       setUnionFinalDenInput(prev => ({ ...prev, error: true }));
       const probSum = unionEvents.map(e => `P(${e.label})`).join(' + ');
-      createAlert("Tente novamente", `Para eventos mutuamente exclusivos: P(${unionEvents.map(e => e.label).join('∪')}) = ${probSum}. Some os numeradores e mantenha o denominador.`, "error", 6000);
+      createAlert("Tente novamente", `Para eventos mutuamente exclusivos: P(${unionEvents.map(e => e.label).join('∪')}) = ${probSum}. Some os numeradores e mantenha o denominador.`, "error", 6000, `P(${unionEvents.map(e => e.label).join('∪')}) — digitou: ${unionFinalNumInput.value || '_'}/${unionFinalDenInput.value || '_'}`);
     }
   }, [unionFinalNumInput, unionFinalDenInput, unionEvents, unionActivityNum, unionMaxActivities, gameState.sectors, createAlert]);
 
