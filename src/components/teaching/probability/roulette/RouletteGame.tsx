@@ -893,6 +893,24 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
       }
     }
     if (stage === 2) {
+      if (sub === 0 && !showInfoBox) {
+        return {
+          title: 'Configuração do Disco — Etapa 2',
+          description: `Use o controle deslizante para dividir o disco em ${gameState.s2K} setores e clique em Confirmar. Slider atual: ${sliderValue}.`,
+        };
+      }
+      if (sub === 0.15 && !showInfoBox) {
+        return {
+          title: 'Investigação Inicial — Aposta',
+          description: 'Girando-se aleatoriamente o disco, em qual cor você apostaria para ter mais chance de ganhar? Clique no setor que você acredita que o ponteiro irá indicar.',
+        };
+      }
+      if (sub === 0.16 && !showInfoBox) {
+        return {
+          title: 'Investigação Inicial — Sortear',
+          description: `Aposta registrada em ${experimentationState.wageredColor ?? '?'}. Clique em Sortear para girar o disco.`,
+        };
+      }
       if (sub === 0.17 && !showInfoBox) {
         return {
           title: 'Resultado da Aposta',
@@ -905,10 +923,79 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
           description: 'Clique na cor que você acredita ter a maior probabilidade de ser sorteada.',
         };
       }
+      if (sub === 0.195 && !showInfoBox) {
+        return {
+          title: 'Reflexão Conceitual — Identifique a cor sorteada',
+          description: 'O disco parou. Clique na cor em que o ponteiro parou.',
+        };
+      }
+      if (sub === 2.3 && currentQuestion) {
+        return {
+          title: 'Probabilidade da União — Cor X ou Cor Y',
+          description: `A probabilidade de ocorrer um setor de Cor ${s2RandomColors.colorX} ou Cor ${s2RandomColors.colorY} é 2/${gameState.s2K}? Marque Sim ou Não.`,
+        };
+      }
+      if (sub === 2.4 && currentQuestion) {
+        return {
+          title: 'Probabilidade Laplaciana — Equiprovável ou Não Equiprovável?',
+          description: 'Observando o disco com setores de tamanhos diferentes, classifique o espaço amostral em equiprovável ou não equiprovável e leia a definição correspondente.',
+        };
+      }
+      if (sub === 3) {
+        if (s2RatioPhase === 'init') {
+          return {
+            title: 'Razões Angulares — Selecione o menor setor',
+            description: 'Clique no setor com o menor ângulo central. Esse setor será a unidade de comparação para os demais.',
+          };
+        }
+        if (s2RatioPhase === 'unit_selected') {
+          return {
+            title: 'Razões Angulares — Reflexão conceitual',
+            description: `Unidade = ${gameState.s2M}°. A área de um setor circular é diretamente proporcional ao seu ângulo central. Logo, a probabilidade de um setor ser sorteado é diretamente proporcional ______ e ______. Marque a opção que completa as lacunas corretamente.`,
+          };
+        }
+        if (s2RatioPhase === 'ratio_question') {
+          return {
+            title: `Razões Angulares — Razão dos ângulos (cor ${s2ReasoningColorY})`,
+            description: `Quantas vezes o ângulo do setor de cor ${s2ReasoningColorY} (${s2ReasoningAngleY}°) é maior que o ângulo do menor setor (${gameState.s2M}°)?`,
+          };
+        }
+        if (s2RatioPhase === 'area_question') {
+          return {
+            title: `Razões Angulares — Razão das áreas (cor ${s2ReasoningColorY})`,
+            description: `Então a área do setor de cor ${s2ReasoningColorY} é quantas vezes a área do menor setor do disco?`,
+          };
+        }
+        if (s2RatioPhase === 'prob_question') {
+          return {
+            title: `Razões Angulares — Probabilidade em função de p (cor ${s2ReasoningColorY})`,
+            description: `Supondo que a probabilidade do setor de menor ângulo seja p, qual é a probabilidade do setor de cor ${s2ReasoningColorY} ser sorteado?`,
+          };
+        }
+        if (s2RatioPhase === 'question_correct' || s2RatioPhase === 'table_checked') {
+          return {
+            title: 'Razões Angulares — Tabela completa',
+            description: `Unidade = ${gameState.s2M}°. Quantas unidades de ${gameState.s2M}° cabem em cada setor? Preencha a tabela com a razão (número de unidades) de cada cor.`,
+          };
+        }
+      }
+      if (sub === 4 && s2IxPhase === 'sum_question') {
+        return {
+          title: 'Soma das Probabilidades — Reflexão',
+          description: 'Estamos atribuindo probabilidades a todos os setores do disco. O que deve acontecer quando somamos as probabilidades de todos os setores? (Opções: Deve dar 1; Deve dar o maior valor; Depende da cor)',
+        };
+      }
       if (sub === 4 && (s2IxPhase === 'filling_table' || s2IxPhase === 'guided_calc')) {
+        const calcStr = s2IxPhase === 'guided_calc'
+          ? (s2IxCalcStep === 0
+              ? ` Cálculo guiado: ${gameState.s2Ki.map(ki => `${ki}p`).join(' + ')} = 1.`
+              : s2IxCalcStep === 1
+                ? ` Cálculo guiado: ${gameState.s2SumI}p = 1.`
+                : ` Cálculo guiado: p = 1/${gameState.s2SumI}.`)
+          : '';
         return {
           title: 'Distribuindo a probabilidade entre todos os setores',
-          description: 'Cada setor recebe uma quantidade proporcional à sua área. Seja p a probabilidade do setor de menor ângulo central ser sorteado. Vamos determinar o valor de p. Atribua probabilidades a cada setor na tabela em função de p.',
+          description: `Cada setor recebe uma quantidade proporcional à sua área. Seja p a probabilidade do setor de menor ângulo central ser sorteado. Vamos determinar o valor de p. Atribua probabilidades a cada setor na tabela em função de p.${calcStr}`,
         };
       }
       if (sub === 5) {
@@ -1087,6 +1174,40 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
       if (interpretationPhase === 'feedback') return { title: 'Interpretação dos Resultados — feedback', description: 'A variabilidade amostral diminui quando o número de repetições cresce, mas não desaparece completamente. A Lei dos Grandes Números afirma apenas que os valores tendem a se aproximar.' };
     }
     if (sub === 15) {
+      // Cada fase do LGN tem um enunciado próprio dentro do card "Consolidação".
+      // Sem isso, a descricao virava só o título do card e perdia o problema
+      // específico que o aluno estava resolvendo (cores e números são dinâmicos).
+      if (lgnPhase === 'problem1' && lgnParams) {
+        return {
+          title: 'Consolidação: Lei dos Grandes Números — Problema 1',
+          description: `Um disco está dividido em ${lgnN} partes iguais. Considere a cor ${lgnParams.color} ocupando exatamente 1 dessas ${lgnN} partes. Após o disco girar ${lgnParams.m.toLocaleString('pt-BR')} vezes, quantas vezes se espera que ocorra a cor ${lgnParams.color}?`,
+        };
+      }
+      if (lgnPhase === 'problem2' && lgnParams) {
+        return {
+          title: 'Consolidação: Lei dos Grandes Números — Problema 2',
+          description: `Um medicamento tem ${lgnParams.p}% de chance de curar um paciente quando aplicado no início dos sintomas. Aplicando esse medicamento em ${lgnParams.m.toLocaleString('pt-BR')} pacientes, quantos pacientes se espera que sejam curados?`,
+        };
+      }
+      if (lgnPhase === 'note') {
+        return {
+          title: 'Consolidação: Lei dos Grandes Números — NOTA (obrigatória)',
+          description: 'Você sabe por que o número real de pacientes curados pode ser diferente desse valor?',
+        };
+      }
+      if (lgnPhase === 'explanation') {
+        return {
+          title: 'Consolidação: Lei dos Grandes Números — Explicação',
+          description: 'Mesmo conhecendo a probabilidade de cura, o resultado real pode variar porque cada paciente é um caso sujeito ao acaso. O valor calculado representa o número esperado: um valor em torno do qual os resultados tendem a se aproximar quando repetimos o experimento muitas vezes. Isso é uma consequência da Lei dos Grandes Números.',
+        };
+      }
+      if (lgnPhase === 'verbal') {
+        const nLabel = lgnN ?? gameState.targetSectorCount;
+        return {
+          title: 'Consolidação: Lei dos Grandes Números — Consolidação verbal',
+          description: `Explique com suas palavras: por que a frequência relativa de cada cor se aproximou de 1/${nLabel} após muitos giros? (Resposta livre — escreva sua explicação no campo de texto. Mínimo de 10 caracteres.)`,
+        };
+      }
       return { title: 'Consolidação: Lei dos Grandes Números' };
     }
     if (stage === 1 && (sub === 15.6 || sub === 15.7)) {
