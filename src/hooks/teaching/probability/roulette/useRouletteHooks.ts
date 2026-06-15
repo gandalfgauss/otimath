@@ -5772,9 +5772,12 @@ export const useRouletteHooks = () => {
       if (!ev) return;
       const correctSet = new Set(ev.indicesA);
       const userSet = new Set(gameState.selectedSectors);
+      const selectedASummary = [...gameState.selectedSectors].sort((a, b) => a - b)
+        .map(i => `#${i + 1}(${gameState.sectors[i]?.colorName ?? '?'})`)
+        .join(', ') || '(nenhum)';
       if (correctSet.size === userSet.size && [...correctSet].every(i => userSet.has(i))) {
         playSound("/sounds/correct.mp3");
-        createAlert("Evento A correto!", "Agora vamos para a próxima etapa do cálculo.", "success", 3000);
+        createAlert("Evento A correto!", "Agora vamos para a próxima etapa do cálculo.", "success", 3000, `cálculo P(Ā) — evento A — selecionou setores: ${selectedASummary}`);
         if (subStep === 6.85) {
           // Guiado → vai direto para selectĀ
           setCompPhase('calc_selectAbar');
@@ -5803,7 +5806,7 @@ export const useRouletteHooks = () => {
         }
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Tente novamente", "Verifique quais setores correspondem ao evento A.", "error", 4000);
+        createAlert("Tente novamente", "Verifique quais setores correspondem ao evento A.", "error", 4000, `cálculo P(Ā) — evento A — selecionou setores: ${selectedASummary}`);
         setGameState(prev => ({ ...prev, selectedSectors: [] }));
       }
       return;
@@ -5825,12 +5828,12 @@ export const useRouletteHooks = () => {
       if (hasErr) {
         playSound("/sounds/incorrect.mp3");
         setCompPaInput(prev => ({ ...prev, ...errs }));
-        createAlert("Tente novamente", "Verifique o numerador (setores favoráveis) e o denominador (total de setores).", "error", 4000);
+        createAlert("Tente novamente", "Verifique o numerador (setores favoráveis) e o denominador (total de setores).", "error", 4000, `P(A) — digitou: ${compPaInput.num || '_'}/${compPaInput.den || '_'}`);
         return;
       }
       // P(A) correto → transicionar para selectĀ
       playSound("/sounds/correct.mp3");
-      createAlert("P(A) correto!", "Agora marque o evento complementar Ā no disco.", "success", 3000);
+      createAlert("P(A) correto!", "Agora marque o evento complementar Ā no disco.", "success", 3000, `P(A) — digitou: ${compPaInput.num || '_'}/${compPaInput.den || '_'}`);
       setCompPhase('calc_selectAbar');
       setGameState(prev => ({ ...prev, subStep: 6.91 }));
       setCompUserSelectAbar([]);
@@ -5851,9 +5854,12 @@ export const useRouletteHooks = () => {
       if (!ev) return;
       const correctSet = new Set(ev.indicesAbar);
       const userSet = new Set(compUserSelectAbar);
+      const selectedAbarSummary = [...compUserSelectAbar].sort((a, b) => a - b)
+        .map(i => `#${i + 1}(${gameState.sectors[i]?.colorName ?? '?'})`)
+        .join(', ') || '(nenhum)';
       if (correctSet.size === userSet.size && [...correctSet].every(i => userSet.has(i))) {
         playSound("/sounds/correct.mp3");
-        createAlert("Muito bem!", "Você identificou corretamente o evento complementar Ā.", "success", 3000);
+        createAlert("Muito bem!", "Você identificou corretamente o evento complementar Ā.", "success", 3000, `cálculo P(Ā) — evento Ā — selecionou setores: ${selectedAbarSummary}`);
         setCompPhase('calc_showBoth');
         setGameState(prev => ({ ...prev, subStep: subStep === 6.86 ? 6.87 : 6.92 }));
         setShowInfoBox(true);
@@ -5871,7 +5877,7 @@ export const useRouletteHooks = () => {
         }
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Tente novamente", "Verifique quais setores NÃO pertencem ao evento A.", "error", 4000);
+        createAlert("Tente novamente", "Verifique quais setores NÃO pertencem ao evento A.", "error", 4000, `cálculo P(Ā) — evento Ā — selecionou setores: ${selectedAbarSummary}`);
         setCompUserSelectAbar([]);
       }
       return;
@@ -5912,13 +5918,14 @@ export const useRouletteHooks = () => {
       if (!frac2Ok) { errs.errN2 = true; errs.errD2 = true; hasError = true; }
       if (!fracFOk) { errs.errFinalNum = true; errs.errFinalDen = true; hasError = true; }
 
+      const chainUserSummary = `1=${v.n1 || '_'}/${v.d1 || '_'}, P(A)=${v.n2 || '_'}/${v.d2 || '_'}, P(Ā)=${v.finalNum || '_'}/${v.finalDen || '_'}`;
       if (hasError) {
         playSound("/sounds/incorrect.mp3");
         setCompChainInputs(prev => ({ ...prev, ...errs }));
         if (!frac1Ok) msgs.push('A primeira fração deve representar o número 1 (qualquer forma equivalente, ex.: n/n).');
         if (!frac2Ok) msgs.push('A segunda fração deve representar P(A) (qualquer forma equivalente a m/n).');
         if (!fracFOk) msgs.push('A fração final deve representar P(Ā) (qualquer forma equivalente ao resultado da subtração).');
-        createAlert("Tente novamente", msgs.join(' '), "error", 5000);
+        createAlert("Tente novamente", msgs.join(' '), "error", 5000, `cadeia P(Ā) — digitou: ${chainUserSummary}`);
         return;
       }
 
@@ -5933,7 +5940,7 @@ export const useRouletteHooks = () => {
 
       if (subStep === 6.88) {
         // Guiado → iniciar independente
-        createAlert("Parabéns!", `P(Ā) = ${n - m}/${n} = ${decimalStr}. Agora pratique sozinho!`, "success", 3500);
+        createAlert("Parabéns!", `P(Ā) = ${n - m}/${n} = ${decimalStr}. Agora pratique sozinho!`, "success", 3500, `cadeia P(Ā) — digitou: ${chainUserSummary}`);
         setShowInfoBox(true);
         setInfoBoxContent({
           type: 'success',
@@ -5946,7 +5953,7 @@ export const useRouletteHooks = () => {
       } else {
         // Independente (6.93) → próximo exemplo ou transição
         if (compCalcExampleNum >= 4) {
-          createAlert("Excelente!", "Você dominou o cálculo de P(Ā) = 1 − P(A).", "success", 3500);
+          createAlert("Excelente!", "Você dominou o cálculo de P(Ā) = 1 − P(A).", "success", 3500, `cadeia P(Ā) — digitou: ${chainUserSummary}`);
           setShowInfoBox(true);
           setInfoBoxContent({
             type: 'success',
@@ -5957,7 +5964,7 @@ export const useRouletteHooks = () => {
             transitionToPredictionRef.current();
           }, 1500);
         } else {
-          createAlert("Correto!", `P(Ā) = ${n - m}/${n} = ${decimalStr}.`, "success", 3000);
+          createAlert("Correto!", `P(Ā) = ${n - m}/${n} = ${decimalStr}.`, "success", 3000, `cadeia P(Ā) — digitou: ${chainUserSummary}`);
           setShowInfoBox(true);
           setInfoBoxContent({
             type: 'success',
@@ -11274,10 +11281,13 @@ export const useRouletteHooks = () => {
     const correctSet = new Set(ev.indicesA);
     const userSet = new Set(compUserSelectA);
 
+    const selectedASummary = [...compUserSelectA].sort((a, b) => a - b)
+      .map(i => `#${i + 1}(${gameState.sectors[i]?.colorName ?? '?'})`)
+      .join(', ') || '(nenhum)';
     if (correctSet.size === userSet.size && [...correctSet].every(i => userSet.has(i))) {
       // Correto — avançar para selecting_Abar
       playSound("/sounds/correct.mp3");
-      createAlert("Evento A correto!", "Agora identifique o evento complementar Ā.", "success", 3000);
+      createAlert("Evento A correto!", "Agora identifique o evento complementar Ā.", "success", 3000, `evento A — selecionou setores: ${selectedASummary}`);
       setCompPhase('selecting_Abar');
       setShowInfoBox(true);
       setInfoBoxContent({
@@ -11287,7 +11297,7 @@ export const useRouletteHooks = () => {
       });
     } else {
       playSound("/sounds/incorrect.mp3");
-      createAlert("Tente novamente", `Revise os setores do evento A = "${ev.textA}".`, "error", 4000);
+      createAlert("Tente novamente", `Revise os setores do evento A = "${ev.textA}".`, "error", 4000, `evento A — selecionou setores: ${selectedASummary}`);
       setCompPhase('wrong_A');
       setShowInfoBox(true);
       setInfoBoxContent({
@@ -11296,7 +11306,7 @@ export const useRouletteHooks = () => {
         message: `Revise quais setores correspondem ao evento A = "<strong>${ev.textA}</strong>". Tente novamente.`
       });
     }
-  }, [gameState.compEventA, compUserSelectA, createAlert]);
+  }, [gameState.compEventA, gameState.sectors, compUserSelectA, createAlert]);
 
   // 5. Confirmar seleção de Ā
   const handleCompConfirmAbar = useCallback(() => {
@@ -11307,10 +11317,13 @@ export const useRouletteHooks = () => {
     const correctSet = new Set(ev.indicesAbar);
     const userSet = new Set(compUserSelectAbar);
 
+    const selectedAbarSummary = [...compUserSelectAbar].sort((a, b) => a - b)
+      .map(i => `#${i + 1}(${gameState.sectors[i]?.colorName ?? '?'})`)
+      .join(', ') || '(nenhum)';
     if (correctSet.size === userSet.size && [...correctSet].every(i => userSet.has(i))) {
       // Correto — mostrar ambos
       playSound("/sounds/correct.mp3");
-      createAlert("Muito bem!", "Você identificou corretamente A e Ā.", "success", 3000);
+      createAlert("Muito bem!", "Você identificou corretamente A e Ā.", "success", 3000, `evento Ā — selecionou setores: ${selectedAbarSummary}`);
       setCompPhase('show_both');
       setCompExamplesViewed(prev => prev + 1);
       setShowInfoBox(true);
@@ -11331,7 +11344,7 @@ export const useRouletteHooks = () => {
       }
     } else {
       playSound("/sounds/incorrect.mp3");
-      createAlert("Tente novamente", "O evento complementar ocorre quando A não ocorre.", "error", 4000);
+      createAlert("Tente novamente", "O evento complementar ocorre quando A não ocorre.", "error", 4000, `evento Ā — selecionou setores: ${selectedAbarSummary}`);
       setCompPhase('wrong_Abar');
       setShowInfoBox(true);
       setInfoBoxContent({
