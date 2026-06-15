@@ -8949,18 +8949,21 @@ export const useRouletteHooks = () => {
   const handleDisjointConfirmA = useCallback(() => {
     if (disjointUserSelectA.length === 0) {
       playSound("/sounds/incorrect.mp3");
-      createAlert("Selecione ao menos um setor", `Clique nos setores do disco que pertencem ao evento A (${disjointExerciseTextA}) antes de confirmar.`, "error", 4000);
+      createAlert("Selecione ao menos um setor", `Clique nos setores do disco que pertencem ao evento A (${disjointExerciseTextA}) antes de confirmar.`, "error", 4000, 'tentou confirmar A sem selecionar setores');
       return;
     }
 
     const sortedUserA = [...disjointUserSelectA].sort((a, b) => a - b);
     const correctA = JSON.stringify(disjointCorrectA) === JSON.stringify(sortedUserA);
+    const selectedASummary = sortedUserA
+      .map(i => `#${i + 1}(${gameState.sectors[i]?.colorName ?? '?'})`)
+      .join(', ');
 
     if (!correctA) {
       playSound("/sounds/incorrect.mp3");
       setDisjointExercisePhase('wrong');
       const errorText = `Os setores selecionados para o evento A estão incorretos.`;
-      createAlert("Resposta incorreta", errorText, "error", 4000);
+      createAlert("Resposta incorreta", errorText, "error", 4000, `evento A — selecionou setores: ${selectedASummary}`);
       setInfoBoxContent({
         type: 'error',
         title: 'Tente novamente',
@@ -8972,7 +8975,7 @@ export const useRouletteHooks = () => {
     }
 
     playSound("/sounds/correct.mp3");
-    createAlert("Evento A correto!", "Agora identifique os setores do evento B.", "success", 3000);
+    createAlert("Evento A correto!", "Agora identifique os setores do evento B.", "success", 3000, `evento A — selecionou setores: ${selectedASummary}`);
     setDisjointExercisePhase('selecting_B');
 
     setInfoBoxContent({
@@ -8989,7 +8992,7 @@ export const useRouletteHooks = () => {
   const handleDisjointConfirmB = useCallback(() => {
     if (disjointUserSelectB.length === 0) {
       playSound("/sounds/incorrect.mp3");
-      createAlert("Selecione ao menos um setor", `Clique nos setores do disco que pertencem ao evento B (${disjointExerciseTextB}) antes de confirmar.`, "error", 4000);
+      createAlert("Selecione ao menos um setor", `Clique nos setores do disco que pertencem ao evento B (${disjointExerciseTextB}) antes de confirmar.`, "error", 4000, 'tentou confirmar B sem selecionar setores');
       return;
     }
 
@@ -8999,9 +9002,10 @@ export const useRouletteHooks = () => {
     const correctA = JSON.stringify(disjointCorrectA) === JSON.stringify(sortedUserA);
     const correctB = JSON.stringify(disjointCorrectB) === JSON.stringify(sortedUserB);
 
+    const selABSummary = `A: [${sortedUserA.map(i => `#${i + 1}(${gameState.sectors[i]?.colorName ?? '?'})`).join(', ')}] | B: [${sortedUserB.map(i => `#${i + 1}(${gameState.sectors[i]?.colorName ?? '?'})`).join(', ')}]`;
     if (correctA && correctB) {
       playSound("/sounds/correct.mp3");
-      createAlert("Parabéns!", "Você identificou corretamente os eventos mutuamente exclusivos.", "success", 3500);
+      createAlert("Parabéns!", "Você identificou corretamente os eventos mutuamente exclusivos.", "success", 3500, `selecionou setores — ${selABSummary}`);
       setDisjointExercisePhase('correct');
       setDisjointExamplesViewed(prev => prev + 1);
       setInfoBoxContent({
@@ -9019,7 +9023,7 @@ export const useRouletteHooks = () => {
         : !correctA
           ? 'Os setores selecionados para o evento A estão incorretos.'
           : 'Os setores selecionados para o evento B estão incorretos.';
-      createAlert("Resposta incorreta", errorText, "error", 4000);
+      createAlert("Resposta incorreta", errorText, "error", 4000, `selecionou setores — ${selABSummary}`);
       setInfoBoxContent({
         type: 'error',
         title: 'Tente novamente',

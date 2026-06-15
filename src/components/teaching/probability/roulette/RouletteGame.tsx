@@ -1199,12 +1199,50 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 280);
+  // Fingerprint da MENSAGEM — alguns subSteps reusam o mesmo título do balão
+  // pra múltiplos conteúdos distintos (ex.: 6.56 definition1 e definition2 têm
+  // título idêntico "Probabilidade da União de Eventos Mutuamente Exclusivos"
+  // mas mensagens completamente diferentes). Sem incluir o fingerprint no id,
+  // o useReadingTelemetry achava que era o MESMO balão e não fechava/abria
+  // novo pending — segundo balão da sequência nunca virava exercise.
+  const balaoMensagemFingerprint = (infoBoxContent?.message ?? '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, '')
+    .slice(0, 24);
+  // `balaoEhInstrucional` — identifica balões que são apenas INSTRUÇÕES
+  // operacionais (ex.: "Sua vez! Clique no evento A") e NÃO leituras
+  // conceituais. Sem esse gate, o auto-confirm do `useReadingTelemetry`
+  // (cleanup) gerava `interacao_usuario` fantasma quando o balão era
+  // dispensado por outro botão (Confirmar A/B, Tentar novamente, etc.).
+  //
+  // INCLUÍMOS por padrão TODOS os balões (definições, sucessos com
+  // explicação, conceitos), e só EXCLUÍMOS os intrutórios:
+  //   • 6.55 selecting_A/selecting_B: "Sua vez! Clique no evento A/B"
+  //   • 6.55 wrong: "Tente novamente. Observe..."
+  //   • 6.70 selecting_A/selecting_Abar: idem pra eventos complementares
+  //   • 6.70 wrong_A/wrong_Abar: idem
+  //
+  // Balões com type='success' (Parabéns! com explicação) e type='concept'
+  // (definições) SEMPRE viram leitura, independente do botão de dispensa.
+  const balaoEhInstrucional =
+    (gameState.subStep === 6.55 && (
+      disjointExercisePhase === 'selecting_A' ||
+      disjointExercisePhase === 'selecting_B' ||
+      disjointExercisePhase === 'wrong'
+    )) ||
+    (gameState.subStep === 6.70 && (
+      compPhase === 'selecting_A' ||
+      compPhase === 'selecting_Abar' ||
+      compPhase === 'wrong_A' ||
+      compPhase === 'wrong_Abar'
+    ));
   const confirmReadingBalao = useReadingTelemetry(
-    showInfoBox && !!infoBoxContent,
-    // O `id` é interno e PRECISA ser único — mantemos stage+subStep
-    // só pra evitar colisão entre balões de mesmo título em pontos
-    // diferentes do OVA. Não aparece em texto exibido pro analista.
-    `roulette-s${gameState.stage}-sub${gameState.subStep}-balao-${balaoTitulo}`,
+    showInfoBox && !!infoBoxContent && !balaoEhInstrucional,
+    // O `id` é interno e PRECISA ser único — incluímos `balaoMensagemFingerprint`
+    // pra diferenciar balões de mesmo título com mensagens distintas
+    // (ex.: 6.56 definition1 e definition2). Não aparece em texto exibido
+    // pro analista.
+    `roulette-s${gameState.stage}-sub${gameState.subStep}-balao-${balaoTitulo}-${balaoMensagemFingerprint}`,
     `Leitura — ${balaoTitulo}`,
     balaoMensagem || 'Balão conceitual sem texto definido.',
     `confirmou leitura: "${balaoTitulo}"`,
