@@ -358,7 +358,7 @@ interface TwoDicesExperimentProps {
   unionExercise6Ref?: React.RefObject<UnionExercise6Handle | null>;
   /** Cria um toast alert via o sistema global do OVA. Propagado para
    *  os sub-componentes (SampleSpaceTree, etc.). */
-  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
 }
 
 export interface TwoDicesExperimentHandle {
@@ -655,6 +655,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   const launchDice = useCallback(async () => {
     if (rolling.current) return;
     rolling.current = true;
+    telemetryRecordInteracaoExercicio(`clicou em "Lançar dois dados" (rodada ${round + 1})`);
     setIsLaunching(true);
     setPhase('rolling');
 
@@ -782,24 +783,25 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       setPickGreenError(true);
       setPickFeedback('Toque no dado verde e escolha a face que apareceu.');
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Falta registrar', 'Toque no dado verde e escolha a face que apareceu.', 'error', 4000);
+      createAlert?.('Falta registrar', 'Toque no dado verde e escolha a face que apareceu.', 'error', 4000, `não escolheu face do dado verde (azul: ${pickedBlue ?? '—'})`);
       return;
     }
     if (pickedBlue == null) {
       setPickBlueError(true);
       setPickFeedback('Toque no dado azul e escolha a face que apareceu.');
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Falta registrar', 'Toque no dado azul e escolha a face que apareceu.', 'error', 4000);
+      createAlert?.('Falta registrar', 'Toque no dado azul e escolha a face que apareceu.', 'error', 4000, `não escolheu face do dado azul (verde: ${pickedGreen ?? '—'})`);
       return;
     }
     const greenOk = pickedGreen === greenResult;
     const blueOk = pickedBlue === blueResult;
+    const pairLabel = `escolheu par (verde ${pickedGreen}, azul ${pickedBlue}) — sorteado: (${greenResult}, ${blueResult})`;
     if (greenOk && blueOk) {
       setPickGreenError(false);
       setPickBlueError(false);
       setPickFeedback('');
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `Par registrado: (${greenResult}, ${blueResult}).`, 'success', 3000);
+      createAlert?.('Correto!', `Par registrado: (${greenResult}, ${blueResult}).`, 'success', 3000, pairLabel);
       setPhase('pickConfirm');
       scrollDiceToTop();
       return;
@@ -812,7 +814,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     if (nextAttempts >= 3) {
       // Ao 3º erro: relança os dados e reinicia o picker com novo par
       setPickFeedback('');
-      createAlert?.('Vamos relançar', 'Você terá um novo par de dados para registrar.', 'warning', 4000);
+      createAlert?.('Vamos relançar', 'Você terá um novo par de dados para registrar.', 'warning', 4000, `${pairLabel} | 3ª tentativa errada`);
       rerollAndRestartPicker();
       return;
     }
@@ -826,7 +828,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     }
     setPickFeedback(msg);
     playSound('/sounds/incorrect.mp3');
-    createAlert?.('Tente novamente', msg, 'error', 4500);
+    createAlert?.('Tente novamente', msg, 'error', 4500, `${pairLabel} | tentativa ${nextAttempts}/3`);
   }, [pickedGreen, pickedBlue, greenResult, blueResult, pickAttempts, rerollAndRestartPicker, createAlert]);
 
   // ── Próxima rodada (com intervalo pedagógico após rodada 2) ──
@@ -948,8 +950,10 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     if (phase !== 'sumMarkTable') return;
     const key = `${row + 1},${col + 1}`;
     const newMarks = new Set(sumMarks);
-    if (newMarks.has(key)) newMarks.delete(key);
+    const wasMarked = newMarks.has(key);
+    if (wasMarked) newMarks.delete(key);
     else newMarks.add(key);
+    telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (verde ${row + 1}, azul ${col + 1}) — soma=${row + 1 + col + 1} | total marcadas agora: ${newMarks.size}`);
     setSumMarks(newMarks);
     // Qualquer interação limpa o feedback anterior (wrong/incomplete)
     if (sumFeedbackState !== 'none') {
@@ -972,6 +976,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       if (!sumMarks.has(c)) missing.add(c);
     }
 
+    const marksList = [...sumMarks].sort().join(', ');
     if (wrong.size === 0 && missing.size === 0) {
       // Estado 1: tudo correto e completo → celebração + avança
       setSumFeedbackState('none');
@@ -980,7 +985,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       setSumCountError(false);
       setSumCountValidated(false);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `Todos os pares com soma ${targetSum} foram marcados.`, 'success', 3000);
+      createAlert?.('Correto!', `Todos os pares com soma ${targetSum} foram marcados.`, 'success', 3000, `soma=${targetSum} | marcou ${sumMarks.size} células: [${marksList}]`);
       setPhase('sumComplete');
       scrollDiceToTop();
     } else if (wrong.size === 0 && missing.size > 0) {
@@ -988,13 +993,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       setSumFeedbackState('incomplete');
       setSumWrongMarks(new Set());
       playSound('/sounds/correct.mp3');
-      createAlert?.('Quase lá', `Você acertou os marcados, mas ainda faltam ${missing.size} par(es) com soma ${targetSum}.`, 'warning', 4000);
+      createAlert?.('Quase lá', `Você acertou os marcados, mas ainda faltam ${missing.size} par(es) com soma ${targetSum}.`, 'warning', 4000, `soma=${targetSum} | marcou ${sumMarks.size} corretas, faltam ${missing.size}: [${marksList}]`);
     } else {
       // Estado 3: há marcações erradas → X vermelho nelas, aluno corrige
       setSumFeedbackState('wrong');
       setSumWrongMarks(wrong);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'Há marcações incorretas (em vermelho). Corrija antes de conferir.', 'error', 4000);
+      createAlert?.('Tente novamente', 'Há marcações incorretas (em vermelho). Corrija antes de conferir.', 'error', 4000, `soma=${targetSum} | marcou ${sumMarks.size} (${wrong.size} erradas, ${missing.size} faltando): [${marksList}]`);
     }
   };
 
@@ -1008,7 +1013,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     if (isNaN(typed) || typed !== correct) {
       setSumCountError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', `Conte na tabela quantas células estão marcadas com a soma ${greenResult + blueResult}.`, 'error', 4000);
+      createAlert?.('Tente novamente', `Conte na tabela quantas células estão marcadas com a soma ${greenResult + blueResult}.`, 'error', 4000, `n(soma=${greenResult + blueResult}) — digitou: "${sumCountAnswer}", esperado: ${correct}`);
       return;
     }
     setSumCountError(false);
@@ -1391,7 +1396,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     if (isCorrect) {
       setMarkError(false);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `Par (${greenResult}, ${blueResult}) marcado na tabela.`, 'success', 3000);
+      createAlert?.('Correto!', `Par (${greenResult}, ${blueResult}) marcado na tabela.`, 'success', 3000, `clicou célula (verde ${row + 1}, azul ${col + 1}) — par sorteado: (${greenResult}, ${blueResult})`);
       setMarkSolvedCell({ r: row, c: col });
       setMarkCelebStep(0);
       // Sequência de celebração (gold fill + V → par + blink sync verde → blink sync azul → avançar)
@@ -1412,7 +1417,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       const nextAttempts = markAttempts + 1;
       setMarkAttempts(nextAttempts);
       if (nextAttempts >= 3) {
-        createAlert?.('Vamos relançar', 'Você terá um novo par de dados para registrar.', 'warning', 4000);
+        createAlert?.('Vamos relançar', 'Você terá um novo par de dados para registrar.', 'warning', 4000, `clicou célula (verde ${row + 1}, azul ${col + 1}) — esperado: (${greenResult}, ${blueResult}) | 3ª tentativa errada`);
         // 3 erros no markTable: relança e volta ao picker com novo par
         rerollAndRestartPicker();
       } else {
@@ -1421,6 +1426,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           'Linha = dado verde, coluna = dado azul. Encontre a célula correta.',
           'error',
           4000,
+          `clicou célula (verde ${row + 1}, azul ${col + 1}) — esperado: (${greenResult}, ${blueResult}) | tentativa ${nextAttempts}/3`,
         );
       }
     }
@@ -2440,6 +2446,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   color="green"
                   selected={pickedGreen}
                   onPick={f => {
+                    telemetryRecordInteracaoExercicio(`selecionou face ${f} para o dado VERDE no par ordenado`);
                     setPickedGreen(f);
                     setPickGreenError(false);
                     setPickFeedback('');
@@ -2451,6 +2458,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   color="blue"
                   selected={pickedBlue}
                   onPick={f => {
+                    telemetryRecordInteracaoExercicio(`selecionou face ${f} para o dado AZUL no par ordenado`);
                     setPickedBlue(f);
                     setPickBlueError(false);
                     setPickFeedback('');

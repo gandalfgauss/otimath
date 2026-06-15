@@ -4104,8 +4104,17 @@ export const useRouletteHooks = () => {
       if (sub === 5) return new Set(['s2SumEquationText']);
       if (sub === 5.2) return new Set(['s2XText']);
       if (sub === 6) return new Set(['s2NumProbInputs']);
+      // 6.201/6.202/6.204/6.205: giros reflexivos têm createAlert SEMPRE
+      // com 5º param explícito (aposta + sortida). Forçar Set vazio aqui
+      // impede vazamento do studentInputRef (ex.: opção marcada em 0.19
+      // que persiste e poluía o resposta_usuario do alerta de erro do giro).
+      if (sub === 6.201 || sub === 6.202 || sub === 6.204 || sub === 6.205) return new Set();
       if (sub === 7) return new Set(['s2AngleProbInputs', 'selectedOption']);
       if (sub === 8) return new Set(['fracThetaInputs']);
+      // 8.7: simulação de convergência — alertas de bloco têm 5º param
+      // próprio descrevendo qual bloco foi concluído. Set vazio impede
+      // vazamento.
+      if (sub === 8.7) return new Set();
       if (sub === 9.1) return new Set(['s2FreqAbsInputs']);
       if (sub === 9.3) return new Set(['s2FreqRelInputs']);
       if (sub === 11) return new Set(['s2ConclusionText']);
@@ -4443,7 +4452,7 @@ export const useRouletteHooks = () => {
       }));
       setS2SpinReflection(prev => ({ ...prev, spin1Color: resultColor, selectedOption: '', phase: 'question' }));
       playSound(won ? "/sounds/correct.mp3" : "/sounds/incorrect.mp3");
-      createAlert(won ? "Acertou!" : "Errou!", `Você apostou em ${betColor}. Foi sorteada a cor ${resultColor}.`, won ? "success" : "error", 3000);
+      createAlert(won ? "Acertou!" : "Errou!", `Você apostou em ${betColor}. Foi sorteada a cor ${resultColor}.`, won ? "success" : "error", 3000, `1º giro — apostou em ${betColor}, saiu ${resultColor}`);
       setInstructions(`<p class="ds-body"><strong>Resultado do giro</strong></p>
         <p class="ds-body">Você apostou em <strong>${betColor}</strong>. Foi sorteada a cor <strong>${resultColor}</strong>. Agora responda à pergunta a seguir.</p>`);
       return;
@@ -4452,6 +4461,12 @@ export const useRouletteHooks = () => {
       // Segundo giro: registra resposta1 e transiciona para 6.204
       const betColor = s2SpinReflection.bet2Color;
       const won = resultColor === betColor;
+      const reflOpt = s2SpinReflection.selectedOption;
+      const reflOptLabel = reflOpt === 'apostar_mesma' ? 'Apostaria nela porque ela acabou de ser sorteada.'
+                        : reflOpt === 'nao_apostar' ? 'Não apostaria nela, pois ela já foi sorteada.'
+                        : reflOpt === 'apostar_outra' ? 'Apostaria em outra cor, pois ainda não foi sorteada.'
+                        : reflOpt === 'maior_setor' ? 'Sempre apostaria na cor do setor de maior ângulo central.'
+                        : reflOpt;
       setGameState(prev => ({
         ...prev,
         isSpinning: false,
@@ -4462,7 +4477,7 @@ export const useRouletteHooks = () => {
       }));
       setS2SpinReflection(prev => ({ ...prev, answer1: prev.selectedOption, spin2Color: resultColor, selectedOption: '', phase: 'question', bet2Color: '', betConstraint: 'none' }));
       playSound(won ? "/sounds/correct.mp3" : "/sounds/incorrect.mp3");
-      createAlert(won ? "Acertou!" : "Errou!", `Você apostou em ${betColor}. Foi sorteada a cor ${resultColor}.`, won ? "success" : "error", 3000);
+      createAlert(won ? "Acertou!" : "Errou!", `Você apostou em ${betColor}. Foi sorteada a cor ${resultColor}.`, won ? "success" : "error", 3000, `2º giro — marcou "${reflOptLabel}", apostou em ${betColor}, saiu ${resultColor}`);
       setInstructions(`<p class="ds-body"><strong>Resultado do segundo giro</strong></p>
         <p class="ds-body">Você apostou em <strong>${betColor}</strong>. Foi sorteada a cor <strong>${resultColor}</strong>. Responda novamente à pergunta.</p>`);
       return;
@@ -4747,7 +4762,7 @@ export const useRouletteHooks = () => {
         const userVal = (input?.value || '').trim();
         if (userVal === String(expectedKi)) {
           playSound("/sounds/correct.mp3");
-          createAlert("Correto!", `${tAngles[tIdx]}° ÷ ${tM}° = ${expectedKi}`, "success", 2000);
+          createAlert("Correto!", `${tAngles[tIdx]}° ÷ ${tM}° = ${expectedKi}`, "success", 2000, `treino ${trainingState.currentTraining} [${color}] digitou: "${userVal}"`);
           setTrainRatioInputs(prev => ({ ...prev, [color]: { ...prev[color], value: userVal, disabled: true, error: false } }));
           const nextIdx = tIdx + 1;
           if (nextIdx >= tColors.length) {
@@ -4779,7 +4794,7 @@ export const useRouletteHooks = () => {
         const isCorrect = userVal === expectedStr || (expectedI === 1 && userVal === 'p');
         if (isCorrect) {
           playSound("/sounds/correct.mp3");
-          createAlert("Correto!", `P(${color}) = ${expectedI === 1 ? 'p' : expectedStr}`, "success", 2000);
+          createAlert("Correto!", `P(${color}) = ${expectedI === 1 ? 'p' : expectedStr}`, "success", 2000, `treino ${trainingState.currentTraining} [${color}] digitou: "${input?.value || ''}"`);
           setTrainIxInputs(prev => ({ ...prev, [color]: { ...prev[color], value: expectedI === 1 ? 'p' : expectedStr, disabled: true, error: false } }));
           const nextIdx = tIdx + 1;
           if (nextIdx >= tColors.length) {
@@ -4802,7 +4817,7 @@ export const useRouletteHooks = () => {
         const val = (trainSumInput.value || '').trim();
         if (areFractionsEquivalent(val, '1')) {
           playSound("/sounds/correct.mp3");
-          createAlert("Correto!", "A soma das probabilidades é igual a 1.", "success", 2000);
+          createAlert("Correto!", "A soma das probabilidades é igual a 1.", "success", 2000, `treino ${trainingState.currentTraining} digitou: "${val}"`);
           setTrainSumInput(prev => ({ ...prev, value: '1', disabled: true }));
           setTrainingState(prev => ({ ...prev, phase: 'guided_calc', calcStep: 0 }));
           setInstructions(`<p class="ds-body"><strong>Treino ${trainingState.currentTraining}</strong></p><p class="ds-body">Acompanhe o cálculo passo a passo. Clique em <strong>Próximo</strong> para ver cada etapa.</p>`);
@@ -4821,12 +4836,12 @@ export const useRouletteHooks = () => {
         const expectedFrac = `${expectedKi}/${tS}`;
         if (areFractionsEquivalent(input?.value || '', expectedFrac)) {
           playSound("/sounds/correct.mp3");
-          createAlert("Parabéns!", `P(${color}) = ${expectedKi}/${tS}`, "success", 2000);
+          createAlert("Parabéns!", `P(${color}) = ${expectedKi}/${tS}`, "success", 2000, `treino ${trainingState.currentTraining} [${color}] digitou: "${input?.value || ''}"`);
           setTrainProbInputs(prev => ({ ...prev, [color]: { ...prev[color], value: input?.value || '', disabled: true, error: false } }));
           const nextIdx = tIdx + 1;
           if (nextIdx >= tColors.length) {
             playSound("/sounds/challengeFinished.mp3");
-            createAlert("Treino concluído!", `Você completou o Treino ${trainingState.currentTraining}.`, "success", 3000);
+            createAlert("Treino concluído!", `Você completou o Treino ${trainingState.currentTraining}.`, "success", 3000, `treino ${trainingState.currentTraining} concluído (k=${tColors.length} setores)`);
             setTrainingState(prev => ({ ...prev, phase: 'completed' }));
             setInstructions(`<p class="ds-body"><strong>Treino ${trainingState.currentTraining} concluído!</strong></p><p class="ds-body">Você pode continuar para a próxima fase ou praticar mais.</p>`);
           } else {
@@ -6207,6 +6222,11 @@ export const useRouletteHooks = () => {
         playSound("/sounds/incorrect.mp3");
         setSampleSpaceInput(prev => ({ ...prev, error: true }));
 
+        // Registrar EXPLICITAMENTE como erro — o feedback é via balão "Dica"
+        // (não via createAlert), então o observador não captura. Sem isso,
+        // a tentativa errada do espaço amostral some na coleta.
+        telemetryRecordErro(`espaço amostral — digitou: "${sampleSpaceInput.value}"`);
+
         setShowInfoBox(true);
         setInfoBoxContent({
           type: 'warning',
@@ -6359,9 +6379,10 @@ export const useRouletteHooks = () => {
 
       // STATE unit_selected: Verificar questão conceitual MC
       if (s2RatioPhase === 'unit_selected') {
+        const conceptLabel = s2ConceptQuestion?.options?.find((o: { value: string; label: string }) => o.value === s2ConceptSelected)?.label ?? s2ConceptSelected;
         if (s2ConceptSelected === 'v_correct') {
           playSound("/sounds/correct.mp3");
-          createAlert("Correto.", "A probabilidade é proporcional à área do setor, que é determinada pelo ângulo central.", "success", 5000, `unit_selected — marcou: "${s2ConceptSelected}"`);
+          createAlert("Correto.", "A probabilidade é proporcional à área do setor, que é determinada pelo ângulo central.", "success", 5000, `unit_selected — marcou: "${conceptLabel}"`);
 
           // Escolher cor Y (diferente do menor setor)
           const minAngle = gameState.s2M;
@@ -6385,7 +6406,7 @@ export const useRouletteHooks = () => {
             <p class="ds-body">Observe o disco. Vamos comparar o setor de cor <strong>${chosen.colorName}</strong> com o menor setor.</p>`);
         } else if (s2ConceptSelected) {
           playSound("/sounds/incorrect.mp3");
-          createAlert("Tente novamente.", "A probabilidade depende da região ocupada no disco. Observe quais grandezas determinam a área do setor.", "error", 5000, `unit_selected — marcou: "${s2ConceptSelected}"`);
+          createAlert("Tente novamente.", "A probabilidade depende da região ocupada no disco. Observe quais grandezas determinam a área do setor.", "error", 5000, `unit_selected — marcou: "${conceptLabel}"`);
           setS2ConceptSelected('');
         }
         return;
@@ -6766,6 +6787,15 @@ export const useRouletteHooks = () => {
     // STAGE 2 - SubStep 6.204: Pergunta após 2o giro reflexivo
     if (stage === 2 && subStep === 6.204) {
       if (!s2SpinReflection.selectedOption) return;
+      const reflOpt2 = s2SpinReflection.selectedOption;
+      const reflOpt2Label = reflOpt2 === 'apostar_mesma' ? 'Apostaria nela porque ela acabou de ser sorteada.'
+                          : reflOpt2 === 'nao_apostar' ? 'Não apostaria nela, pois ela já foi sorteada.'
+                          : reflOpt2 === 'apostar_outra' ? 'Apostaria em outra cor, pois ainda não foi sorteada.'
+                          : reflOpt2 === 'maior_setor' ? 'Sempre apostaria na cor do setor de maior ângulo central.'
+                          : reflOpt2;
+      // 6.204 não tem acerto/erro (decisão refletiva). Registramos como
+      // interação_exercicio pra preservar a escolha do aluno no histórico.
+      telemetryRecordInteracaoExercicio(`reflexão após 2º giro — confirmou escolha: "${reflOpt2Label}"`);
       setS2SpinReflection(prev => ({ ...prev, answer2: prev.selectedOption }));
       // Ir para síntese
       setGameState(prev => ({ ...prev, subStep: 6.205 }));
@@ -7137,17 +7167,18 @@ export const useRouletteHooks = () => {
       // A opção correta pode estar em qualquer posição (A, B ou C)
       const correctVal = currentQuestion?.correctAnswer || 'A';
       const chosenOpt = currentQuestion?.options?.find((o: { value: string }) => o.value === selectedOption);
+      const optLabel = optionLabelOf(selectedOption);
       if (selectedOption === correctVal) {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "A probabilidade depende do número de casos favoráveis em relação ao total.", "success", 4000);
+        createAlert("Correto!", "A probabilidade depende do número de casos favoráveis em relação ao total.", "success", 4000, `marcou: "${optLabel}"`);
       } else if (chosenOpt && chosenOpt.label && (
         chosenOpt.label.includes('agrupados') || chosenOpt.label.includes('juntos') || chosenOpt.label.includes('próximos')
       )) {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Atenção!", "A sequência visual dos setores pode dar uma falsa impressão. O que realmente importa é a contagem dos setores de cada cor.", "error", 6000);
+        createAlert("Atenção!", "A sequência visual dos setores pode dar uma falsa impressão. O que realmente importa é a contagem dos setores de cada cor.", "error", 6000, `marcou: "${optLabel}"`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Atenção!", "Fatores como intuição, preferência ou posição do ponteiro não influenciam a probabilidade. O que importa é quantos setores cada cor possui.", "error", 6000);
+        createAlert("Atenção!", "Fatores como intuição, preferência ou posição do ponteiro não influenciam a probabilidade. O que importa é quantos setores cada cor possui.", "error", 6000, `marcou: "${optLabel}"`);
       }
 
       // Preparar contagem de setores (subStep 1.75)
@@ -7185,14 +7216,17 @@ export const useRouletteHooks = () => {
 
       setS3State(prev => ({ ...prev, countInputs: updCount }));
 
+      const countSummary = Object.entries(colorCounts)
+        .map(([c]) => `${c}: ${updCount[c]?.value || '—'}`)
+        .join(', ');
       if (!allCorrect) {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Observe novamente.", "Conte os setores de cada cor no disco com atenção.", "error", 5000);
+        createAlert("Observe novamente.", "Conte os setores de cada cor no disco com atenção.", "error", 5000, `contou — ${countSummary}`);
         return;
       }
 
       playSound("/sounds/correct.mp3");
-      createAlert("Isso mesmo!", "A probabilidade de cada cor depende do número de setores que ela ocupa.", "success", 5000);
+      createAlert("Isso mesmo!", "A probabilidade de cada cor depende do número de setores que ela ocupa.", "success", 5000, `contou — ${countSummary}`);
 
       // Preparar tabela de P(cor) para subStep 2
       const distinctColors = Object.keys(colorCounts);
@@ -7243,9 +7277,12 @@ export const useRouletteHooks = () => {
       setS3State(prev => ({ ...prev, probInputs: upd }));
 
       const everyDone = Object.keys(colorCounts).every(c => upd[c]?.status === 'correct');
+      const fracSummary = Object.keys(colorCounts)
+        .map(c => `${c}: ${upd[c]?.num || '—'}/${upd[c]?.den || '—'}`)
+        .join(', ');
       if (everyDone) {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "A probabilidade depende da quantidade de setores da cor.", "success", 3000);
+        createAlert("Correto!", "A probabilidade depende da quantidade de setores da cor.", "success", 3000, `digitou — ${fracSummary}`);
         setGameState(prev => ({ ...prev, subStep: 3 }));
         setSelectedOption('');
 
@@ -7281,7 +7318,7 @@ export const useRouletteHooks = () => {
 
       if (selectedOption === 'A') {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", `Cada setor tem probabilidade 1/${s3State.n}, pois todos são do mesmo tamanho.`, "success", 4000);
+        createAlert("Correto!", `Cada setor tem probabilidade 1/${s3State.n}, pois todos são do mesmo tamanho.`, "success", 4000, `marcou: "${optionLabelOf(selectedOption)}"`);
 
         setGameState(prev => ({ ...prev, subStep: 4 }));
         setSelectedOption('');
@@ -7299,7 +7336,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Agora compare o espaço dos setores numerados com o espaço das cores.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Incorreto.", feedbacks[selectedOption] || 'Tente novamente.', "error", 6000);
+        createAlert("Incorreto.", feedbacks[selectedOption] || 'Tente novamente.', "error", 6000, `marcou: "${optionLabelOf(selectedOption)}"`);
       }
       return;
     }
@@ -7314,7 +7351,7 @@ export const useRouletteHooks = () => {
 
       if (selectedOption === 'A') {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "Cada setor individual tem a mesma chance, mas as cores agrupam quantidades diferentes de setores.", "success", 5000);
+        createAlert("Correto!", "Cada setor individual tem a mesma chance, mas as cores agrupam quantidades diferentes de setores.", "success", 5000, `marcou: "${optionLabelOf(selectedOption)}"`);
 
         setGameState(prev => ({ ...prev, subStep: 5 }));
         setSelectedOption('');
@@ -7333,7 +7370,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Considere a seguinte situação hipotética envolvendo a cor ${mfc}.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Incorreto.", feedbacks[selectedOption] || 'Tente novamente.', "error", 6000);
+        createAlert("Incorreto.", feedbacks[selectedOption] || 'Tente novamente.', "error", 6000, `marcou: "${optionLabelOf(selectedOption)}"`);
       }
       return;
     }
@@ -7348,7 +7385,7 @@ export const useRouletteHooks = () => {
 
       if (selectedOption === 'C') {
         playSound("/sounds/correct.mp3");
-        createAlert("Exatamente!", "Cada giro do disco é um experimento independente. O resultado anterior não influencia o próximo.", "success", 5000);
+        createAlert("Exatamente!", "Cada giro do disco é um experimento independente. O resultado anterior não influencia o próximo.", "success", 5000, `marcou: "${optionLabelOf(selectedOption)}"`);
 
         setGameState(prev => ({ ...prev, subStep: 6 }));
         setSelectedOption('');
@@ -7367,7 +7404,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Analise se a numeração dos setores influencia as probabilidades.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Incorreto.", feedbacks[selectedOption] || 'Tente novamente.', "error", 6000);
+        createAlert("Incorreto.", feedbacks[selectedOption] || 'Tente novamente.', "error", 6000, `marcou: "${optionLabelOf(selectedOption)}"`);
       }
       return;
     }
@@ -7382,7 +7419,7 @@ export const useRouletteHooks = () => {
 
       if (selectedOption === 'A') {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "A numeração é apenas um rótulo — não altera chances. Todos os setores têm o mesmo tamanho angular.", "success", 5000);
+        createAlert("Correto!", "A numeração é apenas um rótulo — não altera chances. Todos os setores têm o mesmo tamanho angular.", "success", 5000, `marcou: "${optionLabelOf(selectedOption)}"`);
 
         setGameState(prev => ({ ...prev, subStep: 7 }));
         setSelectedOption('');
@@ -7401,7 +7438,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Pense em um disco hipotético com ${n7} setores e ${n7} cores distintas.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Incorreto.", feedbacks[selectedOption] || 'Tente novamente.', "error", 6000);
+        createAlert("Incorreto.", feedbacks[selectedOption] || 'Tente novamente.', "error", 6000, `marcou: "${optionLabelOf(selectedOption)}"`);
       }
       return;
     }
@@ -7416,7 +7453,7 @@ export const useRouletteHooks = () => {
 
       if (selectedOption === 'A') {
         playSound("/sounds/correct.mp3");
-        createAlert("Exatamente!", "Se cada cor ocupa exatamente um setor, o espaço das cores herda a equiprobabilidade do espaço dos setores.", "success", 5000);
+        createAlert("Exatamente!", "Se cada cor ocupa exatamente um setor, o espaço das cores herda a equiprobabilidade do espaço dos setores.", "success", 5000, `marcou: "${optionLabelOf(selectedOption)}"`);
 
         // Preparar autoconfrontação (subStep 8)
         const betColor = s3State.betColor;
@@ -7477,7 +7514,7 @@ export const useRouletteHooks = () => {
         }
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Incorreto.", feedbacks[selectedOption] || 'Tente novamente.', "error", 6000);
+        createAlert("Incorreto.", feedbacks[selectedOption] || 'Tente novamente.', "error", 6000, `marcou: "${optionLabelOf(selectedOption)}"`);
       }
       return;
     }
@@ -7488,11 +7525,12 @@ export const useRouletteHooks = () => {
       const mfc = s3State.mostFreqColor;
       const isCorrectBet = betColor === mfc;
 
+      const optLbl = optionLabelOf(selectedOption);
       if (isCorrectBet) {
         // Cenário A
         if (selectedOption === 'B') {
           playSound("/sounds/correct.mp3");
-          createAlert("Correto!", "Mesmo quando a intuição acerta, é o cálculo que confirma a decisão. Na Matemática, calcular é mais confiável do que estimar visualmente.", "success", 6000);
+          createAlert("Correto!", "Mesmo quando a intuição acerta, é o cálculo que confirma a decisão. Na Matemática, calcular é mais confiável do que estimar visualmente.", "success", 6000, `marcou: "${optLbl}"`);
         } else {
           playSound("/sounds/incorrect.mp3");
           const fb: { [k: string]: string } = {
@@ -7500,18 +7538,18 @@ export const useRouletteHooks = () => {
             'C': 'A posição dos setores é um fator visual, não probabilístico. O que determina a melhor escolha é a contagem dos setores por cor.',
             'D': 'Preferência pessoal não tem relação com probabilidade. A melhor aposta é fundamentada no cálculo.'
           };
-          createAlert("Reflita.", fb[selectedOption] || 'Tente novamente.', "error", 5000);
+          createAlert("Reflita.", fb[selectedOption] || 'Tente novamente.', "error", 5000, `marcou: "${optLbl}"`);
           return;
         }
       } else {
         // Cenário B — A, B são aceitáveis; C é neutra; D é erro
         if (selectedOption === 'D') {
           playSound("/sounds/incorrect.mp3");
-          createAlert("Atenção!", "Você já calculou que as probabilidades são diferentes. As cores NÃO têm a mesma chance, pois ocupam quantidades diferentes de setores.", "error", 6000);
+          createAlert("Atenção!", "Você já calculou que as probabilidades são diferentes. As cores NÃO têm a mesma chance, pois ocupam quantidades diferentes de setores.", "error", 6000, `marcou: "${optLbl}"`);
           return;
         } else {
           playSound("/sounds/correct.mp3");
-          createAlert("Reflexão válida!", "Fatores visuais e pessoais podem nos afastar da escolha matematicamente mais vantajosa. Contar os setores e calcular a probabilidade antes de decidir é a estratégia mais confiável.", "success", 6000);
+          createAlert("Reflexão válida!", "Fatores visuais e pessoais podem nos afastar da escolha matematicamente mais vantajosa. Contar os setores e calcular a probabilidade antes de decidir é a estratégia mais confiável.", "success", 6000, `marcou: "${optLbl}"`);
         }
       }
 
@@ -7532,7 +7570,7 @@ export const useRouletteHooks = () => {
       // Registrar percepção e avançar para re-aposta
       setS3State(prev => ({ ...prev, perceptionAnswer: selectedOption === 'A' ? 'sim' : selectedOption === 'B' ? 'nao' : 'naosei' }));
       playSound("/sounds/correct.mp3");
-      createAlert("Resposta registrada!", "Sua percepção foi anotada. Agora você pode decidir se mantém ou muda sua aposta.", "info", 4000);
+      createAlert("Resposta registrada!", "Sua percepção foi anotada. Agora você pode decidir se mantém ou muda sua aposta.", "info", 4000, `marcou: "${optionLabelOf(selectedOption)}"`);
       setGameState(prev => ({ ...prev, subStep: 8.3 }));
       setSelectedOption('');
       setInstructions(`<p class="ds-body"><strong>Faça sua aposta novamente</strong></p>
@@ -7544,14 +7582,15 @@ export const useRouletteHooks = () => {
     // STAGE 3 - SubStep 8.4: Conflito cognitivo
     if (stage === 3 && subStep === 8.4) {
       if (!selectedOption) return;
+      const optLbl84 = optionLabelOf(selectedOption);
       if (selectedOption === 'A') {
         // Respondeu "Sim" — feedback educativo
         playSound("/sounds/incorrect.mp3");
-        createAlert("Atenção!", "Cada giro do disco é independente. Resultados anteriores não alteram a probabilidade do próximo resultado.", "error", 6000);
+        createAlert("Atenção!", "Cada giro do disco é independente. Resultados anteriores não alteram a probabilidade do próximo resultado.", "error", 6000, `marcou: "${optLbl84}"`);
       } else {
         // Respondeu "Não" — correto
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "Em experimentos aleatórios independentes, resultados anteriores não influenciam os próximos resultados.", "success", 5000);
+        createAlert("Correto!", "Em experimentos aleatórios independentes, resultados anteriores não influenciam os próximos resultados.", "success", 5000, `marcou: "${optLbl84}"`);
       }
       // Ambas respostas avançam para institucionalização da falácia
       setGameState(prev => ({ ...prev, subStep: 8.5 }));
@@ -7998,6 +8037,8 @@ export const useRouletteHooks = () => {
     const { stage, subStep, sectors, isSpinning } = gameState;
     if (stage !== 3 || subStep !== 8.1 || isSpinning || s3State.spinCount >= 5) return;
 
+    telemetryRecordInteracaoExercicio(`clicou em "Gire o disco" (giro ${s3State.spinCount + 1}/5 na falácia do jogador)`);
+
     // Ancora no disco para o aluno acompanhar a animação.
     goToTopOfChallenge();
 
@@ -8068,6 +8109,7 @@ export const useRouletteHooks = () => {
           `O ponteiro parou na cor ${drawnColor}. Continue girando.`,
           "info",
           3500,
+          `giro ${newCount}/5 — saiu: ${drawnColor}`,
         );
         setInstructions(`<p class="ds-body"><strong>Observe os resultados do disco</strong></p>
           <p class="ds-body">Giro ${newCount} de 5 realizado. Continue girando.</p>`);
@@ -8078,6 +8120,7 @@ export const useRouletteHooks = () => {
           `Último giro: ${drawnColor}. Observe o histórico completo e clique em Continuar.`,
           "success",
           5000,
+          `giro 5/5 — saiu: ${drawnColor} | histórico: [${[...s3State.spinHistory, drawnColor].join(', ')}]`,
         );
         setInstructions(`<p class="ds-body"><strong>Observe os resultados do disco</strong></p>
           <p class="ds-body">Todos os 5 giros foram realizados. Observe o histórico e clique em Continuar.</p>`);
@@ -8088,6 +8131,7 @@ export const useRouletteHooks = () => {
   // Handler: continuar da fase 8.1 para 8.2 (percepção do padrão)
   const handleS3FallacyContinue = useCallback(() => {
     if (s3State.spinCount < 5) return;
+    telemetryRecordInteracaoExercicio(`clicou em "Continuar" (5 giros da falácia concluídos → percepção do padrão) | histórico: [${s3State.spinHistory.join(', ')}]`);
     goToTopOfChallenge();
     setGameState(prev => ({ ...prev, subStep: 8.2 }));
     setSelectedOption('');
@@ -8117,6 +8161,9 @@ export const useRouletteHooks = () => {
         : `Você manteve a aposta em ${s3State.newBetColor}.`,
       "success",
       3500,
+      changed
+        ? `mudou aposta: ${s3State.betColor} → ${s3State.newBetColor}`
+        : `manteve aposta: ${s3State.newBetColor}`,
     );
     const n = s3State.n;
     setGameState(prev => ({ ...prev, subStep: 8.4 }));
@@ -8136,6 +8183,7 @@ export const useRouletteHooks = () => {
 
   // Handler: avançar da institucionalização da falácia (8.5) para o resumo (9)
   const handleS3FallacyFinish = useCallback(() => {
+    telemetryRecordInteracaoExercicio('clicou em "Continuar" (institucionalização da Falácia do Jogador → resumo)');
     goToTopOfChallenge();
     setGameState(prev => ({ ...prev, subStep: 9 }));
     setInstructions(`<p class="ds-body"><strong>Institucionalização Final</strong></p>
@@ -8157,7 +8205,7 @@ export const useRouletteHooks = () => {
     if (clickedColor === correctColor) {
       s2ConfirmationLockedRef.current = true;
       playSound("/sounds/correct.mp3");
-      createAlert("Correto!", "Esse foi o resultado do sorteio.", "success", 2000);
+      createAlert("Correto!", "Esse foi o resultado do sorteio.", "success", 2000, `confirmou cor sorteada: ${clickedColor}`);
 
       setExperimentationState(prev => ({
         ...prev,
@@ -8212,7 +8260,7 @@ export const useRouletteHooks = () => {
       }
     } else {
       playSound("/sounds/incorrect.mp3");
-      createAlert("Observe novamente onde o ponteiro parou.", "", "error", 4000);
+      createAlert("Observe novamente onde o ponteiro parou.", "", "error", 4000, `clicou em ${clickedColor} (sorteada: ${correctColor})`);
     }
   }, [gameState, experimentationState, createAlert]);
 
@@ -8226,7 +8274,7 @@ export const useRouletteHooks = () => {
 
     if (paletteColor === maxColor) {
       playSound("/sounds/correct.mp3");
-      createAlert("Isso mesmo!", "A maior probabilidade está associada ao maior setor, mesmo que ele não tenha sido o resultado.", "success", 5000);
+      createAlert("Isso mesmo!", "A maior probabilidade está associada ao maior setor, mesmo que ele não tenha sido o resultado.", "success", 5000, `clicou em: ${paletteColor}`);
 
       // Gerar alternativas e avançar para reflexão conceitual
       setTimeout(() => {
@@ -8251,7 +8299,7 @@ export const useRouletteHooks = () => {
       }, 1500);
     } else {
       playSound("/sounds/incorrect.mp3");
-      createAlert("Observe novamente", "Compare os tamanhos dos setores.", "error", 3000);
+      createAlert("Observe novamente", "Compare os tamanhos dos setores.", "error", 3000, `clicou em: ${paletteColor} (esperado: ${maxColor})`);
     }
   }, [gameState, showInfoBox, createAlert]);
 
@@ -8265,7 +8313,8 @@ export const useRouletteHooks = () => {
     if (clickedAngle === minAngle) {
       // Correto → STATE 1: unit_selected
       playSound("/sounds/correct.mp3");
-      createAlert("Correto!", `O setor de ${minAngle}° é o menor ângulo.`, "success", 3000);
+      const clickedColor = gameState.sectors[index]?.colorName ?? '?';
+      createAlert("Correto!", `O setor de ${minAngle}° é o menor ângulo.`, "success", 3000, `clicou setor ${clickedColor} (${clickedAngle}°)`);
       setS2UnitSectorIndex(index);
 
       // Gerar questão conceitual
@@ -8278,13 +8327,16 @@ export const useRouletteHooks = () => {
     } else {
       // Errado → permanece em STATE 0 com feedback
       playSound("/sounds/incorrect.mp3");
-      createAlert("Observe qual setor tem o menor ângulo.", "", "error", 3000);
+      const clickedColor = gameState.sectors[index]?.colorName ?? '?';
+      createAlert("Observe qual setor tem o menor ângulo.", "", "error", 3000, `clicou setor ${clickedColor} (${clickedAngle}°), esperado ${minAngle}°`);
     }
   }, [gameState, s2RatioPhase, createAlert]);
 
   // Handler: avançar da tabela de razões para subStep 4 (i·x)
   const handleRatioTableContinue = useCallback(() => {
     if (gameState.stage !== 2 || gameState.subStep !== 3 || !s2TableAllCorrect) return;
+
+    telemetryRecordInteracaoExercicio('clicou em Continuar (tabela de razões concluída)');
 
     const colors = gameState.sectors.map(s => s.colorName);
     const ixInputs: { [color: string]: TextInputInterface } = {};
@@ -8320,11 +8372,13 @@ export const useRouletteHooks = () => {
 
     if (s2IxCalcStep < 2) {
       const next = s2IxCalcStep + 1;
+      telemetryRecordInteracaoExercicio(`clicou em Próximo (cálculo guiado passo ${s2IxCalcStep} → ${next})`);
       setS2IxCalcStep(next);
       if (next === 2) {
         playSound("/sounds/correct.mp3");
       }
     } else {
+      telemetryRecordInteracaoExercicio(`clicou em Continuar (cálculo guiado concluído — p = 1/${S})`);
       // Passo 2 (p = 1/S) → avançar para subStep 6 (tela separada de probabilidades numéricas)
       const colors = gameState.sectors.map(s => s.colorName);
       const numInputs: { [color: string]: TextInputInterface } = {};
@@ -8356,9 +8410,10 @@ export const useRouletteHooks = () => {
     if (!trainingState.active || trainingState.phase !== 'identify_sector') return;
 
     const clickedAngle = trainingState.angles[index];
+    const clickedColor = trainingState.sectors[index]?.colorName ?? '?';
     if (clickedAngle === trainingState.m) {
       playSound("/sounds/correct.mp3");
-      createAlert("Correto!", `O setor de ${trainingState.m}° é o menor ângulo.`, "success", 3000);
+      createAlert("Correto!", `O setor de ${trainingState.m}° é o menor ângulo.`, "success", 3000, `treino ${trainingState.currentTraining} — clicou setor ${clickedColor} (${clickedAngle}°)`);
 
       // Inicializar inputs de razão
       const inputs: { [color: string]: TextInputInterface } = {};
@@ -8380,7 +8435,7 @@ export const useRouletteHooks = () => {
         <p class="ds-body">Divida todos os ângulos pelo menor (${trainingState.m}°) e preencha a tabela.</p>`);
     } else {
       playSound("/sounds/incorrect.mp3");
-      createAlert("Tente novamente.", "Observe qual setor tem o menor ângulo central.", "error", 3000);
+      createAlert("Tente novamente.", "Observe qual setor tem o menor ângulo central.", "error", 3000, `treino ${trainingState.currentTraining} — clicou setor ${clickedColor} (${clickedAngle}°), esperado ${trainingState.m}°`);
     }
   }, [trainingState]);
 
@@ -8390,9 +8445,11 @@ export const useRouletteHooks = () => {
 
     if (trainingState.calcStep < 2) {
       const next = trainingState.calcStep + 1;
+      telemetryRecordInteracaoExercicio(`treino ${trainingState.currentTraining} — clicou em Próximo (cálculo guiado passo ${trainingState.calcStep} → ${next})`);
       setTrainingState(prev => ({ ...prev, calcStep: next }));
       if (next === 2) playSound("/sounds/correct.mp3");
     } else {
+      telemetryRecordInteracaoExercicio(`treino ${trainingState.currentTraining} — clicou em Continuar (cálculo guiado concluído — p = 1/${trainingState.S})`);
       // Passo 2 → iniciar preenchimento P(cor) numérico
       const colors = trainingState.sectors.map(s => s.colorName);
       const probInputs: { [color: string]: TextInputInterface } = {};
@@ -8418,6 +8475,8 @@ export const useRouletteHooks = () => {
   // Handler: "Próximo" — sair do treino e ir para subStep 7
   const handleTrainingNext = useCallback(() => {
     if (!trainingState.active || trainingState.phase !== 'completed') return;
+
+    telemetryRecordInteracaoExercicio(`clicou em "Mudar de fase" após Treino ${trainingState.currentTraining}`);
 
     // Restaurar roleta original e ir para fase de 2 giros reflexivos
     setGameState(prev => ({
@@ -8449,6 +8508,7 @@ export const useRouletteHooks = () => {
 
     const nextTraining = trainingState.currentTraining + 1;
     if (nextTraining > 4) return;
+    telemetryRecordInteracaoExercicio(`clicou em "Próximo exercício" (Treino ${trainingState.currentTraining} → Treino ${nextTraining})`);
     goToTopOfChallenge();
 
     // Sortear novo k não usado — pool k ∈ {3..6} (sem 2 setores).
@@ -8509,6 +8569,7 @@ export const useRouletteHooks = () => {
   // Handler: próximo exercício de fração θ/360
   const handleFracTrainingNext = useCallback(() => {
     if (fracTraining.currentTraining >= 5) return;
+    telemetryRecordInteracaoExercicio(`clicou em "Próximo exercício" (Treino fração ${fracTraining.currentTraining} → ${fracTraining.currentTraining + 1})`);
     goToTopOfChallenge();
 
     const next = fracTraining.currentTraining + 1;
@@ -8550,6 +8611,7 @@ export const useRouletteHooks = () => {
 
   // Handler: mudar de fase (sair dos treinos de fração → simulação de convergência)
   const handleFracTrainingChangePhase = useCallback(() => {
+    telemetryRecordInteracaoExercicio(`clicou em "Mudar de fase" (saindo dos treinos de fração no Treino ${fracTraining.currentTraining} → simulação de convergência)`);
     goToTopOfChallenge();
     const restoredSectors = fracTraining.originalSectors;
     const colors = restoredSectors.map(s => s.colorName);
@@ -8578,6 +8640,8 @@ export const useRouletteHooks = () => {
     const blockSize = CONVERGENCE_BLOCKS[blockIdx];
     const sectors = gameState.sectors;
 
+    telemetryRecordInteracaoExercicio(`clicou em "Girar ${blockSize.toLocaleString('pt-BR')} vezes" (bloco ${blockIdx + 1}/${CONVERGENCE_BLOCKS.length})`);
+
     // Ancora no disco — botão "Girar N vezes" da simulação de convergência.
     goToTopOfChallenge();
 
@@ -8601,6 +8665,7 @@ export const useRouletteHooks = () => {
             "Observe a tabela de frequências e o gráfico. Quando estiver pronto, clique no próximo botão para continuar a simulação.",
             "success",
             10000,
+            `convergência: concluiu bloco 1 (10 giros)`,
           );
           return;
         }
@@ -8674,6 +8739,7 @@ export const useRouletteHooks = () => {
               `Você completou os ${blockSize.toLocaleString('pt-BR')} giros (último bloco). Observe a convergência das frequências relativas para as probabilidades teóricas.`,
               "success",
               8000,
+              `convergência: concluiu bloco final de ${blockSize.toLocaleString('pt-BR')} giros (simulação completa)`,
             );
           } else {
             createAlert(
@@ -8681,6 +8747,7 @@ export const useRouletteHooks = () => {
               `Os ${blockSize.toLocaleString('pt-BR')} giros terminaram. Observe a tabela e o gráfico e, quando estiver pronto, clique no próximo botão para continuar.`,
               "success",
               10000,
+              `convergência: concluiu bloco de ${blockSize.toLocaleString('pt-BR')} giros`,
             );
           }
         }
@@ -8713,6 +8780,14 @@ export const useRouletteHooks = () => {
   // Atualiza constraint + auto-bet em tempo real conforme a opção selecionada
   const handleReflectionOptionChange = useCallback((option: string) => {
     if (gameState.stage !== 2 || (gameState.subStep !== 6.202 && gameState.subStep !== 6.204)) return;
+
+    const optLabelRefl = option === 'apostar_mesma' ? 'Apostaria nela porque ela acabou de ser sorteada.'
+                       : option === 'nao_apostar' ? 'Não apostaria nela, pois ela já foi sorteada.'
+                       : option === 'apostar_outra' ? 'Apostaria em outra cor, pois ainda não foi sorteada.'
+                       : option === 'maior_setor' ? 'Sempre apostaria na cor do setor de maior ângulo central.'
+                       : option;
+    const giroLabel = gameState.subStep === 6.202 ? '2º giro' : 'após 2º giro';
+    telemetryRecordInteracaoExercicio(`reflexão ${giroLabel} — marcou: "${optLabelRefl}"`);
 
     if (option === 'apostar_mesma') {
       // Auto-aposta na mesma cor sorteada
@@ -8768,6 +8843,8 @@ export const useRouletteHooks = () => {
   const handleSpinReflectionContinue = useCallback(() => {
     if (gameState.stage !== 2 || gameState.subStep !== 6.205) return;
 
+    telemetryRecordInteracaoExercicio('clicou em "Vamos calcular as probabilidades" (fim das decisões refletivas → leitura angular)');
+
     // Iniciar leitura progressiva (tabela será inicializada após a leitura)
     setS2AngleReadingStep(0);
     setGameState(prev => ({ ...prev, subStep: 7, pendingRegistration: false }));
@@ -8779,6 +8856,19 @@ export const useRouletteHooks = () => {
   // Handler: avançar leitura progressiva da probabilidade angular (subStep 7)
   const handleAngleReadingNext = useCallback(() => {
     const nextStep = s2AngleReadingStep + 1;
+
+    // Registramos cada "Li." como interação_usuario — cada trecho é um
+    // passo de leitura conceitual (passo 0=todos resultados; passo 1=ângulo
+    // central; passo 2=áreas proporcionais; passo 3=θ/360). Sem isso, esses
+    // 4 cliques de "Li." na leitura progressiva sumiam da coleta.
+    const stepDescriptions: { [k: number]: string } = {
+      0: 'leitura angular passo 1 — O disco representa todos os resultados possíveis',
+      1: 'leitura angular passo 2 — Ângulo central proporcional à área',
+      2: 'leitura angular passo 3 — Probabilidades proporcionais às áreas',
+      3: 'leitura angular passo 4 — Dividir ângulo central por 360°',
+    };
+    const desc = stepDescriptions[s2AngleReadingStep] ?? `leitura angular — clicou em "Li." (passo ${s2AngleReadingStep + 1})`;
+    telemetryRecordInteracaoExercicio(`clicou em "Li." (${desc})`);
 
     if (nextStep <= 3) {
       // Avançar para próximo trecho (0→1→2→3)
@@ -10698,6 +10788,7 @@ export const useRouletteHooks = () => {
 
   // Função para iniciar Etapa 3
   const startStage3 = useCallback(() => {
+    telemetryRecordInteracaoExercicio('clicou em "Ir para a Etapa 3" (final da Etapa 2)');
     goToTopOfChallenge();
     s3BetLockedRef.current = false; // libera trava de aposta da E3
     const roulette = generateS3Roulette();

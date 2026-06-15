@@ -900,6 +900,12 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
         };
       }
       if (sub === 0.15 && !showInfoBox) {
+        if (experimentationState.wageredColor && !gameState.isSpinning) {
+          return {
+            title: 'Investigação Inicial — Sortear',
+            description: `Aposta registrada em ${experimentationState.wageredColor}. Clique em Sortear para girar o disco.`,
+          };
+        }
         return {
           title: 'Investigação Inicial — Aposta',
           description: 'Girando-se aleatoriamente o disco, em qual cor você apostaria para ter mais chance de ganhar? Clique no setor que você acredita que o ponteiro irá indicar.',
@@ -907,8 +913,8 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
       }
       if (sub === 0.16 && !showInfoBox) {
         return {
-          title: 'Investigação Inicial — Sortear',
-          description: `Aposta registrada em ${experimentationState.wageredColor ?? '?'}. Clique em Sortear para girar o disco.`,
+          title: 'Investigação Inicial — Confirmar resultado',
+          description: 'O disco parou. Clique na cor em que o ponteiro parou para confirmar o resultado do giro.',
         };
       }
       if (sub === 0.17 && !showInfoBox) {
@@ -1087,9 +1093,16 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
         };
       }
       if (sub === 8.7) {
+        const blocks = [10, 500, 1000, 10000, 20000];
+        const currentBlock = convergenceSim?.currentBlock ?? 0;
+        const nextBlockSize = currentBlock < blocks.length ? blocks[currentBlock] : null;
+        const totalSpinsSoFar = gameState.totalSpins ?? 0;
+        const blockSegment = nextBlockSize
+          ? `Próximo bloco: ${nextBlockSize.toLocaleString('pt-BR')} giros (bloco ${currentBlock + 1}/${blocks.length}).`
+          : `Todos os blocos concluídos.`;
         return {
-          title: 'Simulação e Convergência das Frequências Relativas',
-          description: 'Comece com poucos giros para perceber a variação. Depois, avance para blocos maiores e observe a convergência. Observe como a diferença entre a frequência relativa e a probabilidade teórica diminui à medida que o número de giros aumenta.',
+          title: `Simulação e Convergência das Frequências Relativas (${totalSpinsSoFar.toLocaleString('pt-BR')} giros acumulados)`,
+          description: `Comece com poucos giros para perceber a variação. Depois, avance para blocos maiores e observe a convergência. Observe como a diferença entre a frequência relativa e a probabilidade teórica diminui à medida que o número de giros aumenta. ${blockSegment}`,
         };
       }
       if (sub === 9 && gameState.pendingRegistration) {
@@ -1236,7 +1249,14 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
   // wrapper do createAlert. Repetir aqui só polui o texto da seção.)
   // Etapa 1 (1.1 / 1.17) e Etapa 2 (0.15-0.17): "investigação inicial"
   // com aposta exploratória via `experimentationState.wageredColor`.
-  if ((gameState.stage === 1 || gameState.stage === 2) && experimentationState.wageredColor) {
+  // O wageredColor PERSISTE em experimentationState entre subSteps mesmo
+  // depois que a tela da aposta saiu — gateamos por subSteps onde a
+  // aposta É efetivamente mostrada (badge "Aposta: …") pra não vazar a
+  // info pra subSteps subsequentes (ex.: 0.195 reflexão, 2 espaço amostral).
+  const isInvestigationWagerSubStep =
+    (gameState.stage === 1 && (gameState.subStep === 1.1 || gameState.subStep === 1.17)) ||
+    (gameState.stage === 2 && (gameState.subStep === 0.15 || gameState.subStep === 0.16 || gameState.subStep === 0.17));
+  if (isInvestigationWagerSubStep && experimentationState.wageredColor) {
     contextTags.push(`apostou na investigação: ${experimentationState.wageredColor}`);
   }
   // Opção atualmente marcada (radio/dropdown da pergunta corrente). Útil
@@ -1249,25 +1269,32 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
   if (isQuestionActiveSubStep && selectedOption) {
     contextTags.push(`opção marcada: "${labelOfOption(selectedOption, currentQuestion)}"`);
   }
-  if (gameState.stage === 2 && s2SpinReflection.bet1Color) {
+  // s2SpinReflection — só relevante nos subSteps 6.201-6.205 (sequência de
+  // giros reflexivos). Após sair desse range, esses valores ficam em state
+  // mas não devem vazar pra próximas seções.
+  const isS2SpinReflectionSubStep =
+    gameState.stage === 2 && gameState.subStep >= 6.201 && gameState.subStep <= 6.205;
+  if (isS2SpinReflectionSubStep && s2SpinReflection.bet1Color) {
     contextTags.push(`apostou no 1º giro: ${s2SpinReflection.bet1Color}`);
   }
-  if (gameState.stage === 2 && s2SpinReflection.bet2Color) {
+  if (isS2SpinReflectionSubStep && s2SpinReflection.bet2Color) {
     contextTags.push(`apostou no 2º giro: ${s2SpinReflection.bet2Color}`);
   }
-  if (gameState.stage === 2 && s2SpinReflection.spin1Color) {
+  if (isS2SpinReflectionSubStep && s2SpinReflection.spin1Color) {
     contextTags.push(`saiu no 1º giro: ${s2SpinReflection.spin1Color}`);
   }
-  if (gameState.stage === 2 && s2SpinReflection.spin2Color) {
+  if (isS2SpinReflectionSubStep && s2SpinReflection.spin2Color) {
     contextTags.push(`saiu no 2º giro: ${s2SpinReflection.spin2Color}`);
   }
-  if (gameState.stage === 3 && s3State.predictionColor) {
+  // Stage 3: previsão (sub 0.5), aposta inicial (sub 1, 1.5, 1.75…),
+  // mudança de aposta (sub 8.3+). Restringimos pra não vazar entre seções.
+  if (gameState.stage === 3 && gameState.subStep === 0.5 && s3State.predictionColor) {
     contextTags.push(`previu: ${s3State.predictionColor}`);
   }
-  if (gameState.stage === 3 && s3State.betColor) {
+  if (gameState.stage === 3 && gameState.subStep >= 1 && gameState.subStep <= 8.2 && s3State.betColor) {
     contextTags.push(`apostou na cor ${s3State.betColor} (setor ${s3State.betSector + 1})`);
   }
-  if (gameState.stage === 3 && s3State.newBetColor) {
+  if (gameState.stage === 3 && gameState.subStep >= 8.3 && s3State.newBetColor) {
     contextTags.push(`mudou aposta para: ${s3State.newBetColor}`);
   }
   const contextSuffix = contextTags.length > 0
@@ -1306,9 +1333,17 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
   if (_stage === 1 && _sub >= 6.85 && _sub <= 6.93 && compPhase) {
     phaseMarkers.push(`comp=${compPhase}`);
   }
-  // s2RatioPhase — Stage 2 SubStep 3 (razões angulares)
+  // s2RatioPhase — Stage 2 SubStep 3 (razões angulares).
+  // Fundimos 'question_correct' e 'table_checked' num único marker 'table'
+  // porque ambos representam a MESMA tela (tabela de razões) — a transição
+  // acontece síncrona com o clique em Verificar, e separar gera dois
+  // exercícios telemétricos distintos pro mesmo conteúdo (acerto no
+  // table_checked, erro no question_correct).
   if (_stage === 2 && _sub === 3 && s2RatioPhase) {
-    phaseMarkers.push(`ratio=${s2RatioPhase}`);
+    const ratioMarker = (s2RatioPhase === 'question_correct' || s2RatioPhase === 'table_checked')
+      ? 'table'
+      : s2RatioPhase;
+    phaseMarkers.push(`ratio=${ratioMarker}`);
   }
   // s2IxPhase + s2IxCalcStep — Stage 2 SubStep 4 (probabilidades i·p)
   if (_stage === 2 && _sub === 4) {
@@ -1730,6 +1765,7 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                 if (gameState.stage === 2 && gameState.subStep === 6.201 && s2SpinReflection.phase === 'betting') {
                   const clickedColor = gameState.sectors[index]?.colorName;
                   if (!clickedColor) return;
+                  telemetryRecordInteracaoExercicio(`apostou no 1º giro reflexivo — clicou setor ${clickedColor}`);
                   setS2SpinReflection(prev => ({ ...prev, bet1Color: clickedColor, phase: 'spinning' }));
                   return;
                 }
@@ -3670,7 +3706,10 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                     {s2ConceptQuestion.options.map((option, index) => (
                       <button
                         key={index}
-                        onClick={() => setS2ConceptSelected(option.value)}
+                        onClick={() => {
+                          telemetryRecordInteracaoExercicio(`marcou: "${option.label}"`);
+                          setS2ConceptSelected(option.value);
+                        }}
                         className={`
                           p-micro rounded-sm border-2 text-left transition-all duration-200
                           ${s2ConceptSelected === option.value
@@ -3876,7 +3915,14 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                     { value: 'depende_cor', label: 'Depende da cor.' }
                   ]}
                   selectedOption={s2IxSumSelected}
-                  onOptionSelect={(v) => setS2IxSumSelected(v)}
+                  onOptionSelect={(v) => {
+                    const lbl = v === 'deve_dar_1' ? 'Deve dar 1, que é a probabilidade do evento certo.'
+                              : v === 'maior_valor' ? 'Deve dar o maior valor.'
+                              : v === 'depende_cor' ? 'Depende da cor.'
+                              : v;
+                    telemetryRecordInteracaoExercicio(`marcou: "${lbl}"`);
+                    setS2IxSumSelected(v);
+                  }}
                   onCheck={checkAnswer}
                   showCheckButton={!!s2IxSumSelected}
                 />
@@ -5581,7 +5627,10 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                         ? 'border-brand-otimath-pure bg-brand-otimath-lightest'
                         : 'border-neutral-lighter bg-neutral-white hover:bg-neutral-lightest'
                     }`}
-                    onClick={() => setS3State(prev => ({ ...prev, newBetColor: color }))}
+                    onClick={() => {
+                      telemetryRecordInteracaoExercicio(`marcou cor "${color}" para nova aposta (aposta atual: ${s3State.betColor})`);
+                      setS3State(prev => ({ ...prev, newBetColor: color }));
+                    }}
                     aria-pressed={s3State.newBetColor === color}
                   >
                     <div className="w-[18px] h-[18px] rounded-full border border-neutral-lighter shrink-0" style={{ backgroundColor: ROULETTE_COLORS[color] }} aria-hidden="true" />
