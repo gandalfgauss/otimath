@@ -14,6 +14,7 @@ import { AlertType } from '@/components/global/Alert';
 import { logTransition, logAttempt, logText, logBet, logSpinResult, downloadLog, getLogSummary } from './useRouletteLog';
 import {
   telemetryRecordRegistro,
+  telemetryRecordAcerto,
   telemetryRecordErro,
   telemetryRecordInteracaoExercicio,
   telemetryRecordAtomicInteraction,
@@ -4125,6 +4126,19 @@ export const useRouletteHooks = () => {
         return new Set(['selectedOption']);
       }
       if (sub === 1.75) return new Set(['colorCountInputs']);
+      // 8.1 (falácia do jogador — giros): createAlert passa sempre 5º
+      // param explícito (histórico, cor sorteada). Set vazio impede
+      // contaminação por studentInputRef stale (slider Stage 1, etc.).
+      if (sub === 8.1) return new Set();
+      // 8.3 (nova aposta): handleS3NewBetConfirm passa 5º param explícito
+      // com mudança/manutenção. Set vazio impede vazamento.
+      if (sub === 8.3) return new Set();
+      // 8.5 (institucionalização da falácia): nenhum createAlert acerto/erro
+      // próprio; só o botão Continuar via telemetryRecordInteracaoExercicio.
+      if (sub === 8.5) return new Set();
+      // 9 / 10 / 11 (síntese / conclusão / reflexão dado): só interações
+      // atômicas — sem validação. Set vazio evita poluição.
+      if (sub === 9 || sub === 10 || sub === 11) return new Set();
     }
     return null;
   };
@@ -6109,6 +6123,20 @@ export const useRouletteHooks = () => {
       const betOnLargest = wagered === maxColor;
       const won = drawnColor === wagered;
 
+      // Telemetria EXPLÍCITA — antes esse Continuar (resultado da aposta)
+      // só registrava acerto/erro quando havia createAlert success/error.
+      // Os 4 cenários a seguir usam balões (warning/info) ou avanço direto
+      // sem alerta, então a coleta perdia esse passo. Usamos
+      // telemetryRecordAcerto quando o aluno apostou no maior setor
+      // (escolha conceitualmente correta) e telemetryRecordErro quando
+      // não apostou no maior (independentemente de ter ganhado).
+      const outcomeTag = `apostou em ${wagered}; saiu ${drawnColor}; maior setor: ${maxColor} (${betOnLargest ? 'apostou no maior' : 'não apostou no maior'}; ${won ? 'ganhou' : 'perdeu'})`;
+      if (betOnLargest) {
+        telemetryRecordAcerto(outcomeTag);
+      } else {
+        telemetryRecordErro(outcomeTag);
+      }
+
       if (betOnLargest && won) {
         // CASO 1: Ganhou + apostou no maior → sem alerta, pergunta direto
         setSuboptimalAttempts(0);
@@ -6194,7 +6222,11 @@ export const useRouletteHooks = () => {
         setInstructions(`<p class="ds-body"><strong>Conceito Importante</strong></p>
           <p class="ds-body">Leia o conceito sobre o viés de equiprobabilidade.</p>`);
       } else if (selectedOption) {
-        // Erro: micro-feedback perceptivo + obrigar novo giro
+        // Erro: micro-feedback perceptivo + obrigar novo giro.
+        // Sem createAlert success/error o observador NÃO captura — o
+        // feedback é via balão "Observe" (type info). Registramos
+        // EXPLICITAMENTE o erro pra preservar a tentativa do aluno.
+        telemetryRecordErro(`marcou: "${s2_019Label}"`);
         playSound("/sounds/incorrect.mp3");
         setSelectedOption('');
         setShowInfoBox(true);
@@ -7302,6 +7334,11 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Considere os setores numerados de 1 a ${n3}.</p>`);
       } else if (!allOk) {
         playSound("/sounds/incorrect.mp3");
+        // Alerta de erro — antes não havia feedback visível ao errar, só
+        // o destaque dos inputs em vermelho. Sem alerta, a tentativa do
+        // aluno não era registrada como `erro` na telemetria.
+        // Mensagem genérica (sem entregar a resposta correta).
+        createAlert("Tente novamente.", "Algumas frações ainda não estão corretas. Confira os campos destacados em vermelho.", "error", 4000, `tabela P(cor) — digitou: ${fracSummary}`);
       } else {
         playSound("/sounds/correct.mp3");
       }
@@ -11004,6 +11041,7 @@ export const useRouletteHooks = () => {
   // final "Atividade Concluída!" (subStep 10) com o botão "Continuar a
   // Sequência". Usado tanto pelo botão "Li" quanto pela seta avançar do DEV.
   const handleS3DismissReflexao = useCallback(() => {
+    telemetryRecordInteracaoExercicio('clicou em "Li." (Reflexão para o próximo desafio — ponte para OVA Dois Dados)');
     goToTopOfChallenge();
     setGameState(prev => ({ ...prev, subStep: 10 }));
     setInstructions(`<p class="ds-body"><strong>Atividade Finalizada!</strong></p>

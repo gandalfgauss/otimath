@@ -1135,9 +1135,18 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
         return { title: 'Probabilidade de cada cor', description: 'Ao girar aleatoriamente o disco apresentado, calcule a probabilidade de o ponteiro parar em cada uma das cores indicadas.' };
       }
       if (sub === 8.1) {
+        const histLabel = s3State.spinHistory && s3State.spinHistory.length > 0
+          ? ` Histórico até o momento: [${s3State.spinHistory.join(', ')}]`
+          : '';
+        if (s3State.spinCount >= 5) {
+          return {
+            title: 'Observe os resultados do disco',
+            description: `Você havia escolhido a cor ${s3State.betColor}. Os 5 giros foram concluídos.${histLabel} Observe o histórico e clique em Continuar.`,
+          };
+        }
         return {
           title: 'Observe os resultados do disco',
-          description: `Você havia escolhido a cor ${s3State.betColor}. Agora observe alguns resultados. Gire o disco 5 vezes. (Giro ${s3State.spinCount} de 5)`,
+          description: `Você havia escolhido a cor ${s3State.betColor}. Agora observe alguns resultados. Gire o disco 5 vezes. Giros realizados: ${s3State.spinCount} de 5.${histLabel}`,
         };
       }
       if (sub === 8.3) {
@@ -5785,12 +5794,18 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                     style="borderless"
                     size="small"
                     icon={<BookOpen />}
-                    onClick={() => setRouletteStudyMenuOpen(true)}
+                    onClick={() => {
+                      telemetryRecordInteracaoExercicio('clicou em "Revisar conceitos" (tela final OVA Disco)');
+                      setRouletteStudyMenuOpen(true);
+                    }}
                   >
                     Revisar conceitos
                   </Button>
                   {onFinished && (
-                    <Button style="primary" size="medium" icon={<ArrowRight />} onClick={onFinished}>
+                    <Button style="primary" size="medium" icon={<ArrowRight />} onClick={() => {
+                      telemetryRecordInteracaoExercicio('clicou em "Continuar a Sequência" (final OVA Disco → próxima cena)');
+                      onFinished();
+                    }}>
                       Continuar a Sequência
                     </Button>
                   )}

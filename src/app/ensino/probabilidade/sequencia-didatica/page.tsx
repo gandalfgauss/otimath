@@ -29,7 +29,7 @@ import {
   getSequenceStats,
   useSequenceTick,
 } from "@/hooks/teaching/probability/useSequenceSession";
-import { telemetrySetDevMode } from "@/hooks/teaching/probability/useTelemetry";
+import { telemetrySetDevMode, telemetryRecordInteracaoExercicio } from "@/hooks/teaching/probability/useTelemetry";
 import { playSound } from "@/hooks/global/useSound";
 import { useAlerts } from "@/hooks/global/useAlerts";
 import { Alerts } from "@/components/global/Alerts";
@@ -681,7 +681,10 @@ function TransitionSection({ onContinue }: { onContinue: () => void }) {
             }
             maxWidthParagraph="max-w-[640px]"
           />
-          <Button style="primary" size="medium" icon={<ArrowRight />} onClick={onContinue}>
+          <Button style="primary" size="medium" icon={<ArrowRight />} onClick={() => {
+            telemetryRecordInteracaoExercicio('clicou em "Iniciar OVA: Dois Dados" (tela de transição entre OVAs)');
+            onContinue();
+          }}>
             Iniciar OVA: Dois Dados
           </Button>
         </div>
