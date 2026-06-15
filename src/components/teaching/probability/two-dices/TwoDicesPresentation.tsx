@@ -505,13 +505,13 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
     if (nums.length === 6 && nums.every((n, i) => n === i + 1)) {
       setScene3SampleSpaceError(false);
       playSound("/sounds/correct.mp3");
-      createAlert('Correto!', 'Espaço amostral identificado.', 'success', 2500);
+      createAlert('Correto!', 'Espaço amostral identificado.', 'success', 2500, `digitou: "${scene3SampleSpace}"`);
       setScene3Step(2);
       scrollDiceToTop();
     } else {
       setScene3SampleSpaceError(true);
       playSound("/sounds/incorrect.mp3");
-      createAlert('Tente novamente', 'Verifique quais os resultados possíveis no lançamento de um dado.', 'error', 4000);
+      createAlert('Tente novamente', 'Verifique quais os resultados possíveis no lançamento de um dado.', 'error', 4000, `digitou: "${scene3SampleSpace}"`);
     }
   };
 
@@ -521,13 +521,13 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
     if (v === 6) {
       setScene3NSError(false);
       playSound("/sounds/correct.mp3");
-      createAlert('Correto!', 'O espaço amostral tem 6 elementos.', 'success', 2500);
+      createAlert('Correto!', 'O espaço amostral tem 6 elementos.', 'success', 2500, `digitou: "${scene3NS}"`);
       setScene3Step(3);
       scrollDiceToTop();
     } else {
       setScene3NSError(true);
       playSound("/sounds/incorrect.mp3");
-      createAlert('Tente novamente', 'Conte quantos elementos você listou no espaço amostral S.', 'error', 4000);
+      createAlert('Tente novamente', 'Conte quantos elementos você listou no espaço amostral S.', 'error', 4000, `digitou: "${scene3NS}"`);
     }
   };
 
@@ -551,13 +551,13 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
     if (ok) {
       setScene3PSError(false);
       playSound("/sounds/correct.mp3");
-      createAlert('Correto!', 'P(S) = 1 — algum resultado certamente ocorre.', 'success', 2500);
+      createAlert('Correto!', 'P(S) = 1 — algum resultado certamente ocorre.', 'success', 2500, `digitou: "${scene3PS}"`);
       setScene3Step(4);
       scrollDiceToTop();
     } else {
       setScene3PSError(true);
       playSound("/sounds/incorrect.mp3");
-      createAlert('Tente novamente', 'Se o dado é lançado, algum resultado certamente ocorrerá. Qual probabilidade representa a certeza?', 'error', 4500);
+      createAlert('Tente novamente', 'Se o dado é lançado, algum resultado certamente ocorrerá. Qual probabilidade representa a certeza?', 'error', 4500, `digitou: "${scene3PS}"`);
     }
   };
 
@@ -592,7 +592,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
 
     if (fracOk && pctOk) {
       playSound("/sounds/correct.mp3");
-      createAlert('Correto!', `P(face ${scene3RandomFace}) = 1/6 ≈ 16,7%.`, 'success', 3000);
+      createAlert('Correto!', `P(face ${scene3RandomFace}) = 1/6 ≈ 16,7%.`, 'success', 3000, `P(face ${scene3RandomFace}) = ${scene3Num}/${scene3Den} = ${scene3Pct}%`);
       setScene3ShowBar(true);
       // Tempo aumentado de 800ms para 3000ms para o aluno conseguir
       // observar a barra animada da face sorteada antes da transição.
@@ -605,7 +605,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       // Erro: rola imediatamente pro topo (mirror do padrão geral).
       scrollDiceToTop();
       playSound("/sounds/incorrect.mp3");
-      createAlert('Tente novamente', 'Verifique a fração e a porcentagem.', 'error', 4000);
+      createAlert('Tente novamente', 'Verifique a fração e a porcentagem.', 'error', 4000, `P(face ${scene3RandomFace}) = ${scene3Num}/${scene3Den} = ${scene3Pct}%`);
 
       if (fracOk && !pctOk) {
         // Fração correta, porcentagem errada
@@ -641,7 +641,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       setScene3AllBars(true);
       setBarsAnimated(true);
       playSound("/sounds/correct.mp3");
-      createAlert('Exatamente!', 'Em um dado equilibrado todas as faces têm a mesma probabilidade.', 'success', 3000);
+      createAlert('Exatamente!', 'Em um dado equilibrado todas as faces têm a mesma probabilidade.', 'success', 3000, 'respondeu: Sim');
       setTimeout(() => {
         setScene3Step(6);
         scrollDiceToTop();
@@ -651,7 +651,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       scrollDiceToTop();
       setScene3NoError(true);
       playSound("/sounds/incorrect.mp3");
-      createAlert('Releia a definição', 'Releia a definição de dado equilibrado e tente novamente.', 'error', 4000);
+      createAlert('Releia a definição', 'Releia a definição de dado equilibrado e tente novamente.', 'error', 4000, 'respondeu: Não');
     }
   };
 
@@ -666,12 +666,12 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
 
     if (eqOk && vicOk) {
       playSound("/sounds/correct.mp3");
-      createAlert('Correto!', 'Você classificou corretamente os espaços amostrais.', 'success', 3000);
+      createAlert('Correto!', 'Você classificou corretamente os espaços amostrais.', 'success', 3000, `eq: "${scene4EqAnswer}", vic: "${scene4VicAnswer}"`);
       setScene4Step(2);
       scrollDiceToTop();
     } else {
       playSound("/sounds/incorrect.mp3");
-      createAlert('Tente novamente', 'Releia a definição de dado equilibrado/viciado e revise as opções.', 'error', 4000);
+      createAlert('Tente novamente', 'Releia a definição de dado equilibrado/viciado e revise as opções.', 'error', 4000, `eq: "${scene4EqAnswer}", vic: "${scene4VicAnswer}"`);
     }
   };
 
@@ -696,13 +696,13 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
     if (ok) {
       setScene4SumError(false);
       playSound("/sounds/correct.mp3");
-      createAlert('Correto!', 'A soma das probabilidades de todos os resultados possíveis é sempre 1 (100%).', 'success', 3000);
+      createAlert('Correto!', 'A soma das probabilidades de todos os resultados possíveis é sempre 1 (100%).', 'success', 3000, `digitou: "${scene4SumAnswer}"`);
       setScene4Step(3);
       scrollDiceToTop();
     } else {
       setScene4SumError(true);
       playSound("/sounds/incorrect.mp3");
-      createAlert('Tente novamente', 'Lembre-se do valor que você calculou para P(S) na etapa anterior.', 'error', 4000);
+      createAlert('Tente novamente', 'Lembre-se do valor que você calculou para P(S) na etapa anterior.', 'error', 4000, `digitou: "${scene4SumAnswer}"`);
     }
   };
 

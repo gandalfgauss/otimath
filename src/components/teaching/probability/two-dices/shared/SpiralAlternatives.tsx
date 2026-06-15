@@ -24,6 +24,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { TeamShield } from './TeamShield';
 import type { Team } from './teamsData';
+import { telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 
 export interface AlternativeOption {
   /** Identificador estável (p.ex. 'correct' ou 'd1', 'd2', ...). */
@@ -254,7 +255,12 @@ export function SpiralAlternatives({
                 role="radio"
                 aria-checked={isSelected}
                 aria-label={alt.ariaLabel}
-                onClick={() => setSelected(alt.id)}
+                onClick={() => {
+                  telemetryRecordInteracaoExercicio(
+                    `selecionou alternativa "${alt.id}" no spiral: ${alt.ariaLabel ?? alt.display}`,
+                  );
+                  setSelected(alt.id);
+                }}
                 style={{
                   position: 'absolute',
                   left: '50%', top: '50%',

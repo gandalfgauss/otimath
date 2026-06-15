@@ -181,14 +181,24 @@ export default function DidacticSequencePage() {
   //  • `startSequence()` é idempotente — chamado defensivamente para
   //    cobrir saltos via DEV que não passaram pelo botão "Iniciar".
   //  • `endSequence()` ao entrar em 'complete' congela tudo.
-  //  • Para 'roulette'/'twoDices' NÃO chamamos `setActiveOva` aqui —
-  //    cada OVA reivindica/libera seu próprio cronômetro via prop
-  //    `isActiveStage`. Isso permite que `freezeOva` na tela final
-  //    do OVA não seja sobrescrito por um setActiveOva aqui.
+  //  • Para 'roulette'/'twoDices' tb chamamos `setActiveOva` aqui — necessário
+  //    porque a useEffect do OVA (que reivindica via prop `isActiveStage`)
+  //    é executada ANTES desta (filhos disparam antes de pais no React),
+  //    então quando o `setActiveOva` do OVA roda, `sessionStartTime` ainda
+  //    está null (startSequence acontece nesta useEffect aqui) e o guard
+  //    `if (sessionStartTime === null) return;` em useSequenceSession.setActiveOva
+  //    descarta a chamada silenciosamente. Resultado: `activeOva` ficava null
+  //    e toda a telemetria de seção parava (`recordInter(SKIP-noOva)`).
+  //    Manifestava-se em DEV jumps que pulavam o botão "Iniciar" E após
+  //    Fast Refresh (que reseta as variáveis module-level pra null).
+  //    `setActiveOva` é seguro pra OVA já frozen — só transiciona 'paused'→'running',
+  //    nunca toca em 'frozen'.
   useEffect(() => {
     if (stage !== 'intro') startSequence();
     if (stage === 'complete')                                  endSequence();
     else if (stage === 'intro' || stage === 'transition')      setActiveOva(null);
+    else if (stage === 'roulette')                             setActiveOva('roulette');
+    else if (stage === 'twoDices')                             setActiveOva('twoDices');
   }, [stage]);
 
   const goToStage = useCallback((target: Stage) => setStage(target), []);

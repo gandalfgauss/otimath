@@ -587,16 +587,37 @@ export function telemetryEnterExercise(id: string, title: string, descricao: str
   };
 }
 
-/** Sai do contexto/seção. Finaliza exercício aberto (se houver). */
+/** Finaliza o exercício aberto da seção atual (se houver). Mantém a
+ *  `currentSection` viva — quem realmente substitui ou limpa a seção
+ *  é a próxima chamada de `telemetryEnterExercise` (que finaliza a
+ *  anterior se o id for diferente e cria uma nova).
+ *
+ *  Por que NÃO nulificar `currentSection` aqui?
+ *  Cenário concreto que isso quebrava: em devMode, o componente OVA é
+ *  remontado/reativado. O `useTelemetryExercise` (com prop `enabled`)
+ *  dispara cleanup quando enabled vai pra false — isso chamava o exit
+ *  que nullificava a seção. Quando enabled voltava pra true (DEV
+ *  fechado, usuário ainda na mesma tela), o efeito de enter rodava de
+ *  novo e setava a seção — MAS se o id era o mesmo, o enter tinha um
+ *  early-return ("mesma seção, só atualiza meta"), e a seção ficava
+ *  nula PRA SEMPRE. Os subsequentes `recordInteracao*` viam `!ova
+ *  .currentSection` e retornavam early, parando toda a coleta.
+ *
+ *  Com a finalização-só-do-open (sem nulificar a seção), o próximo
+ *  enter — seja com id igual ou diferente — sempre encontra uma seção
+ *  e atualiza adequadamente. Eventos após DEV close continuam fluindo.
+ */
 export function telemetryExitExercise(id?: string): void {
   const ova = activeOva();
   if (!ova || !ova.currentSection) return;
   if (id !== undefined && ova.currentSection.id !== id) return;
-  // Não nulifica seção via id que não pertence ao OVA ativo — vide
-  // comentário em `telemetryEnterExercise`.
+  // Não opera em seção que não pertence ao OVA ativo — vide comentário
+  // em `telemetryEnterExercise`.
   if (id !== undefined && !idBelongsToActiveOva(id, ova.id)) return;
   finalizeOpen(ova.currentSection, ova);
-  ova.currentSection = null;
+  // INTENCIONAL: não fazemos `ova.currentSection = null`. O `enter` do
+  // próximo ciclo cuida da transição (atualiza meta se mesmo id, ou
+  // cria seção nova se id diferente).
 }
 
 /** Adiciona um REGISTRO (input/checkbox/radio que captura a resposta
@@ -718,10 +739,21 @@ export function telemetryRecordAtomicInteraction(
   const nowSessionTime = getElapsedTotalMs();
   const nowSec = secOf(nowSessionTime);
   const id = `${ova.id}-atomic-${atomicInteractionCounter}`;
+  // HERANÇA DA DESCRIÇÃO DA SEÇÃO — o exercício atômico carrega TUDO
+  // que estava na tela no momento do clique. Sem isso, "pediu novo
+  // exemplo" ficaria sem âncora (qual balão? qual etapa? que
+  // instruções estavam no topo?). A `currentSection.descricao` já é
+  // mantida atualizada via `useTelemetryExercise` do RouletteGame
+  // (Topo + Balão + Pergunta + Opções), então herdar dá contexto rico
+  // de graça.
+  const sectionDescricao = ova.currentSection?.descricao ?? '';
+  const fullDescricao = sectionDescricao
+    ? `${sectionDescricao} || Ação: ${descricao}`
+    : descricao;
   const exercise: FinalizedExercise = {
     id,
     title,
-    descricao,
+    descricao: fullDescricao,
     durationMs: 0,
     finishedAt: nowMs(),
     startedAtSessionTime: nowSessionTime,
@@ -821,10 +853,20 @@ export function telemetryConfirmReading(
   const startedAtSessionTime = pending.startedAtSessionTime;
   const finSec = secOf(finishedAtSessionTime);
   const iniSec = secOf(startedAtSessionTime);
+  // HERANÇA DA DESCRIÇÃO DA SEÇÃO — mesmo padrão do
+  // `telemetryRecordAtomicInteraction`: o exercício de leitura
+  // herda o contexto da seção corrente (Topo + Pergunta + Opções),
+  // que o caller complementa com a descricao específica da leitura
+  // (texto do balão). Sem isso, faltava o "Topo: Conceitos
+  // Fundamentais..." no exercício atômico de leitura.
+  const sectionDescricao = ova.currentSection?.descricao ?? '';
+  const fullDescricao = sectionDescricao
+    ? `${sectionDescricao} || Leitura: ${descricao}`
+    : descricao;
   const exercise: FinalizedExercise = {
     id,
     title,
-    descricao,
+    descricao: fullDescricao,
     durationMs: Math.max(0, finishedAtSessionTime - startedAtSessionTime),
     finishedAt: nowMs(),
     startedAtSessionTime,

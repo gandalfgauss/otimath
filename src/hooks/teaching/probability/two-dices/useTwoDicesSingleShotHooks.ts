@@ -598,10 +598,38 @@ export const useTwoDicesSingleShotHooks = ({
     // Instrumentação de log — registra cada tentativa com stepKind para
     // posterior análise a posteriori e detecção de viés cognitivo.
     logAttempt('unionExercise6', String(stepIndex), ok, currentStep.kind);
+    // Resumo do estado relevante pra resposta_usuario da telemetria.
+    // O `currentStep.kind` indica qual tipo de input/seleção foi usado
+    // (marcação de células, seleção de operação, ou fração).
+    const summarizeResponse = (): string => {
+      const k = currentStep.kind;
+      if (k === 'mark-A' || k === 'mark-B' || k === 'mark-D') {
+        const eventName = k.replace('mark-', '');
+        const grid = eventsCheckboxes[eventName];
+        if (!grid) return `step=${k}`;
+        const marked: string[] = [];
+        for (let r = 0; r < grid.length; r++) {
+          for (let c = 0; c < grid[r].length; c++) {
+            if (grid[r][c]?.checked) marked.push(`(${r + 1},${c + 1})`);
+          }
+        }
+        return `step=${k}; marcou ${marked.length} células: ${marked.slice(0, 12).join(', ')}${marked.length > 12 ? '…' : ''}`;
+      }
+      if (k === 'identify-operation') {
+        const s = operationSelectInputs;
+        return `step=${k}; A=${s?.eventsA?.value || '_'} op=${s?.operations?.value || '_'} B=${s?.eventsB?.value || '_'}`;
+      }
+      if (k === 'compute-probability') {
+        const p = probabilitiesTextInputs;
+        return `step=${k}; P(${p?.eventName ?? '?'})=${p?.numerator?.value || '_'}/${p?.denominator?.value || '_'}`;
+      }
+      return `step=${k}`;
+    };
+    const respostaUsuario = summarizeResponse();
     if (ok) {
       const isLastStep = stepIndex + 1 >= steps.length;
       if (isLastStep) {
-        createAlert('Parabéns!', 'Você acertou! Rodada concluída.', 'success', 4000);
+        createAlert('Parabéns!', 'Você acertou! Rodada concluída.', 'success', 4000, respostaUsuario);
         playSound('/sounds/challengeFinished.mp3');
         setDisabledCheckButton(true);
         setDisabledClearButton(true);
@@ -614,12 +642,12 @@ export const useTwoDicesSingleShotHooks = ({
           currentStep.kind === 'mark-D'
         ) disableAllCheckboxes();
       } else {
-        createAlert('Parabéns!', 'Você acertou!', 'success', 3000);
+        createAlert('Parabéns!', 'Você acertou!', 'success', 3000, respostaUsuario);
         playSound('/sounds/correct.mp3');
         advanceToNextStep();
       }
     } else {
-      createAlert('Ops!', 'Você errou — confira sua resposta.', 'error', 4000);
+      createAlert('Ops!', 'Você errou — confira sua resposta.', 'error', 4000, respostaUsuario);
       playSound('/sounds/incorrect.mp3');
       if (currentStep.kind === 'identify-operation') flagErrorOnSelectInputs();
       if (currentStep.kind === 'compute-probability') flagErrorOnProbabilities();

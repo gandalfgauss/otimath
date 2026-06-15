@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
-import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import {
   VennRegion, VennSetSpec, VennGeometry, MembershipMask, maskKey, masksEqual,
 } from './types';
@@ -324,6 +324,19 @@ export function VennLaboratory({
 
   // --- Sub-etapa 3/5/7: clique em região ---
   const handleRegionClick = useCallback((mask: MembershipMask) => {
+    // Telemetria — registra o clique do aluno numa região do diagrama
+    // de Venn. Identifica a região pela combinação A/B:
+    //   [false,false] → fora (universo)
+    //   [true,false]  → A só (A\B)
+    //   [false,true]  → B só (B\A)
+    //   [true,true]   → A ∩ B
+    const regionLabel = mask[0] && mask[1] ? 'A ∩ B'
+      : mask[0] ? 'A \\ B (só A)'
+      : mask[1] ? 'B \\ A (só B)'
+      : 'fora (universo)';
+    telemetryRecordInteracaoExercicio(
+      `clicou na região "${regionLabel}" do diagrama de Venn — etapa: ${step}`,
+    );
     // Ancora no topo do OVA em TODO clique de região que vai disparar feedback
     // (alert/som). markUnion é a única sub-etapa que faz toggle silencioso de
     // seleção sem alert — não precisa scrollar lá. Antes, depositar um valor

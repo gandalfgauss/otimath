@@ -479,6 +479,63 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sliderValue, isActiveStage]);
 
+  // ─── TRACKERS DE INPUTS DE TEXTO ────────────────────────────────
+  // Helper genérico: cada digitação no input gera um evento
+  // `interacao_exercicio` (com debounce de 800ms pra evitar 1
+  // evento por tecla). O `label` identifica o input no histórico.
+  //
+  // FALSO POSITIVO QUE EVITAMOS: depois do acerto, o validator chama
+  // `setXxxInput({value: '', ...})` pra limpar o campo. Sem cuidado, o
+  // tracker via prev='2' → cur='' e agendava um setTimeout que disparava
+  // `apagou "2"` 800ms depois — JÁ no NOVO subStep, criando um exercício
+  // "fantasma" no novo card sem o aluno ter feito nada. Pra cortar isso,
+  // resetamos `prevRef` toda vez que o `subStep` muda (o tracker re-inicia
+  // sem comparar com o estado anterior). Adicionalmente, transições de
+  // não-vazio→vazio são ignoradas — são quase sempre limpezas programáticas
+  // e raramente uma interação intencional do aluno.
+  const useTextInputTracker = (
+    label: string,
+    currentValue: string | undefined,
+    enabled: boolean,
+    subStepKey: number,
+  ) => {
+    const prevRef = useRef<string | null>(null);
+    const prevSubStepRef = useRef<number | null>(null);
+    useEffect(() => {
+      if (!enabled) { prevRef.current = null; return; }
+      // SubStep mudou → reset do tracker (próxima leitura conta como
+      // "inicial" pro novo subStep, ignorando o que estava no input antes).
+      if (prevSubStepRef.current !== subStepKey) {
+        prevSubStepRef.current = subStepKey;
+        prevRef.current = currentValue ?? '';
+        return;
+      }
+      const cur = currentValue ?? '';
+      const prev = prevRef.current;
+      if (prev === cur) return;
+      prevRef.current = cur;
+      if (prev === null) return; // primeira leitura
+      if (!cur && !prev) return; // ambos vazios
+      if (!cur && prev) return; // não-vazio→vazio é quase sempre reset programático
+      const handle = window.setTimeout(() => {
+        telemetryRecordInteracaoExercicio(
+          prev
+            ? `${label}: "${prev}" → "${cur}"`
+            : `${label}: digitou "${cur}"`,
+        );
+      }, 800);
+      return () => window.clearTimeout(handle);
+    }, [currentValue, enabled, subStepKey]);
+  };
+  useTextInputTracker('espaço amostral', sampleSpaceInput?.value, isActiveStage, gameState.subStep);
+  useTextInputTracker('n(S)', sampleSpaceCountInput?.value, isActiveStage, gameState.subStep);
+  useTextInputTracker('previsão', predictionInput?.value, isActiveStage, gameState.subStep);
+  useTextInputTracker('casos favoráveis', favorableCasesInput?.value, isActiveStage, gameState.subStep);
+  useTextInputTracker('n(E)', exerciseNEInput?.value, isActiveStage, gameState.subStep);
+  useTextInputTracker('n(S) exercício', exerciseNSInput?.value, isActiveStage, gameState.subStep);
+  useTextInputTracker('P(E) numerador', exercisePENumeratorInput?.value, isActiveStage, gameState.subStep);
+  useTextInputTracker('P(E) denominador', exercisePEDenominatorInput?.value, isActiveStage, gameState.subStep);
+
   // SELECTED OPTION — change-detection sem debounce (clique em radio é
   // intencional). Ignora resets pra '' (mudança de tela do sistema).
   const prevSelectedOptionRef = useRef<string | null>(null);
@@ -539,13 +596,18 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     const cleaned = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
   };
+  // TITLE da seção = stageInfo + TOPO (cabeçalho de instruções da subStep
+  // atual). Vai pra `title` em vez de `descricao` — assim quem lê o JSON
+  // identifica o exercício pela linha de título, e a descricao fica
+  // limpa pra mostrar SÓ o que o aluno está vendo/interagindo agora
+  // (balão / pergunta / opções / card).
+  const topoText = instructions ? stripText(instructions, 200) : '';
+  const liveTitle = topoText
+    ? `${stageInfo.title} — ${topoText}`
+    : stageInfo.title;
+
   const descricaoParts: string[] = [];
-  // 1. Instruções do topo (cabeçalho da etapa)
-  if (instructions) {
-    const txt = stripText(instructions, 200);
-    if (txt) descricaoParts.push(`Topo: ${txt}`);
-  }
-  // 2. Balão conceitual visível (InfoBox) — quando aparece, é onde o
+  // 1. Balão conceitual visível (InfoBox) — quando aparece, é onde o
   //    aluno está realmente olhando. Sem isso, "Li." vira clique sem
   //    contexto na coleta. Limitamos a 200 chars do message pra não
   //    inflar a descricao quando o balão tem texto muito longo.
@@ -559,7 +621,22 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
   //    específico do exercício. Crítico — antes a descricao só pegava
   //    "Identificação do Experimento Aleatório" (cabeçalho genérico)
   //    e não o enunciado "Tem-se um disco dividido em setores...".
-  if (currentQuestion?.question) {
+  //
+  // ATENÇÃO: `currentQuestion` PERSISTE entre subSteps mesmo depois
+  // que a UI da pergunta sai da tela (não é resetado nos handlers que
+  // avançam de subStep). Por isso, só incluímos na `descricao` quando
+  // o subStep atual é DE FATO um subStep que renderiza `RouletteQuestion`
+  // usando `currentQuestion`. A lista abaixo espelha as 19 ocorrências
+  // de `<RouletteQuestion ... currentQuestion ...>` no JSX deste arquivo —
+  // se uma nova for adicionada, incluir o subStep aqui também.
+  const questionSubStepsByStage: Record<number, Set<number>> = {
+    1: new Set([1, 4, 5, 6.5, 7.5]),
+    2: new Set([0.19, 2.2, 2.3, 2.4, 9.2]),
+    3: new Set([1.5, 3, 4, 5, 6, 7, 8, 8.2, 8.4]),
+  };
+  const isQuestionActiveSubStep =
+    questionSubStepsByStage[gameState.stage]?.has(gameState.subStep) ?? false;
+  if (isQuestionActiveSubStep && currentQuestion?.question) {
     descricaoParts.push(
       `Pergunta: ${stripText(currentQuestion.question, 280)}`,
     );
@@ -568,11 +645,408 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
   //    isso, "marcou 'distractor_2'" no resposta_usuario fica sem
   //    âncora — não dá pra saber qual era o texto da opção errada.
   //    Numeramos (a)/(b)/(c) pra ficar legível.
-  if (currentQuestion?.options && currentQuestion.options.length > 0) {
+  //    Mesma gate da pergunta — não polui subSteps que não usam `currentQuestion`.
+  if (isQuestionActiveSubStep && currentQuestion?.options && currentQuestion.options.length > 0) {
     const opts = currentQuestion.options
       .map((o, i) => `(${String.fromCharCode(97 + i)}) ${stripText(o.label || o.value, 100)}`)
       .join('; ');
     descricaoParts.push(`Opções: ${opts.slice(0, 400)}`);
+  }
+  // 5. CARDS CUSTOMIZADOS (telas que NÃO usam `currentQuestion` nem
+  //    `InfoBox` mas que têm conteúdo conceitual fixo no JSX).
+  //
+  //    SubStep 1.25 — "Características do Experimento Aleatório":
+  //    card com 7 checkboxes (uma característica por linha). Sem essa
+  //    extração, a descricao só tinha as instruções do topo e nada
+  //    sobre o card central com a pergunta + lista de características.
+  if (gameState.stage === 1 && gameState.subStep === 1.25) {
+    descricaoParts.push(
+      'Pergunta: Características do Experimento Aleatório — Marque todas que julgar verdadeiro considerando os exemplos vistos anteriormente.',
+    );
+    if (randomExperimentCharacteristics && randomExperimentCharacteristics.length > 0) {
+      const chars = randomExperimentCharacteristics
+        .map((c: string, i: number) => `[${i + 1}] ${stripText(c, 110)}`)
+        .join('; ');
+      descricaoParts.push(`Características: ${chars.slice(0, 800)}`);
+    }
+  }
+  // 6. PERGUNTAS HARDCODED em <RouletteQuestion question="..."> (string
+  //    literal, não vinda de `currentQuestion`). Esses subSteps renderizam
+  //    o componente RouletteQuestion passando a pergunta DIRETAMENTE no
+  //    JSX — não há state intermediário pra ela. Sem este mapa, a coleta
+  //    perde a pergunta inteira (ex.: SubStep 5.7 "Qual a chance você
+  //    atribui ao evento certo...").
+  //
+  //    MANUTENÇÃO: se um subStep for adicionado/movido com `<RouletteQuestion
+  //    question="..." />`, incluir aqui. Pesquise por `question="` no JSX.
+  const hardcodedQuestion = ((): string | null => {
+    const stage = gameState.stage;
+    const sub = gameState.subStep;
+    if (stage === 1) {
+      if (sub === 2) return 'Qual o espaço amostral desse experimento aleatório?';
+      if (sub === 3) return 'Quantos elementos possui o espaço amostral desse experimento aleatório?';
+      if (sub === 5.7) return 'Qual a chance você atribui ao evento certo: girar um disco e o ponteiro indicar alguma das cores presentes no disco? (Atribua um número de 0% a 100%. Se preferir, utilize a forma decimal, atribuindo um valor de 0 a 1 inclusive.)';
+      if (sub === 6.1) return 'Qual é o número de elementos (casos favoráveis) do evento E?';
+      if (sub === 6.42) return 'Digite o número de casos favoráveis ao evento E.';
+      if (sub === 6.43) return 'Digite o número de resultados possíveis do experimento aleatório (número de elementos do espaço amostral).';
+      if (sub === 12) return `Caso o disco circular fosse dividido em ${gameState.theoreticalK} setores iguais, o setor h, após girar o disco um número p maior que 1 bilhão de vezes, terá uma frequência relativa aproximando de qual número?`;
+      if (sub === 13) return `Na pergunta anterior você respondeu que a frequência relativa do setor h, após um número p maior que 1 bilhão de giros, se aproxima de ${theoreticalQuestion1Input?.value || '—'}. Então qual a probabilidade de o ponteiro do disco após um giro indicar a região h?`;
+    }
+    if (stage === 2) {
+      if (sub === 2) return 'Qual o espaço amostral desse experimento aleatório?';
+      if (sub === 2.1) return 'Quantos elementos possui o espaço amostral desse experimento?';
+      if (sub === 4 && s2IxPhase === 'sum_question') {
+        return 'Estamos atribuindo probabilidades a todos os setores do disco. O que deve acontecer quando somamos as probabilidades de todos os setores?';
+      }
+    }
+    return null;
+  })();
+  if (hardcodedQuestion) {
+    descricaoParts.push(`Pergunta: ${stripText(hardcodedQuestion, 320)}`);
+  }
+  // 7. CARDS CUSTOMIZADOS — telas que renderizam um <div> com <h3>+<p>
+  //    no JSX (sem usar nem `<RouletteQuestion>` nem `<InfoBox>`). Cada
+  //    card tem um título (h3) e uma descrição (p) próprios que NÃO entram
+  //    no `instructions` (esses ficam no topo) nem no `currentQuestion`
+  //    (esse vem de state). Sem este map, a `descricao` da seção fica
+  //    sem o conteúdo central do exercício.
+  //
+  //    MANUTENÇÃO: pra adicionar um card aqui, basta:
+  //      1) anotar (stage, subStep) e seus phases internos relevantes
+  //      2) replicar a string do <h3> e do <p> que descrevem o card
+  //         no JSX (busque por `ds-body-bold text-brand-otimath-pure`).
+  const customCard = ((): { title: string; description?: string } | null => {
+    const stage = gameState.stage;
+    const sub = gameState.subStep;
+    if (stage === 1) {
+      if (sub === 6) {
+        return {
+          title: 'Probabilidade de Cada Cor',
+          description: 'Baseando-se em elementos de simetria, atribua as probabilidades de o ponteiro parar em cada cor do disco.',
+        };
+      }
+      if (sub === 6.1) {
+        return {
+          title: 'Probabilidade do Evento Composto',
+          description: `Considere o evento composto E = {${gameState.compositeEventE.join(', ')}}. Esse evento é formado por alguns resultados simples do experimento aleatório de girar o disco.`,
+        };
+      }
+      if (sub === 6.41) {
+        return {
+          title: 'Exercício — Aplicação do Modelo Probabilístico',
+          description: `Clique nos setores do disco que correspondem aos casos favoráveis ao evento E = ocorre ${gameState.exerciseEventE.join(' ou ')}.`,
+        };
+      }
+      if (sub === 6.42) {
+        return {
+          title: 'Exercício — Aplicação do Modelo Probabilístico',
+          description: `Evento: E = {${gameState.exerciseEventE.join(', ')}}.`,
+        };
+      }
+      if (sub === 6.43) {
+        return {
+          title: 'Exercício — Aplicação do Modelo Probabilístico',
+          description: `Evento: E = {${gameState.exerciseEventE.join(', ')}}, n(E) = ${gameState.exerciseEventE.length}.`,
+        };
+      }
+      if (sub === 6.44) {
+        return {
+          title: 'Exercício — Aplicação do Modelo Probabilístico',
+          description: `Evento: E = {${gameState.exerciseEventE.join(', ')}}, n(E) = ${gameState.exerciseEventE.length}, n(S) = ${gameState.sectors.length}. Ao girar o disco uma única vez, qual a probabilidade de ocorrer o evento E?`,
+        };
+      }
+      if (sub === 6.56 && (unionPhase === 'selecting' || unionPhase === 'filling_prob' || unionPhase === 'final_calc')) {
+        const evtsList = unionEvents.map(e => `${e.label} = ${e.description}`).join(' | ');
+        return {
+          title: `Atividade ${unionActivityNum} de ${unionMaxActivities} — Probabilidade da União`,
+          description: `Eventos: ${evtsList}. Fase: ${unionPhase}.`,
+        };
+      }
+      if (sub === 6.6) {
+        const title = gameState.challenge1Connective === 'ou' ? 'Desafio — União de Eventos' : 'Desafio — Interseção de Eventos';
+        const desc = gameState.challenge1InterProblemType !== null
+          ? `Calcule a probabilidade de, ao girar o disco uma única vez, obter um número ${gameState.challenge1PropertyY}.`
+          : `Calcule a probabilidade de, ao girar o disco uma única vez, ocorrer ${gameState.challenge1EventXText} ${gameState.challenge1Connective.toUpperCase()} ocorrer um número ${gameState.challenge1PropertyY}.`;
+        return { title, description: desc };
+      }
+      if (sub === 6.66) {
+        return {
+          title: 'Desafio — Contagem de Casos',
+          description: `Evento: E = {${gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.challenge1SectorNumbers[i]})`).join(', ')}}. Digite o número de casos favoráveis ao evento.`,
+        };
+      }
+      if (sub === 6.67) {
+        return {
+          title: 'Desafio — Casos Possíveis',
+          description: `Evento: E = {${gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.challenge1SectorNumbers[i]})`).join(', ')}}. Digite o número de resultados possíveis do experimento.`,
+        };
+      }
+      if (sub === 6.68) {
+        return {
+          title: 'Desafio — Probabilidade',
+          description: `Evento: E = {${gameState.selectedSectors.map(i => `${gameState.sectors[i]?.colorName}(${gameState.challenge1SectorNumbers[i]})`).join(', ')}}. Agora calcule a probabilidade.`,
+        };
+      }
+      if ((sub === 6.85 || sub === 6.90) && compPhase === 'calc_selectA') {
+        return {
+          title: compIsGuided ? 'Cálculo da Probabilidade de Eventos Complementares' : `Treino ${compCalcExampleNum} de 4`,
+          description: compIsGuided
+            ? `Primeiro calcularemos P(A). Evento A = "${gameState.compEventA?.textA ?? ''}". Selecione os setores do evento A no disco.`
+            : `Girando um disco ao acaso, qual a probabilidade de ocorrer o A = "${gameState.compEventA?.textA ?? ''}". Selecione os setores de A no disco.`,
+        };
+      }
+      if (sub === 6.90 && compPhase === 'calc_pa') {
+        return {
+          title: `Treino ${compCalcExampleNum} de 4`,
+          description: `A = "${gameState.compEventA?.textA ?? ''}". Informe a probabilidade de A como fração.`,
+        };
+      }
+      if ((sub === 6.86 || sub === 6.91) && compPhase === 'calc_selectAbar') {
+        return {
+          title: compIsGuided ? 'Cálculo Guiado — P(Ā)' : `Treino ${compCalcExampleNum} de 4`,
+          description: `A = "${gameState.compEventA?.textA ?? ''}". Marque no disco o evento complementar Ā.`,
+        };
+      }
+      if ((sub === 6.88 || sub === 6.93) && compPhase === 'calc_chain') {
+        return {
+          title: compIsGuided ? 'P(Ā) a partir de P(A)' : 'Cálculo de P(Ā)',
+          description: `A = "${gameState.compEventA?.textA ?? ''}". Cadeia de cálculo P(Ā) = 1 − P(A) = n/n − m/n = (n−m)/n.`,
+        };
+      }
+      if (sub === 7.6) {
+        return {
+          title: 'Padrão Interessante Detectado!',
+          description: `Você obteve cada cor exatamente uma vez. Isso acontece sempre? Continue girando o disco para observar o que acontece. Giros extras realizados: ${gameState.perfectPatternExtraSpinsDone} / ${gameState.manualSpinsRequired}.`,
+        };
+      }
+      if (sub === 9) {
+        return {
+          title: 'Frequências Relativas',
+          description: 'Calcule a frequência relativa de cada cor (frequência absoluta / total de giros).',
+        };
+      }
+      if (sub === 9.5 && freqRelQuestion) {
+        return {
+          title: 'Frequência Relativa',
+          description: `A frequência relativa de um evento é a proporção ou porcentagem de vezes que esse evento ocorre em relação ao total de repetições do experimento. Qual é a frequência relativa (porcentagem das vezes que ocorre) da cor ${freqRelQuestion.color}?`,
+        };
+      }
+      if (sub === 11) {
+        return {
+          title: 'Convergência das Frequências Relativas',
+        };
+      }
+    }
+    if (stage === 2) {
+      if (sub === 0.17 && !showInfoBox) {
+        return {
+          title: 'Resultado da Aposta',
+          description: `Aposta: ${experimentationState.wageredColor ?? '?'}. Resultado: ${experimentationState.internalDrawnColor ?? '?'}. ${experimentationState.wageredColor === experimentationState.internalDrawnColor ? 'Você ganhou a aposta!' : 'Você não ganhou desta vez.'}`,
+        };
+      }
+      if (sub === 0.185 && !showInfoBox) {
+        return {
+          title: 'Qual cor possui a maior chance?',
+          description: 'Clique na cor que você acredita ter a maior probabilidade de ser sorteada.',
+        };
+      }
+      if (sub === 4 && (s2IxPhase === 'filling_table' || s2IxPhase === 'guided_calc')) {
+        return {
+          title: 'Distribuindo a probabilidade entre todos os setores',
+          description: 'Cada setor recebe uma quantidade proporcional à sua área. Seja p a probabilidade do setor de menor ângulo central ser sorteado. Vamos determinar o valor de p. Atribua probabilidades a cada setor na tabela em função de p.',
+        };
+      }
+      if (sub === 5) {
+        return {
+          title: 'Equação da Soma',
+          description: `${gameState.s2Ki.map((ki: number) => `${ki}x`).join(' + ')} = ?`,
+        };
+      }
+      if (sub === 5.2) {
+        return {
+          title: 'Determinar x',
+          description: `${gameState.s2Ki.map((ki: number) => `${ki}x`).join(' + ')} = 1 → ${gameState.s2SumI}x = 1 → x = ?`,
+        };
+      }
+      if (sub === 6) {
+        return {
+          title: `Probabilidades Numéricas (p = 1/${gameState.s2SumI})`,
+          description: 'Preencha a probabilidade numérica de cada cor a partir de i·p.',
+        };
+      }
+      if (trainingState?.active) {
+        const phase = trainingState.phase;
+        if (phase === 'identify_sector') {
+          return {
+            title: `Treino ${trainingState.currentTraining} de 4 — Identificar setor`,
+            description: 'Clique no setor com o menor ângulo central.',
+          };
+        }
+        if (phase === 'fill_ratios') {
+          return {
+            title: `Treino ${trainingState.currentTraining} de 4 — Divida todos os ângulos pelo menor`,
+            description: 'Girando-se o disco apresentado ao acaso, determine a probabilidade de o ponteiro indicar cada uma das cores do disco.',
+          };
+        }
+        if (phase === 'fill_ip' || phase === 'fill_sum' || phase === 'guided_calc') {
+          return {
+            title: `Treino ${trainingState.currentTraining} de 4 — Probabilidades em função de p`,
+            description: 'Seja p a probabilidade do setor de menor ângulo central ser sorteado. Atribua probabilidades a cada setor na tabela em função de p.',
+          };
+        }
+        if (phase === 'fill_prob') {
+          return {
+            title: `Treino ${trainingState.currentTraining} de 4 — Probabilidades Numéricas (p = 1/${trainingState.S})`,
+            description: 'Preencha a probabilidade numérica de cada cor.',
+          };
+        }
+        if (phase === 'completed') {
+          return {
+            title: `Treino ${trainingState.currentTraining} concluído!`,
+          };
+        }
+      }
+      if (sub === 6.201 && s2SpinReflection.phase === 'betting') {
+        return { title: 'Primeiro giro', description: 'Clique no setor da cor em que deseja apostar.' };
+      }
+      if (sub === 6.201 && s2SpinReflection.phase === 'spinning') {
+        return { title: 'Primeiro giro', description: `Você apostou em ${s2SpinReflection.bet1Color}. Agora clique em Sortear para girar o disco.` };
+      }
+      if (sub === 6.202 && !gameState.isSpinning) {
+        return {
+          title: `Foi sorteada a cor ${s2SpinReflection.spin1Color}`,
+          description: 'Se você fosse apostar novamente, o que faria? (Opções: Apostaria nela; Não apostaria; Apostaria em outra cor; Sempre apostaria no maior setor)',
+        };
+      }
+      if (sub === 6.204) {
+        return {
+          title: `Foi sorteada a cor ${s2SpinReflection.spin2Color}`,
+          description: 'Se você fosse apostar novamente, o que faria? (Opções: Apostaria nela; Não apostaria; Apostaria em outra cor; Sempre apostaria no maior setor)',
+        };
+      }
+      if (sub === 6.205) {
+        return {
+          title: 'Suas decisões',
+          description: 'Em um disco, setores maiores possuem maior área e, portanto, maior probabilidade de serem sorteados. A probabilidade está diretamente relacionada ao tamanho do setor, e não ao resultado anterior.',
+        };
+      }
+      if (sub === 7 && typeof s2AngleReadingStep === 'number') {
+        if (s2AngleReadingStep === 0) return { title: 'Leitura progressiva — passo 1', description: 'O disco representa todos os resultados possíveis do experimento. Por isso, a probabilidade de o ponteiro parar em algum setor é 1.' };
+        if (s2AngleReadingStep === 1) return { title: 'Leitura progressiva — passo 2', description: 'Observe que cada setor ocupa uma parte do disco e que quanto maior o ângulo central do setor, maior é a sua área.' };
+        if (s2AngleReadingStep === 2) return { title: 'Leitura progressiva — passo 3', description: 'Como as probabilidades são proporcionais às áreas, podemos comparar cada setor com o disco completo.' };
+        if (s2AngleReadingStep === 3) return { title: 'Leitura progressiva — passo 4', description: 'Assim, para calcular a probabilidade de um setor ser sorteado, basta dividir a medida do seu ângulo central por 360°, que é o ângulo total do disco.' };
+        if (s2AngleReadingStep === 4) return { title: 'Pergunta de ativação (90°)', description: 'Se um setor mede 90°, qual fração do disco ele representa? (Opções: 90/360; 1/90; 360/90)' };
+        if (s2AngleReadingStep >= 5) return { title: 'Probabilidade Angular (θ/360)', description: 'Estamos comparando cada setor com o disco completo (360°).' };
+      }
+      if (sub === 8 && fracTraining?.currentTraining > 0) {
+        return {
+          title: `Frequência Relativa e Probabilidade — Treino ${fracTraining.currentTraining} de 5`,
+          description: 'Ao girar o disco ao acaso um número muito grande de vezes (superior a 1 bilhão), determine a probabilidade de cada cor, isto é, o valor para o qual tende a frequência relativa.',
+        };
+      }
+      if (sub === 8.7) {
+        return {
+          title: 'Simulação e Convergência das Frequências Relativas',
+          description: 'Comece com poucos giros para perceber a variação. Depois, avance para blocos maiores e observe a convergência. Observe como a diferença entre a frequência relativa e a probabilidade teórica diminui à medida que o número de giros aumenta.',
+        };
+      }
+      if (sub === 9 && gameState.pendingRegistration) {
+        return { title: 'Registre a cor que saiu', description: 'Clique no botão correspondente à cor sorteada no disco.' };
+      }
+      if (sub === 9.1) {
+        return { title: 'Verificação das Frequências Absolutas', description: 'Preencha a frequência absoluta observada para cada cor.' };
+      }
+      if (sub === 9.3) {
+        return { title: 'Frequência Relativa', description: 'Calcule a frequência relativa de cada cor com base nas frequências absolutas observadas.' };
+      }
+      if (sub === 11) {
+        return { title: 'Conclusão', description: 'À medida que o número de giros aumenta, as frequências relativas se aproximam de quais valores?' };
+      }
+      if (sub === 12) {
+        return { title: 'Etapa 2 Concluída!', description: 'Você explorou frequências relativas e a Lei dos Grandes Números.' };
+      }
+    }
+    if (stage === 3) {
+      if (sub === 0.5 && !showInfoBox) {
+        return { title: 'Previsão inicial', description: 'Observando o disco, qual cor parece ocupar mais espaço?' };
+      }
+      if (sub === 1) {
+        return { title: 'Faça sua aposta!', description: 'Clique em um setor do disco para apostar em uma cor. Escolha a cor que você acha que tem maior probabilidade de ser sorteada.' };
+      }
+      if (sub === 1.75) {
+        return { title: 'Observe os setores', description: 'Quantos setores de cada cor existem no disco?' };
+      }
+      if (sub === 2) {
+        return { title: 'Probabilidade de cada cor', description: 'Ao girar aleatoriamente o disco apresentado, calcule a probabilidade de o ponteiro parar em cada uma das cores indicadas.' };
+      }
+      if (sub === 8.1) {
+        return {
+          title: 'Observe os resultados do disco',
+          description: `Você havia escolhido a cor ${s3State.betColor}. Agora observe alguns resultados. Gire o disco 5 vezes. (Giro ${s3State.spinCount} de 5)`,
+        };
+      }
+      if (sub === 8.3) {
+        return { title: 'Faça sua aposta novamente', description: `Com base nos resultados observados, você pode manter ou mudar sua aposta. Aposta anterior: ${s3State.betColor}.` };
+      }
+      if (sub === 8.5) {
+        return {
+          title: 'Falácia do Jogador',
+          description: `A Falácia do Jogador ocorre quando acreditamos que resultados passados influenciam resultados futuros em experimentos aleatórios independentes. Essa probabilidade permanece sempre a mesma: P(setor) = 1/${s3State.n}.`,
+        };
+      }
+      if (sub === 9) {
+        return { title: 'Sua jornada na Etapa 3', description: 'Síntese da previsão, aposta, falácia do jogador e conceito-chave (espaço dos setores equiprovável vs. espaço das cores).' };
+      }
+      if (sub === 10) {
+        return { title: 'Atividade Concluída!', description: 'Você explorou espaços equiprováveis e não equiprováveis, identificou vieses cognitivos e refletiu sobre suas escolhas.' };
+      }
+      if (sub === 11) {
+        return { title: 'Reflexão para o próximo desafio', description: 'Ao lançar um dado justo, cada face tem probabilidade 1/6. Será que ao somar dois dados, todas as somas têm a mesma chance?' };
+      }
+    }
+    // Cards cross-stage
+    if (sub === 8.5 && stage !== 3 && freqAbsQuestion) {
+      return {
+        title: 'Frequência Absoluta',
+        description: `A frequência absoluta de um evento é o número de ocorrências desse evento em n repetições de um experimento aleatório. Qual é a frequência absoluta do setor de cor ${freqAbsQuestion.color} após ${gameState.totalSpins} giros do disco?`,
+      };
+    }
+    if (sub === 8.6) {
+      if (freqRelConceptPhase === 'definition') {
+        return {
+          title: 'Frequência Relativa — Definição',
+          description: 'Frequência relativa de um evento é a proporção entre o número de ocorrências do evento e o total de repetições do experimento, podendo ser expressa como fração, número decimal ou porcentagem. É a porcentagem de vezes em que um evento ocorreu após determinado número de giros, no caso particular do disco.',
+        };
+      }
+      if (freqRelConceptPhase === 'example') {
+        return {
+          title: 'Frequência Relativa — Exemplo',
+          description: `Se uma cor apareceu 3 vezes em ${gameState.totalSpins} giros, então 3/${gameState.totalSpins} = ${(3 / gameState.totalSpins).toFixed(3).replace('.', ',')} ≈ ${((3 / gameState.totalSpins) * 100).toFixed(1).replace('.', ',')}%. Agora é a sua vez de calcular as frequências relativas observando a tabela.`,
+        };
+      }
+    }
+    if (sub === 14 && interpretationPhase !== 'done') {
+      if (interpretationPhase === 'q1') return { title: 'Interpretação dos Resultados — Q1', description: 'Todos os setores tiveram frequências relativas iguais no experimento? (Sim / Não)' };
+      if (interpretationPhase === 'q2') return { title: 'Interpretação dos Resultados — Q2', description: `As frequências relativas ficaram muito próximas da probabilidade teórica (1/${gameState.targetSectorCount})? (Sim / Não)` };
+      if (interpretationPhase === 'q3') return { title: 'Interpretação dos Resultados — Q3', description: `Por qual motivo as frequências relativas não ficaram exatamente iguais a 1/${gameState.targetSectorCount}?` };
+      if (interpretationPhase === 'feedback') return { title: 'Interpretação dos Resultados — feedback', description: 'A variabilidade amostral diminui quando o número de repetições cresce, mas não desaparece completamente. A Lei dos Grandes Números afirma apenas que os valores tendem a se aproximar.' };
+    }
+    if (sub === 15) {
+      return { title: 'Consolidação: Lei dos Grandes Números' };
+    }
+    if (stage === 1 && (sub === 15.6 || sub === 15.7)) {
+      return {
+        title: 'Generalização: Dado de 6 Faces',
+        description: 'A Lei dos Grandes Números funciona apenas com o disco? Vamos testar com outro experimento aleatório.',
+      };
+    }
+    return null;
+  })();
+  if (customCard) {
+    descricaoParts.push(`Card: ${stripText(customCard.title, 120)}`);
+    if (customCard.description) {
+      descricaoParts.push(`(${stripText(customCard.description, 300)})`);
+    }
   }
   const baseInstructions = descricaoParts.join(' || ');
   // Sufixos de CONTEXTO DO ALUNO — anexados ao final pra que, lendo só
@@ -592,7 +1066,11 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
   // Opção atualmente marcada (radio/dropdown da pergunta corrente). Útil
   // em quase TODOS os subSteps com múltipla escolha. Traduz pro label
   // legível em vez do value interno.
-  if (selectedOption) {
+  // Mesmo gate da pergunta — `selectedOption` PERSISTE entre subSteps
+  // (não é resetado nos handlers que avançam). Sem gate, mostraria a
+  // opção marcada na pergunta anterior em telas que não têm pergunta
+  // (ex.: Experimentação Tentativa 1.17).
+  if (isQuestionActiveSubStep && selectedOption) {
     contextTags.push(`opção marcada: "${labelOfOption(selectedOption, currentQuestion)}"`);
   }
   if (gameState.stage === 2 && s2SpinReflection.bet1Color) {
@@ -631,34 +1109,79 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
   // Resultado: ids tipo `roulette-stage-1-sub6.55-disj=selecting_A`
   // quando a fase está ativa, ou `roulette-stage-1-sub0.1` quando não há
   // sub-fase ativa.
+  // CADA phase marker tem um valor DEFAULT que parece ativo (ex.: 'init',
+  // 'definition1', 'intro', 'sum_question', 0, -1). Sem gatear pelo subStep
+  // onde a phase é DE FATO usada, o id ficava com lixo do tipo
+  // `union=definition1,comp=intro,ratio=init,ix=sum_question,...` mesmo em
+  // SubStep 6 (Probabilidade de Cada Cor) que não tem nada a ver com isso.
+  // Cada gate abaixo restringe a phase ao seu range de subStep relevante.
   const phaseMarkers: string[] = [];
-  if (disjointExercisePhase && disjointExercisePhase !== 'none') {
+  const _stage = gameState.stage;
+  const _sub = gameState.subStep;
+  // disjoint phase — Stage 1 SubStep 6.55 (exercício de eventos disjuntos)
+  if (_stage === 1 && _sub === 6.55 && disjointExercisePhase && disjointExercisePhase !== 'none') {
     phaseMarkers.push(`disj=${disjointExercisePhase}`);
   }
-  if (unionPhase) phaseMarkers.push(`union=${unionPhase}`);
-  if (compPhase) phaseMarkers.push(`comp=${compPhase}`);
-  if (s2RatioPhase) phaseMarkers.push(`ratio=${s2RatioPhase}`);
-  if (s2IxPhase) phaseMarkers.push(`ix=${s2IxPhase}`);
-  if (typeof s2IxCalcStep === 'number') phaseMarkers.push(`ixCalc=${s2IxCalcStep}`);
-  if (s2SpinReflection?.phase) phaseMarkers.push(`spinRefl=${s2SpinReflection.phase}`);
-  if (typeof s2AngleReadingStep === 'number') phaseMarkers.push(`angleRead=${s2AngleReadingStep}`);
-  if (typeof progressiveReadingStep === 'number') phaseMarkers.push(`progRead=${progressiveReadingStep}`);
-  if (freqRelConceptPhase) phaseMarkers.push(`freqRel=${freqRelConceptPhase}`);
-  if (interpretationPhase) phaseMarkers.push(`interp=${interpretationPhase}`);
-  if (lgnPhase) phaseMarkers.push(`lgn=${lgnPhase}`);
-  if (trainingState?.phase && trainingState.active) {
+  // union phase — Stage 1 SubStep 6.56 (probabilidade da união)
+  if (_stage === 1 && _sub === 6.56 && unionPhase) {
+    phaseMarkers.push(`union=${unionPhase}`);
+  }
+  // comp phase — Stage 1 SubSteps 6.85-6.93 (eventos complementares)
+  if (_stage === 1 && _sub >= 6.85 && _sub <= 6.93 && compPhase) {
+    phaseMarkers.push(`comp=${compPhase}`);
+  }
+  // s2RatioPhase — Stage 2 SubStep 3 (razões angulares)
+  if (_stage === 2 && _sub === 3 && s2RatioPhase) {
+    phaseMarkers.push(`ratio=${s2RatioPhase}`);
+  }
+  // s2IxPhase + s2IxCalcStep — Stage 2 SubStep 4 (probabilidades i·p)
+  if (_stage === 2 && _sub === 4) {
+    if (s2IxPhase) phaseMarkers.push(`ix=${s2IxPhase}`);
+    if (s2IxPhase === 'guided_calc' && typeof s2IxCalcStep === 'number') {
+      phaseMarkers.push(`ixCalc=${s2IxCalcStep}`);
+    }
+  }
+  // s2SpinReflection — Stage 2 SubSteps 6.201-6.205 (giros reflexivos)
+  if (_stage === 2 && _sub >= 6.201 && _sub <= 6.205 && s2SpinReflection?.phase) {
+    phaseMarkers.push(`spinRefl=${s2SpinReflection.phase}`);
+  }
+  // s2AngleReadingStep — Stage 2 SubStep 7 (leitura angular θ/360).
+  // Default é -1 ("não iniciado") — só interessa quando >= 0.
+  if (_stage === 2 && _sub === 7 && typeof s2AngleReadingStep === 'number' && s2AngleReadingStep >= 0) {
+    phaseMarkers.push(`angleRead=${s2AngleReadingStep}`);
+  }
+  // progressiveReadingStep — Stage 2 SubStep 2.9 (leitura progressiva)
+  if (_stage === 2 && _sub === 2.9 && typeof progressiveReadingStep === 'number') {
+    phaseMarkers.push(`progRead=${progressiveReadingStep}`);
+  }
+  // freqRelConceptPhase — SubStep 8.6 (conceito de frequência relativa)
+  if (_sub === 8.6 && freqRelConceptPhase) {
+    phaseMarkers.push(`freqRel=${freqRelConceptPhase}`);
+  }
+  // interpretationPhase — SubStep 14 (interpretação dos resultados)
+  if (_sub === 14 && interpretationPhase) {
+    phaseMarkers.push(`interp=${interpretationPhase}`);
+  }
+  // lgnPhase — SubStep 15 (Lei dos Grandes Números)
+  if (_sub === 15 && lgnPhase) {
+    phaseMarkers.push(`lgn=${lgnPhase}`);
+  }
+  // trainingState — Stage 2 (treinos de razão e probabilidade)
+  if (_stage === 2 && trainingState?.phase && trainingState.active) {
     phaseMarkers.push(`train=${trainingState.phase}`);
   }
-  if (typeof fracTraining?.currentTraining === 'number' && fracTraining.currentTraining > 0) {
+  // fracTraining — Stage 2 SubStep 8 (treinos de fração θ/360)
+  if (_stage === 2 && _sub === 8 && typeof fracTraining?.currentTraining === 'number' && fracTraining.currentTraining > 0) {
     phaseMarkers.push(`fracTrain=${fracTraining.currentTraining}`);
   }
-  if (typeof compCalcExampleNum === 'number' && compCalcExampleNum > 0) {
+  // compCalcExampleNum — Stage 1 SubSteps 6.85-6.93 (junto com compPhase)
+  if (_stage === 1 && _sub >= 6.85 && _sub <= 6.93 && typeof compCalcExampleNum === 'number' && compCalcExampleNum > 0) {
     phaseMarkers.push(`compCalc=${compCalcExampleNum}`);
   }
   const phaseSuffix = phaseMarkers.length > 0 ? `-${phaseMarkers.join(',')}` : '';
   useTelemetryExercise(
     `roulette-stage-${gameState.stage}-sub${gameState.subStep}${phaseSuffix}`,
-    stageInfo.title,
+    liveTitle,
     liveDescricao,
     isActiveStage,
   );
@@ -1326,14 +1849,23 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
               </p>
               <div className="flex flex-col gap-y-micro mb-macro">
                 {randomExperimentCharacteristics.map((characteristic, index) => (
-                  <label
+                  <div
                     key={index}
+                    role="checkbox"
+                    aria-checked={selectedCharacteristics.includes(index)}
+                    tabIndex={0}
                     className={`flex items-start gap-x-micro p-micro rounded-md cursor-pointer transition-colors ${
                       selectedCharacteristics.includes(index)
                         ? 'bg-brand-otimath-lightest border border-brand-otimath-pure'
                         : 'bg-neutral-lightest border border-neutral-lighter hover:bg-neutral-lighter'
                     }`}
                     onClick={() => toggleCharacteristic(index)}
+                    onKeyDown={(e) => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        toggleCharacteristic(index);
+                      }
+                    }}
                   >
                     <div className={`w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center mt-0.5 ${
                       selectedCharacteristics.includes(index)
@@ -1341,11 +1873,11 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
                         : 'bg-neutral-white border-neutral-medium'
                     }`}>
                       {selectedCharacteristics.includes(index) && (
-                        <Check size={14} className="text-neutral-white" />
+                        <Check size={14} className="text-neutral-white" aria-hidden="true" />
                       )}
                     </div>
                     <span className="ds-small text-neutral-darkest">{characteristic}</span>
-                  </label>
+                  </div>
                 ))}
               </div>
               <p className="ds-caption text-neutral-dark mb-micro">

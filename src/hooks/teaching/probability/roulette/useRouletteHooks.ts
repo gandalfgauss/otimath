@@ -14,6 +14,7 @@ import { AlertType } from '@/components/global/Alert';
 import { logTransition, logAttempt, logText, logBet, logSpinResult, downloadLog, getLogSummary } from './useRouletteLog';
 import {
   telemetryRecordRegistro,
+  telemetryRecordErro,
   telemetryRecordInteracaoExercicio,
   telemetryRecordAtomicInteraction,
   telemetryUpdateSectionMeta,
@@ -4042,64 +4043,169 @@ export const useRouletteHooks = () => {
     return parts.join(', ');
   };
 
+  // Mapa (stage, subStep) → conjunto de KEYS do studentInputRef que são
+  // RELEVANTES pra essa tela. Quando o validator não passa o 5º param
+  // explícito, o wrapper usa esse mapa pra sintetizar APENAS os inputs
+  // ativos no subStep atual — em vez de varrer todos os campos do ref
+  // (que carrega lixo de subSteps anteriores, ex.: "opção marcada:
+  // Equiprovável" do SubStep 5 aparecendo no acerto do SubStep 6).
+  //
+  // Convenção: se uma entrada não existir no mapa, o wrapper cai pro
+  // comportamento antigo (varre tudo) — assim não quebra subSteps que
+  // ainda não foram catalogados aqui.
+  const relevantInputsBySubStep = (stage: number, sub: number): Set<string> | null => {
+    if (stage === 1) {
+      if (sub === 1) return new Set(['selectedOption']);
+      if (sub === 1.25) return new Set(['selectedCharacteristics']);
+      if (sub === 2) return new Set(['sampleSpaceText']);
+      if (sub === 3) return new Set(['sampleSpaceCount']);
+      if (sub === 4 || sub === 5) return new Set(['selectedOption']);
+      if (sub === 5.7) return new Set(['theoreticalQuestion1Text']);
+      if (sub === 6) return new Set(['probInputs']);
+      if (sub === 6.1) return new Set(['favorableCasesText']);
+      // 6.41 e 6.6/6.55 (eventos disjuntos): aluno SELECIONA SETORES no disco — não há
+      // campo no studentInputRef que cubra isso. Set vazio → wrapper não sintetiza nada
+      // (cai pro fallback do título). Validators desses subSteps que querem coletar a
+      // resposta DEVEM passar o 5º param explícito com os setores selecionados.
+      if (sub === 6.41 || sub === 6.55 || sub === 6.6) return new Set();
+      if (sub === 6.42) return new Set(['exerciseNEText']);
+      if (sub === 6.43) return new Set(['exerciseNSText']);
+      if (sub === 6.44 || sub === 6.68) return new Set(['exercisePENumText', 'exercisePEDenText']);
+      // 6.85, 6.86, 6.90, 6.91 — seleção de setores p/ A e Ā (eventos complementares).
+      // Idem: validators explícitos.
+      if (sub === 6.85 || sub === 6.86 || sub === 6.90 || sub === 6.91) return new Set();
+      // 6.56: união de eventos — seleção de setores p/ cada evento, depois frações.
+      if (sub === 6.56) return new Set();
+      // 6.88, 6.93: cadeia de cálculo P(Ā) — frações específicas (não no ref).
+      if (sub === 6.88 || sub === 6.93) return new Set();
+      if (sub === 6.5) return new Set(['predictionText']);
+      if (sub === 6.66) return new Set(['exerciseNEText']);
+      if (sub === 6.67) return new Set(['exerciseNSText']);
+      if (sub === 6.5 || sub === 7.5 || sub === 9.2) return new Set(['selectedOption']);
+      if (sub === 9) return new Set(['countInputs']);
+      if (sub === 9.5) return new Set(['favorableCasesText']); // freqRelInput, mas não está no ref; fallback
+      if (sub === 11) return new Set(['convergenceText']);
+      if (sub === 12) return new Set(['theoreticalQuestion1Text']);
+      if (sub === 13) return new Set(['theoreticalQuestion2Text']);
+    }
+    if (stage === 2) {
+      if (sub === 2) return new Set(['sampleSpaceText']);
+      if (sub === 2.1) return new Set(['sampleSpaceCount']);
+      if (sub === 2.2 || sub === 2.3 || sub === 2.4 || sub === 9.2) return new Set(['selectedOption']);
+      if (sub === 3) return new Set(['s2RatioInputs', 's2ReasoningText']);
+      if (sub === 4) return new Set(['s2IxInputs', 's2SumEquationText']);
+      if (sub === 5) return new Set(['s2SumEquationText']);
+      if (sub === 5.2) return new Set(['s2XText']);
+      if (sub === 6) return new Set(['s2NumProbInputs']);
+      if (sub === 7) return new Set(['s2AngleProbInputs', 'selectedOption']);
+      if (sub === 8) return new Set(['fracThetaInputs']);
+      if (sub === 9.1) return new Set(['s2FreqAbsInputs']);
+      if (sub === 9.3) return new Set(['s2FreqRelInputs']);
+      if (sub === 11) return new Set(['s2ConclusionText']);
+      // Treinos têm inputs próprios — quando ativos, mostram só esses
+    }
+    if (stage === 3) {
+      if (sub === 1.5 || sub === 3 || sub === 4 || sub === 5 || sub === 6 || sub === 7 || sub === 8 || sub === 8.2 || sub === 8.4) {
+        return new Set(['selectedOption']);
+      }
+      if (sub === 1.75) return new Set(['colorCountInputs']);
+    }
+    return null;
+  };
+
   const createAlert = useCallback((title: string, message: string, type: AlertType, duration?: number, userResponse?: string) => {
     let resolved = userResponse;
     if (resolved === undefined) {
       const s = studentInputRef.current;
+      const { stage, subStep } = gameStateRef.current;
+      const relevant = relevantInputsBySubStep(stage, subStep);
+      const allow = (key: string): boolean => relevant === null || relevant.has(key);
       const parts: string[] = [];
-      if (s.selectedOption) {
-        // SEMPRE traduz pra label legível (não o value interno).
+      if (allow('selectedOption') && s.selectedOption) {
         const label = labelOfOption(s.selectedOption, s.currentQuestion);
         parts.push(`opção marcada: "${label}"`);
       }
-      if (s.sampleSpaceText.trim()) parts.push(`espaço amostral digitado: "${s.sampleSpaceText.trim()}"`);
-      if (s.sampleSpaceCount.trim()) parts.push(`quantidade digitada: "${s.sampleSpaceCount.trim()}"`);
-      if (s.predictionText.trim()) parts.push(`previsão digitada: "${s.predictionText.trim()}"`);
-      if (s.selectedCharacteristics.length > 0) parts.push(`características marcadas: [${s.selectedCharacteristics.map(i => i + 1).join(', ')}]`);
+      if (allow('sampleSpaceText') && s.sampleSpaceText.trim()) parts.push(`espaço amostral digitado: "${s.sampleSpaceText.trim()}"`);
+      if (allow('sampleSpaceCount') && s.sampleSpaceCount.trim()) parts.push(`quantidade digitada: "${s.sampleSpaceCount.trim()}"`);
+      if (allow('predictionText') && s.predictionText.trim()) parts.push(`previsão digitada: "${s.predictionText.trim()}"`);
+      if (allow('selectedCharacteristics') && s.selectedCharacteristics.length > 0) parts.push(`características marcadas: [${s.selectedCharacteristics.map(i => i + 1).join(', ')}]`);
       // Inputs simples (textos curtos).
-      if (s.s2SumEquationText.trim()) parts.push(`soma das probs: "${s.s2SumEquationText.trim()}"`);
-      if (s.s2XText.trim()) parts.push(`x (valor de p): "${s.s2XText.trim()}"`);
-      if (s.s2ReasoningText.trim()) parts.push(`raciocínio: "${s.s2ReasoningText.trim()}"`);
-      if (s.s2ConclusionText.trim()) parts.push(`conclusão: "${s.s2ConclusionText.trim()}"`);
-      if (s.trainSumText.trim()) parts.push(`treino soma: "${s.trainSumText.trim()}"`);
-      if (s.convergenceText.trim()) parts.push(`convergência: "${s.convergenceText.trim()}"`);
-      if (s.theoreticalQuestion1Text.trim()) parts.push(`teórica Q1: "${s.theoreticalQuestion1Text.trim()}"`);
-      if (s.theoreticalQuestion2Text.trim()) parts.push(`teórica Q2: "${s.theoreticalQuestion2Text.trim()}"`);
-      if (s.favorableCasesText.trim()) parts.push(`casos favoráveis: "${s.favorableCasesText.trim()}"`);
-      if (s.exerciseNEText.trim() || s.exerciseNSText.trim()) parts.push(`n(E)=${s.exerciseNEText.trim() || '_'}, n(S)=${s.exerciseNSText.trim() || '_'}`);
-      if (s.exercisePENumText.trim() || s.exercisePEDenText.trim()) parts.push(`P(E)=${s.exercisePENumText.trim() || '_'}/${s.exercisePEDenText.trim() || '_'}`);
-      if (s.diceText.trim()) parts.push(`dado: "${s.diceText.trim()}"`);
-      if (s.lgnText.trim()) parts.push(`LGN: "${s.lgnText.trim()}"`);
+      if (allow('s2SumEquationText') && s.s2SumEquationText.trim()) parts.push(`soma das probs: "${s.s2SumEquationText.trim()}"`);
+      if (allow('s2XText') && s.s2XText.trim()) parts.push(`x (valor de p): "${s.s2XText.trim()}"`);
+      if (allow('s2ReasoningText') && s.s2ReasoningText.trim()) parts.push(`raciocínio: "${s.s2ReasoningText.trim()}"`);
+      if (allow('s2ConclusionText') && s.s2ConclusionText.trim()) parts.push(`conclusão: "${s.s2ConclusionText.trim()}"`);
+      if (allow('trainSumText') && s.trainSumText.trim()) parts.push(`treino soma: "${s.trainSumText.trim()}"`);
+      if (allow('convergenceText') && s.convergenceText.trim()) parts.push(`convergência: "${s.convergenceText.trim()}"`);
+      if (allow('theoreticalQuestion1Text') && s.theoreticalQuestion1Text.trim()) parts.push(`teórica Q1: "${s.theoreticalQuestion1Text.trim()}"`);
+      if (allow('theoreticalQuestion2Text') && s.theoreticalQuestion2Text.trim()) parts.push(`teórica Q2: "${s.theoreticalQuestion2Text.trim()}"`);
+      if (allow('favorableCasesText') && s.favorableCasesText.trim()) parts.push(`casos favoráveis: "${s.favorableCasesText.trim()}"`);
+      if ((allow('exerciseNEText') || allow('exerciseNSText')) && (s.exerciseNEText.trim() || s.exerciseNSText.trim())) {
+        const nE = allow('exerciseNEText') ? s.exerciseNEText.trim() : '';
+        const nS = allow('exerciseNSText') ? s.exerciseNSText.trim() : '';
+        if (nE || nS) parts.push(`n(E)=${nE || '_'}, n(S)=${nS || '_'}`);
+      }
+      if ((allow('exercisePENumText') || allow('exercisePEDenText')) && (s.exercisePENumText.trim() || s.exercisePEDenText.trim())) {
+        parts.push(`P(E)=${s.exercisePENumText.trim() || '_'}/${s.exercisePEDenText.trim() || '_'}`);
+      }
+      if (allow('diceText') && s.diceText.trim()) parts.push(`dado: "${s.diceText.trim()}"`);
+      if (allow('lgnText') && s.lgnText.trim()) parts.push(`LGN: "${s.lgnText.trim()}"`);
       // Inputs POR COR — só lista os que têm valor.
-      const probColor = summarizeColorInputs(s.probInputs);
-      if (probColor) parts.push(`P por cor: {${probColor}}`);
-      const countColor = summarizeColorInputs(s.countInputs);
-      if (countColor) parts.push(`freq.rel. por cor: {${countColor}}`);
-      const ratioColor = summarizeColorInputs(s.s2RatioInputs);
-      if (ratioColor) parts.push(`razões por cor: {${ratioColor}}`);
-      const ixColor = summarizeColorInputs(s.s2IxInputs);
-      if (ixColor) parts.push(`i·p por cor: {${ixColor}}`);
-      const numProbColor = summarizeColorInputs(s.s2NumProbInputs);
-      if (numProbColor) parts.push(`P numérica por cor: {${numProbColor}}`);
-      const angleProbColor = summarizeColorInputs(s.s2AngleProbInputs);
-      if (angleProbColor) parts.push(`P angular por cor: {${angleProbColor}}`);
-      const freqAbsColor = summarizeColorInputs(s.s2FreqAbsInputs);
-      if (freqAbsColor) parts.push(`freq.abs. por cor: {${freqAbsColor}}`);
-      const freqRelColor = summarizeColorInputs(s.s2FreqRelInputs);
-      if (freqRelColor) parts.push(`freq.rel. (s2) por cor: {${freqRelColor}}`);
-      const trainRatioColor = summarizeColorInputs(s.trainRatioInputs);
-      if (trainRatioColor) parts.push(`treino razões: {${trainRatioColor}}`);
-      const trainIxColor = summarizeColorInputs(s.trainIxInputs);
-      if (trainIxColor) parts.push(`treino i·p: {${trainIxColor}}`);
-      const trainProbColor = summarizeColorInputs(s.trainProbInputs);
-      if (trainProbColor) parts.push(`treino P por cor: {${trainProbColor}}`);
-      const colorCountColor = summarizeColorInputs(s.colorCountInputs);
-      if (colorCountColor) parts.push(`contagem por cor: {${colorCountColor}}`);
-      const fracThetaColor = summarizeColorInputs(s.fracThetaInputs);
-      if (fracThetaColor) parts.push(`θ/360 por cor: {${fracThetaColor}}`);
-      // Slider só entra como fallback quando nada mais foi setado —
-      // senão polui em cenas onde o slider é só decoração de tela anterior.
-      if (parts.length === 0 && s.sliderValue !== 1) parts.push(`slider em ${s.sliderValue}`);
+      if (allow('probInputs')) {
+        const probColor = summarizeColorInputs(s.probInputs);
+        if (probColor) parts.push(`P por cor: {${probColor}}`);
+      }
+      if (allow('countInputs')) {
+        const countColor = summarizeColorInputs(s.countInputs);
+        if (countColor) parts.push(`freq.rel. por cor: {${countColor}}`);
+      }
+      if (allow('s2RatioInputs')) {
+        const ratioColor = summarizeColorInputs(s.s2RatioInputs);
+        if (ratioColor) parts.push(`razões por cor: {${ratioColor}}`);
+      }
+      if (allow('s2IxInputs')) {
+        const ixColor = summarizeColorInputs(s.s2IxInputs);
+        if (ixColor) parts.push(`i·p por cor: {${ixColor}}`);
+      }
+      if (allow('s2NumProbInputs')) {
+        const numProbColor = summarizeColorInputs(s.s2NumProbInputs);
+        if (numProbColor) parts.push(`P numérica por cor: {${numProbColor}}`);
+      }
+      if (allow('s2AngleProbInputs')) {
+        const angleProbColor = summarizeColorInputs(s.s2AngleProbInputs);
+        if (angleProbColor) parts.push(`P angular por cor: {${angleProbColor}}`);
+      }
+      if (allow('s2FreqAbsInputs')) {
+        const freqAbsColor = summarizeColorInputs(s.s2FreqAbsInputs);
+        if (freqAbsColor) parts.push(`freq.abs. por cor: {${freqAbsColor}}`);
+      }
+      if (allow('s2FreqRelInputs')) {
+        const freqRelColor = summarizeColorInputs(s.s2FreqRelInputs);
+        if (freqRelColor) parts.push(`freq.rel. (s2) por cor: {${freqRelColor}}`);
+      }
+      if (allow('trainRatioInputs')) {
+        const trainRatioColor = summarizeColorInputs(s.trainRatioInputs);
+        if (trainRatioColor) parts.push(`treino razões: {${trainRatioColor}}`);
+      }
+      if (allow('trainIxInputs')) {
+        const trainIxColor = summarizeColorInputs(s.trainIxInputs);
+        if (trainIxColor) parts.push(`treino i·p: {${trainIxColor}}`);
+      }
+      if (allow('trainProbInputs')) {
+        const trainProbColor = summarizeColorInputs(s.trainProbInputs);
+        if (trainProbColor) parts.push(`treino P por cor: {${trainProbColor}}`);
+      }
+      if (allow('colorCountInputs')) {
+        const colorCountColor = summarizeColorInputs(s.colorCountInputs);
+        if (colorCountColor) parts.push(`contagem por cor: {${colorCountColor}}`);
+      }
+      if (allow('fracThetaInputs')) {
+        const fracThetaColor = summarizeColorInputs(s.fracThetaInputs);
+        if (fracThetaColor) parts.push(`θ/360 por cor: {${fracThetaColor}}`);
+      }
+      // Slider só entra como fallback quando nada mais foi setado.
+      if (parts.length === 0 && allow('sliderValue') && s.sliderValue !== 1) {
+        parts.push(`slider em ${s.sliderValue}`);
+      }
       if (parts.length > 0) resolved = parts.join(' | ');
     }
     _createAlert(title, message, type, duration, resolved);
@@ -4627,7 +4733,7 @@ export const useRouletteHooks = () => {
         } else {
           playSound("/sounds/incorrect.mp3");
           setTrainRatioInputs(prev => ({ ...prev, [color]: { ...prev[color], error: true } }));
-          createAlert("Tente novamente.", `Divida ${tAngles[tIdx]}° por ${tM}°.`, "error", 3000);
+          createAlert("Tente novamente.", `Divida ${tAngles[tIdx]}° por ${tM}°.`, "error", 3000, `[${color}] digitou: "${userVal}"`);
         }
         return;
       }
@@ -4655,7 +4761,7 @@ export const useRouletteHooks = () => {
         } else {
           playSound("/sounds/incorrect.mp3");
           setTrainIxInputs(prev => ({ ...prev, [color]: { ...prev[color], error: true } }));
-          createAlert("Tente novamente.", `Conte quantos setores da cor ${color} aparecem no disco e escreva na forma ip.`, "error", 3000);
+          createAlert("Tente novamente.", `Conte quantos setores da cor ${color} aparecem no disco e escreva na forma ip.`, "error", 3000, `[${color}] digitou: "${input?.value || ''}"`);
         }
         return;
       }
@@ -4671,7 +4777,7 @@ export const useRouletteHooks = () => {
         } else {
           playSound("/sounds/incorrect.mp3");
           setTrainSumInput(prev => ({ ...prev, error: true }));
-          createAlert("Tente novamente.", "Qual deve ser a soma das probabilidades de todos os setores?", "error", 3000);
+          createAlert("Tente novamente.", "Qual deve ser a soma das probabilidades de todos os setores?", "error", 3000, `digitou: "${val}"`);
         }
         return;
       }
@@ -4698,7 +4804,7 @@ export const useRouletteHooks = () => {
         } else {
           playSound("/sounds/incorrect.mp3");
           setTrainProbInputs(prev => ({ ...prev, [color]: { ...prev[color], error: true } }));
-          createAlert("Tente novamente.", `Use a razão ip que você preencheu antes e substitua p = 1/${tS}.`, "error", 4000);
+          createAlert("Tente novamente.", `Use a razão ip que você preencheu antes e substitua p = 1/${tS}.`, "error", 4000, `[${color}] digitou: "${input?.value || ''}"`);
         }
         return;
       }
@@ -4811,6 +4917,14 @@ export const useRouletteHooks = () => {
         const checkedTexts = selectedCharacteristics
           .map(i => `[${i + 1}] ${(RANDOM_EXPERIMENT_CHARACTERISTICS[i] ?? '').slice(0, 90)}`)
           .join(' | ');
+        // Telemetria EXPLÍCITA — o observador de alerts só captura
+        // tipos 'success'/'error'. Como esse alert é 'warning' (porque
+        // as marcadas estão certas, só incompletas), o observador
+        // ignoraria. Registramos como `erro` explicitamente porque a
+        // resposta não foi aceita — o aluno terá que tentar de novo.
+        telemetryRecordErro(
+          `marcou ${selectedCharacteristics.length}/${RANDOM_EXPERIMENT_CHARACTERISTICS.length} (incompleto): ${checkedTexts}`,
+        );
         createAlert("Correto! Mas está incompleto.", "", "warning", 4000, `marcou ${selectedCharacteristics.length}/${RANDOM_EXPERIMENT_CHARACTERISTICS.length}: ${checkedTexts}`);
       } else {
         // Nenhuma marcada
@@ -4882,7 +4996,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setSampleSpaceCountInput(prev => ({ ...prev, error: true }));
-        createAlert("Tente novamente", "Conte novamente quantas cores diferentes há no disco.", "error", 4000);
+        createAlert("Tente novamente", "Conte novamente quantas cores diferentes há no disco.", "error", 4000, `digitou: "${sampleSpaceCountInput.value}"`);
       }
       return;
     }
@@ -4971,7 +5085,10 @@ export const useRouletteHooks = () => {
 
       if (allCorrect) {
         playSound("/sounds/correct.mp3");
-        createAlert("Parabéns!", "Todas as probabilidades estão corretas!", "success", 3000);
+        const probsSummary = Object.entries(probabilityInputs)
+          .map(([c, i]) => `${c}=${i.value || '_'}`)
+          .join(', ');
+        createAlert("Parabéns!", "Todas as probabilidades estão corretas!", "success", 3000, `digitou — ${probsSummary}`);
 
         // Gerar evento composto E dinamicamente (subconjunto com 2+ elementos)
         const availableColors = [...sectors.map(s => s.colorName)];
@@ -5011,7 +5128,10 @@ export const useRouletteHooks = () => {
       } else {
         setProbabilityInputs(updatedInputs);
         playSound("/sounds/incorrect.mp3");
-        createAlert("Tente novamente", "Verifique as probabilidades. Lembre-se: em um espaço equiprovável, cada resultado tem a mesma chance.", "error", 5000);
+        const probsSummary = Object.entries(probabilityInputs)
+          .map(([c, i]) => `${c}: "${i.value || '(vazio)'}"`)
+          .join(', ');
+        createAlert("Tente novamente", "Verifique as probabilidades. Lembre-se: em um espaço equiprovável, cada resultado tem a mesma chance.", "error", 5000, `digitou — ${probsSummary}`);
       }
       return;
     }
@@ -5059,7 +5179,7 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         setFavorableCasesInput(prev => ({ ...prev, error: true }));
-        createAlert("Tente novamente", "Conte a quantidade de elementos que pertencem ao conjunto E.", "error", 4000);
+        createAlert("Tente novamente", "Conte a quantidade de elementos que pertencem ao conjunto E.", "error", 4000, `digitou: "${favorableCasesInput.value}"`);
       }
       return;
     }
@@ -5070,7 +5190,7 @@ export const useRouletteHooks = () => {
       if (!predictionText) {
         playSound("/sounds/incorrect.mp3");
         setPredictionInput(prev => ({ ...prev, error: true }));
-        createAlert("Tente novamente", "Digite sua previsão antes de verificar.", "error", 3000);
+        createAlert("Tente novamente", "Digite sua previsão antes de verificar.", "error", 3000, 'tentou conferir com previsão vazia');
         return;
       }
 
@@ -5341,9 +5461,12 @@ export const useRouletteHooks = () => {
       const allRight = selectedSorted.length === correctOnes.length &&
         selectedSorted.every((val, idx) => val === correctOnes[idx]);
 
+      const selectedSummary = selectedSorted
+        .map(i => `#${i + 1}(${sectors[i]?.colorName ?? '?'})`)
+        .join(', ');
       if (allRight) {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "Você identificou corretamente os casos favoráveis ao evento E.", "success", 3000);
+        createAlert("Correto!", "Você identificou corretamente os casos favoráveis ao evento E.", "success", 3000, `selecionou setores: ${selectedSummary}`);
 
         setGameState(prev => ({ ...prev, subStep: 6.42 }));
 
@@ -5351,7 +5474,7 @@ export const useRouletteHooks = () => {
           <p class="ds-body">Digite o número de casos favoráveis ao evento E.</p>`);
       } else {
         playSound("/sounds/incorrect.mp3");
-        createAlert("Tente novamente", "Observe as cores que compõem o evento e clique nos setores correspondentes no disco.", "error", 4000);
+        createAlert("Tente novamente", "Observe as cores que compõem o evento e clique nos setores correspondentes no disco.", "error", 4000, `selecionou setores: ${selectedSummary || '(nenhum)'}`);
       }
       return;
     }
@@ -5477,9 +5600,12 @@ export const useRouletteHooks = () => {
       const won = sortedSelected.length === sortedCorrect.length &&
         sortedSelected.every((val, idx) => val === sortedCorrect[idx]);
 
+      const challengeSelectedSummary = sortedSelected
+        .map(i => `#${i + 1}(${sectors[i]?.colorName ?? '?'})`)
+        .join(', ') || '(nenhum)';
       if (won) {
         playSound("/sounds/correct.mp3");
-        createAlert("Correto!", "Você identificou corretamente os casos favoráveis ao evento.", "success", 3000);
+        createAlert("Correto!", "Você identificou corretamente os casos favoráveis ao evento.", "success", 3000, `selecionou setores: ${challengeSelectedSummary}`);
 
         setGameState(prev => ({ ...prev, subStep: 6.65 }));
 
@@ -5492,10 +5618,10 @@ export const useRouletteHooks = () => {
       } else {
         playSound("/sounds/incorrect.mp3");
         if (challenge1InterProblemType !== null) {
-          createAlert("Tente novamente", `Observe atentamente: o evento é definido por números que são ${challenge1PropertyY}. Verifique quais setores satisfazem ambas as condições simultaneamente.`, "error", 6000);
+          createAlert("Tente novamente", `Observe atentamente: o evento é definido por números que são ${challenge1PropertyY}. Verifique quais setores satisfazem ambas as condições simultaneamente.`, "error", 6000, `selecionou setores: ${challengeSelectedSummary}`);
         } else {
           const connectiveText = challenge1Connective === 'ou' ? 'pelo menos uma das condições' : 'ambas as condições simultaneamente';
-          createAlert("Tente novamente", `Observe atentamente: o evento é definido por ${gameState.challenge1EventXText} ${challenge1Connective.toUpperCase()} número ${challenge1PropertyY}. Verifique quais setores satisfazem ${connectiveText}.`, "error", 6000);
+          createAlert("Tente novamente", `Observe atentamente: o evento é definido por ${gameState.challenge1EventXText} ${challenge1Connective.toUpperCase()} número ${challenge1PropertyY}. Verifique quais setores satisfazem ${connectiveText}.`, "error", 6000, `selecionou setores: ${challengeSelectedSummary}`);
         }
       }
       return;
@@ -7405,6 +7531,13 @@ export const useRouletteHooks = () => {
 
   // Função para alternar seleção de setor no exercício dinâmico
   const toggleSectorSelection = useCallback((sectorIndex: number) => {
+    // Telemetria FORA do updater — StrictMode dispara updaters 2x; side
+    // effects DEVEM ficar fora. Lê o estado atual via closure.
+    const wasSelected = gameState.selectedSectors.includes(sectorIndex);
+    const sectorColor = gameState.sectors[sectorIndex]?.colorName ?? '?';
+    telemetryRecordInteracaoExercicio(
+      `${wasSelected ? 'desmarcou' : 'marcou'} setor #${sectorIndex + 1} (cor: ${sectorColor}) no disco`,
+    );
     setGameState(prev => {
       const isSelected = prev.selectedSectors.includes(sectorIndex);
       const newSelected = isSelected
@@ -7412,17 +7545,25 @@ export const useRouletteHooks = () => {
         : [...prev.selectedSectors, sectorIndex];
       return { ...prev, selectedSectors: newSelected };
     });
-  }, []);
+  }, [gameState.selectedSectors, gameState.sectors]);
 
   // Função para alternar seleção de característica do experimento aleatório
   const toggleCharacteristic = useCallback((characteristicIndex: number) => {
-    setSelectedCharacteristics(prev => {
-      const isSelected = prev.includes(characteristicIndex);
-      return isSelected
+    // Telemetria FORA do updater — em React StrictMode (Next.js dev),
+    // o updater é executado 2x pra detectar side effects. Side effects
+    // (como telemetria) DEVEM ficar fora pra não duplicar. Lê o estado
+    // atual via closure (selectedCharacteristics nas deps abaixo).
+    const wasSelected = selectedCharacteristics.includes(characteristicIndex);
+    const characteristicText = RANDOM_EXPERIMENT_CHARACTERISTICS[characteristicIndex] ?? '?';
+    telemetryRecordInteracaoExercicio(
+      `${wasSelected ? 'desmarcou' : 'marcou'} característica [${characteristicIndex + 1}]: "${characteristicText.slice(0, 120)}"`
+    );
+    setSelectedCharacteristics(prev =>
+      wasSelected
         ? prev.filter(i => i !== characteristicIndex)
-        : [...prev, characteristicIndex];
-    });
-  }, []);
+        : [...prev, characteristicIndex]
+    );
+  }, [selectedCharacteristics]);
 
   // Função para fazer aposta na fase de experimentação (clique no disco)
   const handleExperimentationBet = useCallback((clickedColor: string) => {
@@ -8639,17 +8780,25 @@ export const useRouletteHooks = () => {
       <p class="ds-body">Leia a situação e selecione a alternativa que descreve corretamente o experimento aleatório.</p>`);
   }, []);
 
+  // Helper — extrai o "Exemplo: ..." da mensagem atual do balão.
+  // Usa regex pq o message é HTML simples. Fallback "?" se não casar.
+  const extractCurrentExample = (msg: string): string => {
+    const m = msg.match(/<strong>Exemplo:<\/strong>\s*(.+?)(?:<|$)/);
+    return m ? m[1].trim() : '?';
+  };
+
   // Função para mostrar mais exemplos de experimento determinístico
   const handleSeeMoreDeterministicExamples = useCallback(() => {
+    // PRIMEIRO captura o exemplo ATUAL (que o aluno estava lendo),
+    // ANTES de gerar o novo. A telemetria registra o que ele viu —
+    // não o que VAI ver. Sem isso, ficava parecendo que o aluno
+    // pediu pra trocar pelo exemplo que ainda não tinha aparecido.
+    const previousExample = extractCurrentExample(infoBoxContent?.message ?? '');
     const newExample = DETERMINISTIC_EXAMPLES[Math.floor(Math.random() * DETERMINISTIC_EXAMPLES.length)];
-    // Telemetria — cada clique em "Ver mais exemplos!" cria seu PRÓPRIO
-    // exercício atômico (1 item de histórico). Permite contar quantos
-    // exemplos o aluno consultou e ver QUAIS sem que tudo vire um único
-    // histórico misturado.
     telemetryRecordAtomicInteraction(
       'Exemplo de experimento determinístico',
-      `Aluno pediu novo exemplo de experimento determinístico. Texto exibido: "${newExample}"`,
-      `pediu novo exemplo de experimento determinístico: "${newExample}"`,
+      `Aluno estava lendo o exemplo: "${previousExample}" e clicou em "Clique para ver mais exemplos!".`,
+      `pediu novo exemplo após ler: "${previousExample}"`,
     );
     setInfoBoxContent({
       type: 'concept',
@@ -8657,15 +8806,16 @@ export const useRouletteHooks = () => {
       message: `Procedimento que, ao ser repetido nas mesmas condições, produz sempre o mesmo resultado, podendo ser previsto com certeza.<br/><br/><strong>Exemplo:</strong> ${newExample}`
     });
     setDeterministicExamplesViewed(prev => prev + 1);
-  }, []);
+  }, [infoBoxContent]);
 
   // Função para mostrar mais exemplos de experimento aleatório
   const handleSeeMoreRandomExamples = useCallback(() => {
+    const previousExample = extractCurrentExample(infoBoxContent?.message ?? '');
     const newExample = RANDOM_EXAMPLES[Math.floor(Math.random() * RANDOM_EXAMPLES.length)];
     telemetryRecordAtomicInteraction(
       'Exemplo de experimento aleatório',
-      `Aluno pediu novo exemplo de experimento aleatório. Texto exibido: "${newExample}"`,
-      `pediu novo exemplo de experimento aleatório: "${newExample}"`,
+      `Aluno estava lendo o exemplo: "${previousExample}" e clicou em "Clique para ver mais exemplos!".`,
+      `pediu novo exemplo após ler: "${previousExample}"`,
     );
     setInfoBoxContent({
       type: 'concept',
@@ -8673,12 +8823,20 @@ export const useRouletteHooks = () => {
       message: `Ação que pode ser repetida do mesmo jeito várias vezes, mas cujo resultado não é possível saber com certeza antes de acontecer, mesmo conhecendo todas as possibilidades.<br/><br/><strong>Exemplo:</strong> ${newExample}`
     });
     setRandomExamplesViewed(prev => prev + 1);
-  }, []);
+  }, [infoBoxContent]);
 
   // Função para ver mais exemplos de eventos disjuntos (subStep 6.55)
   const handleSeeMoreDisjointExamples = useCallback(() => {
     const { sectors } = gameState;
     const n = sectors.length;
+
+    // Captura o par A/B ANTERIOR (que o aluno estava lendo) ANTES de
+    // sortear o novo. Usa regex sobre a mensagem do balão atual.
+    const prevMsg = infoBoxContent?.message ?? '';
+    const prevAMatch = prevMsg.match(/A\s*=\s*([^<→]+?)\s*→\s*([^<]+)</);
+    const prevBMatch = prevMsg.match(/B\s*=\s*([^<→]+?)\s*→\s*([^<]+)</);
+    const prevA = prevAMatch ? `${prevAMatch[1].trim()} → ${prevAMatch[2].trim()}` : '?';
+    const prevB = prevBMatch ? `${prevBMatch[1].trim()} → ${prevBMatch[2].trim()}` : '?';
 
     // Gerar NOVOS números para cada exemplo (roleta se atualiza)
     const pMin = n;
@@ -8697,12 +8855,12 @@ export const useRouletteHooks = () => {
     setDisjointNeedsNumbers(exampleText.needsNumbers);
 
     // Telemetria — cada clique em "Próximo exemplo!" cria seu próprio
-    // exercício atômico com o par A/B do novo exemplo de eventos
-    // disjuntos.
+    // exercício atômico com o par A/B que o aluno ESTAVA VENDO (não o
+    // que vai ver). Captura o que motivou a ação.
     telemetryRecordAtomicInteraction(
       'Exemplo de eventos mutuamente exclusivos',
-      `Aluno pediu novo exemplo de eventos disjuntos. A = "${exampleText.textA}" → ${exampleText.setA}; B = "${exampleText.textB}" → ${exampleText.setB}`,
-      `pediu novo exemplo de eventos disjuntos: A=${exampleText.textA}, B=${exampleText.textB}`,
+      `Aluno estava lendo o exemplo: A = "${prevA}"; B = "${prevB}" e clicou em "Próximo exemplo!".`,
+      `pediu novo exemplo após ler: A="${prevA}", B="${prevB}"`,
     );
 
     setInfoBoxContent({
@@ -8713,7 +8871,7 @@ export const useRouletteHooks = () => {
 
     setLastDisjointMeta(exampleText.meta);
     setDisjointExamplesViewed(prev => prev + 1);
-  }, [gameState, lastDisjointMeta]);
+  }, [gameState, lastDisjointMeta, infoBoxContent]);
 
   // Iniciar exercício interativo de eventos disjuntos (4º exemplo)
   const handleStartDisjointExercise = useCallback(() => {
@@ -11205,16 +11363,21 @@ export const useRouletteHooks = () => {
 
   // 7. Ver mais exemplos (após 3 obrigatórios)
   const handleCompSeeMoreExamples = useCallback(() => {
+    // Captura o par A/Ā ANTERIOR (que o aluno acabou de marcar) ANTES
+    // do `handleStartCompExercise` sortear o novo. O par está em
+    // `gameState.compEventA` — vivo até a próxima chamada.
+    const prev = gameState.compEventA;
+    const prevA = prev?.textA ?? '?';
+    const prevAbar = prev?.textAbar ?? '?';
     // Telemetria — cada clique em "Ver mais exemplos" gera seu próprio
-    // exercício atômico. O `handleStartCompExercise` (chamado abaixo)
-    // gera o próximo par A/Ā.
+    // exercício atômico com o par A/Ā que o aluno ACABOU DE TRABALHAR.
     telemetryRecordAtomicInteraction(
       'Exemplo de eventos complementares',
-      'Aluno pediu novo exemplo de eventos complementares.',
-      'pediu novo exemplo de eventos complementares',
+      `Aluno estava trabalhando com A = "${prevA}", Ā = "${prevAbar}" e clicou em "Ver mais exemplos".`,
+      `pediu novo exemplo após trabalhar com A="${prevA}", Ā="${prevAbar}"`,
     );
     handleStartCompExercise();
-  }, [handleStartCompExercise]);
+  }, [handleStartCompExercise, gameState.compEventA]);
 
   // 8. Iniciar exemplo de cálculo (guiado ou independente)
   const initCompCalcExample = useCallback((guided: boolean) => {

@@ -5,6 +5,7 @@ import { Button } from '@/components/global/Button';
 import {
   telemetryEnterExercise,
   telemetryExitExercise,
+  telemetryRecordInteracaoExercicio,
 } from '@/hooks/teaching/probability/useTelemetry';
 import { playSound } from '@/hooks/global/useSound';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
@@ -1232,9 +1233,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
    * aparece confirmação metacognitiva lembrando do que ele descobriu antes. */
   const handleRaceBetClick = (carNumber: number) => {
     if (carNumber === 1 || carNumber === 13) {
+      telemetryRecordInteracaoExercicio(`tentou apostar no carrinho ${carNumber} (impossível) — abriu confirmação`);
       setRaceImpossibleConfirm(carNumber);
       return;
     }
+    telemetryRecordInteracaoExercicio(`apostou no carrinho ${carNumber}`);
     setRaceBet(carNumber);
     setRaceImpossibleConfirm(null);
     logBet('raceBet', '0', carNumber);
@@ -1244,6 +1247,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   /** Confirma aposta num carrinho impossível (aluno insistiu). */
   const confirmImpossibleBet = () => {
     if (raceImpossibleConfirm !== null) {
+      telemetryRecordInteracaoExercicio(`confirmou aposta no carrinho impossível ${raceImpossibleConfirm}`);
       setRaceBet(raceImpossibleConfirm);
       logBet('raceBet', '0', raceImpossibleConfirm);
       setRaceImpossibleConfirm(null);
@@ -1253,6 +1257,9 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
   /** Cancela aposta num carrinho impossível (aluno refletiu). */
   const cancelImpossibleBet = () => {
+    if (raceImpossibleConfirm !== null) {
+      telemetryRecordInteracaoExercicio(`cancelou aposta no carrinho impossível ${raceImpossibleConfirm}`);
+    }
     setRaceImpossibleConfirm(null);
   };
 
@@ -1317,11 +1324,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   const handleRaceCarClick = (carNumber: number) => {
     if (racePendingSum === null || raceWinner !== null) return;
     if (carNumber !== racePendingSum) {
+      telemetryRecordInteracaoExercicio(`clicou no carrinho errado ${carNumber} (soma sorteada=${racePendingSum})`);
       setRaceClickError(true);
       playSound('/sounds/incorrect.mp3');
       createAlert?.('Carrinho errado', `Some as faces dos dois dados de novo e avance o carrinho cujo número corresponde à soma.`, 'error', 3500);
       return;
     }
+    telemetryRecordInteracaoExercicio(`avançou carrinho ${carNumber} (soma sorteada=${racePendingSum})`);
     // Acertou — avança o carrinho 1 célula
     setRaceClickError(false);
     const newPositions = { ...racePositions };
