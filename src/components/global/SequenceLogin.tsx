@@ -9,38 +9,26 @@ import { Button } from '@/components/global/Button';
 /**
  * Tela de login da Sequência Didática.
  *
- * Renderizada NO LUGAR do conteúdo gateado (barra de progresso, OVAs,
- * questionário, créditos) enquanto o aluno não está logado. Banner
- * (hero), menu e rodapé continuam visíveis em volta — quem orquestra
- * isso é o `page.tsx` da sequência.
+ * Renderizada NO LUGAR do conteúdo gateado enquanto o aluno não está
+ * logado. Faz POST em `/api/auth/login` e, em sucesso, dispara `onLogin`
+ * com flag indicando se há run ativa a hidratar (continua de onde
+ * parou) ou se vai começar do zero.
  *
- * O acesso é client-side: a comparação acontece no browser contra
- * constantes embutidas no bundle. Isso é proteção contra ACESSO
- * CASUAL (não contra ator malicioso). Pra blindagem real, mover a
- * validação pra um endpoint server-side com cookie HTTP-only.
- *
- * Persistência: o `page.tsx` cuida do flag em `localStorage`. Esta tela
- * só dispara `onLogin()` quando as credenciais batem.
+ * Sem mais credenciais hardcoded no bundle: tudo validado server-side.
+ * O cookie de sessão é httpOnly (invisível ao console).
  */
 
-/** Usuário válido. Substituir pelo valor de produção antes da
- *  aplicação em sala. */
-const VALID_USERNAME = '@dev@';
-/** Senha válida. Substituir pelo valor de produção antes da
- *  aplicação em sala. Comparação case-sensitive; trim só no usuário
- *  (senha pode legitimamente ter espaços). */
-const VALID_PASSWORD = '@dev@';
-
 interface SequenceLoginProps {
-  /** Disparado quando o aluno acerta usuário+senha. O parent é
-   *  responsável por mudar o estado de login (e persistir, se quiser). */
-  onLogin: () => void;
+  /** Chamado após login bem-sucedido. Passa `hasActiveRun=true` se o
+   *  banco tem uma run não-encerrada do aluno (vai hidratar tempo,
+   *  cena e telemetria). */
+  onLogin: (params: { username: string; hasActiveRun: boolean }) => void;
 }
 
 export function SequenceLogin({ onLogin }: Readonly<SequenceLoginProps>) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   // Estado "Entrando..." — sinaliza progresso enquanto a sequência
   // monta. A montagem dos OVAs envolve hooks pesados (3500+ linhas de
   // estado em useRouletteHooks, vários useEffect de hidratação, etc.)
@@ -50,25 +38,39 @@ export function SequenceLogin({ onLogin }: Readonly<SequenceLoginProps>) {
 
   const canSubmit = username.trim().length > 0 && password.length > 0;
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!canSubmit || loading) return;
-    if (username.trim() === VALID_USERNAME && password === VALID_PASSWORD) {
-      // 2 passos pra que o spinner SEJA PINTADO antes da montagem pesada:
-      //   1. setLoading(true) agenda re-render com o spinner.
-      //   2. setTimeout(0) joga o `onLogin()` (que dispara o swap
-      //      pra sequência) pro próximo tick do event loop — o browser
-      //      pinta o spinner ANTES de iniciar o trabalho pesado.
-      // Sem o setTimeout, React bateria os 2 updates de estado no mesmo
-      // microtask e o spinner nunca apareceria — só "trava" e pula.
-      setLoading(true);
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+        credentials: 'same-origin',
+      });
+      if (!res.ok) {
+        let msg = 'Usuário ou senha incorretos. Confira com o pesquisador e tente novamente.';
+        try {
+          const data = await res.json();
+          if (data?.error === 'rate_limited') {
+            msg = 'Muitas tentativas. Espere alguns segundos e tente novamente.';
+          }
+        } catch { /* ignora */ }
+        setError(msg);
+        setLoading(false);
+        return;
+      }
+      const data = (await res.json()) as { username: string; hasActiveRun: boolean };
+      // Mesmo padrão do código antigo: setTimeout(0) pra spinner pintar
+      // antes da montagem pesada.
       setTimeout(() => {
-        onLogin();
-        // Sem setLoading(false) — o componente já vai desmontar quando
-        // o parent trocar pro conteúdo da sequência.
+        onLogin({ username: data.username, hasActiveRun: data.hasActiveRun });
       }, 0);
-    } else {
-      setError(true);
+    } catch {
+      setError('Não foi possível conectar ao servidor. Verifique sua internet.');
+      setLoading(false);
     }
   };
 
@@ -128,10 +130,10 @@ export function SequenceLogin({ onLogin }: Readonly<SequenceLoginProps>) {
               disabled={loading}
               onChange={(e) => {
                 setUsername(e.target.value);
-                if (error) setError(false);
+                if (error) setError(null);
               }}
               placeholder="Digite o usuário fornecido"
-              aria-invalid={error}
+              aria-invalid={error !== null}
               className={`ds-body rounded-md p-xxxs border-thin transition-colors duration-200 outline-none disabled:opacity-50 disabled:cursor-not-allowed
                 ${error
                   ? 'border-feedback-error-dark bg-feedback-error-lightest text-feedback-error-darkest focus:border-feedback-error-dark'
@@ -154,10 +156,10 @@ export function SequenceLogin({ onLogin }: Readonly<SequenceLoginProps>) {
               disabled={loading}
               onChange={(e) => {
                 setPassword(e.target.value);
-                if (error) setError(false);
+                if (error) setError(null);
               }}
               placeholder="Digite a senha fornecida"
-              aria-invalid={error}
+              aria-invalid={error !== null}
               aria-describedby={error ? 'login-error' : undefined}
               className={`ds-body rounded-md p-xxxs border-thin transition-colors duration-200 outline-none disabled:opacity-50 disabled:cursor-not-allowed
                 ${error
@@ -171,7 +173,7 @@ export function SequenceLogin({ onLogin }: Readonly<SequenceLoginProps>) {
                 className="ds-small text-feedback-error-dark"
                 role="alert"
               >
-                Usuário ou senha incorretos. Confira com o pesquisador e tente novamente.
+                {error}
               </span>
             )}
           </label>
@@ -194,7 +196,7 @@ export function SequenceLogin({ onLogin }: Readonly<SequenceLoginProps>) {
                 // O Button do DS não emite submit nativo — chamamos
                 // manualmente o handler aqui. O form ainda captura Enter
                 // via onSubmit pra UX padrão de formulário.
-                handleSubmit({ preventDefault: () => {} } as React.FormEvent<HTMLFormElement>);
+                void handleSubmit({ preventDefault: () => {} } as React.FormEvent<HTMLFormElement>);
               }}
             >
               {loading ? 'Entrando...' : 'Entrar'}

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/global/Button";
 import { RefreshCw, Check, X, ArrowRight, CheckSquare } from "lucide-react";
-import { useTelemetryExercise } from "@/hooks/teaching/probability/useTelemetry";
+import { useTelemetryExercise, telemetryRecordInteracaoExercicio } from "@/hooks/teaching/probability/useTelemetry";
 import { TwoDicesTable } from "./TwoDicesTable";
 import { useTwoDicesHooks } from "@/hooks/teaching/probability/two-dices/useTwoDicesHooks";
 import { Alerts } from "@/components/global/Alerts";
@@ -65,22 +65,54 @@ export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGamePro
     fracSummary,
     selectSummary,
   ].filter(Boolean);
+  // Detecta o tipo de tarefa visível na tela (deriva pelo estado dos inputs):
+  // se há campo de fração ativo → calcular P(evento); se há selects de
+  // operação → escolher operação composta; caso contrário → marcação.
+  const hasProbInput = !!(probabilitiesTextInputs?.numerator || probabilitiesTextInputs?.denominator);
+  const hasSelectInput = !!(operationSelectInputs?.eventsA || operationSelectInputs?.operations || operationSelectInputs?.eventsB);
+  const taskTypeEx7 =
+    hasSelectInput ? `escolher composição A op B (select). Esperado: identificar o evento composto descrito.`
+    : hasProbInput ? `calcular P(${probabilitiesTextInputs?.eventName ?? '?'})${probabilitiesTextInputs?.hasComplementary ? ' e também P(complementar)' : ''} via Laplace = n(${probabilitiesTextInputs?.eventName ?? '?'})/36.`
+    : `marcar na tabela 6×6 as células favoráveis ao(s) evento(s) ${(activeEvents ?? []).map(e => e.name ?? '?').join(', ') || '?'}.`;
   const enrichedDescricao = [
     enableMarkAll
-      ? 'Aluno marca células favoráveis a eventos compostos (modo livre).'
-      : 'Aluno marca células favoráveis a um evento sorteado e identifica P(A) via Laplace.',
+      ? 'Atividade global (Ex7 livre): Aluno marca células favoráveis a eventos compostos (modo livre).'
+      : 'Atividade global (Apresentação): Aluno marca células favoráveis a um evento sorteado e identifica P(A) via Laplace.',
+    `Ação atual do aluno / cálculo: ${taskTypeEx7}`,
     contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
-  ].filter(Boolean).join(' ');
+  ].filter(Boolean).join(' | ');
   // SEÇÃO POR (challenge, step) — cada desafio do jogo é uma "tela"
   // diferente; cada step dentro dele (marcação, fração, complementar)
   // também. Mudou desafio ou step → nova seção telemétrica.
   const baseId = enableMarkAll ? 'twoDices-cena7-twoDicesGame-ex7' : 'twoDices-cena7-twoDicesGame-intro';
+  // Título dinâmico — inclui o desafio + step atual e o(s) evento(s) ativo(s)
+  // pra que a seção telemétrica reflita a tela vista pelo aluno (não um
+  // título genérico para todos os c{x}-s{y}).
+  const eventNames = (activeEvents ?? []).map(e => e.name ?? '?').join(', ');
+  const dynamicTitle = enableMarkAll
+    ? `Exercício 7 — Marcação livre (Desafio ${challenge}, Step ${step}${eventNames ? ` — eventos: ${eventNames}` : ''})`
+    : `Apresentação da tabela 6×6 (Desafio ${challenge}, Step ${step}${eventNames ? ` — eventos: ${eventNames}` : ''})`;
+  // Instruções da tela (`instructions`) acumulam todo o texto visível no
+  // topo da tela atual. Sem isso, a descricao era genérica e perdia o
+  // enunciado real do desafio (que muda a cada step).
+  const stripText = (raw: string, max: number): string => {
+    const cleaned = (raw || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
+  };
+  const screenText = stripText(instructions || '', 480);
+  // Descrição literal de cada evento ativo da tabela 6×6.
+  const eventosBlocoEx7 = (activeEvents ?? []).length > 0
+    ? (activeEvents ?? []).map(e => `Evento ${e.name ?? '?'}: "${e.description ?? '?'}"`).join(' | ')
+    : '(nenhum evento ativo)';
+  const fullDescricao = [
+    screenText && `Tela: ${screenText}`,
+    `Eventos do desafio atual: ${eventosBlocoEx7} | Espaço amostral: 36 pares ordenados`,
+    enrichedDescricao,
+  ].filter(Boolean).join(' || ');
   useTelemetryExercise(
     `${baseId}-c${challenge}-s${step}`,
-    enableMarkAll
-      ? 'Exercício 7 — Marcação livre da tabela 6×6 (fixação)'
-      : 'Apresentação da tabela 6×6 — primeira marcação',
-    enrichedDescricao,
+    dynamicTitle,
+    fullDescricao || enrichedDescricao,
   );
 
   return (
@@ -122,7 +154,10 @@ export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGamePro
 
           <div className="flex flex-wrap gap-x-xxxs gap-y-micro items-center justify-center px-micro">
             <Button style="secondary" size="small" icon={<Check aria-hidden="true" />} onClick={checkOnClick} disabled={disabledCheckButton}>Conferir</Button>
-            <Button style="primary" size="small" icon={<ArrowRight aria-hidden="true" />} onClick={goToNextStepOnClick} disabled={disabledNextStepButton}>Próximo Desafio</Button>
+            <Button style="primary" size="small" icon={<ArrowRight aria-hidden="true" />} onClick={() => {
+              telemetryRecordInteracaoExercicio(`clicou em "Próximo Desafio" (Ex7 — saindo do Desafio ${challenge}, Step ${step})`);
+              goToNextStepOnClick();
+            }} disabled={disabledNextStepButton}>Próximo Desafio</Button>
           </div>
         </div>
         <TwoDicesFormulation events={activeEvents} textsInputs={probabilitiesTextInputs} selectInputs={operationSelectInputs}/>

@@ -305,6 +305,10 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   });
 
   // Change-detection das FRAÇÕES (numerador/denominador) com debounce.
+  // GUARD: só emite telemetria nas sub-fases onde o aluno DIGITA fração
+  // (computeComplementProb / probabilities). Reset programático em outras
+  // transições (ex.: startRound zera probabilitiesTextInputs) não conta
+  // como "aluno digitou".
   const prevFractionsRef = useRef<{ n: string; d: string; cn: string; cd: string } | null>(null);
   useEffect(() => {
     const cur = {
@@ -317,6 +321,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     if (prev === null) { prevFractionsRef.current = cur; return; }
     if (prev.n === cur.n && prev.d === cur.d && prev.cn === cur.cn && prev.cd === cur.cd) return;
     prevFractionsRef.current = cur;
+    if (subPhase !== 'computeComplementProb' && subPhase !== 'probabilities') return;
     const handle = window.setTimeout(() => {
       const parts: string[] = [];
       if (prev.n !== cur.n || prev.d !== cur.d) parts.push(`P principal: ${cur.n || '_'} / ${cur.d || '_'}`);
@@ -328,6 +333,60 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     }, 600);
     return () => window.clearTimeout(handle);
   }, [probabilitiesTextInputs, round, subPhase]);
+
+  // Change-detection dos INPUTS DE TEXTO da FORMALIZAÇÃO (debounced).
+  // Os formStep 1-5 vivem em state próprios (não em probabilitiesTextInputs),
+  // então o useEffect acima não os capta. Sem isso, telemetria perdia toda
+  // a digitação do aluno durante a derivação P(S)=1 → 36/36 → ... → P(A).
+  //
+  // GUARD: só emite telemetria dentro da sub-fase 'formalization'. Sem isso,
+  // o reset programático ao trocar de rodada (startRound zera todos os
+  // formStep*Value) era interpretado como "aluno digitou" e produzia
+  // entradas falsas no console — exatamente o que o aluno reportava como
+  // "três exercícios no console" ao clicar em Próximo Desafio.
+  const prevFormRef = useRef<{
+    s1: string;
+    s2n: string; s2d: string;
+    s3n: string; s3d: string;
+    s4n: string; s4d: string;
+    s5n: string; s5d: string;
+  } | null>(null);
+  useEffect(() => {
+    const cur = {
+      s1: formStep1Value ?? '',
+      s2n: formStep2Value ?? '', s2d: formStep2DenValue ?? '',
+      s3n: formStep3NumValue ?? '', s3d: formStep3DenValue ?? '',
+      s4n: formStep4NumValue ?? '', s4d: formStep4DenValue ?? '',
+      s5n: formStep5NumValue ?? '', s5d: formStep5DenValue ?? '',
+    };
+    const prev = prevFormRef.current;
+    if (prev === null) { prevFormRef.current = cur; return; }
+    const changedKeys = (Object.keys(cur) as Array<keyof typeof cur>)
+      .filter(k => prev[k] !== cur[k]);
+    if (changedKeys.length === 0) return;
+    prevFormRef.current = cur;
+    if (subPhase !== 'formalization') return;
+    const handle = window.setTimeout(() => {
+      const parts: string[] = [];
+      if (prev.s1 !== cur.s1) parts.push(`passo 1 P(S): "${cur.s1 || '_'}"`);
+      if (prev.s2n !== cur.s2n || prev.s2d !== cur.s2d) parts.push(`passo 2: ${cur.s2n || '_'}/${cur.s2d || '_'}`);
+      if (prev.s3n !== cur.s3n || prev.s3d !== cur.s3d) parts.push(`passo 3 P(Ā): ${cur.s3n || '_'}/${cur.s3d || '_'}`);
+      if (prev.s4n !== cur.s4n || prev.s4d !== cur.s4d) parts.push(`passo 4 P(A): ${cur.s4n || '_'}/${cur.s4d || '_'}`);
+      if (prev.s5n !== cur.s5n || prev.s5d !== cur.s5d) parts.push(`passo 5 P(A) irredutível: ${cur.s5n || '_'}/${cur.s5d || '_'}`);
+      if (parts.length === 0) return;
+      telemetryRecordInteracaoExercicio(
+        `formalização — digitou ${parts.join(' ; ')}`
+      );
+    }, 600);
+    return () => window.clearTimeout(handle);
+  }, [
+    formStep1Value,
+    formStep2Value, formStep2DenValue,
+    formStep3NumValue, formStep3DenValue,
+    formStep4NumValue, formStep4DenValue,
+    formStep5NumValue, formStep5DenValue,
+    round, subPhase,
+  ]);
 
   // ════════════════════════════════════════════════════════════
   // INSTRUÇÕES POR SUB-FASE
@@ -438,6 +497,10 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     if (uiRound >= MANDATORY_ROUNDS) {
       goToMarking(newData);
     } else {
+      // Telemetria do início de rodada R<2 (obrigatória) — antes essa
+      // transição ficava silenciosa e o aluno chegava na escolha de
+      // estratégia sem rastro de "iniciou rodada N".
+      telemetryRecordInteracaoExercicio(`iniciou rodada ${uiRound + 1} de ${MANDATORY_ROUNDS} (obrigatória — Escolha de estratégia) — evento A: "${newData.eventA.description}"`);
       setSubPhase('strategyChoice');
       setActiveEvents([{ name: A_LABEL, ...newData.eventA }]);
       setInstructions(buildInstructions('strategyChoice', newData));
@@ -459,6 +522,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   };
 
   function goToMarking(d: ComplementaryEventData) {
+    telemetryRecordInteracaoExercicio(`avançou para "Marcação" (Eventos complementares — evento A: "${d.eventA.description}")`);
     const checkboxes: EventCheckboxes = { [COMPLEMENT_LABEL]: buildEmptyCheckboxLayer() };
     setEventsCheckboxes(checkboxes);
     // Painel Evento(s) mostra APENAS A. Descrição de Ā fica oculta até reveal.
@@ -472,6 +536,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   }
 
   function goToReveal(d: ComplementaryEventData) {
+    telemetryRecordInteracaoExercicio(`avançou para "Revelação A ∪ Ā = Ω" (Eventos complementares)`);
     setSubPhase('reveal');
     setInstructions(buildInstructions('reveal', d));
     setDisabledCheckButton(true);
@@ -511,6 +576,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   }
 
   function goToStrategyReview(d: ComplementaryEventData) {
+    telemetryRecordInteracaoExercicio(`avançou para "Revisão da estratégia" (Eventos complementares — confronto)`);
     setSubPhase('strategyReview');
     setInstructions(buildInstructions('strategyReview', d));
     setReviewChoiceState(null);
@@ -525,6 +591,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
    *  (casos favoráveis / casos possíveis). Usa TwoDicesCalculations com
    *  eventName='Ā' e hasComplementary=false — só o painel de P(Ā). */
   function goToComputeComplementProb(d: ComplementaryEventData) {
+    telemetryRecordInteracaoExercicio(`avançou para "Cálculo de P(Ā)" (Eventos complementares — definição clássica)`);
     setSubPhase('computeComplementProb');
     setInstructions(buildInstructions('computeComplementProb', d));
     setDisabledCheckButton(false);
@@ -546,6 +613,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   }
 
   function goToFormalization(d: ComplementaryEventData) {
+    telemetryRecordInteracaoExercicio(`avançou para "Formalização" (Eventos complementares — derivação P(Ā) = 1 − P(A))`);
     setSubPhase('formalization');
     // Trava o painel Cálculo(s) (numerator/denominator de P(Ā)) ao entrar na
     // formalização — sem isso o aluno poderia editar o cálculo de P(Ā) que
@@ -585,6 +653,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   }
 
   function goToProbabilities(d: ComplementaryEventData) {
+    telemetryRecordInteracaoExercicio(`avançou para "Cálculo final de P(A)" (Eventos complementares)`);
     setSubPhase('probabilities');
     setInstructions(buildInstructions('probabilities', d));
     setDisabledCheckButton(false);
@@ -607,6 +676,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   }
 
   function goToComplete(d: ComplementaryEventData) {
+    telemetryRecordInteracaoExercicio(`avançou para "Concluído" (Eventos complementares — fim da atividade)`);
     setSubPhase('complete');
     setInstructions(buildInstructions('complete', d));
     setDisabledCheckButton(true);
@@ -667,14 +737,14 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     [],
   );
 
+  // Telemetria do clique nos radios é responsabilidade do JSX da Activity
+  // (ComplementaryEventsActivity.tsx), que captura o LABEL legível visível
+  // pro aluno. Colocar telemetria aqui também causava DUPLA coleta (uma
+  // chamada da Activity + outra da hook) por clique no radio.
   const setStrategyChoice = (choice: string) => {
-    telemetryRecordInteracaoExercicio(`escolheu estratégia inicial: "${choice}"`);
     setStrategyChoiceState(choice);
   };
   const setReviewChoice = (choice: 'keep' | 'change') => {
-    telemetryRecordInteracaoExercicio(
-      `decidiu sobre estratégia: "${choice === 'keep' ? 'manter' : 'mudar'}"`
-    );
     setReviewChoiceState(choice);
     setReviewError(false);
   };
@@ -772,28 +842,41 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     switch (subPhase) {
       case 'strategyChoice': {
         // Passo 1 — NÃO valida. Apenas registra e avança.
+        const respStrategy = `Escolha inicial: ${strategyChoice ? `marcar casos favoráveis ao ${strategyChoice === COMPLEMENT_LABEL ? `complementar Ā ("${data.eventComplement.description}")` : `evento A ("${data.eventA.description}")`}` : '(nenhuma)'}`;
         if (!strategyChoice) {
           playSound('/sounds/incorrect.mp3');
-          createAlert('Escolha uma opção', 'Selecione um caminho antes de continuar.', 'info', 3000);
+          createAlert('Escolha uma opção', 'Selecione um caminho antes de continuar.', 'info', 3000, respStrategy);
           return;
         }
-        createAlert('Resposta registrada', 'Vamos verificar na prática.', 'info', 2500);
+        createAlert('Resposta registrada', 'Vamos verificar na prática.', 'info', 2500, respStrategy);
         playSound('/sounds/nextChallenge.mp3');
         goToMarking(data);
         return;
       }
       case 'marking': {
         const result = verifyMarkingDetailed();
+        const matrix = eventsCheckboxes[COMPLEMENT_LABEL];
+        let markedCount = 0;
+        const markedPairs: string[] = [];
+        if (matrix) {
+          for (let g = 0; g < matrix.length; g++) {
+            for (let b = 0; b < matrix[g].length; b++) {
+              if (matrix[g][b]?.checked) { markedCount++; markedPairs.push(`(${g + 1},${b + 1})`); }
+            }
+          }
+        }
+        const shownPairs = markedPairs.length <= 8 ? markedPairs.join(';') : `${markedPairs.slice(0, 8).join(';')}...+${markedPairs.length - 8}`;
+        const respMark = `Marcação de Ā ("${data.eventComplement.description}"): ${markedCount} célula(s) [${shownPairs || '—'}] (esperado: ${data.nE} células)`;
         if (result === 'ok') {
-          createAlert('Parabéns!', 'Marcação correta.', 'success', 3000);
+          createAlert('Parabéns!', 'Marcação correta.', 'success', 3000, respMark);
           playSound('/sounds/correct.mp3');
           goToReveal(data);
         } else if (result === 'partial') {
           // Todas as marcações feitas estão certas, mas faltam células de Ā.
-          createAlert('Correto!', 'Mas ainda não completou! Há células do complementar Ā que precisam ser marcadas.', 'info', 4500);
+          createAlert('Correto!', 'Mas ainda não completou! Há células do complementar Ā que precisam ser marcadas.', 'info', 4500, respMark);
           playSound('/sounds/incorrect.mp3');
         } else {
-          createAlert('Ops!', 'Há marcações que não correspondem ao complementar Ā. Revise as células.', 'error', 4000);
+          createAlert('Ops!', 'Há marcações que não correspondem ao complementar Ā. Revise as células.', 'error', 4000, respMark);
           playSound('/sounds/incorrect.mp3');
         }
         return;
@@ -804,24 +887,35 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
           goToComputeComplementProb(data);
           return;
         }
+        const reviewLabel =
+          reviewChoice === 'keep' ? 'mantém a escolha inicial'
+          : reviewChoice === 'change' ? 'muda a escolha'
+          : '(nenhuma opção marcada)';
+        const initialLabel = strategyChoice === COMPLEMENT_LABEL
+          ? `complementar Ā ("${data.eventComplement.description}")`
+          : strategyChoice === A_LABEL
+            ? `evento A ("${data.eventA.description}")`
+            : '(sem registro)';
+        const respReview = `Revisão de estratégia — escolha inicial: ${initialLabel} | decisão final: ${reviewLabel}`;
         // Primeiro clique: precisa ter escolhido "mantenho" ou "mudo".
         if (!reviewChoice) {
           setReviewError(true);
           playSound('/sounds/incorrect.mp3');
-          createAlert('Escolha uma opção', 'Indique se mantém ou muda sua escolha.', 'info', 3000);
+          createAlert('Escolha uma opção', 'Indique se mantém ou muda sua escolha.', 'info', 3000, respReview);
           return;
         }
         // Mostra o confronto inline e aguarda o aluno clicar em "Entendi".
         // Sem avanço automático — o aluno controla o tempo de reflexão.
         setConfrontMessage(buildConfrontMessage());
-        createAlert('Resposta registrada', 'Leia o confronto e continue quando estiver pronto.', 'success', 3500);
+        createAlert('Resposta registrada', 'Leia o confronto e continue quando estiver pronto.', 'success', 3500, respReview);
         playSound('/sounds/correct.mp3');
         return;
       }
       case 'formalization': {
         if (formStep === 0) {
+          const respStep0 = `formalização passo 0 (A ∪ Ā = ?) — selecionou "${formStep0Value || '(nada)'}" (esperado: "S")`;
           if (formStep0Value === 'S') {
-            createAlert('Correto!', 'A ∪ Ā é o espaço amostral S.', 'success', 2500);
+            createAlert('Correto!', 'A ∪ Ā é o espaço amostral S.', 'success', 2500, respStep0);
             playSound('/sounds/correct.mp3');
             setFormStep(1);
             scrollDiceToTop();
@@ -830,7 +924,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             createAlert(
               'Ops!',
               'Pense: A ∪ Ā reúne todos os resultados em que A ocorre ou Ā ocorre — é o evento que sempre ocorre. Qual das opções representa esse evento?',
-              'error', 5000,
+              'error', 5000, respStep0,
             );
             playSound('/sounds/incorrect.mp3');
           }
@@ -842,21 +936,23 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
           const numericPart = (hasPercent ? raw.slice(0, -1) : raw).replace(',', '.').trim();
           const v = parseFloat(numericPart);
           const equivalent = Number.isFinite(v) && (hasPercent ? v === 100 : v === 1);
+          const respStep1 = `formalização passo 1 (P(S) = ?) — digitou "${formStep1Value || '(vazio)'}" (esperado: 1 ou 100%)`;
           if (equivalent) {
-            createAlert('Correto!', 'P(S) = 1.', 'success', 2500);
+            createAlert('Correto!', 'P(S) = 1.', 'success', 2500, respStep1);
             playSound('/sounds/correct.mp3');
             setFormStep(2);
             scrollDiceToTop();
           } else {
             setFormStep1Error(true);
-            createAlert('Ops!', 'S é o EVENTO CERTO — ele engloba TODOS os resultados possíveis. Reveja a definição de probabilidade do evento certo.', 'error', 4500);
+            createAlert('Ops!', 'S é o EVENTO CERTO — ele engloba TODOS os resultados possíveis. Reveja a definição de probabilidade do evento certo.', 'error', 4500, respStep1);
             playSound('/sounds/incorrect.mp3');
           }
         } else if (formStep === 2) {
           const num = parseInt(formStep2Value.trim(), 10);
           const den = parseInt(formStep2DenValue.trim(), 10);
+          const respFrac = `formalização passo 2 (P(S) = n(S)/n(S)) — digitou ${formStep2Value || '_'}/${formStep2DenValue || '_'}`;
           if (num === SAMPLE_SPACE && den === SAMPLE_SPACE) {
-            createAlert('Correto!', 'Agora substitua P(Ā) pelo valor que você calculou.', 'success', 3500);
+            createAlert('Correto!', 'Agora substitua P(Ā) pelo valor que você calculou.', 'success', 3500, respFrac);
             playSound('/sounds/correct.mp3');
             setFormStep(3);
             scrollDiceToTop();
@@ -869,7 +965,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             const msg = nextErrorCount === 1
               ? 'Quantos pares de resultados são possíveis para o espaço amostral S? Escreva 1 como a divisão desse número n(S) por ele mesmo.'
               : 'Quantos pares ordenados (x, y) são possíveis com os resultados do lançamento de dois dados uma única vez? Escreva 1 como a divisão desse total de casos possíveis por esse mesmo total.';
-            createAlert('Ops!', msg, 'error', 6000);
+            createAlert('Ops!', msg, 'error', 6000, respFrac);
             playSound('/sounds/incorrect.mp3');
           }
         } else if (formStep === 3) {
@@ -877,14 +973,15 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
           const okSub = isEquivalentFraction(
             formStep3NumValue, formStep3DenValue, data.nE, SAMPLE_SPACE,
           );
+          const respFrac = `formalização passo 3 (substituir P(Ā)) — digitou ${formStep3NumValue || '_'}/${formStep3DenValue || '_'}`;
           if (okSub) {
-            createAlert('Correto!', `Agora calcule P(A) = ${SAMPLE_SPACE}/${SAMPLE_SPACE} − ${data.nE}/${SAMPLE_SPACE}.`, 'success', 3500);
+            createAlert('Correto!', `Agora calcule P(A) = ${SAMPLE_SPACE}/${SAMPLE_SPACE} − ${data.nE}/${SAMPLE_SPACE}.`, 'success', 3500, respFrac);
             playSound('/sounds/correct.mp3');
             setFormStep(4);
             scrollDiceToTop();
           } else {
             setFormStep3Error(true);
-            createAlert('Ops!', 'Substitua P(Ā) pelo valor que você calculou anteriormente. Frações equivalentes são aceitas.', 'error', 4500);
+            createAlert('Ops!', 'Substitua P(Ā) pelo valor que você calculou anteriormente. Frações equivalentes são aceitas.', 'error', 4500, respFrac);
             playSound('/sounds/incorrect.mp3');
           }
         } else if (formStep === 4) {
@@ -892,14 +989,15 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
           const okA = isEquivalentFraction(
             formStep4NumValue, formStep4DenValue, data.nA, SAMPLE_SPACE,
           );
+          const respFrac = `formalização passo 4 (subtração ${SAMPLE_SPACE}/${SAMPLE_SPACE} − ${data.nE}/${SAMPLE_SPACE} = P(A)) — digitou ${formStep4NumValue || '_'}/${formStep4DenValue || '_'}`;
           if (okA) {
-            createAlert('Correto!', 'Agora escreva na forma irredutível.', 'success', 3000);
+            createAlert('Correto!', 'Agora escreva na forma irredutível.', 'success', 3000, respFrac);
             playSound('/sounds/correct.mp3');
             setFormStep(5);
             scrollDiceToTop();
           } else {
             setFormStep4Error(true);
-            createAlert('Ops!', `Efetue a subtração ${SAMPLE_SPACE}/${SAMPLE_SPACE} − ${data.nE}/${SAMPLE_SPACE}. Frações equivalentes são aceitas.`, 'error', 4500);
+            createAlert('Ops!', `Efetue a subtração ${SAMPLE_SPACE}/${SAMPLE_SPACE} − ${data.nE}/${SAMPLE_SPACE}. Frações equivalentes são aceitas.`, 'error', 4500, respFrac);
             playSound('/sounds/incorrect.mp3');
           }
         } else if (formStep === 5) {
@@ -912,6 +1010,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
           const okIrreducible = isIrreducibleAndEquivalent(
             formStep5NumValue, formStep5DenValue, data.nA, SAMPLE_SPACE,
           );
+          const respFrac = `formalização passo 5 (P(A) irredutível) — digitou ${formStep5NumValue || '_'}/${formStep5DenValue || '_'}`;
           if (okIrreducible) {
             const n = parseInt(formStep5NumValue.trim(), 10);
             const d = parseInt(formStep5DenValue.trim(), 10);
@@ -919,19 +1018,22 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             setFormStep5Decimal(decimal);
             setFormStep5Percent(percent);
             setFormStep5Validated(true);
-            createAlert('Parabéns!', `P(A) = ${decimal} = ${percent}. Clique em Conferir para concluir.`, 'success', 5000);
+            createAlert('Parabéns!', `P(A) = ${decimal} = ${percent}. Clique em Conferir para concluir.`, 'success', 5000, respFrac);
             playSound('/sounds/correct.mp3');
           } else {
             setFormStep5Error(true);
-            createAlert('Ops!', 'A fração precisa ser equivalente a P(A) e estar na forma irredutível (numerador e denominador sem divisores comuns).', 'error', 5000);
+            createAlert('Ops!', 'A fração precisa ser equivalente a P(A) e estar na forma irredutível (numerador e denominador sem divisores comuns).', 'error', 5000, respFrac);
             playSound('/sounds/incorrect.mp3');
           }
         }
         return;
       }
       case 'computeComplementProb': {
+        const numVal = probabilitiesTextInputs?.numerator?.value as string | undefined;
+        const denVal = probabilitiesTextInputs?.denominator?.value as string | undefined;
+        const respFrac = `P(Ā) = ${numVal || '_'}/${denVal || '_'} (esperado: ${data.nE}/${SAMPLE_SPACE})`;
         if (verifyProbabilityOfComplement()) {
-          createAlert('Parabéns!', 'P(Ā) calculado corretamente.', 'success', 3000);
+          createAlert('Parabéns!', 'P(Ā) calculado corretamente.', 'success', 3000, respFrac);
           playSound('/sounds/correct.mp3');
           // Trava os inputs de P(Ā) após acerto — sem isso o quadro de cálculo
           // permanece editável durante a fase de formalização, permitindo que
@@ -953,14 +1055,17 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             numerator: { ...prev.numerator, error: true },
             denominator: { ...prev.denominator, error: true },
           }));
-          createAlert('Ops!', 'Verifique a fração. P(Ā) = casos favoráveis ao complementar / casos possíveis do espaço amostral. Frações equivalentes são aceitas.', 'error', 5000);
+          createAlert('Ops!', 'Verifique a fração. P(Ā) = casos favoráveis ao complementar / casos possíveis do espaço amostral. Frações equivalentes são aceitas.', 'error', 5000, respFrac);
           playSound('/sounds/incorrect.mp3');
         }
         return;
       }
       case 'probabilities': {
+        const numVal = probabilitiesTextInputs?.numerator?.value as string | undefined;
+        const denVal = probabilitiesTextInputs?.denominator?.value as string | undefined;
+        const respFrac = `P(A) = ${numVal || '_'}/${denVal || '_'} (esperado: ${data.nA}/${SAMPLE_SPACE})`;
         if (verifyProbabilityOfA()) {
-          createAlert('Parabéns!', 'Você acertou!', 'success', 3000);
+          createAlert('Parabéns!', 'Você acertou!', 'success', 3000, respFrac);
           playSound('/sounds/correct.mp3');
           goToComplete(data);
         } else {
@@ -969,7 +1074,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
             numerator: { ...prev.numerator, error: true },
             denominator: { ...prev.denominator, error: true },
           }));
-          createAlert('Ops!', 'Aplique a fórmula P(A) = 1 − P(Ā) para obter P(A). Frações equivalentes são aceitas.', 'error', 4500);
+          createAlert('Ops!', 'Aplique a fórmula P(A) = 1 − P(Ā) para obter P(A). Frações equivalentes são aceitas.', 'error', 4500, respFrac);
           playSound('/sounds/incorrect.mp3');
         }
         return;

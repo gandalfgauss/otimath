@@ -1,0 +1,62 @@
+// Schema do banco de progressos da sequência didática.
+//
+// Decisões:
+//   • SequenceRun atrelado a User. Uma run "ativa" tem ended_at IS NULL.
+//     Próximo login com run ativa → retoma. Run com ended_reason='logout'
+//     ou 'completed' não é mais retomada (volta do zero / nova run).
+//   • telemetry_json: snapshot completo (estrutura definida em useTelemetry).
+//   • elapsed_total_ms / elapsed_roulette_ms / elapsed_two_dices_ms: tempo
+//     real acumulado (sem pausa) — restaurado em useSequenceSession ao
+//     retomar pra que o cronômetro continue de onde parou.
+//   • current_stage / current_ova_phase: posição na UI da sequência —
+//     restaurado pelo page.tsx pra que o aluno volte na MESMA cena.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(uuid()) @db.Uuid
+  username      String        @unique
+  passwordHash  String        @map("password_hash")
+  isTest        Boolean       @default(false) @map("is_test")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  runs          SequenceRun[]
+
+  @@map("users")
+}
+
+model SequenceRun {
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  startedAt           DateTime  @default(now()) @map("started_at")
+  lastUpdatedAt       DateTime  @updatedAt @map("last_updated_at")
+  endedAt             DateTime? @map("ended_at")
+  // 'logout' | 'completed' | null (null = ativa)
+  endedReason         String?   @map("ended_reason")
+
+  // Snapshot estruturado da telemetria (interface TelemetrySnapshot).
+  telemetryJson       Json      @default("{}") @map("telemetry_json")
+
+  // Cronômetros (ms reais sem pausa) — espelham getElapsedTotalMs() /
+  // getElapsedOvaMs() de useSequenceSession.
+  elapsedTotalMs      Int       @default(0) @map("elapsed_total_ms")
+  elapsedRouletteMs   Int       @default(0) @map("elapsed_roulette_ms")
+  elapsedTwoDicesMs   Int       @default(0) @map("elapsed_two_dices_ms")
+
+  // Posição na UI — restauradas pelo page.tsx.
+  // currentStage: 'intro' | 'roulette' | 'twoDices' | 'complete'
+  currentStage        String    @default("intro") @map("current_stage")
+  // currentOvaPhase: cenaId / phase string específico do OVA atual (opaco aqui).
+  currentOvaPhase     String?   @map("current_ova_phase")
+
+  @@index([userId, endedAt])
+  @@map("sequence_runs")
+}

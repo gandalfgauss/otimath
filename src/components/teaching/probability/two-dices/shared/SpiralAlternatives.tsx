@@ -145,8 +145,12 @@ export function SpiralAlternatives({
 
   const handleSubmit = useCallback(() => {
     if (!selected) return;
+    const selectedAlt = alternatives.find(a => a.id === selected);
+    telemetryRecordInteracaoExercicio(
+      `confirmou alternativa "${selected}" no spiral (clicou Ok): ${selectedAlt?.ariaLabel ?? selectedAlt?.display ?? selected}`,
+    );
     onSubmit(selected);
-  }, [selected, onSubmit]);
+  }, [selected, onSubmit, alternatives]);
 
   if (!open) return null;
 
@@ -343,7 +347,10 @@ export function SpiralAlternatives({
           </span>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={() => {
+              telemetryRecordInteracaoExercicio(`clicou em "Cancelar" no spiral${selected ? ` (havia selecionado: "${selected}")` : ' (sem seleção)'}`);
+              onCancel();
+            }}
             style={{
               background: 'transparent',
               border: '1px solid var(--color-neutral-white)',

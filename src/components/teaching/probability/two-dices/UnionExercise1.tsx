@@ -32,7 +32,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
-import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import {
   EventPair,
   selectPairForRound, verifyEventTableConsistency,
@@ -102,7 +102,7 @@ interface UnionExercise1Props {
    *  no fim do exercício (via seta "voltar" do próximo exercício). */
   initialStep?: ExStep;
   /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
-  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
 }
 
 export interface UnionExercise1Handle {
@@ -190,7 +190,11 @@ function FormulaSelect({
   return (
     <select
       value={value}
-      onChange={e => onChange(e.target.value as ExprId)}
+      onChange={e => {
+        const v = e.target.value as ExprId;
+        telemetryRecordInteracaoExercicio(`FormulaSelect — escolheu "${v || '?'}" (esperado: ${expected})`);
+        onChange(v);
+      }}
       disabled={disabled}
       aria-label="Posição da fórmula"
       aria-invalid={isWrong ? 'true' : undefined}
@@ -317,16 +321,6 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
   function UnionExercise1({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
     // ── Estado de rodada e par ───────────────────────────────────
     const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
-    // SEÇÃO POR STEP — cada tela do exercício é uma seção telemétrica
-    // independente. Trocou de step → seção anterior é finalizada e nova
-    // começa, evitando que eventos de telas diferentes compartilhem o
-    // mesmo exercício no `exercicios_interagidos`.
-    useTelemetryExercise(
-      `twoDices-cena7-unionExercise1-${step}`,
-      'Exercício 1 — Probabilidade da união (caso geral)',
-      'Aluno identifica eventos A, B e A∩B na tabela 6×6 e calcula P(A∪B) por contagem ou fórmula.',
-    );
-
     // Telemetria da LEITURA do enunciado (step 'intro') — quando o aluno
     // sai do 'intro' pra 'markA' clicando "Começar", isso é uma leitura
     // confirmada com duração medida do que ele gastou lendo o enunciado.
@@ -341,6 +335,49 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());
     const [currentPair, setCurrentPair] = useState<EventPair>(
       () => selectPairForRound(0, new Set()),
+    );
+
+    // SEÇÃO POR STEP — cada tela do exercício é uma seção telemétrica
+    // independente. Trocou de step → seção anterior é finalizada e nova
+    // começa, evitando que eventos de telas diferentes compartilhem o
+    // mesmo exercício no `exercicios_interagidos`.
+    // Título DINÂMICO — inclui o step atual + rodada + par de eventos
+    // ativos pra que a seção telemétrica reflita a tela vista pelo aluno.
+    // Conta as células favoráveis para enriquecer a descricao.
+    const nA_UE1 = pairsMatching(currentPair.eventA.predicate).size;
+    const nB_UE1 = pairsMatching(currentPair.eventB.predicate).size;
+    const A_UE1_set = pairsMatching(currentPair.eventA.predicate);
+    const B_UE1_set = pairsMatching(currentPair.eventB.predicate);
+    const nI_UE1 = setIntersection(A_UE1_set, B_UE1_set).size;
+    const nU_UE1 = nA_UE1 + nB_UE1 - nI_UE1;
+    const stepLabelUE1 = step === 'intro' ? 'Enunciado'
+                       : step === 'markA' ? 'Marcar evento A na tabela'
+                       : step === 'markB' ? 'Marcar evento B na tabela'
+                       : step === 'markI' ? 'Marcar A∩B na tabela'
+                       : step === 'calcPA' ? 'Calcular P(A)'
+                       : step === 'calcPB' ? 'Calcular P(B)'
+                       : step === 'calcPAB' ? 'Calcular P(A∩B)'
+                       : step === 'calcPAUB' ? 'Calcular P(A∪B)'
+                       : step === 'done' ? 'Síntese / concluído'
+                       : String(step);
+    const eventLabelsUE1 = currentPair
+      ? `A: "${currentPair.eventA?.description ?? '?'}" (n(A) = ${nA_UE1}) | B: "${currentPair.eventB?.description ?? '?'}" (n(B) = ${nB_UE1}) | A ∩ B: n(A∩B) = ${nI_UE1} | A ∪ B: n(A∪B) = ${nU_UE1} | Espaço amostral: 36`
+      : '';
+    const oQueCalculaUE1 =
+      step === 'intro' ? 'Leitura do enunciado e instruções antes de começar a marcação.'
+      : step === 'markA' ? `Marcação das ${nA_UE1} células favoráveis ao evento A na tabela 6×6.`
+      : step === 'markB' ? `Marcação das ${nB_UE1} células favoráveis ao evento B (com evento A congelado).`
+      : step === 'markI' ? `Marcação deliberada das ${nI_UE1} células de A ∩ B (interseção).`
+      : step === 'calcPA' ? `Cálculo de P(A) = n(A) / 36 = ${nA_UE1}/36 (definição clássica de Laplace).`
+      : step === 'calcPB' ? `Cálculo de P(B) = n(B) / 36 = ${nB_UE1}/36 (definição clássica de Laplace).`
+      : step === 'calcPAB' ? `Cálculo de P(A ∩ B) = n(A ∩ B) / 36 = ${nI_UE1}/36 (escolha do dropdown W + fração).`
+      : step === 'calcPAUB' ? `Cálculo final P(A ∪ B) = P(A) + P(B) − P(A ∩ B) = ${nA_UE1}/36 + ${nB_UE1}/36 − ${nI_UE1}/36 = ${nU_UE1}/36.`
+      : step === 'done' ? `Síntese: P(A ∪ B) = ${nU_UE1}/36 (fórmula geral). Rodada ${round + 1} concluída.`
+      : '';
+    useTelemetryExercise(
+      `twoDices-cena7-unionExercise1-${step}`,
+      `Exercício 1 — União — ${stepLabelUE1} (rodada ${round + 1}${eventLabelsUE1 ? `; A=${currentPair.eventA?.description ?? '?'}` : ''})`,
+      `Atividade global: Aluno identifica eventos A, B e A∩B na tabela 6×6 e calcula P(A∪B) por contagem ou fórmula. | Eventos do problema atual: ${eventLabelsUE1} | Fase atual: ${stepLabelUE1}. | Ação atual do aluno / cálculo: ${oQueCalculaUE1}`,
     );
 
     // ── Estado de marcações ──────────────────────────────────────
@@ -443,32 +480,41 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     }, []);
 
     // ── Handlers de marcação ─────────────────────────────────────
+    // Telemetria FORA dos updaters de setState — StrictMode em dev dispara
+    // o callback duas vezes para detectar side effects, e logar dentro
+    // causava dupla coleta por clique. Lemos o estado atual via closure.
     const toggleA = useCallback((r: number, c: number) => {
+      const wasMarked = marksA[r][c];
+      telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (${r + 1}, ${c + 1}) como evento A`);
       setMarksA(prev => {
         const copy = prev.map(row => [...row]);
         copy[r][c] = !copy[r][c];
         return copy;
       });
       setFeedbackA('none');
-    }, []);
+    }, [marksA]);
 
     const toggleB = useCallback((r: number, c: number) => {
+      const wasMarked = marksB[r][c];
+      telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (${r + 1}, ${c + 1}) como evento B`);
       setMarksB(prev => {
         const copy = prev.map(row => [...row]);
         copy[r][c] = !copy[r][c];
         return copy;
       });
       setFeedbackB('none');
-    }, []);
+    }, [marksB]);
 
     const toggleI = useCallback((r: number, c: number) => {
+      const wasMarked = marksI[r][c];
+      telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (${r + 1}, ${c + 1}) como A∩B`);
       setMarksI(prev => {
         const copy = prev.map(row => [...row]);
         copy[r][c] = !copy[r][c];
         return copy;
       });
       setFeedbackI('none');
-    }, []);
+    }, [marksI]);
 
     // Helpers: marcar todas as 36 células ou limpar todas — facilitam
     // estratégias por complemento (mais rápido em eventos densos).
@@ -579,12 +625,13 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       const denIsMultipleOfIrreducible = denPositive && den % irreducibleDen === 0;
       const equivalent = numValid && denPositive && num * 36 === den * correctSets.nA;
 
+      const respPA = `P(A) = ${pANum || '_'}/${pADen || '_'} (esperado: ${correctSets.nA}/36)`;
       if (equivalent) {
         setPAError(false);
         setPANumError(false);
         setPADenError(false);
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', `P(A) = ${correctSets.nA}/36.`, 'success', 3000);
+        createAlert?.('Correto!', `P(A) = ${correctSets.nA}/36.`, 'success', 3000, respPA);
         setStep('calcPB');
         return;
       }
@@ -596,7 +643,7 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       setPANumError(numFailed || !numValid);
       setPADenError(denFailed);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'P(A) = n(A) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+      createAlert?.('Tente novamente', 'P(A) = n(A) / 36. Frações equivalentes são aceitas.', 'error', 4500, respPA);
     }, [pANum, pADen, correctSets.nA, createAlert]);
 
     const validatePB = useCallback(() => {
@@ -614,12 +661,13 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       const denIsMultipleOfIrreducible = denPositive && den % irreducibleDen === 0;
       const equivalent = numValid && denPositive && num * 36 === den * correctSets.nB;
 
+      const respPB = `P(B) = ${pBNum || '_'}/${pBDen || '_'} (esperado: ${correctSets.nB}/36)`;
       if (equivalent) {
         setPBError(false);
         setPBNumError(false);
         setPBDenError(false);
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', `P(B) = ${correctSets.nB}/36.`, 'success', 3000);
+        createAlert?.('Correto!', `P(B) = ${correctSets.nB}/36.`, 'success', 3000, respPB);
         setStep('calcPAB');
         return;
       }
@@ -632,27 +680,28 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       setPBNumError(numFailed || !numValid);
       setPBDenError(denFailed);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'P(B) = n(B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+      createAlert?.('Tente novamente', 'P(B) = n(B) / 36. Frações equivalentes são aceitas.', 'error', 4500, respPB);
     }, [pBNum, pBDen, correctSets.nB, createAlert]);
 
     const validatePAB = useCallback(() => {
       scrollDiceToTop();
+      const respPAB = `P(A ∩ B): expressão="${pABExpr || '_'}" fração=${pABNum || '_'}/${pABDen || '_'} (esperado: AnB e ${correctSets.nI}/36)`;
       if (pABExpr !== 'AnB') {
         setPABExprError(true);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Escolha a expressão correta para a interseção.', 'error', 4000);
+        createAlert?.('Tente novamente', 'Escolha a expressão correta para a interseção.', 'error', 4000, respPAB);
         return;
       }
       setPABExprError(false);
       if (isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36)) {
         setPABError(false);
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', `P(A ∩ B) = ${correctSets.nI}/36.`, 'success', 3000);
+        createAlert?.('Correto!', `P(A ∩ B) = ${correctSets.nI}/36.`, 'success', 3000, respPAB);
         setStep('calcPAUB');
       } else {
         setPABError(true);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'P(A ∩ B) = n(A ∩ B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+        createAlert?.('Tente novamente', 'P(A ∩ B) = n(A ∩ B) / 36. Frações equivalentes são aceitas.', 'error', 4500, respPAB);
       }
     }, [pABExpr, pABNum, pABDen, correctSets.nI, createAlert]);
 
@@ -662,11 +711,17 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
       const subAOk = isEquivalentFraction(subANum, subADen, correctSets.nA, 36);
       const subBOk = isEquivalentFraction(subBNum, subBDen, correctSets.nB, 36);
       const subIOk = isEquivalentFraction(subINum, subIDen, correctSets.nI, 36);
+      const respUnion =
+        `Substituições: P(A)=${subANum || '_'}/${subADen || '_'}, ` +
+        `P(B)=${subBNum || '_'}/${subBDen || '_'}, ` +
+        `P(A∩B)=${subINum || '_'}/${subIDen || '_'} | ` +
+        `P(A∪B)=${pAUBNum || '_'}/${pAUBDen || '_'} ` +
+        `(esperado: ${correctSets.nA}/36, ${correctSets.nB}/36, ${correctSets.nI}/36 → ${correctSets.nU}/36)`;
       if (!subAOk || !subBOk || !subIOk) {
         setSubError(true);
         setPAUBError(false);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Substitua P(A), P(B) e P(A ∩ B) pelos valores que você calculou.', 'error', 5000);
+        createAlert?.('Tente novamente', 'Substitua P(A), P(B) e P(A ∩ B) pelos valores que você calculou.', 'error', 5000, respUnion);
         return;
       }
       setSubError(false);
@@ -675,12 +730,12 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
         setPAUBError(false);
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
-        createAlert?.('Excelente!', `P(A ∪ B) = ${correctSets.nU}/36. Exercício concluído.`, 'success', 4000);
+        createAlert?.('Excelente!', `P(A ∪ B) = ${correctSets.nU}/36. Exercício concluído.`, 'success', 4000, respUnion);
         setStep('done');
       } else {
         setPAUBError(true);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Aplique P(A ∪ B) = P(A) + P(B) − P(A ∩ B).', 'error', 4500);
+        createAlert?.('Tente novamente', 'Aplique P(A ∪ B) = P(A) + P(B) − P(A ∩ B).', 'error', 4500, respUnion);
       }
     }, [
       subANum, subADen, subBNum, subBDen, subINum, subIDen,
@@ -753,12 +808,13 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
     // Não dispara em valor vazio (estado inicial / reset).
     const playFormulaPosFeedback = useCallback((v: ExprId, expected: ExprId, posLabel: string) => {
       if (v === '') return;
+      const respFormula = `Montagem fórmula união — posição ${posLabel} = "${exprLabel(v) || v}" (esperado: ${exprLabel(expected)})`;
       if (v === expected) {
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', `${posLabel}: ${exprLabel(expected)}.`, 'success', 2500);
+        createAlert?.('Correto!', `${posLabel}: ${exprLabel(expected)}.`, 'success', 2500, respFormula);
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', `Releia a posição ${posLabel} da fórmula da união.`, 'error', 3500);
+        createAlert?.('Tente novamente', `Releia a posição ${posLabel} da fórmula da união.`, 'error', 3500, respFormula);
       }
     }, [createAlert, exprLabel]);
 
@@ -1415,18 +1471,31 @@ export const UnionExercise1 = forwardRef<UnionExercise1Handle, UnionExercise1Pro
               <OperationSelect
                 value={operationExpr}
                 onChange={(v) => {
+                  // Rótulo legível da operação para entrar na telemetria —
+                  // antes só ia o id interno ("union", "intersection", ...).
+                  const opLbl = v === 'union' ? 'da união'
+                              : v === 'intersection' ? 'da interseção'
+                              : v === 'difference' ? 'da diferença'
+                              : v === 'eventA' ? 'do evento A'
+                              : v === 'eventB' ? 'do evento B'
+                              : v === '' ? '(não escolhida)'
+                              : v;
+                  telemetryRecordInteracaoExercicio(
+                    `OperationSelect (Passo 7 — fórmula da probabilidade ___ de dois eventos) — escolheu "${opLbl}" (id="${v}") (esperado: "da união")`,
+                  );
                   setOperationExpr(v);
                   // Antes era `onChange={setOperationExpr}` direto, sem
                   // feedback. Agora cada seleção do select dá som + alert:
                   // acerto libera os 4 selects da fórmula (`disabled` cai
                   // pra false quando operationExpr==='union'), então é um
                   // momento importante pedagogicamente.
+                  const respOp = `Escolha da operação no Passo 7 — aluno marcou "${opLbl}" (id="${v}") (esperado: "da união")`;
                   if (v === 'union') {
                     playSound('/sounds/correct.mp3');
-                    createAlert?.('Correto!', 'Fórmula da união selecionada. Agora monte a expressão dentro dos parênteses.', 'success', 3500);
+                    createAlert?.('Correto!', 'Fórmula da união selecionada. Agora monte a expressão dentro dos parênteses.', 'success', 3500, respOp);
                   } else if (v !== '') {
                     playSound('/sounds/incorrect.mp3');
-                    createAlert?.('Tente novamente', 'Releia o enunciado — qual operação combina dois eventos numa "soma"?', 'error', 4000);
+                    createAlert?.('Tente novamente', 'Releia o enunciado — qual operação combina dois eventos numa "soma"?', 'error', 4000, respOp);
                   }
                 }}
                 expected="union"

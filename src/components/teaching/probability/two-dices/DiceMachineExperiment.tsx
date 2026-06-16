@@ -9,6 +9,8 @@ import type { AlertType } from '@/components/global/Alert';
 import {
   telemetryEnterExercise,
   telemetryExitExercise,
+  telemetryRecordInteracaoExercicio,
+  useTelemetryExercise,
 } from '@/hooks/teaching/probability/useTelemetry';
 
 // Handle exposto ao pai (TwoDicesPresentation) para o painel DEV
@@ -417,7 +419,7 @@ interface DiceMachineExperimentProps {
   onPhaseChange?: (phaseId: string) => void;
   /** Cria um toast alert via o sistema de alerts do pai (TwoDicesPresentation).
    *  Usado pelas validações para feedback consistente com o resto do OVA. */
-  createAlert?: (title: string, description: string, type: AlertType, timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: AlertType, timeout?: number, userResponse?: string) => void;
 }
 
 // ═══════ Componente principal ═══════
@@ -430,38 +432,6 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
     createAlert,
   }, ref) {
   const [phase, setPhase] = useState<Phase>('intro');
-
-  // Telemetria — SEÇÃO POR FASE COMPLETA (não só por lançamento). Cada
-  // tela dentro de um lançamento — incluindo intro, observar, registrar
-  // par, calcular soma, prever, justificar, comparar — vira uma seção
-  // telemétrica própria. Isso garante que mudou de tela → exercício
-  // separado no `exercicios_interagidos`. `intro` e `bridge` (transição
-  // entre cenas) também registram pra cobrir TUDO.
-  useEffect(() => {
-    let title: string, descricao: string;
-    if (phase === 'intro') {
-      title = 'Máquina de dois dados — Introdução';
-      descricao = 'Tela inicial da cena 6 — introdução à máquina dos 2 dados.';
-    } else if (phase === 'bridge') {
-      title = 'Máquina de dois dados — Transição final';
-      descricao = 'Tela de ponte para a Cena 7 (tabela 6×6).';
-    } else if (phase.startsWith('s1')) {
-      title = `Máquina de dois dados — Lançamento 1 (${phase})`;
-      descricao = 'L1: aluno aciona máquina, observa par (verde,azul) e registra via pickers.';
-    } else if (phase.startsWith('s2')) {
-      title = `Máquina de dois dados — Lançamento 2 (${phase})`;
-      descricao = 'L2: registro do par + cálculo da soma das faces.';
-    } else if (phase.startsWith('s3')) {
-      title = `Máquina de dois dados — Lançamento 3 (${phase})`;
-      descricao = 'L3: previsão da soma ANTES do lançamento + justificativa, depois compara.';
-    } else {
-      title = `Máquina de dois dados — ${phase}`;
-      descricao = `Fase ${phase} da Cena 6.`;
-    }
-    const id = `twoDices-cena6-${phase}`;
-    telemetryEnterExercise(id, title, descricao);
-    return () => telemetryExitExercise(id);
-  }, [phase]);
 
   // Resultado do lançamento atual
   const [blueResult, setBlueResult] = useState<number | null>(null);
@@ -508,6 +478,86 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
     }, 100);
     return () => clearInterval(id);
   }, [phase, diceMachineRef]);
+
+  // ─── TELEMETRIA POR FASE — title/descricao DINÂMICOS com TODO o texto
+  // visível na tela (instruções de cada lançamento, par sorteado, valor
+  // digitado na soma, previsão + justificativa, comparação final).
+  // Cada uma das 14 fases (intro, s1-ready, s1-rolling, s1-pick, s1-correct,
+  // s2-ready, s2-rolling, s2-pick, s2-sum, s2-correct, s3-predict,
+  // s3-rolling, s3-pick, s3-sum, s3-reflect, bridge) vira uma seção.
+  const phaseLabel =
+    phase === 'intro' ? 'Introdução à máquina'
+    : phase === 's1-ready' ? 'L1 — Pronto para lançar'
+    : phase === 's1-rolling' ? 'L1 — Máquina lançando'
+    : phase === 's1-pick' ? 'L1 — Registrar par observado'
+    : phase === 's1-correct' ? 'L1 — Par registrado corretamente'
+    : phase === 's2-ready' ? 'L2 — Pronto para lançar'
+    : phase === 's2-rolling' ? 'L2 — Máquina lançando'
+    : phase === 's2-pick' ? 'L2 — Registrar par observado'
+    : phase === 's2-sum' ? 'L2 — Calcular a soma'
+    : phase === 's2-correct' ? 'L2 — Par e soma registrados'
+    : phase === 's3-predict' ? 'L3 — Fazer previsão antes do lançamento'
+    : phase === 's3-rolling' ? 'L3 — Máquina lançando'
+    : phase === 's3-pick' ? 'L3 — Registrar par observado'
+    : phase === 's3-sum' ? 'L3 — Calcular a soma'
+    : phase === 's3-reflect' ? 'L3 — Reflexão sobre a previsão'
+    : phase === 'bridge' ? 'Transição final → Cena 7 (tabela 6×6)'
+    : String(phase);
+
+  const phaseStaticIntro =
+    'Texto na tela (intro): "Você vai operar uma máquina automática que lança dois dados (verde e azul). O processo é mecânico, mas o par (verde, azul) continua imprevisível. Você fará 3 lançamentos: nos dois primeiros, vai observar e registrar o resultado; no terceiro, fará uma previsão antes da máquina lançar."';
+
+  const cena6PairLabel = `par sorteado da máquina: (verde=${greenResult ?? '—'}, azul=${blueResult ?? '—'})`;
+  const cena6PickerLabel = `picker do aluno: (verde=${pickedGreen ?? '—'}, azul=${pickedBlue ?? '—'})`;
+
+  const phaseScreenText =
+    phase === 'intro'
+      ? `${phaseStaticIntro} | Botão visível: "Começar lançamento 1".`
+      : phase === 's1-ready'
+        ? 'Texto na tela: "Lançamento 1 de 3 — Observar. Toque em Lançar e observe com atenção qual face aparece em cada dado." | Botão visível: "🎲 Lançar".'
+        : phase === 's1-rolling'
+          ? `Animação: máquina lançando. Status: "${statusMsg}".`
+          : phase === 's1-pick'
+            ? `Texto na tela: "Lançamento 1 — Registrar. Toque em cada dado apresentado e escolha a face que apareceu na máquina." | ${cena6PickerLabel} | ${cena6PairLabel} | Botão visível: "Conferir".`
+            : phase === 's1-correct'
+              ? `Texto na tela: "✓ Par registrado corretamente". Resumo: ${cena6PairLabel}. "Você leu o par (verde, azul) que a máquina produziu. Cada lançamento da máquina forma um novo par desse tipo." | Botão visível: "Próximo lançamento".`
+              : phase === 's2-ready'
+                ? 'Texto na tela: "Lançamento 2 de 3 — Observar e somar. Agora você vai registrar o par e calcular a soma dos dois dados." | Botão visível: "🎲 Lançar".'
+                : phase === 's2-rolling'
+                  ? `Animação: máquina lançando. Status: "${statusMsg}".`
+                  : phase === 's2-pick'
+                    ? `Texto na tela: "Lançamento 2 — Registrar o par." | ${cena6PickerLabel} | ${cena6PairLabel} | Botão visível: "Conferir".`
+                    : phase === 's2-sum'
+                      ? `Texto na tela: "Lançamento 2 — Calcular a soma. Some os valores das duas faces: Soma = <input valor digitado="${sumInput}">." | ${cena6PairLabel} | Botão visível: "Conferir"${sumFeedback ? ` | Feedback visível: "${sumFeedback}"` : ''}`
+                      : phase === 's2-correct'
+                        ? `Texto na tela: "✓ Par registrado e soma calculada. A soma dos dois dados é um número novo, que vem do par. Guarde essa ideia — a soma vai voltar." | ${cena6PairLabel}, soma=${sumInput} | Botão visível: "Próximo lançamento".`
+                        : phase === 's3-predict'
+                          ? `Texto na tela: "Lançamento 3 de 3 — Fazer uma previsão. Antes de a máquina lançar, faça uma previsão: qual será a soma dos dois dados?" | Campo: Sua previsão = <input valor digitado="${predictionInput}"> (entre 2 e 12)${predictionError ? ` [erro: "${predictionError}"]` : ''} | Pergunta de justificativa: "Por que você escolheu esse número?" | Opções: "Acho que toda soma tem a mesma chance." / "Acho que esse número aparece mais." / "Foi só uma intuição." | Justificativa marcada: "${predictionReason || '(sem marcação)'}"${predictionReasonError ? ' [com erro]' : ''} | Botão visível: "🎲 Lançar e observar".`
+                          : phase === 's3-rolling'
+                            ? `Animação: máquina lançando. Status: "${statusMsg}". Previsão registrada: soma=${predictionInput}, justificativa="${predictionReason}".`
+                            : phase === 's3-pick'
+                              ? `Texto na tela: "Lançamento 3 — Registrar o par. Antes de conferir sua previsão, registre o par que a máquina produziu." | ${cena6PickerLabel} | ${cena6PairLabel} | Previsão de soma: ${predictionInput} | Botão visível: "Conferir".`
+                              : phase === 's3-sum'
+                                ? `Texto na tela: "Lançamento 3 — Calcular a soma. Some os valores das duas faces: Soma = <input valor digitado="${sumInput}">." | ${cena6PairLabel} | Previsão: ${predictionInput} | Botão visível: "Conferir"${sumFeedback ? ` | Feedback visível: "${sumFeedback}"` : ''}`
+                                : phase === 's3-reflect'
+                                  ? (() => {
+                                      const realSum = (greenResult ?? 0) + (blueResult ?? 0);
+                                      const userPrediction = parseInt((predictionInput ?? '').trim(), 10);
+                                      const occurred = !Number.isNaN(userPrediction) && userPrediction === realSum;
+                                      return `Texto na tela: "Lançamento 3 — Resultado. Sua previsão foi ${userPrediction}. Sua previsão ${occurred ? 'ocorreu' : 'NÃO ocorreu'}. Soma real: ${realSum}. ${occurred ? 'Será que ocorreu porque sua intuição estava certa, ou porque o acaso colaborou? Se a máquina lançar de novo, você confiaria na mesma previsão?' : 'E se a máquina lançar mil vezes, sua previsão seria a melhor escolha? Sua intuição funciona... ou foi acaso?'} E aquele motivo que você marcou — ele ainda faz sentido para você?" | Justificativa marcada antes: "${predictionReason}" | Botão visível: "Continuar".`;
+                                    })()
+                                  : phase === 'bridge'
+                                    ? 'Texto na tela: "Há um padrão escondido? Você viu que a soma nem sempre sai como imaginamos. Mas será que isso é só acaso... ou existe um padrão escondido? Para descobrir, precisamos enxergar todos os resultados possíveis ao mesmo tempo. Vamos organizar todos os pares numa tabela 6×6." | Botão visível: "Concluir esta etapa".'
+                                    : `Fase: ${phase}.`;
+
+  const cena6Title = `Cena 6 — Máquina de dois dados · ${phaseLabel}`;
+  const cena6Desc = `${phaseScreenText}`;
+  useTelemetryExercise(
+    `twoDices-cena6-${phase}`,
+    cena6Title,
+    cena6Desc,
+    true,
+  );
 
   // Scroll suave para o container da máquina (topo visível)
   const scrollToScene = useCallback(() => {
@@ -579,24 +629,25 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
         setPickGreenError(true);
         setPickFeedback('Toque no dado verde e escolha a face que apareceu.');
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Faltou o dado verde', 'Toque no dado verde e escolha a face que apareceu.', 'error', 4000);
+        createAlert?.('Faltou o dado verde', 'Toque no dado verde e escolha a face que apareceu.', 'error', 4000, `não escolheu face do dado verde (azul: ${pickedBlue ?? '—'})`);
         return;
       }
       if (pickedBlue == null) {
         setPickBlueError(true);
         setPickFeedback('Toque no dado azul e escolha a face que apareceu.');
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Faltou o dado azul', 'Toque no dado azul e escolha a face que apareceu.', 'error', 4000);
+        createAlert?.('Faltou o dado azul', 'Toque no dado azul e escolha a face que apareceu.', 'error', 4000, `não escolheu face do dado azul (verde: ${pickedGreen ?? '—'})`);
         return;
       }
       const greenOk = pickedGreen === greenResult;
       const blueOk = pickedBlue === blueResult;
+      const pairLabel = `escolheu par (verde ${pickedGreen}, azul ${pickedBlue}) — sorteado: (${greenResult}, ${blueResult})`;
       if (greenOk && blueOk) {
         setPickGreenError(false);
         setPickBlueError(false);
         setPickFeedback('');
         playSound('/sounds/correct.mp3');
-        createAlert?.('Par registrado!', `(verde, azul) = (${greenResult}, ${blueResult}).`, 'success', 3000);
+        createAlert?.('Par registrado!', `(verde, azul) = (${greenResult}, ${blueResult}).`, 'success', 3000, pairLabel);
         onSuccess();
       } else {
         setPickGreenError(!greenOk);
@@ -611,7 +662,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
         }
         setPickFeedback(msg);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', msg, 'error', 4500);
+        createAlert?.('Tente novamente', msg, 'error', 4500, pairLabel);
       }
     },
     [pickedGreen, pickedBlue, greenResult, blueResult, createAlert],
@@ -625,7 +676,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
       setSumError(true);
       setSumFeedback('Digite um número inteiro.');
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Campo inválido', 'Digite um número inteiro.', 'error', 4000);
+      createAlert?.('Campo inválido', 'Digite um número inteiro.', 'error', 4000, `digitou: "${sumInput}" (campo inválido — par sorteado: (${greenResult}, ${blueResult}))`);
       return;
     }
     const expected = (greenResult ?? 0) + (blueResult ?? 0);
@@ -633,14 +684,14 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
       setSumError(false);
       setSumFeedback('');
       playSound('/sounds/correct.mp3');
-      createAlert?.('Soma correta!', `${greenResult} + ${blueResult} = ${expected}.`, 'success', 3000);
+      createAlert?.('Soma correta!', `${greenResult} + ${blueResult} = ${expected}.`, 'success', 3000, `digitou soma: ${v} (correto — ${greenResult} + ${blueResult} = ${expected})`);
       setPhase(nextPhase);
     } else {
       setSumError(true);
       const msg = `Some ${greenResult} (verde) com ${blueResult} (azul) e tente de novo.`;
       setSumFeedback(msg);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', msg, 'error', 4000);
+      createAlert?.('Tente novamente', msg, 'error', 4000, `digitou soma: ${v} (esperado: ${expected}; par sorteado: (${greenResult}, ${blueResult}))`);
     }
   }, [sumInput, greenResult, blueResult, createAlert]);
 
@@ -670,10 +721,11 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
           : 'Selecione uma justificativa para sua previsão.',
         'error',
         4500,
+        `previsão de soma: "${predictionInput}" | justificativa: "${predictionReason || '—'}"`,
       );
       return;
     }
-    createAlert?.('Previsão registrada', `Você apostou na soma ${v}. Vamos lançar a máquina.`, 'info', 3000);
+    createAlert?.('Previsão registrada', `Você apostou na soma ${v}. Vamos lançar a máquina.`, 'info', 3000, `previsão registrada: soma=${v}, justificativa="${predictionReason}"`);
     // Lança a máquina — após pousar, aluno registra par + soma antes do reflect
     resetPicker();
     setSumInput('');
@@ -868,6 +920,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
           color="green"
           selected={pickedGreen}
           onPick={f => {
+            telemetryRecordInteracaoExercicio(`selecionou face ${f} para o dado VERDE (máquina ${phase})`);
             setPickedGreen(f);
             setPickGreenError(false);
             setPickFeedback('');
@@ -881,6 +934,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
           color="blue"
           selected={pickedBlue}
           onPick={f => {
+            telemetryRecordInteracaoExercicio(`selecionou face ${f} para o dado AZUL (máquina ${phase})`);
             setPickedBlue(f);
             setPickBlueError(false);
             setPickFeedback('');
@@ -1046,6 +1100,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
               style="primary"
               size="medium"
               onClick={() => {
+                telemetryRecordInteracaoExercicio('clicou em "Começar lançamento 1" (intro → s1-ready) — Cena 6: Máquina de lançamento');
                 scrollDiceToTop();
                 setPhase('s1-ready');
                 playSound('/sounds/nextChallenge.mp3');
@@ -1054,6 +1109,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                   'Acione a máquina e observe atentamente. Você vai precisar registrar o par (verde, azul) que sair.',
                   'info',
                   4500,
+                  'clicou em "Começar lançamento 1"',
                 );
               }}
               aria-label="Iniciar a primeira observação da máquina"
@@ -1090,7 +1146,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                   style="primary"
                   size="medium"
                   disabled={isLaunching}
-                  onClick={() => void launchMachine('s1-rolling', 's1-pick')}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio('clicou em "🎲 Lançar" (s1-ready — Lançamento 1 da máquina)');
+                    void launchMachine('s1-rolling', 's1-pick');
+                  }}
                   aria-label="Lançar a máquina pela primeira vez"
                 >
                   🎲 Lançar
@@ -1134,7 +1193,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="small"
-                  onClick={() => validatePair(() => setPhase('s1-correct'))}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`clicou em "Conferir" (s1-pick — registrou par (verde ${pickedGreen ?? '—'}, azul ${pickedBlue ?? '—'}))`);
+                    validatePair(() => setPhase('s1-correct'));
+                  }}
                   aria-label="Conferir o par ordenado registrado"
                 >
                   Conferir
@@ -1164,7 +1226,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="medium"
-                  onClick={goToS2}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio('clicou em "Próximo lançamento" (s1-correct → s2-ready)');
+                    goToS2();
+                  }}
                   aria-label="Avançar para o lançamento 2"
                 >
                   Próximo lançamento
@@ -1194,7 +1259,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                   style="primary"
                   size="medium"
                   disabled={isLaunching}
-                  onClick={() => void launchMachine('s2-rolling', 's2-pick')}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio('clicou em "🎲 Lançar" (s2-ready — Lançamento 2 da máquina, observar e somar)');
+                    void launchMachine('s2-rolling', 's2-pick');
+                  }}
                   aria-label="Lançar a máquina pela segunda vez"
                 >
                   🎲 Lançar
@@ -1220,7 +1288,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="small"
-                  onClick={() => validatePair(() => setPhase('s2-sum'))}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`clicou em "Conferir" (s2-pick — registrou par (verde ${pickedGreen ?? '—'}, azul ${pickedBlue ?? '—'}))`);
+                    validatePair(() => setPhase('s2-sum'));
+                  }}
                   aria-label="Conferir o par ordenado registrado"
                 >
                   Conferir
@@ -1282,7 +1353,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="extra-small"
-                  onClick={() => validateSum('s2-correct')}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`clicou em "Conferir" (s2-sum — digitou soma: "${sumInput}")`);
+                    validateSum('s2-correct');
+                  }}
                   aria-label="Conferir a soma calculada"
                 >
                   Conferir
@@ -1320,7 +1394,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="medium"
-                  onClick={goToS3}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio('clicou em "Próximo lançamento" (s2-correct → s3-predict)');
+                    goToS3();
+                  }}
                   aria-label="Avançar para o lançamento 3"
                 >
                   Próximo lançamento
@@ -1420,6 +1497,7 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                       value={opt.value}
                       checked={predictionReason === opt.value}
                       onChange={() => {
+                        telemetryRecordInteracaoExercicio(`marcou justificativa da previsão: "${opt.label}"`);
                         setPredictionReason(opt.value as 'equip' | 'maisChance' | 'intuicao');
                         setPredictionReasonError(false);
                       }}
@@ -1445,7 +1523,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                   style="primary"
                   size="medium"
                   disabled={isLaunching}
-                  onClick={validatePrediction}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`clicou em "🎲 Lançar e observar" (s3-predict — previu soma: "${predictionInput}", justificativa: "${predictionReason || '—'}")`);
+                    validatePrediction();
+                  }}
                   aria-label="Lançar a máquina e observar o resultado"
                 >
                   🎲 Lançar e observar
@@ -1474,12 +1555,15 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="small"
-                  onClick={() => validatePair(() => {
-                    setSumInput('');
-                    setSumError(false);
-                    setSumFeedback('');
-                    setPhase('s3-sum');
-                  })}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`clicou em "Conferir" (s3-pick — registrou par (verde ${pickedGreen ?? '—'}, azul ${pickedBlue ?? '—'}))`);
+                    validatePair(() => {
+                      setSumInput('');
+                      setSumError(false);
+                      setSumFeedback('');
+                      setPhase('s3-sum');
+                    });
+                  }}
                   aria-label="Conferir o par ordenado registrado"
                 >
                   Conferir
@@ -1533,7 +1617,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="extra-small"
-                  onClick={() => validateSum('s3-reflect')}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`clicou em "Conferir" (s3-sum — digitou soma: "${sumInput}")`);
+                    validateSum('s3-reflect');
+                  }}
                   aria-label="Conferir a soma calculada"
                 >
                   Conferir
@@ -1598,7 +1685,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                     <Button
                       style="primary"
                       size="medium"
-                      onClick={goToBridge}
+                      onClick={() => {
+                        telemetryRecordInteracaoExercicio(`clicou em "Continuar" (s3-reflect → bridge — previsão: ${hasPrediction ? userPrediction : '—'}, soma real: ${realSum}, ${occurred ? 'previsão ocorreu' : 'previsão NÃO ocorreu'})`);
+                        goToBridge();
+                      }}
                       aria-label="Refletir sobre o experimento e avançar"
                     >
                       Continuar
@@ -1635,7 +1725,10 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
                 <Button
                   style="primary"
                   size="medium"
-                  onClick={onFinished}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio('clicou em "Concluir esta etapa" (bridge → Cena 7 — fim da máquina, ir para a tabela 6×6)');
+                    onFinished();
+                  }}
                   aria-label="Concluir esta etapa e ir para a tabela de pares"
                 >
                   Concluir esta etapa

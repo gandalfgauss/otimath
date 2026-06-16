@@ -332,6 +332,7 @@ export const LN_NEG = {
   atLeastOnePrime: 'nenhuma das faces é primo',
   noneEven: 'pelo menos uma das faces é par',
   noneOdd: 'pelo menos uma das faces é ímpar',
+  nonePrime: 'pelo menos uma das faces é primo',
   bothEven: 'pelo menos uma das faces é ímpar',
   bothOdd: 'pelo menos uma das faces é par',
 } as const;

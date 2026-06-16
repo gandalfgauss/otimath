@@ -3,6 +3,7 @@
 import { Button } from "@/components/global/Button";
 import { TextInput } from "@/components/global/TextInput";
 import { Game } from "@/hooks/teaching/probability/tree/useTreeHooks";
+import { telemetryRecordInteracaoExercicio } from "@/hooks/teaching/probability/useTelemetry";
 import { useCallback, useMemo, useRef} from "react";
 
 interface TreeCalculatorProps {
@@ -51,6 +52,7 @@ export default function TreeCalculator({game, setGame}:Readonly<TreeCalculatorPr
   };
 
   const clearExpression = () => {
+    telemetryRecordInteracaoExercicio(`TreeCalculator — clicou em "C" (limpou expressão "${expression || '(vazia)'}")`);
     setExpression("");
   };
 
@@ -59,11 +61,14 @@ export default function TreeCalculator({game, setGame}:Readonly<TreeCalculatorPr
       const sanitized = expression.replaceAll(',', '.');
       const result = new Function(`"use strict"; return (${sanitized})`)();
       if(result === Infinity || Number.isNaN(result)) {
+        telemetryRecordInteracaoExercicio(`TreeCalculator — clicou em "=" com expressão "${expression}" → resultado: Erro (inválido)`);
         setExpression("Erro");
         return;
       }
+      telemetryRecordInteracaoExercicio(`TreeCalculator — clicou em "=" com expressão "${expression}" → resultado: ${result}`);
       setExpression(String(result));
     } catch {
+      telemetryRecordInteracaoExercicio(`TreeCalculator — clicou em "=" com expressão "${expression}" → resultado: Erro (exception)`);
       setExpression("Erro");
     }
   };

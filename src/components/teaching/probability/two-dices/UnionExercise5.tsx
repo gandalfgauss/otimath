@@ -37,7 +37,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
-import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import {
   selectExercise5Data, type Exercise5Data, reduceFraction, fractionsEquivalent,
 } from './shared/exercise5Data';
@@ -75,7 +75,7 @@ interface UnionExercise5Props {
   onRequestPreviousPhase?: () => void;
   initialStep?: Step;
   /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
-  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
 }
 
 export interface UnionExercise5Handle {
@@ -195,11 +195,6 @@ function buildReasoningLines(data: Exercise5Data): ReasoningLine[] {
 export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Props>(
   function UnionExercise5({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
     const [step, setStep] = useState<Step>(initialStep ?? 'intro');
-    useTelemetryExercise(
-      `twoDices-cena7-unionExercise5-${step}`,
-      'Exercício 5 — Pesquisa em campo (tabela de contingência)',
-      'Aluno calcula P(A∪B) ou P(A∩B) lendo uma tabela de contingência (eventos não-exclusivos OU exclusivos).',
-    );
     // Telemetria — leitura do enunciado do Ex.5.
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',
@@ -210,6 +205,41 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
     );
     const [round, setRound] = useState(0);
     const [data, setData] = useState<Exercise5Data>(() => selectExercise5Data(0));
+    // Título DINÂMICO com label legível por step + dados do problema atual.
+    const stepLabelUE5 = step === 'intro' ? 'Enunciado'
+      : step === 'fillTotals' ? 'Preencher totais da tabela de contingência'
+      : step === 'enunciadoView' ? 'Visualização do enunciado'
+      : step === 'spiralOpen' ? 'Espiral — escolher e justificar fração'
+      : step === 'goalAnim' ? 'Animação do objetivo'
+      : step === 'wrongFeedback' ? 'Feedback de erro'
+      : step === 'reasoningPlayback' ? 'Replay do raciocínio'
+      : step === 'conditionalGlimpse' ? 'Antecipação — probabilidade condicional'
+      : step === 'roundFinished' ? 'Rodada concluída'
+      : String(step);
+    const eventosBlocoUE5 =
+      `Evento A: "${data.descA}" (n(A) = ${data.nA}) | ` +
+      `Evento B: "${data.descB}" (n(B) = ${data.nB}) | ` +
+      `n(A ∩ B) = ${data.nAB} | ` +
+      `Tipo de pergunta: ${data.questionType === 'union' ? 'União (não-exclusivos)' : data.questionType === 'union_excl' ? 'União (mutuamente exclusivos)' : 'Interseção'} | ` +
+      `Times: ${data.team1.shortName} vs ${data.team2.shortName} | ` +
+      `Tabela 2×2 (H1=${data.H1}, H2=${data.H2}, M1=${data.M1}, M2=${data.M2}; t1=${data.t1}, t2=${data.t2}, th=${data.th}, tm=${data.tm}, total tg=${data.tg}) | ` +
+      `Alvo do problema: ${data.targetLabel} = ${data.answerNum}/${data.answerDen}`;
+    const oQueCalculaUE5 =
+      step === 'intro' ? `Leitura do enunciado: "${data.statement}". Vai calcular ${data.targetLabel}.`
+      : step === 'fillTotals' ? `Preenchimento dos 5 totais da tabela 2×2: t1=${data.t1} (Time1), t2=${data.t2} (Time2), th=${data.th} (♂), tm=${data.tm} (♀), tg=${data.tg} (total geral).`
+      : step === 'enunciadoView' ? `Releitura do enunciado: "${data.statement}". Foco em entender ${data.targetLabel}.`
+      : step === 'spiralOpen' ? `Escolha entre 5 frações (1 correta + 4 distratores didáticos): a fração correta de ${data.targetLabel} é ${data.answerNum}/${data.answerDen}.`
+      : step === 'goalAnim' ? `Animação visual do objetivo: ${data.targetLabel} = ${data.answerNum}/${data.answerDen}.`
+      : step === 'wrongFeedback' ? 'Feedback de erro — aluno marcou um distrator. Explicação do erro típico associado à fração escolhida.'
+      : step === 'reasoningPlayback' ? `Replay passo a passo do raciocínio correto para chegar em ${data.targetLabel} = ${data.answerNum}/${data.answerDen}.`
+      : step === 'conditionalGlimpse' ? 'Antecipação de probabilidade condicional — preparação para futura aula.'
+      : step === 'roundFinished' ? `Rodada ${round + 1} concluída. ${data.targetLabel} = ${data.answerNum}/${data.answerDen}.`
+      : '';
+    useTelemetryExercise(
+      `twoDices-cena7-unionExercise5-${step}`,
+      `Exercício 5 — Pesquisa em campo (${data.targetLabel}) — ${stepLabelUE5}`,
+      `Atividade global: Aluno calcula P(A∪B) ou P(A∩B) lendo uma tabela de contingência (times × sexo). | Eventos do problema atual: ${eventosBlocoUE5} | Fase atual: ${stepLabelUE5}. | Ação atual do aluno / cálculo: ${oQueCalculaUE5}`,
+    );
 
     // Estado dos totais editáveis
     const [totals, setTotals] = useState<TotalsState>(EMPTY_TOTALS);
@@ -340,31 +370,44 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
       scrollDiceToTop();
       const v = validateTotals(data, totals);
       setValidation(v);
+      const respTotals = `Totais digitados — t1=${totals.t1 || '_'}, t2=${totals.t2 || '_'}, th=${totals.th || '_'}, tm=${totals.tm || '_'}, tg=${totals.tg || '_'}`;
       if (allTotalsCorrect(v)) {
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', 'Totais da tabela de contingência conferidos.', 'success', 3500);
+        createAlert?.('Correto!', 'Totais da tabela de contingência conferidos.', 'success', 3500, respTotals);
         setTotalsLocked(true);
         setStep('enunciadoView');
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Some as linhas e colunas — algum total não confere.', 'error', 4500);
+        createAlert?.('Tente novamente', 'Some as linhas e colunas — algum total não confere.', 'error', 4500, respTotals);
       }
     }, [data, totals, createAlert]);
 
     const onResponderClick = useCallback(() => {
+      telemetryRecordInteracaoExercicio(
+        `UE5 enunciadoView — clicou em "Responder" (após ${wrongAttempts} tentativa(s) errada(s), nível de dicas: ${hintLevel}/2) — abriu o spiral com as alternativas`,
+      );
       scrollDiceToTop();
       setStep('spiralOpen');
-    }, []);
+    }, [wrongAttempts, hintLevel]);
 
     const onSpiralSubmit = useCallback((selectedId: string) => {
       scrollDiceToTop();
+      // Recupera a alternativa marcada e a correta para que o resposta_usuario
+      // mostre o VALOR exibido no botão (ex.: "0,42") em vez de só o id interno
+      // (ex.: "d2" ou "correct") — sem isso, errar não mostrava o número que o
+      // aluno escolheu no modal.
+      const chosen = alternatives.find(a => a.id === selectedId);
+      const correctAlt = alternatives.find(a => a.id === 'correct');
+      const chosenLabel = chosen?.display ?? selectedId;
+      const correctLabel = correctAlt?.display ?? '?';
+      const respSpiral = `Spiral (modal de alternativas) — aluno clicou em "${chosenLabel}" (id="${selectedId}") (esperado: "${correctLabel}" id="correct")`;
       if (selectedId === 'correct') {
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', 'Resposta certa — siga para o gol!', 'success', 3500);
+        createAlert?.('Correto!', 'Resposta certa — siga para o gol!', 'success', 3500, respSpiral);
         setStep('goalAnim');
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Releia o enunciado e reconsidere as alternativas.', 'error', 4500);
+        createAlert?.('Tente novamente', 'Releia o enunciado e reconsidere as alternativas.', 'error', 4500, respSpiral);
         setWrongAttempts(w => {
           const next = w + 1;
           if (next >= 1 && hintLevel === 0) setHintLevel(1);
@@ -374,7 +417,7 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
         });
         setStep('wrongFeedback');
       }
-    }, [hintLevel, createAlert]);
+    }, [hintLevel, createAlert, alternatives]);
 
     const onSpiralCancel = useCallback(() => {
       setStep('enunciadoView');
@@ -394,6 +437,11 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
     }, [round, createAlert]);
 
     const onRequestHint = useCallback(() => {
+      const nextLevel = hintLevel === 0 ? 1 : hintLevel === 1 ? 2 : 2;
+      const btnLabel = hintLevel === 0 ? 'Preciso de uma dica' : 'Mais uma dica';
+      telemetryRecordInteracaoExercicio(
+        `UE5 enunciadoView — clicou em "${btnLabel}" (nível ${hintLevel} → ${nextLevel} de 2) — revelou dica ${nextLevel === 1 ? 'geral' : 'específica'}`,
+      );
       if (hintLevel === 0) setHintLevel(1);
       else if (hintLevel === 1) setHintLevel(2);
       else setShowNoIdeaButton(true);
@@ -401,11 +449,18 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
     }, [hintLevel]);
 
     const onNoIdea = useCallback(() => {
+      telemetryRecordInteracaoExercicio(
+        `UE5 enunciadoView — clicou em "Não sei realmente — ver resolução" (após ${wrongAttempts} tentativa(s) errada(s) e ${hintLevel} dica(s) usada(s)) — abriu o painel de raciocínio completo`,
+      );
       setStep('reasoningPlayback');
-    }, []);
+    }, [wrongAttempts, hintLevel]);
 
     const advanceToNextRound = useCallback(() => {
       const nextRound = round + 1;
+      const isMandatoryR2 = round === 0; // saindo da rodada 1 (round=0) → rodada 2 obrigatória
+      telemetryRecordInteracaoExercicio(
+        `UE5 roundFinished — clicou em "${isMandatoryR2 ? 'Próxima rodada' : 'Continuar estudando'}" (rodada ${round + 1} → ${nextRound + 1}) — reiniciou todo o estado e voltou ao "intro" do novo problema`,
+      );
       setRound(nextRound);
       setData(selectExercise5Data(nextRound));
       setTotals(EMPTY_TOTALS);
@@ -420,9 +475,12 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
     }, [round]);
 
     const finishExercise = useCallback(() => {
+      telemetryRecordInteracaoExercicio(
+        `UE5 roundFinished — clicou em "Finalizar exercício" (na rodada ${round + 1}) — encerrou o Exercício 5`,
+      );
       scrollDiceToTop();
       onFinished();
-    }, [onFinished]);
+    }, [onFinished, round]);
 
     const hints = useMemo(() => buildHints(data), [data]);
     const reasoningLines = useMemo(() => buildReasoningLines(data), [data]);
@@ -476,7 +534,16 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
             onValidate={onValidateTotals}
             tableBoundsRef={tableBoundsRef}
             calcOpen={calcOpen}
-            onToggleCalc={() => setCalcOpen(o => !o)}
+            onToggleCalc={() => {
+              // NÃO emite telemetria aqui — DraggableCalculator já tem um
+              // useEffect interno (linha ~58 de DraggableCalculator.tsx) que
+              // dispara `telemetryRecordAtomicInteraction('Calculadora —
+              // aberta', ...)` toda vez que `open` vira true. Sem este
+              // comentário/guard, o `onToggleCalc` adicionava um segundo
+              // evento por clique, gerando DOIS exercícios atômicos no
+              // historico por abertura.
+              setCalcOpen(o => !o);
+            }}
           />
         )}
 
@@ -494,7 +561,16 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
             onNoIdea={onNoIdea}
             tableBoundsRef={tableBoundsRef}
             calcOpen={calcOpen}
-            onToggleCalc={() => setCalcOpen(o => !o)}
+            onToggleCalc={() => {
+              // NÃO emite telemetria aqui — DraggableCalculator já tem um
+              // useEffect interno (linha ~58 de DraggableCalculator.tsx) que
+              // dispara `telemetryRecordAtomicInteraction('Calculadora —
+              // aberta', ...)` toda vez que `open` vira true. Sem este
+              // comentário/guard, o `onToggleCalc` adicionava um segundo
+              // evento por clique, gerando DOIS exercícios atômicos no
+              // historico por abertura.
+              setCalcOpen(o => !o);
+            }}
           />
         )}
 
@@ -518,10 +594,26 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
           <ConditionalGlimpsePanel
             data={data}
             onContinue={() => {
+              // O resposta_usuario do acerto e o registro de interação devem
+              // refletir o conteúdo do painel "Antecipação — probabilidade
+              // condicional" que o aluno acabou de LER, e não só o título
+              // "Parabéns!" — sem isso, quem analisa a coleta não sabe a
+              // que conteúdo o aluno foi exposto antes do roundFinished.
+              const cellAB = data.H1; // ♂ ∩ Time1 (mesmos campos usados pelo ConditionalGlimpsePanel)
+              const totalA = data.t1; // total da linha Time1
+              const respGlimpse =
+                `UE5 conditionalGlimpse — clicou em "Entendi, prosseguir" após ler: ` +
+                `"🔮 Antecipação — uma nova pergunta sobre a mesma tabela. ` +
+                `Suponha que sabemos que a pessoa entrevistada torce pelo ${data.team1.name} ` +
+                `(já restringimos o espaço amostral à linha do Time1, que tem ${totalA} torcedores). ` +
+                `Qual seria a probabilidade de essa pessoa ser do sexo masculino? ` +
+                `P(♂ | ${data.team1.shortName}) = ${cellAB} / ${totalA} ≈ ${fmtPercent(cellAB, totalA, 1)}. ` +
+                `Isso é a probabilidade condicional — um conceito que futuramente pode ser inserido na sequência didática."`;
+              telemetryRecordInteracaoExercicio(respGlimpse);
               // Som + alert de celebração ao chegar em roundFinished — mesmo
               // padrão do onGoalFinished (rodadas que não passam pelo glimpse).
               playSound('/sounds/challengeFinished.mp3');
-              createAlert?.('Parabéns!', 'Você finalizou esta rodada com sucesso!', 'success', 4500);
+              createAlert?.('Parabéns!', 'Você finalizou esta rodada com sucesso!', 'success', 4500, respGlimpse);
               setStep('roundFinished');
               scrollDiceToTop();
             }}

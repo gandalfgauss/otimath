@@ -205,6 +205,50 @@ export function unfreezeOva(ova: OvaKey): void {
   }
 }
 
+/** Restaura o estado do cronômetro a partir de uma run salva no banco.
+ *
+ *  Chamado uma única vez no mount da sequência (ANTES de startSequence)
+ *  quando o aluno retoma uma run incompleta. Ajusta `sessionStartTime`
+ *  para que `getElapsedTotalMs()` retorne `elapsedTotalMs` imediatamente —
+ *  fazendo o relógio do topo "continuar" exatamente do ponto em que parou.
+ *
+ *  Não chama `setupAlertObserver` nem `initTelemetryListeners` aqui — quem
+ *  chamou `restoreSession` ainda precisa chamar `startSequence` em seguida
+ *  pra ligar os listeners. A diferença é que `startSequence` SOZINHO zera
+ *  os contadores; com `restoreSession` antes, eles ficam onde estavam.
+ */
+export function restoreSession(payload: {
+  elapsedTotalMs: number;
+  elapsedRouletteMs: number;
+  elapsedTwoDicesMs: number;
+}): void {
+  // Se já houver uma sessão correndo, ignora — restaurar em cima causa drift.
+  if (sessionStartTime !== null && sessionEndTime === null) return;
+  // Limpa logs como o startSequence faria — vamos popular via restoreTelemetry.
+  clearRouletteLog();
+  clearTwoDicesLog();
+  // Truque: faz sessionStartTime no passado pra getElapsedTotalMs já retornar
+  // o valor restaurado. Sem mexer em sessionPausedAccumMs (não houve pausa).
+  sessionStartTime = Date.now() - Math.max(0, payload.elapsedTotalMs);
+  sessionEndTime = null;
+  sessionPausedAt = null;
+  sessionPausedAccumMs = 0;
+  pausedOvaByOffline = null;
+  ovaTimer.roulette = {
+    state: 'paused',
+    accumMs: Math.max(0, payload.elapsedRouletteMs),
+    startedAt: null,
+  };
+  ovaTimer.twoDices = {
+    state: 'paused',
+    accumMs: Math.max(0, payload.elapsedTwoDicesMs),
+    startedAt: null,
+  };
+  activeOva = null;
+  setupAlertObserver();
+  initTelemetryListeners();
+}
+
 /** Disparado quando o aluno chega na tela final ('complete').
  *  Congela o cronômetro global e o do OVA ativo. */
 export function endSequence(): void {

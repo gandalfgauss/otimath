@@ -54,7 +54,7 @@ interface VennLaboratoryProps {
   onSubStepChange?: (subStep: string) => void;
   /** Toast alert do OVA. Disparado em validações erradas e acertos
    *  relevantes para feedback consistente com o resto do OVA. */
-  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
 }
 
 // Handle exposto ao painel DEV — permite avançar pelas sub-etapas internas
@@ -127,10 +127,75 @@ export function VennLaboratory({
   // Venn (intro → createIntersection → ... → conclusion) é uma tela
   // distinta. Mudou de step → nova seção telemétrica, exercícios não
   // se misturam entre etapas.
+  // Título DINÂMICO — descreve a tela específica do passo atual.
+  const stepLabelVenn = step === 'intro' ? 'Enunciado'
+    : step === 'createIntersection' ? 'Construir A ∩ B (mover círculo B)'
+    : step === 'clickIntersection' ? 'Identificar A ∩ B no diagrama'
+    : step === 'fillIntersection' ? 'Depositar n(A ∩ B) na região'
+    : step === 'identifyAMinusB' ? 'Identificar A − B no diagrama'
+    : step === 'fillAMinusB' ? 'Calcular e depositar n(A − B)'
+    : step === 'identifyBMinusA' ? 'Identificar B − A no diagrama'
+    : step === 'fillBMinusA' ? 'Calcular e depositar n(B − A)'
+    : step === 'markUnion' ? 'Selecionar regiões de A ∪ B'
+    : step === 'unionCount' ? 'Contar n(A ∪ B) pelo diagrama'
+    : step === 'countAFromDiagram' ? 'Contar n(A) pelas regiões do diagrama'
+    : step === 'countBFromDiagram' ? 'Contar n(B) pelas regiões do diagrama'
+    : step === 'sumAB' ? 'Montar n(A) + n(B) clicando expressões'
+    : step === 'doubleCountQuestion' ? 'Por que subtrair n(A ∩ B)?'
+    : step === 'numericConclusion' ? 'Conclusão numérica n(A ∪ B) = n(A) + n(B) − n(A ∩ B)'
+    : step === 'placeExpressions' ? 'Posicionar expressões da fórmula no diagrama'
+    : step === 'writeUnionFormula' ? 'Escrever a fórmula geral da união'
+    : step === 'conclusion' ? 'Síntese / conclusão final'
+    : String(step);
+  const oQueCalculaVenn = (() => {
+    const nAmB = nA - nI;
+    const nBmA = nB - nI;
+    switch (step) {
+      case 'intro':
+        return `Tela: "Laboratório do diagrama de Venn — Dados: n(A) = ${nA}, n(B) = ${nB}, n(A ∩ B) = ${nI}." Introdução: construir o diagrama do par {A, B} para descobrir VISUALMENTE por que n(A ∪ B) ≠ n(A) + n(B).`;
+      case 'createIntersection':
+        return `Tela: "Mova o círculo B para sobrepor A e formar A ∩ B." Cálculo: aluno arrasta o círculo B sobre A — A ∩ B emerge como região central.`;
+      case 'clickIntersection':
+        return `Tela: "Laboratório do diagrama de Venn — Dados: n(A) = ${nA}, n(B) = ${nB}, n(A ∩ B) = ${nI}. Clique na região que representa A ∩ B — onde os elementos pertencem a A e a B ao mesmo tempo." Cálculo: aluno IDENTIFICA a região A ∩ B clicando nela. Esperado: região central (sobreposição de A e B).`;
+      case 'fillIntersection':
+        return `Tela: "Clique no chip n(A ∩ B) = ${nI} no topo, depois clique na região A ∩ B do diagrama para depositar o valor." Cálculo: aluno arma o chip n(A ∩ B) = ${nI} e deposita na região central.`;
+      case 'identifyAMinusB':
+        return `Tela: "Clique na região que representa A − B (onde A ocorre e B NÃO ocorre)." Cálculo: aluno IDENTIFICA a região "só A" (lado esquerdo, fora da interseção). Esperado: n(A − B) = n(A) − n(A ∩ B) = ${nA} − ${nI} = ${nAmB} pares.`;
+      case 'fillAMinusB':
+        return `Tela: "Digite o valor de n(A − B) no campo da região A − B do diagrama. Use que n(A − B) = n(A) − n(A ∩ B)." Cálculo: aluno calcula n(A − B) = ${nA} − ${nI} = ${nAmB} e deposita.`;
+      case 'identifyBMinusA':
+        return `Tela: "Clique na região que representa B − A (onde B ocorre e A NÃO ocorre)." Cálculo: aluno IDENTIFICA a região "só B" (lado direito, fora da interseção). Esperado: n(B − A) = n(B) − n(A ∩ B) = ${nB} − ${nI} = ${nBmA} pares.`;
+      case 'fillBMinusA':
+        return `Tela: "Digite o valor de n(B − A) no campo da região B − A do diagrama. Use que n(B − A) = n(B) − n(A ∩ B)." Cálculo: aluno calcula n(B − A) = ${nB} − ${nI} = ${nBmA} e deposita.`;
+      case 'markUnion':
+        return `Cálculo: aluno SELECIONA as regiões que compõem A ∪ B (A−B + A∩B + B−A).`;
+      case 'unionCount':
+        return `Cálculo: somar n(A ∪ B) pelo diagrama = (A−B) + (A∩B) + (B−A) = ${nAmB} + ${nI} + ${nBmA} = ${nU ?? nA + nB - nI}.`;
+      case 'countAFromDiagram':
+        return `Cálculo: somar n(A) pelas regiões do diagrama = (A−B) + (A∩B) = ${nAmB} + ${nI} = ${nA}.`;
+      case 'countBFromDiagram':
+        return `Cálculo: somar n(B) pelas regiões do diagrama = (B−A) + (A∩B) = ${nBmA} + ${nI} = ${nB}.`;
+      case 'sumAB':
+        return `Cálculo: montar a expressão n(A) + n(B) clicando nas peças — = (A−B) + (A∩B) + (B−A) + (A∩B) = ${nA + nB} (conta A ∩ B DUAS vezes).`;
+      case 'doubleCountQuestion':
+        return `Cálculo conceitual: aluno responde POR QUE precisamos subtrair n(A ∩ B) — porque n(A) + n(B) conta a interseção 2 vezes.`;
+      case 'numericConclusion':
+        return `Cálculo: conclusão NUMÉRICA n(A ∪ B) = n(A) + n(B) − n(A ∩ B) = ${nA} + ${nB} − ${nI} = ${nU ?? nA + nB - nI}.`;
+      case 'placeExpressions':
+        return `Tela: "Clique em uma das expressões disponíveis para armá-la e, em seguida, clique na região correspondente do diagrama. Repita para as três expressões e depois clique em Confirmar." Cálculo: aluno arma n(A − B) / n(A ∩ B) / n(B − A) e posiciona cada uma na região correta do diagrama (A \\ B, A ∩ B, B \\ A).`;
+      case 'writeUnionFormula':
+        return `Tela: "n(A ∪ B) = __ + __ + __  | Note pelo diagrama que n(A ∪ B) é a soma das três regiões internas. Clique em cada região para preencher os três espaços indicados." Cálculo: aluno CLICA em cada uma das 3 regiões internas do diagrama (A − B, A ∩ B, B − A) para preencher os 3 slots da soma, descobrindo a decomposição n(A ∪ B) = n(A − B) + n(A ∩ B) + n(B − A) = ${nAmB} + ${nI} + ${nBmA} = ${nU ?? nA + nB - nI}.`;
+      case 'conclusion':
+        return `Síntese: fórmula geral institucionalizada. Verificação numérica final: ${nA} + ${nB} − ${nI} = ${nU ?? nA + nB - nI} = n(A ∪ B).`;
+      default:
+        return `Sub-etapa Venn: ${step}.`;
+    }
+  })();
+  const eventosBlocoVenn = `Evento A: "${eventADescription}" (n(A) = ${nA}) | Evento B: "${eventBDescription}" (n(B) = ${nB}) | n(A ∩ B) = ${nI} | n(A ∪ B) = ${nU ?? nA + nB - nI}`;
   useTelemetryExercise(
     `twoDices-cena7-venn-${step}`,
-    'Laboratório de Venn — descoberta da fórmula da união',
-    `Construção do diagrama de Venn (N=2). Sub-etapa: ${step}.`,
+    `Laboratório de Venn — ${stepLabelVenn} — Eventos: A="${eventADescription}", B="${eventBDescription}"`,
+    `Atividade global: Construção INTERATIVA do diagrama de Venn (N=2) para descobrir a fórmula geral n(A ∪ B) = n(A) + n(B) − n(A ∩ B). || ${eventosBlocoVenn} || Ação atual do aluno / cálculo: ${oQueCalculaVenn}`,
   );
   const [geometry, setGeometry] = useState<VennGeometry>(defaultGeometry2Disjoint);
   const [descriptionsOutside, setDescriptionsOutside] = useState(false);
@@ -349,24 +414,26 @@ export function VennLaboratory({
       });
     }
     if (step === 'clickIntersection') {
+      const respClick = `clickIntersection — aluno clicou na região "${regionLabel}" (esperado: "A ∩ B")`;
       if (masksEqual(mask, [true, true])) {
         setIntersectionClicked(true);
         playSound('/sounds/correct.mp3');
         setFeedback({ type: 'ok', msg: 'Correto!' });
-        createAlert?.('Correto!', 'A ∩ B é a região onde A e B se sobrepõem.', 'success', 3000);
+        createAlert?.('Correto!', 'A ∩ B é a região onde A e B se sobrepõem.', 'success', 3000, respClick);
         setTimeout(() => goTo('fillIntersection'), 800);
       } else {
         playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'Essa não é a região de A ∩ B. Clique onde A e B se sobrepõem.' });
-        createAlert?.('Tente novamente', 'Essa não é a região de A ∩ B. Clique onde A e B se sobrepõem.', 'error', 4000);
+        createAlert?.('Tente novamente', 'Essa não é a região de A ∩ B. Clique onde A e B se sobrepõem.', 'error', 4000, respClick);
       }
       return;
     }
     if (step === 'fillIntersection') {
+      const respFill = `fillIntersection — chip armado: ${armedChip ?? '(nenhum)'} ; aluno depositou na região "${regionLabel}" (esperado: chip n(A ∩ B) = ${nI} na região "A ∩ B")`;
       if (!armedChip) {
         playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'Primeiro clique no valor n(A ∩ B) no topo da tela.' });
-        createAlert?.('Falta armar', 'Primeiro clique no valor n(A ∩ B) no topo da tela.', 'error', 4000);
+        createAlert?.('Falta armar', 'Primeiro clique no valor n(A ∩ B) no topo da tela.', 'error', 4000, respFill);
         return;
       }
       if (masksEqual(mask, [true, true])) {
@@ -374,39 +441,41 @@ export function VennLaboratory({
         setArmedChip(null);
         playSound('/sounds/correct.mp3');
         setFeedback({ type: 'ok', msg: 'Correto!' });
-        createAlert?.('Correto!', `n(A ∩ B) = ${nI} depositado em A ∩ B.`, 'success', 3000);
+        createAlert?.('Correto!', `n(A ∩ B) = ${nI} depositado em A ∩ B.`, 'success', 3000, respFill);
       } else {
         playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'A ∩ B satisfaz A e B ao mesmo tempo.' });
-        createAlert?.('Tente novamente', 'A ∩ B satisfaz A e B ao mesmo tempo.', 'error', 4000);
+        createAlert?.('Tente novamente', 'A ∩ B satisfaz A e B ao mesmo tempo.', 'error', 4000, respFill);
       }
       return;
     }
     if (step === 'identifyAMinusB') {
+      const respId = `identifyAMinusB — aluno clicou na região "${regionLabel}" (esperado: "A \\\\ B (só A)")`;
       if (masksEqual(mask, [true, false])) {
         setAMinusBClicked(true);
         playSound('/sounds/correct.mp3');
         setFeedback({ type: 'ok' });
-        createAlert?.('Correto!', 'A − B: região onde A ocorre e B não ocorre.', 'success', 3000);
+        createAlert?.('Correto!', 'A − B: região onde A ocorre e B não ocorre.', 'success', 3000, respId);
         setTimeout(() => goTo('fillAMinusB'), 800);
       } else {
         playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'Clique na região em que ocorre A e NÃO ocorre B.' });
-        createAlert?.('Tente novamente', 'Clique na região em que ocorre A e NÃO ocorre B.', 'error', 4000);
+        createAlert?.('Tente novamente', 'Clique na região em que ocorre A e NÃO ocorre B.', 'error', 4000, respId);
       }
       return;
     }
     if (step === 'identifyBMinusA') {
+      const respId = `identifyBMinusA — aluno clicou na região "${regionLabel}" (esperado: "B \\\\ A (só B)")`;
       if (masksEqual(mask, [false, true])) {
         setBMinusAClicked(true);
         playSound('/sounds/correct.mp3');
         setFeedback({ type: 'ok' });
-        createAlert?.('Correto!', 'B − A: região onde B ocorre e A não ocorre.', 'success', 3000);
+        createAlert?.('Correto!', 'B − A: região onde B ocorre e A não ocorre.', 'success', 3000, respId);
         setTimeout(() => goTo('fillBMinusA'), 800);
       } else {
         playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'Clique na região em que ocorre B e NÃO ocorre A.' });
-        createAlert?.('Tente novamente', 'Clique na região em que ocorre B e NÃO ocorre A.', 'error', 4000);
+        createAlert?.('Tente novamente', 'Clique na região em que ocorre B e NÃO ocorre A.', 'error', 4000, respId);
       }
       return;
     }
@@ -425,6 +494,10 @@ export function VennLaboratory({
     if (step === 'placeExpressions') {
       const k = maskKey(mask);
       if (k === maskKey([false, false])) return;  // ignora região externa
+      const exprArmedLabel = armedExpression === 'AMinusB' ? 'n(A − B)'
+                           : armedExpression === 'intersection' ? 'n(A ∩ B)'
+                           : armedExpression === 'BMinusA' ? 'n(B − A)'
+                           : '(nada)';
       // Sem expressão armada: se a região já tem uma colocada, REMOVE — permite
       // ao aluno desfazer/trocar sem precisar dum botão extra de "limpar".
       // Caso contrário, avisa que precisa armar antes.
@@ -441,7 +514,8 @@ export function VennLaboratory({
         }
         playSound('/sounds/incorrect.mp3');
         setFeedback({ type: 'err', msg: 'Primeiro clique em uma das expressões disponíveis para armá-la.' });
-        createAlert?.('Falta armar', 'Primeiro clique em uma das expressões disponíveis para armá-la.', 'error', 4000);
+        createAlert?.('Falta armar', 'Primeiro clique em uma das expressões disponíveis para armá-la.', 'error', 4000,
+          `placeExpressions — aluno clicou na região "${regionLabel}" sem nenhuma expressão armada`);
         return;
       }
       // Sobrescreve: se já havia outra expressão na região, é trocada — e a
@@ -459,7 +533,8 @@ export function VennLaboratory({
       setArmedExpression(null);
       setFeedback({ type: 'none' });
       playSound('/sounds/correct.mp3');
-      createAlert?.('Expressão depositada', 'Continue até preencher as 3 regiões.', 'success', 2500);
+      createAlert?.('Expressão depositada', 'Continue até preencher as 3 regiões.', 'success', 2500,
+        `placeExpressions — aluno depositou "${exprArmedLabel}" na região "${regionLabel}"`);
       return;
     }
     if (step === 'writeUnionFormula') {
@@ -479,7 +554,14 @@ export function VennLaboratory({
       });
       setFormulaUsedRegions(prev => new Set(prev).add(k));
       playSound('/sounds/correct.mp3');
-      createAlert?.('Bom!', `${expr} adicionado à fórmula.`, 'success', 2500);
+      const slotsAfter = (() => {
+        const next = [...formulaSlots];
+        next[nextSlot] = expr;
+        return next;
+      })();
+      const filledCount = slotsAfter.filter(s => s !== '').length;
+      createAlert?.('Bom!', `${expr} adicionado à fórmula.`, 'success', 2500,
+        `writeUnionFormula — aluno clicou na região "${regionLabel}" → preencheu slot ${nextSlot + 1} com "${expr}" | Slots: [${slotsAfter.map(s => s || '_').join(' + ')}] (${filledCount}/3 preenchidos)`);
       return;
     }
   }, [step, armedChip, armedExpression, placedExpressions, formulaSlots, formulaUsedRegions, goTo, createAlert]);
@@ -489,14 +571,15 @@ export function VennLaboratory({
   // --- Sub-etapa 6/8: fillAMinusB / fillBMinusA via dropdown ---
   const handleFormulaChoice = useCallback((choice: string, expected: string, onCorrect: () => void) => {
     scrollDiceToTop();
+    const respChoice = `Dropdown operação — aluno escolheu "${choice || '(nenhuma)'}" (esperado: "${expected}")`;
     if (choice === expected) {
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `Operação ${expected} selecionada.`, 'success', 3000);
+      createAlert?.('Correto!', `Operação ${expected} selecionada.`, 'success', 3000, respChoice);
       onCorrect();
     } else {
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Não é essa operação. Pense: quantos elementos estão em A e ainda não foram contados na interseção?' });
-      createAlert?.('Tente novamente', 'Não é essa operação. Pense: quantos elementos estão em A e ainda não foram contados na interseção?', 'error', 5000);
+      createAlert?.('Tente novamente', 'Não é essa operação. Pense: quantos elementos estão em A e ainda não foram contados na interseção?', 'error', 5000, respChoice);
     }
   }, [createAlert]);
 
@@ -509,35 +592,37 @@ export function VennLaboratory({
 
   const validateAMinusBArithmetic = useCallback(() => {
     scrollDiceToTop();
+    const respFrac = `fillAMinusB — aluno digitou "${aMinusBInput || '(vazio)'}" (esperado: ${nA} − ${nI} = ${nA - nI})`;
     if (matchesSubtraction(aMinusBInput, nA, nI)) {
       setAMinusBValueDeposited(true);
       setAMinusBInputError(false);
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
-      createAlert?.('Correto!', `n(A − B) = ${nA} − ${nI} = ${nA - nI}.`, 'success', 3000);
+      createAlert?.('Correto!', `n(A − B) = ${nA} − ${nI} = ${nA - nI}.`, 'success', 3000, respFrac);
       setTimeout(() => goTo('identifyBMinusA'), 1200);
     } else {
       setAMinusBInputError(true);
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Preencha com a operação correta em A − B no diagrama.' });
-      createAlert?.('Tente novamente', 'Preencha com a operação correta em A − B no diagrama.', 'error', 4500);
+      createAlert?.('Tente novamente', 'Preencha com a operação correta em A − B no diagrama.', 'error', 4500, respFrac);
     }
   }, [aMinusBInput, nA, nI, matchesSubtraction, goTo, createAlert]);
 
   const validateBMinusAArithmetic = useCallback(() => {
     scrollDiceToTop();
+    const respFrac = `fillBMinusA — aluno digitou "${bMinusAInput || '(vazio)'}" (esperado: ${nB} − ${nI} = ${nB - nI})`;
     if (matchesSubtraction(bMinusAInput, nB, nI)) {
       setBMinusAValueDeposited(true);
       setBMinusAInputError(false);
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
-      createAlert?.('Correto!', `n(B − A) = ${nB} − ${nI} = ${nB - nI}.`, 'success', 3000);
+      createAlert?.('Correto!', `n(B − A) = ${nB} − ${nI} = ${nB - nI}.`, 'success', 3000, respFrac);
       setTimeout(() => goTo('markUnion'), 1200);
     } else {
       setBMinusAInputError(true);
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Preencha com a operação correta em B − A no diagrama.' });
-      createAlert?.('Tente novamente', 'Preencha com a operação correta em B − A no diagrama.', 'error', 4500);
+      createAlert?.('Tente novamente', 'Preencha com a operação correta em B − A no diagrama.', 'error', 4500, respFrac);
     }
   }, [bMinusAInput, nB, nI, matchesSubtraction, goTo, createAlert]);
 
@@ -558,51 +643,55 @@ export function VennLaboratory({
     scrollDiceToTop();
     const aMinusB = nA - nI;
     const bMinusA = nB - nI;
+    const respSum = `unionCount — aluno digitou "${unionCountInput || '(vazio)'}" (esperado: ${aMinusB} + ${nI} + ${bMinusA} = ${nU})`;
     if (matchesSum(unionCountInput, [aMinusB, nI, bMinusA])) {
       setUnionCountAccepted(true);
       setUnionCountError(false);
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
-      createAlert?.('Correto!', `n(A ∪ B) = ${aMinusB} + ${nI} + ${bMinusA} = ${nU}.`, 'success', 3500);
+      createAlert?.('Correto!', `n(A ∪ B) = ${aMinusB} + ${nI} + ${bMinusA} = ${nU}.`, 'success', 3500, respSum);
     } else {
       setUnionCountError(true);
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Casos em que ocorre apenas A, apenas B ou ambos.' });
-      createAlert?.('Tente novamente', 'Some os valores das três regiões que compõem A ∪ B.', 'error', 4500);
+      createAlert?.('Tente novamente', 'Some os valores das três regiões que compõem A ∪ B.', 'error', 4500, respSum);
     }
-  }, [unionCountInput, nA, nB, nI, matchesSum, createAlert]);
+  }, [unionCountInput, nA, nB, nI, nU, matchesSum, createAlert]);
 
   const validateCountAFromDiagram = useCallback(() => {
     scrollDiceToTop();
     const aMinusB = nA - nI;
+    const respSum = `countAFromDiagram — aluno digitou "${countAInput || '(vazio)'}" (esperado: ${aMinusB} + ${nI} = ${nA})`;
     if (matchesSum(countAInput, [aMinusB, nI])) {
       setCountAAccepted(true);
       setCountAError(false);
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
-      createAlert?.('Correto!', `n(A) = ${aMinusB} + ${nI} = ${nA}.`, 'success', 3000);
+      createAlert?.('Correto!', `n(A) = ${aMinusB} + ${nI} = ${nA}.`, 'success', 3000, respSum);
     } else {
       setCountAError(true);
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Some os valores das regiões do diagrama que compõem o evento A.' });
-      createAlert?.('Tente novamente', 'Some os valores das regiões do diagrama que compõem o evento A.', 'error', 4500);
+      createAlert?.('Tente novamente', 'Some os valores das regiões do diagrama que compõem o evento A.', 'error', 4500, respSum);
     }
   }, [countAInput, nA, nI, matchesSum, createAlert]);
 
   // --- placeExpressions: clica expressão (arma) + clica região (deposita) ---
   const toggleArmedExpression = useCallback((expr: ExpressionId) => {
-    setArmedExpression(prev => {
-      const next = prev === expr ? null : expr;
-      // Som + alert ao armar; só som ao desarmar (alert seria spam).
-      playSound('/sounds/click.mp3');
-      if (next !== null && prev !== expr) {
-        const label = expr === 'AMinusB' ? 'n(A − B)' : expr === 'intersection' ? 'n(A ∩ B)' : 'n(B − A)';
-        createAlert?.('Expressão armada', `${label} pronta. Clique numa região do diagrama pra posicionar.`, 'info', 3000);
-      }
-      return next;
-    });
+    // IMPORTANTE: createAlert e playSound FORA do updater do setState. React
+    // 18+ roda updaters em fase de render — chamar createAlert (que faz
+    // setAlerts no pai) dentro do updater dispara "Cannot update a component
+    // while rendering a different component". Decidimos `next` por closure e
+    // só então atualizamos o state.
+    const next = armedExpression === expr ? null : expr;
+    playSound('/sounds/click.mp3');
+    if (next !== null && armedExpression !== expr) {
+      const label = expr === 'AMinusB' ? 'n(A − B)' : expr === 'intersection' ? 'n(A ∩ B)' : 'n(B − A)';
+      createAlert?.('Expressão armada', `${label} pronta. Clique numa região do diagrama pra posicionar.`, 'info', 3000);
+    }
+    setArmedExpression(next);
     setFeedback({ type: 'none' });
-  }, [createAlert]);
+  }, [armedExpression, createAlert]);
 
   const confirmPlaceExpressions = useCallback(() => {
     scrollDiceToTop();
@@ -614,32 +703,43 @@ export function VennLaboratory({
     const keys = Object.keys(correctMap);
     const allPlaced = keys.every(k => placedExpressions[k]);
     const allCorrect = keys.every(k => placedExpressions[k] === correctMap[k]);
+    const placedDescr = Object.entries(placedExpressions)
+      .map(([region, expr]) => {
+        const regionName = region === maskKey([true, false]) ? 'A \\ B'
+                         : region === maskKey([true, true]) ? 'A ∩ B'
+                         : region === maskKey([false, true]) ? 'B \\ A'
+                         : 'externa';
+        return `${regionName}=${expr ?? '_'}`;
+      })
+      .join(' ; ');
+    const respPlace = `placeExpressions — aluno colocou: [${placedDescr || '(nada)'}] (esperado: A\\B=AMinusB, A∩B=intersection, B\\A=BMinusA)`;
     if (allPlaced && allCorrect) {
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
-      createAlert?.('Correto!', 'As 3 expressões estão na região certa.', 'success', 3000);
+      createAlert?.('Correto!', 'As 3 expressões estão na região certa.', 'success', 3000, respPlace);
       setTimeout(() => goTo('writeUnionFormula'), 900);
     } else {
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Verifique as regiões e sua expressão correspondente.' });
-      createAlert?.('Tente novamente', 'Verifique as regiões e sua expressão correspondente.', 'error', 4500);
+      createAlert?.('Tente novamente', 'Verifique as regiões e sua expressão correspondente.', 'error', 4500, respPlace);
     }
   }, [placedExpressions, goTo, createAlert]);
 
   const validateCountBFromDiagram = useCallback(() => {
     scrollDiceToTop();
     const bMinusA = nB - nI;
+    const respSum = `countBFromDiagram — aluno digitou "${countBInput || '(vazio)'}" (esperado: ${bMinusA} + ${nI} = ${nB})`;
     if (matchesSum(countBInput, [bMinusA, nI])) {
       setCountBAccepted(true);
       setCountBError(false);
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok', msg: 'Correto!' });
-      createAlert?.('Correto!', `n(B) = ${bMinusA} + ${nI} = ${nB}.`, 'success', 3000);
+      createAlert?.('Correto!', `n(B) = ${bMinusA} + ${nI} = ${nB}.`, 'success', 3000, respSum);
     } else {
       setCountBError(true);
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Some os valores das regiões do diagrama que compõem o evento B.' });
-      createAlert?.('Tente novamente', 'Some os valores das regiões do diagrama que compõem o evento B.', 'error', 4500);
+      createAlert?.('Tente novamente', 'Some os valores das regiões do diagrama que compõem o evento B.', 'error', 4500, respSum);
     }
   }, [countBInput, nB, nI, matchesSum, createAlert]);
 
@@ -649,10 +749,17 @@ export function VennLaboratory({
     const expected = new Set([maskKey([true, false]), maskKey([true, true]), maskKey([false, true])]);
     const correct = expected.size === unionSelection.size &&
       [...expected].every(k => unionSelection.has(k));
+    const selectedLabels = [...unionSelection].map(k =>
+      k === maskKey([true, false]) ? 'A \\ B'
+      : k === maskKey([true, true]) ? 'A ∩ B'
+      : k === maskKey([false, true]) ? 'B \\ A'
+      : 'externa'
+    ).join(', ');
+    const respSel = `markUnion — aluno selecionou ${unionSelection.size} região(ões): [${selectedLabels || '(nenhuma)'}] (esperado: A \\ B + A ∩ B + B \\ A — 3 regiões internas)`;
     if (correct) {
       playSound('/sounds/correct.mp3');
       setFeedback({ type: 'ok' });
-      createAlert?.('Correto!', 'A ∪ B é formada pelas 3 regiões internas.', 'success', 3000);
+      createAlert?.('Correto!', 'A ∪ B é formada pelas 3 regiões internas.', 'success', 3000, respSel);
       setTimeout(() => goTo('unionCount'), 800);
     } else {
       playSound('/sounds/incorrect.mp3');
@@ -660,7 +767,7 @@ export function VennLaboratory({
         ? 'Faltam regiões. A ∪ B inclui pares de A, pares de B ou de ambos.'
         : 'Revise: A ∪ B é formada pelas 3 regiões internas.';
       setFeedback({ type: 'err', msg });
-      createAlert?.('Tente novamente', msg, 'error', 4500);
+      createAlert?.('Tente novamente', msg, 'error', 4500, respSel);
     }
   }, [unionSelection, goTo, createAlert]);
 
@@ -728,21 +835,22 @@ export function VennLaboratory({
   // --- Sub-etapa 10: doubleCountQuestion ---
   const confirmDoubleCount = useCallback(() => {
     scrollDiceToTop();
+    const respDc = `doubleCountQuestion — aluno escolheu "${doubleCountChoice || '(nenhuma)'}" (esperado: "A ∩ B")`;
     if (doubleCountChoice === 'A ∩ B') {
       playSound('/sounds/correct.mp3');
       setDoubleCountConfirmed(true);
       setFeedback({ type: 'ok' });
-      createAlert?.('Correto!', 'Os pares de A ∩ B são contados duas vezes (uma em A, outra em B).', 'success', 3500);
+      createAlert?.('Correto!', 'Os pares de A ∩ B são contados duas vezes (uma em A, outra em B).', 'success', 3500, respDc);
       setTimeout(() => goTo('numericConclusion'), 900);
     } else if (doubleCountChoice === '') {
       playSound('/sounds/incorrect.mp3');
       setFeedback({ type: 'err', msg: 'Escolha uma região.' });
-      createAlert?.('Falta escolher', 'Selecione uma região antes de confirmar.', 'error', 3500);
+      createAlert?.('Falta escolher', 'Selecione uma região antes de confirmar.', 'error', 3500, respDc);
     } else {
       playSound('/sounds/incorrect.mp3');
       const msg = 'Pense: alguns pares pertencem a A e também a B. Quando você conta A e depois B, quais aparecem duas vezes?';
       setFeedback({ type: 'err', msg });
-      createAlert?.('Tente novamente', msg, 'error', 5500);
+      createAlert?.('Tente novamente', msg, 'error', 5500, respDc);
     }
   }, [doubleCountChoice, goTo, createAlert]);
 
@@ -794,13 +902,17 @@ export function VennLaboratory({
           if (chip === 'nI') {
             // Som + alert ao armar; só som ao desarmar.
             playSound('/sounds/click.mp3');
-            setArmedChip(prev => {
-              const next = prev === 'nI' ? null : 'nI';
-              if (next === 'nI') {
-                createAlert?.('Valor armado', `n(A ∩ B) = ${nI} pronto. Clique na região A ∩ B do diagrama pra depositar.`, 'info', 3500);
-              }
-              return next;
-            });
+            // IMPORTANTE: createAlert FORA do updater do setState. React 18+
+            // roda updaters em fase de render — chamar `createAlert` (que faz
+            // `setAlerts` no pai TwoDicesPresentation) dentro do updater
+            // dispara o warning "Cannot update a component while rendering a
+            // different component". Decidimos o `next` antes via closure de
+            // `armedChip`, e só então atualizamos.
+            const next = armedChip === 'nI' ? null : 'nI';
+            if (next === 'nI') {
+              createAlert?.('Valor armado', `n(A ∩ B) = ${nI} pronto. Clique na região A ∩ B do diagrama pra depositar.`, 'info', 3500);
+            }
+            setArmedChip(next);
             setFeedback({ type: 'none' });
           }
         }}
@@ -1763,7 +1875,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
   if (step === 'intro') {
     return (
       <div className="flex justify-center mt-macro">
-        <Button style="primary" size="small" onClick={() => goTo('createIntersection')}>
+        <Button style="primary" size="small" onClick={() => {
+          telemetryRecordInteracaoExercicio('clicou em "Começar" (Laboratório Venn — intro → createIntersection)');
+          goTo('createIntersection');
+        }}>
           Começar
         </Button>
       </div>
@@ -1774,12 +1889,21 @@ function StepControls(props: Readonly<StepControlsProps>) {
     return (
       <div className="flex flex-col items-center gap-y-nano mt-micro">
         <div className="flex gap-x-xxxs">
-          <Button style="secondary" size="small" onClick={() => moveB('left')}>◄ Aproximar B</Button>
-          <Button style="secondary" size="small" onClick={() => moveB('right')}>Afastar B ►</Button>
+          <Button style="secondary" size="small" onClick={() => {
+            telemetryRecordInteracaoExercicio('clicou em "◄ Aproximar B" (Laboratório Venn — construir A ∩ B)');
+            moveB('left');
+          }}>◄ Aproximar B</Button>
+          <Button style="secondary" size="small" onClick={() => {
+            telemetryRecordInteracaoExercicio('clicou em "Afastar B ►" (Laboratório Venn — construir A ∩ B)');
+            moveB('right');
+          }}>Afastar B ►</Button>
         </div>
         <Button
           style="primary" size="small"
-          onClick={confirmIntersection}
+          onClick={() => {
+            telemetryRecordInteracaoExercicio('clicou em "Confirmar representação" (Laboratório Venn — confirmar A ∩ B)');
+            confirmIntersection();
+          }}
           disabled={!canConfirmIntersection}
         >
           Confirmar representação
@@ -1792,7 +1916,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
     if (!intersectionValueDeposited) return null;
     return (
       <div className="flex justify-center mt-micro">
-        <Button style="primary" size="small" onClick={() => goTo('identifyAMinusB')}>
+        <Button style="primary" size="small" onClick={() => {
+          telemetryRecordInteracaoExercicio('clicou em "Continuar" (Laboratório Venn — fillIntersection → identifyAMinusB)');
+          goTo('identifyAMinusB');
+        }}>
           Continuar
         </Button>
       </div>
@@ -1813,9 +1940,13 @@ function StepControls(props: Readonly<StepControlsProps>) {
           onChoice={onAMinusBFormula}
           disabled={aMinusBFormulaAccepted}
           computedDisplay={aMinusBFormulaAccepted ? '✓ n(A) − n(A ∩ B)' : null}
+          telemetryContext="Venn fillAMinusB — Qual operação dá n(A − B)?"
         />
         {aMinusBFormulaAccepted && !aMinusBValueDeposited && (
-          <Button style="primary" size="small" onClick={validateAMinusBArithmetic}>
+          <Button style="primary" size="small" onClick={() => {
+            telemetryRecordInteracaoExercicio('clicou em "Conferir operação" (Venn fillAMinusB — n(A − B))');
+            validateAMinusBArithmetic();
+          }}>
             Conferir operação
           </Button>
         )}
@@ -1837,9 +1968,13 @@ function StepControls(props: Readonly<StepControlsProps>) {
           onChoice={onBMinusAFormula}
           disabled={bMinusAFormulaAccepted}
           computedDisplay={bMinusAFormulaAccepted ? '✓ n(B) − n(A ∩ B)' : null}
+          telemetryContext="Venn fillBMinusA — Qual operação dá n(B − A)?"
         />
         {bMinusAFormulaAccepted && !bMinusAValueDeposited && (
-          <Button style="primary" size="small" onClick={validateBMinusAArithmetic}>
+          <Button style="primary" size="small" onClick={() => {
+            telemetryRecordInteracaoExercicio('clicou em "Conferir operação" (Venn fillBMinusA — n(B − A))');
+            validateBMinusAArithmetic();
+          }}>
             Conferir operação
           </Button>
         )}
@@ -1852,7 +1987,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
       <div className="flex justify-center mt-micro">
         <Button
           style="primary" size="small"
-          onClick={confirmMarkUnion}
+          onClick={() => {
+            telemetryRecordInteracaoExercicio(`clicou em "Confirmar seleção" (Venn markUnion — selecionou ${unionSelectionSize} ${unionSelectionSize === 1 ? 'região' : 'regiões'})`);
+            confirmMarkUnion();
+          }}
           disabled={unionSelectionSize === 0}
         >
           Confirmar seleção ({unionSelectionSize} {unionSelectionSize === 1 ? 'região' : 'regiões'})
@@ -1878,7 +2016,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
           />
         </div>
         {!unionCountAccepted ? (
-          <Button style="primary" size="extra-small" onClick={validateUnionCount} disabled={!unionCountInput.trim()}>
+          <Button style="primary" size="extra-small" onClick={() => {
+            telemetryRecordInteracaoExercicio(`clicou em "Conferir" (Venn unionCount — digitou n(A ∪ B): "${unionCountInput}")`);
+            validateUnionCount();
+          }} disabled={!unionCountInput.trim()}>
             Conferir
           </Button>
         ) : (
@@ -1886,7 +2027,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
             <p className="ds-body-bold text-center text-feedback-success-dark">
               ✓ n(A ∪ B) = {unionCountInput} = <strong>{aMinusB + nI + bMinusA}</strong>
             </p>
-            <Button style="primary" size="small" onClick={() => goTo('countAFromDiagram')}>
+            <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Continuar" (Venn unionCount → countAFromDiagram)');
+              goTo('countAFromDiagram');
+            }}>
               Continuar
             </Button>
           </>
@@ -1910,7 +2054,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
           />
         </div>
         {!countAAccepted ? (
-          <Button style="primary" size="extra-small" onClick={validateCountAFromDiagram} disabled={!countAInput.trim()}>
+          <Button style="primary" size="extra-small" onClick={() => {
+            telemetryRecordInteracaoExercicio(`clicou em "Conferir" (Venn countAFromDiagram — digitou n(A): "${countAInput}")`);
+            validateCountAFromDiagram();
+          }} disabled={!countAInput.trim()}>
             Conferir
           </Button>
         ) : (
@@ -1918,7 +2065,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
             <p className="ds-body-bold text-center text-feedback-success-dark">
               ✓ n(A) = {countAInput} = <strong>{nA}</strong>
             </p>
-            <Button style="primary" size="small" onClick={() => goTo('countBFromDiagram')}>
+            <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Continuar" (Venn countAFromDiagram → countBFromDiagram)');
+              goTo('countBFromDiagram');
+            }}>
               Continuar
             </Button>
           </>
@@ -1942,7 +2092,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
           />
         </div>
         {!countBAccepted ? (
-          <Button style="primary" size="extra-small" onClick={validateCountBFromDiagram} disabled={!countBInput.trim()}>
+          <Button style="primary" size="extra-small" onClick={() => {
+            telemetryRecordInteracaoExercicio(`clicou em "Conferir" (Venn countBFromDiagram — digitou n(B): "${countBInput}")`);
+            validateCountBFromDiagram();
+          }} disabled={!countBInput.trim()}>
             Conferir
           </Button>
         ) : (
@@ -1950,7 +2103,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
             <p className="ds-body-bold text-center text-feedback-success-dark">
               ✓ n(B) = {countBInput} = <strong>{nB}</strong>
             </p>
-            <Button style="primary" size="small" onClick={() => goTo('sumAB')}>
+            <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Continuar" (Venn countBFromDiagram → sumAB)');
+              goTo('sumAB');
+            }}>
               Continuar
             </Button>
           </>
@@ -1980,7 +2136,12 @@ function StepControls(props: Readonly<StepControlsProps>) {
           <span className="ds-body-bold text-neutral-black">Expressões disponíveis:</span>
           <button
             type="button"
-            onClick={() => { if (!sumABFilledA) onSumABClickA(); }}
+            onClick={() => {
+              if (!sumABFilledA) {
+                telemetryRecordInteracaoExercicio(`clicou em chip "${countAInput}" para inserir como n(A) (Venn sumAB)`);
+                onSumABClickA();
+              }
+            }}
             style={sumABFilledA ? chipUsed : chipStyle}
             disabled={sumABFilledA}
             aria-label={`Inserir ${countAInput} em n(A)`}
@@ -1989,7 +2150,12 @@ function StepControls(props: Readonly<StepControlsProps>) {
           </button>
           <button
             type="button"
-            onClick={() => { if (!sumABFilledB) onSumABClickB(); }}
+            onClick={() => {
+              if (!sumABFilledB) {
+                telemetryRecordInteracaoExercicio(`clicou em chip "${countBInput}" para inserir como n(B) (Venn sumAB)`);
+                onSumABClickB();
+              }
+            }}
             style={sumABFilledB ? chipUsed : chipStyle}
             disabled={sumABFilledB}
             aria-label={`Inserir ${countBInput} em n(B)`}
@@ -2031,7 +2197,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
           </span>
         </div>
         {sumABFilledA && sumABFilledB && (
-          <Button style="primary" size="small" onClick={() => goTo('doubleCountQuestion')}>
+          <Button style="primary" size="small" onClick={() => {
+            telemetryRecordInteracaoExercicio('clicou em "Continuar" (Venn sumAB → doubleCountQuestion)');
+            goTo('doubleCountQuestion');
+          }}>
             Continuar
           </Button>
         )}
@@ -2044,7 +2213,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
       <div className="flex justify-center mt-micro">
         <Button
           style="primary" size="small"
-          onClick={confirmPlaceExpressions}
+          onClick={() => {
+            telemetryRecordInteracaoExercicio(`clicou em "Confirmar" (Venn placeExpressions — ${placedExpressionsCount}/3 expressões posicionadas)`);
+            confirmPlaceExpressions();
+          }}
           disabled={placedExpressionsCount < 3}
         >
           Confirmar ({placedExpressionsCount}/3)
@@ -2070,7 +2242,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
       <div className="flex flex-col items-center gap-y-nano mt-micro">
         <select
           value={doubleCountChoice}
-          onChange={e => setDoubleCountChoice(e.target.value)}
+          onChange={e => {
+            telemetryRecordInteracaoExercicio(`escolheu região "${e.target.value}" no dropdown doubleCountQuestion (Venn — qual região é contada duas vezes?)`);
+            setDoubleCountChoice(e.target.value);
+          }}
           disabled={doubleCountConfirmed}
           className="ds-body"
           style={{
@@ -2083,7 +2258,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
           {options.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
         {!doubleCountConfirmed && (
-          <Button style="primary" size="small" onClick={confirmDoubleCount}>
+          <Button style="primary" size="small" onClick={() => {
+            telemetryRecordInteracaoExercicio(`clicou em "Conferir" (Venn doubleCountQuestion — escolheu: "${doubleCountChoice}")`);
+            confirmDoubleCount();
+          }}>
             Conferir
           </Button>
         )}
@@ -2122,7 +2300,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
           </p>
         </div>
         <div className="flex justify-center mt-macro">
-          <Button style="primary" size="small" onClick={() => goTo('placeExpressions')}>
+          <Button style="primary" size="small" onClick={() => {
+            telemetryRecordInteracaoExercicio('clicou em "Continuar" (Venn numericConclusion → placeExpressions)');
+            goTo('placeExpressions');
+          }}>
             Continuar
           </Button>
         </div>
@@ -2220,7 +2401,10 @@ function StepControls(props: Readonly<StepControlsProps>) {
         </div>
         {conclusionPhase >= 8 && (
           <div className="flex justify-center mt-macro venn-fade-in">
-            <Button style="primary" size="small" onClick={onComplete}>
+            <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Continuar" (Venn conclusion — fim do laboratório, sai para próxima fase)');
+              onComplete();
+            }}>
               Continuar
             </Button>
           </div>
@@ -2274,7 +2458,10 @@ function CardinalityPanel({
           type="button"
           className="ds-body-bold"
           style={baseStyle}
-          onClick={() => onChipClick(id)}
+          onClick={() => {
+            telemetryRecordInteracaoExercicio(`armou chip "${label} = ${value}" (Venn — para depositar em região)`);
+            onChipClick(id);
+          }}
           aria-pressed={isArmed}
         >
           {label} = {value}
@@ -2371,7 +2558,10 @@ function ExpressionChipsRow({
           <button
             key={e.id}
             type="button"
-            onClick={() => onArm(e.id)}
+            onClick={() => {
+              telemetryRecordInteracaoExercicio(`armou expressão "${e.label}" (Venn placeExpressions — para depositar em região)${isUsed ? ' (já usada antes)' : ''}`);
+              onArm(e.id);
+            }}
             aria-pressed={isArmed}
             style={{
               padding: '4px 10px',
@@ -2493,19 +2683,31 @@ function ExpressionInput({
 }
 
 function FormulaDropdown({
-  options, onChoice, disabled, computedDisplay,
-}: {
+  options, onChoice, disabled, computedDisplay, telemetryContext,
+}: Readonly<{
   options: string[];
   onChoice: (choice: string) => void;
   disabled: boolean;
   computedDisplay: string | null;
-}) {
+  /** Rótulo passado ao `telemetryRecordInteracaoExercicio` quando o aluno troca de
+   *  opção no select sem conferir. Sem isso, mudanças de seleção ficavam sem
+   *  registro na telemetria (só o clique em "Conferir" era capturado). */
+  telemetryContext?: string;
+}>) {
   const [choice, setChoice] = useState('');
   return (
     <div className="flex flex-col items-center gap-y-nano mt-micro">
       <select
         value={choice}
-        onChange={e => setChoice(e.target.value)}
+        onChange={e => {
+          const v = e.target.value;
+          if (telemetryContext) {
+            telemetryRecordInteracaoExercicio(
+              `${telemetryContext} — selecionou no dropdown "${v || '(Escolha a operação)'}"`,
+            );
+          }
+          setChoice(v);
+        }}
         disabled={disabled}
         className="ds-body"
         style={{

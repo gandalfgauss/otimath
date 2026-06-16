@@ -26,7 +26,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
-import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import {
   EventPair,
   verifyEventTableConsistency,
@@ -68,7 +68,7 @@ interface UnionExercise2Props {
   /** Passo inicial ao montar. Default: 'intro'. */
   initialStep?: ExStep;
   /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
-  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
 }
 
 export interface UnionExercise2Handle {
@@ -144,13 +144,6 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
   function UnionExercise2({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
     // ── Estado de rodada e par ───────────────────────────────────
     const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
-    // SEÇÃO POR STEP — cada tela vira uma seção telemétrica própria.
-    useTelemetryExercise(
-      `twoDices-cena7-unionExercise2-${step}`,
-      'Exercício 2 — União de eventos mutuamente exclusivos',
-      'Aluno valida que A∩B=∅ e aplica a fórmula reduzida P(A∪B) = P(A) + P(B).',
-    );
-
     // Telemetria — leitura do enunciado do Ex.2 ('intro' → 'markA').
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',
@@ -163,6 +156,38 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
     const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());
     const [currentPair, setCurrentPair] = useState<EventPair>(
       () => selectExclusivePairForRound(0, new Set()),
+    );
+
+    // SEÇÃO POR STEP — título DINÂMICO reflete a tela atual.
+    // Contas das células favoráveis (no Ex2 são mutuamente exclusivos → nI=0).
+    const A_UE2_set = pairsMatching(currentPair.eventA.predicate);
+    const B_UE2_set = pairsMatching(currentPair.eventB.predicate);
+    const nA_UE2 = A_UE2_set.size;
+    const nB_UE2 = B_UE2_set.size;
+    const nI_UE2 = setIntersection(A_UE2_set, B_UE2_set).size;
+    const nU_UE2 = nA_UE2 + nB_UE2 - nI_UE2;
+    const stepLabelUE2 = step === 'intro' ? 'Enunciado'
+                       : step === 'markA' ? 'Marcar evento A na tabela'
+                       : step === 'markB' ? 'Marcar evento B na tabela'
+                       : step === 'markI' ? 'Verificar A∩B = ∅'
+                       : step === 'calcPAUB' ? 'Calcular P(A∪B) = P(A) + P(B)'
+                       : step === 'done' ? 'Síntese / concluído'
+                       : String(step);
+    const eventLabelsUE2 = currentPair
+      ? `A: "${currentPair.eventA?.description ?? '?'}" (n(A) = ${nA_UE2}) | B: "${currentPair.eventB?.description ?? '?'}" (n(B) = ${nB_UE2}) | A ∩ B: n(A∩B) = ${nI_UE2} (mutuamente exclusivos → vazio) | A ∪ B: n(A∪B) = ${nU_UE2} | Espaço amostral: 36`
+      : '';
+    const oQueCalculaUE2 =
+      step === 'intro' ? 'Leitura do enunciado: validar A∩B=∅ e aplicar fórmula reduzida.'
+      : step === 'markA' ? `Marcação das ${nA_UE2} células favoráveis a A.`
+      : step === 'markB' ? `Marcação das ${nB_UE2} células favoráveis a B (sem sobreposição).`
+      : step === 'markI' ? 'Validação visual de que A∩B = ∅ (nenhuma célula marcada nos dois eventos).'
+      : step === 'calcPAUB' ? `Cálculo de P(A∪B) via fórmula reduzida (sem termo de interseção): P(A∪B) = P(A) + P(B) = ${nA_UE2}/36 + ${nB_UE2}/36 = ${nU_UE2}/36.`
+      : step === 'done' ? `Síntese: P(A∪B) = ${nU_UE2}/36 (eventos mutuamente exclusivos). Rodada ${round + 1} concluída.`
+      : '';
+    useTelemetryExercise(
+      `twoDices-cena7-unionExercise2-${step}`,
+      `Exercício 2 — Eventos mutuamente exclusivos — ${stepLabelUE2} (rodada ${round + 1}; A=${currentPair.eventA?.description ?? '?'})`,
+      `Atividade global: Aluno valida que A∩B=∅ e aplica a fórmula reduzida P(A∪B) = P(A) + P(B). | Eventos do problema atual: ${eventLabelsUE2} | Fase atual: ${stepLabelUE2}. | Ação atual do aluno / cálculo: ${oQueCalculaUE2}`,
     );
 
     // ── Estado de marcações ──────────────────────────────────────
@@ -228,32 +253,41 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
     }, []);
 
     // ── Handlers de marcação ─────────────────────────────────────
+    // Telemetria FORA dos updaters de setState — StrictMode em dev dispara
+    // o callback duas vezes para detectar side effects, e logar dentro
+    // causava dupla coleta por clique. Lemos o estado atual via closure.
     const toggleA = useCallback((r: number, c: number) => {
+      const wasMarked = marksA[r][c];
+      telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (${r + 1}, ${c + 1}) como evento A`);
       setMarksA(prev => {
         const copy = prev.map(row => [...row]);
         copy[r][c] = !copy[r][c];
         return copy;
       });
       setFeedbackA('none');
-    }, []);
+    }, [marksA]);
 
     const toggleB = useCallback((r: number, c: number) => {
+      const wasMarked = marksB[r][c];
+      telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (${r + 1}, ${c + 1}) como evento B`);
       setMarksB(prev => {
         const copy = prev.map(row => [...row]);
         copy[r][c] = !copy[r][c];
         return copy;
       });
       setFeedbackB('none');
-    }, []);
+    }, [marksB]);
 
     const toggleI = useCallback((r: number, c: number) => {
+      const wasMarked = marksI[r][c];
+      telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (${r + 1}, ${c + 1}) como A∩B`);
       setMarksI(prev => {
         const copy = prev.map(row => [...row]);
         copy[r][c] = !copy[r][c];
         return copy;
       });
       setFeedbackI('none');
-    }, []);
+    }, [marksI]);
 
     const makeFullMatrix = (): MarkMatrix =>
       Array.from({ length: 6 }, () => Array(6).fill(true));
@@ -357,11 +391,17 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
       const subIOk = Number.isInteger(subINumParsed) && subINumParsed === 0
         && Number.isInteger(subIDenParsed) && subIDenParsed > 0;
 
+      const respUnion =
+        `Substituições: P(A)=${subANum || '_'}/${subADen || '_'}, ` +
+        `P(B)=${subBNum || '_'}/${subBDen || '_'}, ` +
+        `P(A∩B)=${subINum || '_'}/${subIDen || '_'} | ` +
+        `P(A∪B)=${pAUBNum || '_'}/${pAUBDen || '_'} ` +
+        `(esperado: ${correctSets.nA}/36 + ${correctSets.nB}/36 + 0/36 → ${correctSets.nU}/36)`;
       if (!subAOk || !subBOk || !subIOk) {
         setSubError(true);
         setPAUBError(false);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Substitua P(A), P(B) e P(A ∩ B) = 0 (já que A e B são exclusivos).', 'error', 5000);
+        createAlert?.('Tente novamente', 'Substitua P(A), P(B) e P(A ∩ B) = 0 (já que A e B são exclusivos).', 'error', 5000, respUnion);
         return;
       }
       setSubError(false);
@@ -370,12 +410,12 @@ export const UnionExercise2 = forwardRef<UnionExercise2Handle, UnionExercise2Pro
         setPAUBError(false);
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
-        createAlert?.('Excelente!', `P(A ∪ B) = ${correctSets.nU}/36. Exercício concluído.`, 'success', 4000);
+        createAlert?.('Excelente!', `P(A ∪ B) = ${correctSets.nU}/36. Exercício concluído.`, 'success', 4000, respUnion);
         setStep('done');
       } else {
         setPAUBError(true);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Como A ∩ B = ∅, basta somar P(A) + P(B).', 'error', 4500);
+        createAlert?.('Tente novamente', 'Como A ∩ B = ∅, basta somar P(A) + P(B).', 'error', 4500, respUnion);
       }
     }, [
       subANum, subADen, subBNum, subBDen, subINum, subIDen,

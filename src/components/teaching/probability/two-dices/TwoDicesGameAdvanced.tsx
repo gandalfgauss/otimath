@@ -40,7 +40,7 @@ import {
   type AdvancedStepKind,
 } from '@/hooks/teaching/probability/two-dices/useTwoDicesGameAdvancedHooks';
 import { logStudyMenuOpened } from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
-import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 
 interface TwoDicesGameAdvancedProps {
   /** Disparado quando o estudante conclui o último step do último desafio. */
@@ -113,13 +113,41 @@ export function TwoDicesGameAdvanced({
     selectSummary,
   ].filter(Boolean);
   // SEÇÃO POR (challenge, step) — vide TwoDicesGame.
+  // Título dinâmico — inclui desafio + step + currentStepKind (mark-A,
+  // mark-B, mark-D, prob, etc.) + evento(s) ativo(s) pra que a seção
+  // telemétrica reflita a tela vista pelo aluno.
+  const eventNamesAdv = (activeEvents ?? []).map(e => e.name ?? '?').join(', ');
+  const dynamicTitleAdv = `Exercício 8 — Operações avançadas (Desafio ${challenge}, Step ${step}${currentStepKind ? ` — fase: ${currentStepKind}` : ''}${eventNamesAdv ? ` — eventos: ${eventNamesAdv}` : ''})`;
+  // Instruções da tela atual — texto do enunciado/topo visível.
+  const stripTextAdv = (raw: string, max: number): string => {
+    const cleaned = (raw || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
+  };
+  const screenTextAdv = stripTextAdv(instructions || '', 480);
+  // Descrição literal de cada evento ativo (A, B, D quando presentes).
+  const eventosBlocoEx8 = (activeEvents ?? []).length > 0
+    ? (activeEvents ?? []).map(e => `Evento ${e.name ?? '?'}: "${e.description ?? '?'}"`).join(' | ')
+    : '(nenhum evento ativo)';
+  // O que está sendo calculado na fase atual baseado em currentStepKind.
+  const oQueCalculaEx8 =
+    currentStepKind === 'mark-A' ? 'Marcação das células favoráveis ao evento A (atômico) na tabela 6×6.'
+    : currentStepKind === 'mark-B' ? 'Marcação das células favoráveis ao evento B (atômico) na tabela 6×6.'
+    : currentStepKind === 'mark-D' ? 'Marcação das células favoráveis ao evento composto D = (A op B). O aluno precisa inferir a operação a partir do enunciado.'
+    : currentStepKind === 'compute-probability' ? 'Cálculo de P(D) = n(D)/36 via definição clássica de Laplace, onde D é o evento composto.'
+    : currentStepKind === 'compute-probability-and-complementary' ? 'Cálculo de P(D) e P(D̄) = 1 − P(D) (par complementar) para o evento composto D.'
+    : currentStepKind === 'identify-operation' ? 'Identificação da operação (União / Interseção / Complementar / Diferença) que produz D a partir de A e B — escolha em select.'
+    : `Fase ${currentStepKind ?? '?'} do Ex8.`;
+  const fullDescricaoAdv = [
+    screenTextAdv && `Tela: ${screenTextAdv}`,
+    `Eventos do desafio atual: ${eventosBlocoEx8} | Espaço amostral: 36 pares ordenados`,
+    `Ação atual do aluno / cálculo: ${oQueCalculaEx8}`,
+    'Atividade global (Ex8): Aluno encadeia união, interseção e complementar em desafios variados, com acesso a glossário.',
+    contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
+  ].filter(Boolean).join(' || ');
   useTelemetryExercise(
     `twoDices-cena7-twoDicesGameAdvanced-ex8-c${challenge}-s${step}`,
-    'Exercício 8 — Operações avançadas com eventos (livre)',
-    [
-      'Aluno encadeia união, interseção e complementar em desafios variados, com acesso a glossário.',
-      contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
-    ].filter(Boolean).join(' '),
+    dynamicTitleAdv,
+    fullDescricaoAdv,
   );
 
   /* ──────────────────────────────────────────────────────────────
@@ -221,6 +249,9 @@ export function TwoDicesGameAdvanced({
                 size="extra-small"
                 icon={<BookOpen aria-hidden="true" />}
                 onClick={() => {
+                  telemetryRecordInteracaoExercicio(
+                    `Ex8 — clicou em "Ajuda — Menu de Revisão" (Desafio ${challenge}, Step ${step}, fase ${currentStepKind ?? '?'}; último erro: ${lastErrorStep ?? 'nenhum'}) — abriu o modal de glossário/revisão`,
+                  );
                   logStudyMenuOpened('unionExercise8', currentStepKind ?? '', initialGlossaryEntryId, lastErrorStep ?? undefined);
                   setStudyMenuOpen(true);
                 }}
@@ -274,7 +305,10 @@ export function TwoDicesGameAdvanced({
               style="primary"
               size="small"
               icon={<ArrowRight aria-hidden="true" />}
-              onClick={goToNextStepOnClick}
+              onClick={() => {
+                telemetryRecordInteracaoExercicio(`clicou em "Próximo Desafio" (Ex8 — saindo do Desafio ${challenge}, Step ${step}${currentStepKind ? ', fase: ' + currentStepKind : ''})`);
+                goToNextStepOnClick();
+              }}
               disabled={disabledNextStepButton}
             >
               Próximo Desafio

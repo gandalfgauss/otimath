@@ -338,7 +338,7 @@ function p8_noneFace(): AtomicEvent | null {
   const map: Record<NoneProp, [string, string]> = {
     even: [LN.noneEven, LN_NEG.noneEven],
     odd: [LN.noneOdd, LN_NEG.noneOdd],
-    prime: [LN.nonePrime, LN_NEG.atLeastOnePrime],
+    prime: [LN.nonePrime, LN_NEG.nonePrime],
     gt3: [LN.noneGt(3), 'pelo menos uma das faces é maior que 3'],
     lt4: [LN.noneLt(4), 'pelo menos uma das faces é menor que 4'],
   };

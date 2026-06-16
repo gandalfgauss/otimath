@@ -52,7 +52,7 @@ import { logStudyMenuOpened } from '@/hooks/teaching/probability/two-dices/useTw
 import { BookOpen, Check } from 'lucide-react';
 import { SequenceStatsCard } from '@/components/teaching/probability/SequenceStatsCard';
 import { freezeOva, getSequenceStats, unfreezeOva, useSequenceTick } from '@/hooks/teaching/probability/useSequenceSession';
-import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 
 type Step = 'intro' | 'round1' | 'transition' | 'round2' | 'finalSynthesis';
 
@@ -109,11 +109,6 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
     ref,
   ) {
     const [step, setStep] = useState<Step>(initialStep);
-    useTelemetryExercise(
-      `twoDices-cena7-unionExercise6-review-${step}`,
-      'Exercício 6 — Revisão obrigatória das operações entre eventos',
-      'Aluno joga 2 rodadas (uma União, uma Interseção) sorteadas entre pares curados, calculando n(D)/n(S).',
-    );
     // Telemetria — leitura do enunciado do Ex.6 (revisão).
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',
@@ -123,6 +118,33 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       'confirmou leitura do enunciado e clicou em "Começar revisão"',
     );
     const [session] = useState<readonly [Ex6Round, Ex6Round]>(() => buildEx6Session());
+    // Título DINÂMICO com label legível por step + dados da sessão.
+    const stepLabelUE6 = step === 'intro' ? 'Enunciado'
+      : step === 'round1' ? 'Rodada 1'
+      : step === 'transition' ? 'Transição entre rodadas'
+      : step === 'round2' ? 'Rodada 2'
+      : step === 'finalSynthesis' ? 'Síntese final (Ex7, Ex8 ou finalizar)'
+      : String(step);
+    const r1 = session[0]?.candidate;
+    const r2 = session[1]?.candidate;
+    const r1Op = session[0]?.operation === 'Union' ? 'A ∪ B' : 'A ∩ B';
+    const r2Op = session[1]?.operation === 'Union' ? 'A ∪ B' : 'A ∩ B';
+    const sessaoBloco =
+      `Rodada 1 (${session[0]?.operation === 'Union' ? 'União' : 'Interseção'}): A="${r1?.descriptionA ?? '?'}" (n(A)=${r1?.nA ?? '?'}), B="${r1?.descriptionB ?? '?'}" (n(B)=${r1?.nB ?? '?'}), n(A∩B)=${r1?.nIntersection ?? '?'}, n(${r1Op})=${r1?.nResult ?? '?'}, P=${r1?.reducedP.num ?? '?'}/${r1?.reducedP.den ?? '?'} | ` +
+      `Rodada 2 (${session[1]?.operation === 'Union' ? 'União' : 'Interseção'}): A="${r2?.descriptionA ?? '?'}" (n(A)=${r2?.nA ?? '?'}), B="${r2?.descriptionB ?? '?'}" (n(B)=${r2?.nB ?? '?'}), n(A∩B)=${r2?.nIntersection ?? '?'}, n(${r2Op})=${r2?.nResult ?? '?'}, P=${r2?.reducedP.num ?? '?'}/${r2?.reducedP.den ?? '?'} | ` +
+      `Espaço amostral: 36 pares ordenados em ambas as rodadas`;
+    const oQueCalculaUE6 =
+      step === 'intro' ? 'Leitura do enunciado do exercício de revisão (2 rodadas obrigatórias).'
+      : step === 'round1' ? `Rodada 1 (${session[0]?.operation === 'Union' ? 'União A ∪ B' : 'Interseção A ∩ B'}): aluno calcula n(${r1Op}) e P = ${r1?.reducedP.num}/${r1?.reducedP.den} para A="${r1?.descriptionA}" e B="${r1?.descriptionB}".`
+      : step === 'transition' ? 'Transição: aluno terminou Rodada 1 e está prestes a iniciar Rodada 2 (operação trocada).'
+      : step === 'round2' ? `Rodada 2 (${session[1]?.operation === 'Union' ? 'União A ∪ B' : 'Interseção A ∩ B'}): aluno calcula n(${r2Op}) e P = ${r2?.reducedP.num}/${r2?.reducedP.den} para A="${r2?.descriptionA}" e B="${r2?.descriptionB}".`
+      : step === 'finalSynthesis' ? 'Síntese final: aluno escolhe entre Ex7 (fixação básica), Ex8 (fixação avançada) ou finalizar o OVA.'
+      : '';
+    useTelemetryExercise(
+      `twoDices-cena7-unionExercise6-review-${step}`,
+      `Exercício 6 — Revisão obrigatória — ${stepLabelUE6}`,
+      `Atividade global: Aluno joga 2 rodadas (uma União, uma Interseção) sorteadas entre pares curados, calculando n(D)/n(S). | ${sessaoBloco} | Fase atual: ${stepLabelUE6}. | Ação atual do aluno / cálculo: ${oQueCalculaUE6}`,
+    );
 
     const [studyMenuOpen, setStudyMenuOpen] = useState(false);
     const [lastErrorStep, setLastErrorStep] = useState<SingleShotStepKind | null>(null);
@@ -303,6 +325,9 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
           size="extra-small"
           icon={<BookOpen aria-hidden="true" />}
           onClick={() => {
+            telemetryRecordInteracaoExercicio(
+              `UE6 Review ${step} — clicou em "Ajuda — Menu de Revisão" (último erro: ${lastErrorStep ?? 'nenhum'}) — abriu o modal de glossário/revisão de conceitos`,
+            );
             logStudyMenuOpened('unionExercise6', step, initialGlossaryEntryId, lastErrorStep ?? undefined);
             setStudyMenuOpen(true);
           }}
@@ -337,7 +362,14 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
               maxWidthParagraph="max-w-[700px]"
               centralize={true}
             />
-            <Button style="primary" size="medium" onClick={() => { confirmReadIntro(); setStep('round1'); scrollDiceToTop(); }}>
+            <Button style="primary" size="medium" onClick={() => {
+              telemetryRecordInteracaoExercicio(
+                `UE6 Review intro — clicou em "Começar revisão" (Rodada 1: ${session[0].operation === 'Union' ? 'União (∪)' : 'Interseção (∩)'} ; Rodada 2: ${session[1].operation === 'Union' ? 'União (∪)' : 'Interseção (∩)'}) — entrou na rodada 1`,
+              );
+              confirmReadIntro();
+              setStep('round1');
+              scrollDiceToTop();
+            }}>
               Começar revisão
             </Button>
           </div>
@@ -375,7 +407,14 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
               </strong>
               . Use o Menu de Revisão se precisar.
             </p>
-            <Button style="primary" size="medium" onClick={() => { setLastErrorStep(null); setStep('round2'); scrollDiceToTop(); }}>
+            <Button style="primary" size="medium" onClick={() => {
+              telemetryRecordInteracaoExercicio(
+                `UE6 Review transition — clicou em "Começar Rodada 2" (operação: ${session[1].operation === 'Union' ? 'União (∪)' : 'Interseção (∩)'}) — entrou na rodada 2 obrigatória`,
+              );
+              setLastErrorStep(null);
+              setStep('round2');
+              scrollDiceToTop();
+            }}>
               Começar Rodada 2
             </Button>
           </div>
@@ -413,6 +452,9 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
             />
             <div className="flex gap-x-micro gap-y-micro flex-wrap justify-center">
               <Button style="borderless" size="small" onClick={() => {
+                telemetryRecordInteracaoExercicio(
+                  'UE6 Review finalSynthesis — clicou em "Revisar conceitos" — abriu o modal de glossário/revisão de conceitos a partir da síntese final',
+                );
                 logStudyMenuOpened('unionExercise6', step, initialGlossaryEntryId);
                 setStudyMenuOpen(true);
               }}>
@@ -429,7 +471,13 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
                     Ex7 — Concluído
                   </span>
                 ) : (
-                  <Button style="secondary" size="small" onClick={() => { onRequestFreePlay(); scrollDiceToTop(); }}>
+                  <Button style="secondary" size="small" onClick={() => {
+                    telemetryRecordInteracaoExercicio(
+                      'UE6 Review finalSynthesis — clicou em "Ex7 — Fixação básica (Opcional)" — saiu da síntese final para o exercício 7 (Fixação básica)',
+                    );
+                    onRequestFreePlay();
+                    scrollDiceToTop();
+                  }}>
                     Ex7 — Fixação básica (Opcional)
                   </Button>
                 )
@@ -445,12 +493,24 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
                     Ex8 — Concluído
                   </span>
                 ) : (
-                  <Button style="secondary" size="small" onClick={() => { onRequestAdvancedFreePlay(); scrollDiceToTop(); }}>
+                  <Button style="secondary" size="small" onClick={() => {
+                    telemetryRecordInteracaoExercicio(
+                      'UE6 Review finalSynthesis — clicou em "Ex8 — Fixação avançada (Opcional)" — saiu da síntese final para o exercício 8 (Fixação avançada)',
+                    );
+                    onRequestAdvancedFreePlay();
+                    scrollDiceToTop();
+                  }}>
                     Ex8 — Fixação avançada (Opcional)
                   </Button>
                 )
               )}
-              <Button style="primary" size="medium" onClick={() => { scrollDiceToTop(); onFinished(); }}>
+              <Button style="primary" size="medium" onClick={() => {
+                telemetryRecordInteracaoExercicio(
+                  `UE6 Review finalSynthesis — clicou em "Finalizar OVA" (Ex7 ${ex7Completed ? 'concluído' : 'não realizado'}; Ex8 ${ex8Completed ? 'concluído' : 'não realizado'}) — encerrou o OVA Probabilidade Dois Dados`,
+                );
+                scrollDiceToTop();
+                onFinished();
+              }}>
                 Finalizar OVA
               </Button>
             </div>

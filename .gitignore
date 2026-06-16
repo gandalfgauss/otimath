@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# .env.example é o TEMPLATE público (sem secrets reais) — commitar
+# pra que o próximo dev/máquina saiba quais vars precisa setar.
+!.env.example
 
 # vercel
 .vercel
@@ -44,3 +47,16 @@ next-env.d.ts
 /.claude/
 
 /.docs/
+
+# ─── Defensivos contra commit acidental de credenciais ──────────
+# PDF de cartões dos alunos (tem senhas em texto plano).
+cartoes_codigos*.pdf
+codigos_anonimizacao*.pdf
+# Arquivos txt com nomes sugestivos de credenciais.
+credentials*.txt
+senhas*.txt
+*-credentials.*
+# SQLite local (caso alguém futuramente use prisma com SQLite em dev).
+*.db
+*.db-journal
+prisma/dev.db*

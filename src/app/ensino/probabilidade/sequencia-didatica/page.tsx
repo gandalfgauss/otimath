@@ -28,8 +28,18 @@ import {
   endSequence,
   getSequenceStats,
   useSequenceTick,
+  getElapsedTotalMs,
+  getElapsedOvaMs,
+  restoreSession,
 } from "@/hooks/teaching/probability/useSequenceSession";
-import { telemetrySetDevMode, telemetryRecordInteracaoExercicio } from "@/hooks/teaching/probability/useTelemetry";
+import {
+  telemetrySetDevMode,
+  telemetryRecordInteracaoExercicio,
+  telemetryRestore,
+  getTelemetrySnapshot,
+  type TelemetrySnapshot,
+} from "@/hooks/teaching/probability/useTelemetry";
+import { useProgressSync, type ProgressPayload } from "@/hooks/useProgressSync";
 import { playSound } from "@/hooks/global/useSound";
 import { useAlerts } from "@/hooks/global/useAlerts";
 import { Alerts } from "@/components/global/Alerts";
@@ -75,24 +85,98 @@ export default function DidacticSequencePage() {
   // concordam), e o useEffect abaixo lê o localStorage só no client.
   type LoginState = 'checking' | 'logged-in' | 'logged-out';
   const [loginState, setLoginState] = useState<LoginState>('checking');
+  // Cena atual dentro do OVA ativo (string opaca, ex: "scene3-step2",
+  // "complementaryEvents-marking"). Bubble dos OVAs via onPhaseChange.
+  // Salvo no banco; restaurado ao retomar.
+  const [currentOvaPhase, setCurrentOvaPhase] = useState<string | null>(null);
+  // Ao retomar uma run, este flag fica `true` enquanto a hidratação ocorre
+  // — usado pra (a) passar pros OVAs como `initialPhase` na primeira
+  // montagem e (b) NÃO chamar startSequence (que zeraria tudo).
+  const restoredRef = useRef(false);
+
+  // Verifica sessão no servidor; se logado E tem run ativa, hidrata.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem('otimath-seq-loggedIn');
-    setLoginState(stored === 'true' ? 'logged-in' : 'logged-out');
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (cancelled) return;
+        if (!me.ok) { setLoginState('logged-out'); return; }
+        const meData = (await me.json()) as { username: string; hasActiveRun: boolean };
+        if (meData.hasActiveRun) {
+          await hydrateFromServer();
+          if (cancelled) return;
+        }
+        setLoginState('logged-in');
+      } catch {
+        if (!cancelled) setLoginState('logged-out');
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const handleLogin = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('otimath-seq-loggedIn', 'true');
+
+  // Hidrata estado da sequência a partir do progresso salvo no servidor.
+  // Chamado em 2 situações:
+  //   1) no mount, se /api/auth/me indicar `hasActiveRun=true`
+  //   2) logo após login bem-sucedido com `hasActiveRun=true`
+  // Idempotente: usa `restoredRef` pra não repetir o restore.
+  const hydrateFromServer = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch('/api/progress', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = await res.json() as {
+        runId: string | null;
+        telemetryJson: TelemetrySnapshot | null;
+        elapsedTotalMs: number;
+        elapsedRouletteMs: number;
+        elapsedTwoDicesMs: number;
+        currentStage: string;
+        currentOvaPhase: string | null;
+      };
+      if (!data.runId) return; // sem run ativa, começa do zero
+      // Restaura cronômetro (tempo continua de onde parou).
+      restoreSession({
+        elapsedTotalMs: data.elapsedTotalMs,
+        elapsedRouletteMs: data.elapsedRouletteMs,
+        elapsedTwoDicesMs: data.elapsedTwoDicesMs,
+      });
+      // Restaura snapshot da telemetria (lista de exercícios já completados).
+      if (data.telemetryJson && typeof data.telemetryJson === 'object') {
+        telemetryRestore(data.telemetryJson);
+      }
+      // Posiciona stage e cena.
+      const validStages: Stage[] = ['intro', 'roulette', 'transition', 'twoDices', 'complete'];
+      if (validStages.includes(data.currentStage as Stage)) {
+        setStage(data.currentStage as Stage);
+      }
+      setCurrentOvaPhase(data.currentOvaPhase);
+      restoredRef.current = true;
+    } catch (e) {
+      console.warn('[hydrateFromServer]', e);
+    }
+  }, []);
+
+  const handleLogin = useCallback(async (params: { username: string; hasActiveRun: boolean }) => {
+    if (params.hasActiveRun) {
+      await hydrateFromServer();
+    } else {
+      // Login limpo: força state inicial mesmo que esta tab tenha lixo.
+      restoredRef.current = false;
+      setStage('intro');
+      setCurrentOvaPhase(null);
     }
     setLoginState('logged-in');
-  }, []);
-  // Logout: limpa o flag persistido + cai pro `SequenceLogin`. Não
-  // resetamos estado dos OVAs aqui — eles vão desmontar/remontar
-  // quando o aluno relogar; estado é reinicializado naturalmente.
+  }, [hydrateFromServer]);
+
+  // Logout: cai pro SequenceLogin. O POST /api/auth/logout já encerrou
+  // a run no banco e limpou o cookie via SequenceLogout — aqui só
+  // atualizamos UI e zeramos estado local pra próximo login não ver lixo.
   const handleLogout = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('otimath-seq-loggedIn');
-    }
+    restoredRef.current = false;
+    setStage('intro');
+    setCurrentOvaPhase(null);
     setLoginState('logged-out');
   }, []);
 
@@ -194,12 +278,55 @@ export default function DidacticSequencePage() {
   //    `setActiveOva` é seguro pra OVA já frozen — só transiciona 'paused'→'running',
   //    nunca toca em 'frozen'.
   useEffect(() => {
-    if (stage !== 'intro') startSequence();
+    // Se a sessão foi restaurada via hydrateFromServer, restoreSession() já
+    // foi chamado (com tempos preservados). NÃO chamar startSequence aqui
+    // — ele zeraria os contadores.
+    if (stage !== 'intro' && !restoredRef.current) startSequence();
     if (stage === 'complete')                                  endSequence();
     else if (stage === 'intro' || stage === 'transition')      setActiveOva(null);
     else if (stage === 'roulette')                             setActiveOva('roulette');
     else if (stage === 'twoDices')                             setActiveOva('twoDices');
+    // Depois de aplicar o stage restaurado uma vez, libera startSequence
+    // pra próximos stages serem registrados normalmente (não é mais
+    // restauração, é avanço natural do aluno).
+    if (restoredRef.current && stage !== 'intro') restoredRef.current = false;
   }, [stage]);
+
+  // ─── Sync contínuo de progresso para o servidor ──────────────────
+  // Liga o salvamento em /api/progress. NO-OP enquanto devMode=true.
+  // Snapshot inclui: telemetria, tempos de sessão e dos OVAs, stage atual
+  // e cena dentro do OVA (currentOvaPhase). Veja useProgressSync.ts.
+  const getProgressSnapshot = useCallback((): ProgressPayload => ({
+    telemetryJson: getTelemetrySnapshot(),
+    elapsedTotalMs: getElapsedTotalMs(),
+    elapsedRouletteMs: getElapsedOvaMs('roulette'),
+    elapsedTwoDicesMs: getElapsedOvaMs('twoDices'),
+    currentStage: stage,
+    currentOvaPhase,
+  }), [stage, currentOvaPhase]);
+  useProgressSync({
+    // Liga apenas após login + sai do `intro` (antes não há nada pra salvar).
+    enabled: loginState === 'logged-in' && stage !== 'intro' && !devMode,
+    getSnapshot: getProgressSnapshot,
+  });
+
+  // ─── "Voltar para o início" no fim da sequência ──────────────────
+  // Encerra a run atual (ended_reason='completed') e cria uma nova
+  // run zerada no banco — NÃO apaga a anterior. Próximo "Iniciar a
+  // sequência didática" começa do zero.
+  const handleRestartSequence = useCallback(async () => {
+    try {
+      await fetch('/api/progress/new-run', {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+    } catch {
+      // Se falhar a chamada (offline), o aluno ainda navega — quando voltar
+      // online o /api/auth/me detectará a run velha como ativa, mas isso é
+      // ressalva rara aceitável (perde-se a separação entre 2 runs próximas).
+    }
+    window.location.href = '/';
+  }, []);
 
   const goToStage = useCallback((target: Stage) => setStage(target), []);
 
@@ -266,7 +393,7 @@ export default function DidacticSequencePage() {
           </Grid>
         );
       case 'complete':
-        return <CompletionSection />;
+        return <CompletionSection onRestart={handleRestartSequence} />;
     }
   };
 
@@ -409,13 +536,41 @@ function DevPanel({
     if (inputVisible) secretInputRef.current?.focus();
   }, [inputVisible]);
 
+  // Debounce: a cada digitação, marca a senha mais recente; após 250ms
+  // sem mexer, envia 1 POST pra /api/auth/verify-password. Sem isso,
+  // cada keystroke faria uma requisição (e estouraria o rate limit
+  // depois de 8 chars). Quando o servidor confirma, ativa devMode.
+  useEffect(() => {
+    if (!secret) return;
+    let cancelled = false;
+    const handle = window.setTimeout(async () => {
+      try {
+        const res = await fetch('/api/auth/verify-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ kind: 'devmode', password: secret }),
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          setDevMode(true);
+          setInputVisible(false);
+          setSecret('');
+        }
+        // 401 / 429 / 500: silencioso (DevPanel é "escondido" — não
+        // queremos dar pista pra quem testar senhas).
+      } catch {
+        // offline ou servidor caiu — silencioso pela mesma razão.
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [secret, setDevMode]);
+
   const handleSecretChange = (val: string) => {
     setSecret(val);
-    if (val === '@dev@') {
-      setDevMode(true);
-      setInputVisible(false);
-      setSecret('');
-    }
   };
 
   const handleClose = () => {
@@ -768,7 +923,7 @@ function TransitionIllustration() {
   );
 }
 
-function CompletionSection() {
+function CompletionSection({ onRestart }: Readonly<{ onRestart: () => void }>) {
   return (
     <Grid id="seq-complete" paddings="pt-xl pb-xl" backgroundColor="bg-linear-(--color-gradient-level-5)">
       <GridItem styles="text-center" cols="col-[3_/_11] max-md:col-[1_/_13]">
@@ -820,7 +975,7 @@ function CompletionSection() {
             <Button type="link" href="/ensino/probabilidade" style="primary" size="medium">
               Ver outras aplicações
             </Button>
-            <Button type="link" href="/" style="secondary" size="medium">
+            <Button style="secondary" size="medium" onClick={onRestart}>
               Voltar para o início
             </Button>
           </div>
@@ -1026,7 +1181,12 @@ function CompletionStats() {
               style="borderless"
               size="small"
               icon={<BookOpen />}
-              onClick={() => setStudyMenuOpen('roulette')}
+              onClick={() => {
+                telemetryRecordInteracaoExercicio(
+                  'Sequência Didática (tela final) — clicou em "Revisar conceitos" no card "OVA do Disco" — abriu o glossário da Roleta',
+                );
+                setStudyMenuOpen('roulette');
+              }}
             >
               Revisar conceitos
             </Button>
@@ -1040,7 +1200,12 @@ function CompletionStats() {
               style="borderless"
               size="small"
               icon={<BookOpen />}
-              onClick={() => setStudyMenuOpen('twoDices')}
+              onClick={() => {
+                telemetryRecordInteracaoExercicio(
+                  'Sequência Didática (tela final) — clicou em "Revisar conceitos" no card "OVA Dois Dados" — abriu o glossário do Dois Dados',
+                );
+                setStudyMenuOpen('twoDices');
+              }}
             >
               Revisar conceitos
             </Button>

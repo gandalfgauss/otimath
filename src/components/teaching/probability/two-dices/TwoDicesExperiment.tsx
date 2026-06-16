@@ -6,6 +6,7 @@ import {
   telemetryEnterExercise,
   telemetryExitExercise,
   telemetryRecordInteracaoExercicio,
+  useTelemetryExercise,
 } from '@/hooks/teaching/probability/useTelemetry';
 import { playSound } from '@/hooks/global/useSound';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
@@ -398,39 +399,9 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   }, ref) {
   const [phase, setPhase] = useState<Phase>('intro');
 
-  // Telemetria — agrupa as fases NÃO-DELEGADAS em "exercícios" lógicos.
-  // Fases delegadas (tree, complementaryEvents, unionTheory, unionExercise2-6,
-  // twoDicesGameFree, unionExercise8) registram a si mesmas via seus componentes.
-  // intro/finished/closing são transições — não registram.
-  useEffect(() => {
-    const rollPhases: Phase[] = [
-      'ready', 'rolling', 'landed',
-      'pickPair', 'pickConfirm', 'markTable', 'feedback',
-      'sumInput', 'sumMarkTable', 'sumComplete',
-      'sumAlienIntro', 'sumPredictMax', 'sumPredictMin', 'sumImpossible', 'sumReveal',
-      'probPair', 'probPairReveal', 'probSumTable', 'probSumReveal',
-      'pairQuestion', 'pairExplain', 'colorQuestion', 'colorExplain',
-    ];
-    const racePhases: Phase[] = ['raceBet', 'raceRunning', 'raceFinished'];
-    if (rollPhases.includes(phase)) {
-      const id = 'twoDices-cena7-sistematizacao-tabular';
-      telemetryEnterExercise(
-        id,
-        'Sistematização tabular do espaço amostral 6×6',
-        'Aluno rola dois dados, identifica o par ordenado na tabela, calcula somas e explora distinções por cor.',
-      );
-      return () => telemetryExitExercise(id);
-    }
-    if (racePhases.includes(phase)) {
-      const id = 'twoDices-cena7-corrida-carrinhos';
-      telemetryEnterExercise(
-        id,
-        'Corrida dos Carrinhos — soma de dois dados',
-        'Aluno aposta numa soma e avança o carrinho correspondente a cada lançamento; observa distribuição não-uniforme das somas.',
-      );
-      return () => telemetryExitExercise(id);
-    }
-  }, [phase]);
+  // Telemetria por fase — substituída por useTelemetryExercise mais
+  // abaixo (após declarações de state), que monta title/descricao
+  // dinâmicos com todo o texto visível na tela em cada fase.
 
   // Handle do SampleSpaceTree (sub-componente da fase 'tree') —
   // permite ao painel DEV avançar pelas 7 sub-fases internas em vez
@@ -636,6 +607,173 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   const [isLaunching, setIsLaunching] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // ─── TELEMETRIA POR FASE DA CENA 7 — title/descricao DINÂMICOS com TODO
+  // o texto visível na tela em cada fase (instruções, par sorteado, valores
+  // digitados, opções marcadas, frações da tabela, etc.).
+  const cena7PhaseLabel =
+    phase === 'intro' ? 'Introdução à sistematização tabular'
+    : phase === 'tree' ? 'Árvore do espaço amostral 6×6 (delegado)'
+    : phase === 'ready' ? 'Pronto para lançar 2 dados'
+    : phase === 'rolling' ? 'Dados girando'
+    : phase === 'landed' ? 'Dados parados'
+    : phase === 'pickPair' ? 'Registrar par ordenado (verde, azul)'
+    : phase === 'pickConfirm' ? 'Par confirmado'
+    : phase === 'markTable' ? 'Marcar célula (verde, azul) na tabela 6×6'
+    : phase === 'feedback' ? 'Feedback após marcar célula'
+    : phase === 'sumInput' ? 'Digitar a soma dos dois dados'
+    : phase === 'sumMarkTable' ? 'Marcar todas as células com a soma N'
+    : phase === 'sumComplete' ? 'Contar quantas células há na soma N'
+    : phase === 'sumAlienIntro' ? 'Apresentação do alien (3 perguntas sobre somas)'
+    : phase === 'sumPredictMax' ? 'Pergunta 1/3 do alien — soma mais provável'
+    : phase === 'sumPredictMin' ? 'Pergunta 2/3 do alien — soma menos provável'
+    : phase === 'sumImpossible' ? 'Pergunta 3/3 do alien — somas impossíveis'
+    : phase === 'sumReveal' ? 'Revelação das respostas do alien'
+    : phase === 'pairQuestion' ? 'Pergunta sobre par ordenado (x,y) vs (y,x)'
+    : phase === 'pairExplain' ? 'Explicação: (x,y) ≠ (y,x)'
+    : phase === 'colorQuestion' ? 'Pergunta sobre dados da mesma cor'
+    : phase === 'colorExplain' ? 'Explicação: ordem mora no par, não nas cores'
+    : phase === 'probPair' ? 'Calcular P((x,y)) — probabilidade do par'
+    : phase === 'probPairReveal' ? 'Revelação P((x,y)) = 1/36'
+    : phase === 'probSumTable' ? 'Tabela P(soma) — 11 probabilidades'
+    : phase === 'probSumReveal' ? 'Revelação da tabela P(soma)'
+    : phase === 'raceBet' ? 'Corrida dos carrinhos — apostar'
+    : phase === 'raceRunning' ? 'Corrida dos carrinhos — em andamento'
+    : phase === 'raceFinished' ? 'Corrida dos carrinhos — finalizada'
+    : phase === 'complementaryEvents' ? 'Eventos complementares (delegado)'
+    : phase === 'unionTheory' ? 'Teoria da União (delegado)'
+    : phase === 'unionExercises' ? 'Trilha de Exercícios da União (delegado)'
+    : phase === 'unionExercise2' || phase === 'unionExercise3' || phase === 'unionExercise4'
+       || phase === 'unionExercise5' || phase === 'unionExercise6' ? `${phase} (delegado)`
+    : phase === 'twoDicesGameFree' ? 'Ex7 — Jogo livre da tabela (delegado)'
+    : phase === 'unionExercise8' ? 'Ex8 — Operações avançadas (delegado)'
+    : phase === 'finished' ? 'Cena 7 concluída'
+    : phase === 'closing' ? 'Encerramento'
+    : String(phase);
+
+  const cena7Pair = `par sorteado: (verde=${greenResult}, azul=${blueResult}); rodada ${round + 1}; histórico=[${history.map(h => `(${h.green},${h.blue})`).join(', ')}]`;
+  // Par cacheado (só lê o state — não chama getPairForQuestion que é
+  // declarado abaixo; o cache é populado quando entra em pairQuestion).
+  const cena7AlienPick = (phase === 'pairQuestion' || phase === 'pairExplain') ? cachedPair : null;
+  // Conta os pares com soma N — função local (evita dependência de
+  // getPairsForSum declarado mais abaixo).
+  const cena7CountSum = (sum: number) => {
+    let n = 0;
+    for (let g = 1; g <= 6; g++) {
+      for (let b = 1; b <= 6; b++) {
+        if (g + b === sum) n++;
+      }
+    }
+    return n;
+  };
+
+  const cena7Screen = ((): string => {
+    if (phase === 'intro') {
+      return 'Texto na tela: "Vamos descobrir juntos, construindo as possibilidades um resultado de cada vez." | Botão visível: "Começar".';
+    }
+    if (phase === 'tree') return 'Sub-componente SampleSpaceTree renderizado (delegado).';
+    if (phase === 'ready') {
+      return `Texto na tela: "Lance os dois dados (verde e azul). Rodada ${round + 1}." | Botão visível: "🎲 Lançar dois dados" (ou "Lançar de novo").`;
+    }
+    if (phase === 'rolling') return `Animação: dados girando. Rodada ${round + 1}.`;
+    if (phase === 'landed') return `Dados pararam. Aguardando transição para pickPair. | ${cena7Pair}.`;
+    if (phase === 'pickPair') {
+      return `Texto na tela: "Registre o par ordenado (verde, azul) que apareceu." | Picker verde: face selecionada=${pickedGreen ?? '—'} | Picker azul: face selecionada=${pickedBlue ?? '—'} | ${cena7Pair} | Botão visível: "Conferir"${pickFeedback ? ` | Feedback visível: "${pickFeedback}"` : ''}`;
+    }
+    if (phase === 'pickConfirm') return `Texto na tela: "✓ Par registrado: (${greenResult}, ${blueResult})." | ${cena7Pair} | Próximo passo: marcar na tabela.`;
+    if (phase === 'markTable') {
+      return `Texto na tela: "Encontre a célula (verde=${greenResult}, azul=${blueResult}) na tabela 6×6 e clique nela. Linha = dado verde, coluna = dado azul." | Tentativa ${markAttempts}/3 | ${cena7Pair} | Tabela 6×6 com bordas. Aluno clica em uma célula.`;
+    }
+    if (phase === 'feedback') return `Texto na tela: "Célula (${greenResult}, ${blueResult}) marcada corretamente!" | ${cena7Pair} | Continuando para próxima rodada ou sumInput.`;
+    if (phase === 'sumInput') {
+      return `Texto na tela: "Some os valores das duas faces:" | Soma = <input valor digitado="${sumAnswer}" placeholder="?"> | ${cena7Pair} | Botão visível: "Conferir".`;
+    }
+    if (phase === 'sumMarkTable') {
+      const targetSum = greenResult + blueResult;
+      const marks = [...sumMarks].sort().join(', ');
+      return `Texto na tela: "Marque todas as células onde a soma das duas faces é ${targetSum}." | Soma alvo: ${targetSum} | Células marcadas: [${marks || '—'}] (${sumMarks.size} de ${cena7CountSum(targetSum)} esperadas) | Estado feedback: ${sumFeedbackState} | ${cena7Pair} | Botão visível: "Conferir".`;
+    }
+    if (phase === 'sumComplete') {
+      const targetSum = greenResult + blueResult;
+      return `Texto na tela: "Quantas células há no total para a soma ${targetSum}?" | Resposta digitada: "${sumCountAnswer}" | Esperado: ${cena7CountSum(targetSum)} | ${cena7Pair} | Botão visível: "Conferir".`;
+    }
+    if (phase === 'sumAlienIntro') {
+      return 'Texto na tela: "🛸 Um alienígena brincalhão surgiu na sua tela. Debaixo do braço, ele carrega um livro enorme, com símbolos dourados que pulsam na capa. — Olá, humano! Este é o livro de matemática mais precioso da minha civilização. Levou 3 000 anos para ser escrito, e eu já fiz a tradução completa para o seu idioma. — Ahn, quase esqueci: no meu planeta a gente só dá presentes para quem vence um joguinho primeiro. São só três perguntas sobre a soma de dois dados. Acertou as três, o livro é seu. Mas atenção: você responde sem ver a tabela. É só na intuição!" | Botão visível: "Topa o desafio!".';
+    }
+    if (phase === 'sumPredictMax') {
+      return `Texto na tela: "🛸 Pergunta 1 de 3 — Qual soma você acha que ocorre MAIS vezes no lançamento de dois dados?" | Soma marcada: ${sumPredictedMax ?? '(sem marcação)'} | Botão visível: "Confirmar".`;
+    }
+    if (phase === 'sumPredictMin') {
+      return `Texto na tela: "🛸 Pergunta 2 de 3 — Qual soma você acha que ocorre MENOS vezes no lançamento de dois dados?" | Soma marcada: ${sumPredictedMin ?? '(sem marcação)'} | Botão visível: "Confirmar".`;
+    }
+    if (phase === 'sumImpossible') {
+      const opts = sumImpossibleOptions.join(', ');
+      const sel = [...sumImpossibleSelected].sort((a, b) => a - b).join(', ');
+      return `Texto na tela: "🛸 Pergunta 3 de 3 — Marque TODAS as somas que são IMPOSSÍVEIS no lançamento de dois dados." | Opções visíveis: [${opts}] | Somas marcadas como impossíveis: [${sel}] | Botão visível: "Confirmar".`;
+    }
+    if (phase === 'sumReveal') {
+      return `Texto na tela: "🛸 Veja como você foi! Pergunta 1 (mais provável): você marcou ${sumPredictedMax ?? '?'}, resposta correta é 7. Pergunta 2 (menos provável): você marcou ${sumPredictedMin ?? '?'}, resposta correta é 2 ou 12. Pergunta 3 (impossíveis): você marcou [${[...sumImpossibleSelected].sort((a, b) => a - b).join(', ')}]." | Botão visível: "Próximo desafio".`;
+    }
+    if (phase === 'pairQuestion') {
+      const o = cena7AlienPick?.original ?? { green: 3, blue: 5 };
+      return `Texto na tela: "Considere o par ordenado (${o.green}, ${o.blue}) que você registrou. O par (${o.green}, ${o.blue}) é o mesmo que (${o.blue}, ${o.green})?" | Botões visíveis: "Sim, são iguais" / "Não, são diferentes" | Resposta marcada: "${pairAnswer || '(sem marcação)'}"${pairAnswerError ? ' [com erro]' : ''} | Botão: "Conferir".`;
+    }
+    if (phase === 'pairExplain') {
+      const o = cena7AlienPick?.original ?? { green: 3, blue: 5 };
+      return `Texto na tela: "Os pares (${o.green}, ${o.blue}) e (${o.blue}, ${o.green}) são resultados DIFERENTES. Em (${o.green}, ${o.blue}), o dado verde saiu ${o.green} e o dado azul saiu ${o.blue}. Em (${o.blue}, ${o.green}), o dado verde saiu ${o.blue} e o dado azul saiu ${o.green}. São posições diferentes na tabela." | Botão visível: "Próximo".`;
+    }
+    if (phase === 'colorQuestion') {
+      return `Texto na tela: "E se os dois dados fossem da MESMA cor? Ainda seria possível distinguir os pares?" | Botão de lançamento dos dados brancos disponível (lançou ${whiteThrowCount} vezes) | Botões visíveis: "Sim" / "Não" | Resposta marcada: "${colorAnswer || '(sem marcação)'}"${colorAnswerError ? ' [com erro]' : ''} | Botão: "Conferir".`;
+    }
+    if (phase === 'colorExplain') {
+      return 'Texto na tela: "Mesmo escondidos pelo copo, sem as cores e sem você conseguir rastrear qual dado era qual, os pares (x, y) e (y, x) continuam sendo resultados diferentes. A ordem mora no par, não nos dados." | Botão visível: "Próximo desafio".';
+    }
+    if (phase === 'probPair') {
+      return `Texto na tela: "Calcule a probabilidade P((x,y)) de um par específico." | Campos: P((x,y)) = <input num="${probPairNum}">/<input den="${probPairDen}"> | ${cena7Pair} | Botão visível: "Conferir"${probPairError ? ` | Feedback de erro (tipo: ${probPairErrorType ?? '?'})` : ''}`;
+    }
+    if (phase === 'probPairReveal') {
+      return `Texto na tela: "✓ P((${greenResult}, ${blueResult})) = 1/36 — todos os 36 pares ordenados são equiprováveis. Cada par tem a mesma chance de ocorrer." | ${cena7Pair} | Botão visível: "Próximo desafio".`;
+    }
+    if (phase === 'probSumTable') {
+      const summaryRows = Array.from({ length: 11 }, (_, i) => {
+        const s = i + 2;
+        const e = probSumInputs[s];
+        return `${s}: ${e?.num || '—'}/${e?.den || '—'}`;
+      }).join(', ');
+      return `Texto na tela: "Complete a tabela P(soma) para todas as 11 somas possíveis (2 a 12)." | Tabela de P(soma): [${summaryRows}] | Linhas erradas: [${[...probSumWrongRows].sort((a, b) => a - b).join(', ')}] | Estado feedback: ${probSumFeedback} | Botão visível: "Conferir".`;
+    }
+    if (phase === 'probSumReveal') {
+      return 'Texto na tela: "✓ Todas as 11 probabilidades estão corretas. Observe: P(soma=7) é a maior (6/36 = 1/6) porque 7 = 1+6 = 2+5 = 3+4 = 4+3 = 5+2 = 6+1. P(soma=2) e P(soma=12) são as menores (1/36 cada)." | Botão visível: "Próximo desafio".';
+    }
+    if (phase === 'raceBet') {
+      return `Texto na tela: "Corrida dos Carrinhos! Aposte em uma soma (de 1 a 13). Os carrinhos 1 e 13 são impossíveis (a soma mínima é 2 e a máxima é 12). Quanto mais provável a soma, mais rápido o carrinho avança." | Aposta atual: carrinho ${raceBet ?? '(sem aposta)'} | Modal de confirmação aberta: ${raceImpossibleConfirm !== null ? `sim (carrinho ${raceImpossibleConfirm})` : 'não'} | Botão visível: "Iniciar corrida".`;
+    }
+    if (phase === 'raceRunning') {
+      const positions = Object.entries(racePositions).map(([car, pos]) => `${car}:${pos}`).join(', ');
+      return `Texto na tela: "Corrida em andamento. Some os dois dados e clique no carrinho cujo número corresponde à soma." | Aposta: carrinho ${raceBet ?? '?'} | Posições atuais: [${positions}] | Soma pendente: ${racePendingSum ?? '(aguardando lançamento)'} | ${cena7Pair} | Botão visível: "🎲 Sortear".`;
+    }
+    if (phase === 'raceFinished') {
+      return `Texto na tela: "🏁 Corrida finalizada! Vencedor: carrinho ${raceWinner ?? '?'}. Sua aposta: carrinho ${raceBet ?? '?'} — ${raceWinner === raceBet ? 'GANHOU' : 'PERDEU'}. Observe: somas mais frequentes (7, 6, 8) tendem a vencer mais; somas extremas (2, 12) raramente vencem." | Botão visível: "Próximo desafio".`;
+    }
+    if (phase === 'complementaryEvents') return 'Sub-componente ComplementaryEventsActivity renderizado (delegado).';
+    if (phase === 'unionTheory') return 'Sub-componente UnionProbabilityTheory renderizado (delegado).';
+    if (phase === 'twoDicesGameFree') return 'Sub-componente TwoDicesGame (jogo livre Ex7) renderizado (delegado).';
+    if (phase === 'unionExercise8') return 'Sub-componente TwoDicesGameAdvanced (Ex8) renderizado (delegado).';
+    if (phase === 'finished') return 'Cena 7 concluída — fim do experimento.';
+    if (phase === 'closing') return 'Tela de encerramento da Cena 7.';
+    return `Fase: ${phase}.`;
+  })();
+
+  const cena7Title = `Cena 7 — Experimento com 2 dados · ${cena7PhaseLabel}`;
+  const cena7Desc = cena7Screen;
+  // Para fases delegadas, manter habilitado mas o sub-componente vai
+  // sobrescrever a seção com a sua própria descrição mais granular.
+  useTelemetryExercise(
+    `twoDices-cena7-${phase}`,
+    cena7Title,
+    cena7Desc,
+    true,
+  );
+
   // Par para a pergunta pedagógica: pegar um par do histórico onde green !== blue
   const getPairForQuestion = (): { original: { green: number; blue: number }; inverted: { green: number; blue: number } } => {
     for (const h of history) {
@@ -763,6 +901,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       'Toque em cada dado e escolha a face que apareceu para registrar o novo par.',
       'info',
       5000,
+      'relançou os dados após 3 erros — novo par sorteado',
     );
   }, [diceSceneRef, greenResult, blueResult, createAlert]);
 
@@ -926,13 +1065,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     if (isNaN(typed)) {
       setSumAnswerError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Falta digitar', 'Digite a soma dos dois dados.', 'error', 3500);
+      createAlert?.('Falta digitar', 'Digite a soma dos dois dados.', 'error', 3500, `não digitou soma (par sorteado: (${greenResult}, ${blueResult}))`);
       return;
     }
     if (typed === correct) {
       setSumAnswerError(false);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `${greenResult} + ${blueResult} = ${correct}.`, 'success', 3000);
+      createAlert?.('Correto!', `${greenResult} + ${blueResult} = ${correct}.`, 'success', 3000, `digitou soma: "${sumAnswer}" (correto — par: (${greenResult}, ${blueResult}), soma: ${correct})`);
       setSumMarks(new Set());
       setSumWrongMarks(new Set());
       setSumFeedbackState('none');
@@ -941,7 +1080,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     } else {
       setSumAnswerError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', `Recalcule: ${greenResult} + ${blueResult} = ?`, 'error', 4000);
+      createAlert?.('Tente novamente', `Recalcule: ${greenResult} + ${blueResult} = ?`, 'error', 4000, `digitou soma: "${sumAnswer}" (esperado: ${correct}; par: (${greenResult}, ${blueResult}))`);
     }
   };
 
@@ -1019,7 +1158,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     setSumCountError(false);
     setSumCountValidated(true);
     playSound('/sounds/correct.mp3');
-    createAlert?.('Correto!', `A soma ${greenResult + blueResult} ocorre ${correct} ${correct === 1 ? 'vez' : 'vezes'}.`, 'success', 3000);
+    createAlert?.('Correto!', `A soma ${greenResult + blueResult} ocorre ${correct} ${correct === 1 ? 'vez' : 'vezes'}.`, 'success', 3000, `n(soma=${greenResult + blueResult}) — digitou: "${sumCountAnswer}" (correto: ${correct})`);
   };
 
   // ═══════ Rodada 3 — Momento B: helper e validações ═══════
@@ -1067,11 +1206,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   const validateSumPredictMax = () => {
     scrollDiceToTop();
     if (sumPredictedMax === null) {
-      createAlert?.('Falta escolher', 'Selecione uma soma antes de confirmar.', 'error', 3500);
+      createAlert?.('Falta escolher', 'Selecione uma soma antes de confirmar.', 'error', 3500, 'não escolheu soma máxima');
       return;
     }
     playSound('/sounds/correct.mp3');
-    createAlert?.('Resposta registrada', 'Vamos para a próxima pergunta do alienígena.', 'info', 2500);
+    createAlert?.('Resposta registrada', 'Vamos para a próxima pergunta do alienígena.', 'info', 2500, `previu soma MAIS provável: ${sumPredictedMax}`);
     setPhase('sumPredictMin');
     scrollDiceToTop();
   };
@@ -1079,11 +1218,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   const validateSumPredictMin = () => {
     scrollDiceToTop();
     if (sumPredictedMin === null) {
-      createAlert?.('Falta escolher', 'Selecione uma soma antes de confirmar.', 'error', 3500);
+      createAlert?.('Falta escolher', 'Selecione uma soma antes de confirmar.', 'error', 3500, 'não escolheu soma mínima');
       return;
     }
     playSound('/sounds/correct.mp3');
-    createAlert?.('Resposta registrada', 'Última pergunta do alienígena.', 'info', 2500);
+    createAlert?.('Resposta registrada', 'Última pergunta do alienígena.', 'info', 2500, `previu soma MENOS provável: ${sumPredictedMin}`);
     // Gera as opções dinâmicas antes de entrar na fase da pergunta 3
     setSumImpossibleOptions(generateImpossibleOptions());
     setSumImpossibleSelected(new Set());
@@ -1095,8 +1234,10 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   // Toggle de marcação de uma opção na pergunta 3
   const toggleSumImpossibleOption = (value: number) => {
     const next = new Set(sumImpossibleSelected);
-    if (next.has(value)) next.delete(value);
+    const wasSelected = next.has(value);
+    if (wasSelected) next.delete(value);
     else next.add(value);
+    telemetryRecordInteracaoExercicio(`${wasSelected ? 'desmarcou' : 'marcou'} opção ${value} na pergunta 3 do alien (impossíveis)`);
     setSumImpossibleSelected(next);
     setSumImpossibleError('none');
   };
@@ -1108,24 +1249,26 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     for (const opt of sumImpossibleOptions) {
       if (opt === 1 || opt > 12) correctSet.add(opt);
     }
+    const selectedList = [...sumImpossibleSelected].sort((a, b) => a - b).join(', ');
+    const correctList = [...correctSet].sort((a, b) => a - b).join(', ');
     // Comparação de sets: tamanho igual E todos os elementos presentes
     if (sumImpossibleSelected.size !== correctSet.size) {
       setSumImpossibleError('hint');
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'Pense no menor e no maior valor possíveis para a soma de dois dados.', 'error', 4500);
+      createAlert?.('Tente novamente', 'Pense no menor e no maior valor possíveis para a soma de dois dados.', 'error', 4500, `marcou: [${selectedList}] (${sumImpossibleSelected.size} de ${correctSet.size} esperadas; corretas: [${correctList}])`);
       return;
     }
     for (const c of correctSet) {
       if (!sumImpossibleSelected.has(c)) {
         setSumImpossibleError('hint');
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Pense no menor e no maior valor possíveis para a soma de dois dados.', 'error', 4500);
+        createAlert?.('Tente novamente', 'Pense no menor e no maior valor possíveis para a soma de dois dados.', 'error', 4500, `marcou: [${selectedList}] (faltou ${c}; corretas: [${correctList}])`);
         return;
       }
     }
     setSumImpossibleError('none');
     playSound('/sounds/correct.mp3');
-    createAlert?.('Correto!', 'Somas fora do intervalo [2, 12] são impossíveis.', 'success', 3500);
+    createAlert?.('Correto!', 'Somas fora do intervalo [2, 12] são impossíveis.', 'success', 3500, `marcou impossíveis corretamente: [${selectedList}]`);
     setPhase('sumReveal');
     scrollDiceToTop();
   };
@@ -1160,7 +1303,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       setProbPairError(false);
       setProbPairErrorType(null);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `P(par) = 1/36 — todos os 36 pares são equiprováveis.`, 'success', 3500);
+      createAlert?.('Correto!', `P(par) = 1/36 — todos os 36 pares são equiprováveis.`, 'success', 3500, `P(par) — digitou: ${probPairNum}/${probPairDen}`);
       setPhase('probPairReveal');
       scrollDiceToTop();
       return;
@@ -1186,7 +1329,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       : errorType === 'numerator'
         ? 'Quantos pares correspondem a esse resultado específico?'
         : 'Pense em quantos pares satisfazem o evento sobre o total de 36 pares possíveis.';
-    createAlert?.('Tente novamente', errorMsg, 'error', 4500);
+    createAlert?.('Tente novamente', errorMsg, 'error', 4500, `P(par) — digitou: ${probPairNum}/${probPairDen} | erro: ${errorType}`);
   };
 
   /**
@@ -1210,11 +1353,16 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         wrong.add(s);
       }
     }
+    const sumSummary = Array.from({ length: 11 }, (_, i) => {
+      const s = i + 2;
+      const entry = probSumInputs[s];
+      return `soma=${s}: ${entry?.num || '—'}/${entry?.den || '—'}`;
+    }).join(' | ');
     if (wrong.size === 0) {
       setProbSumWrongRows(new Set());
       setProbSumFeedback('none');
       playSound('/sounds/gameFinished.mp3');
-      createAlert?.('Excelente!', 'Todas as 11 probabilidades estão corretas.', 'success', 4000);
+      createAlert?.('Excelente!', 'Todas as 11 probabilidades estão corretas.', 'success', 4000, `tabela P(soma) — digitou todas corretas: ${sumSummary}`);
       setPhase('probSumReveal');
       scrollDiceToTop();
       return;
@@ -1229,6 +1377,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         : `Há ${wrong.size} linha(s) incorreta(s) (em vermelho). Pense: quantos pares produzem cada soma?`,
       'error',
       5000,
+      `tabela P(soma) — ${wrong.size} erradas (somas: ${[...wrong].sort((a, b) => a - b).join(', ')}) | ${sumSummary}`,
     );
   };
 
@@ -1319,6 +1468,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         'Some as faces de cima dos dois dados e clique no carrinho cujo número corresponde à soma.',
         'info',
         4500,
+        `corrida — sorteado: (${result.green}, ${result.blue}) | soma: ${sum}`,
       );
     } finally {
       setRaceBusy(false);
@@ -1332,7 +1482,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       telemetryRecordInteracaoExercicio(`clicou no carrinho errado ${carNumber} (soma sorteada=${racePendingSum})`);
       setRaceClickError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Carrinho errado', `Some as faces dos dois dados de novo e avance o carrinho cujo número corresponde à soma.`, 'error', 3500);
+      createAlert?.('Carrinho errado', `Some as faces dos dois dados de novo e avance o carrinho cujo número corresponde à soma.`, 'error', 3500, `corrida — clicou carrinho ${carNumber}, soma sorteada: ${racePendingSum}`);
       return;
     }
     telemetryRecordInteracaoExercicio(`avançou carrinho ${carNumber} (soma sorteada=${racePendingSum})`);
@@ -1360,6 +1510,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         `Carrinho ${carNumber} avançou. Clique em "🎲 Sortear" para o próximo lançamento.`,
         'success',
         3500,
+        `corrida — avançou carrinho ${carNumber} (soma sorteada: ${carNumber}; nova posição: ${newPos}/${RACE_LENGTH})`,
       );
     }
   };
@@ -2336,6 +2487,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               style="primary"
               size="small"
               onClick={() => {
+                telemetryRecordInteracaoExercicio('clicou em "Começar" (intro → tree — Cena 7: enumerar par ordenado)');
                 scrollDiceToTop();
                 setPhase('tree');
                 playSound('/sounds/nextChallenge.mp3');
@@ -2344,6 +2496,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   'Vamos enumerar as possibilidades verde por verde. Acompanhe e responda as perguntas que aparecerem ao longo do caminho.',
                   'info',
                   4500,
+                  'clicou em "Começar" para iniciar a construção do espaço amostral',
                 );
               }}
               aria-label="Começar a construção do espaço amostral"
@@ -2522,6 +2675,9 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   onClick={() => {
+                    const btnLbl = round === 2 ? 'Calcular a soma' : 'Marcar na tabela';
+                    const proximaFase = round === 2 ? 'sumInput' : 'markTable';
+                    telemetryRecordInteracaoExercicio(`clicou em "${btnLbl}" (pickConfirm Lançamento ${round + 1} de ${TOTAL_ROUNDS}, par registrado: (${greenResult}, ${blueResult})) → fase ${proximaFase}`);
                     scrollDiceToTop();
                     // Rodada 3 (index 2) salta a marcação simples e entra no
                     // exercício da soma (Momento A). Rodadas 0 e 1 seguem para
@@ -2742,6 +2898,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                       style="primary"
                       size="small"
                       onClick={() => {
+                        telemetryRecordInteracaoExercicio(`clicou em "Continuar" (sumComplete → sumAlienIntro — soma=${greenResult + blueResult}, n(soma)=${getPairsForSum(greenResult + blueResult).size})`);
                         scrollDiceToTop();
                         playSound('/sounds/nextChallenge.mp3');
                         setPhase('sumAlienIntro');
@@ -2781,6 +2938,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               </p>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={() => {
+                  telemetryRecordInteracaoExercicio('clicou em "Topa o desafio!" (sumAlienIntro → sumPredictMax — iniciou desafio do alien de 3 perguntas)');
                   scrollDiceToTop();
                   playSound('/sounds/nextChallenge.mp3');
                   setPhase('sumPredictMax');
@@ -2804,7 +2962,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               <div className="flex items-center gap-x-micro">
                 <select
                   value={sumPredictedMax ?? ''}
-                  onChange={e => setSumPredictedMax(e.target.value ? parseInt(e.target.value, 10) : null)}
+                  onChange={e => {
+                    const v = e.target.value ? parseInt(e.target.value, 10) : null;
+                    telemetryRecordInteracaoExercicio(`selecionou soma "${e.target.value || '?'}" no select da Pergunta 1/3 do alien — "Qual soma você acha que ocorre MAIS vezes no lançamento de dois dados?"`);
+                    setSumPredictedMax(v);
+                  }}
                   className="ds-body-bold"
                   aria-label="Selecione a soma que você acha que ocorre mais vezes"
                   style={{
@@ -2826,7 +2988,10 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   disabled={sumPredictedMax === null}
-                  onClick={validateSumPredictMax}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`clicou em "Confirmar" na Pergunta 1/3 do alien — "Qual soma você acha que ocorre MAIS vezes no lançamento de dois dados?" — selecionou: ${sumPredictedMax ?? '(sem seleção)'}`);
+                    validateSumPredictMax();
+                  }}
                 >
                   Confirmar
                 </Button>
@@ -2847,7 +3012,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               <div className="flex items-center gap-x-micro">
                 <select
                   value={sumPredictedMin ?? ''}
-                  onChange={e => setSumPredictedMin(e.target.value ? parseInt(e.target.value, 10) : null)}
+                  onChange={e => {
+                    const v = e.target.value ? parseInt(e.target.value, 10) : null;
+                    telemetryRecordInteracaoExercicio(`selecionou soma "${e.target.value || '?'}" no select da Pergunta 2/3 do alien — "E qual soma você acha que ocorre MENOS vezes?"`);
+                    setSumPredictedMin(v);
+                  }}
                   className="ds-body-bold"
                   aria-label="Selecione a soma que você acha que ocorre menos vezes"
                   style={{
@@ -2869,7 +3038,10 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   disabled={sumPredictedMin === null}
-                  onClick={validateSumPredictMin}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`clicou em "Confirmar" na Pergunta 2/3 do alien — "E qual soma você acha que ocorre MENOS vezes?" — selecionou: ${sumPredictedMin ?? '(sem seleção)'}`);
+                    validateSumPredictMin();
+                  }}
                 >
                   Confirmar
                 </Button>
@@ -3147,6 +3319,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                         style="primary"
                         size="small"
                         onClick={() => {
+                          telemetryRecordInteracaoExercicio(`clicou em "Próximo desafio" (sumReveal → probPair) — alien: P1 marcou=${sumPredictedMax ?? '?'} (correto: 7), P2 marcou=${sumPredictedMin ?? '?'} (correto: 2 ou 12), P3 marcou=[${[...sumImpossibleSelected].sort((a, b) => a - b).join(', ')}]`);
                           scrollDiceToTop();
                           playSound('/sounds/nextChallenge.mp3');
                           setPhase('probPair');
@@ -3279,6 +3452,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               </p>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={() => {
+                  telemetryRecordInteracaoExercicio(`clicou em "Próximo: probabilidades das somas" (probPairReveal → probSumTable — após confirmar P((${greenResult}, ${blueResult})) = 1/36 — todos os 36 pares ordenados são equiprováveis)`);
                   scrollDiceToTop();
                   playSound('/sounds/nextChallenge.mp3');
                   setPhase('probSumTable');
@@ -3460,6 +3634,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               </p>
               <div className="flex justify-center mt-micro">
                 <Button style="primary" size="small" onClick={() => {
+                  telemetryRecordInteracaoExercicio('clicou em "Próximo: corrida dos carrinhos" (probSumReveal → raceBet) — após concluir a tabela P(soma) das 11 somas e ver o axioma "soma de todas as probabilidades = 1/36 + 2/36 + 3/36 + 4/36 + 5/36 + 6/36 + 5/36 + 4/36 + 3/36 + 2/36 + 1/36 = 36/36 = 1"');
                   scrollDiceToTop();
                   playSound('/sounds/nextChallenge.mp3');
                   setPhase('raceBet');
@@ -3623,7 +3798,10 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   disabled={raceBet === null || raceImpossibleConfirm !== null}
-                  onClick={startRace}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`clicou em "🎲 Sortear" (raceBet → raceRunning — iniciou a corrida apostando no carrinho ${raceBet})`);
+                    startRace();
+                  }}
                   aria-label={raceBet === null ? 'Escolha um carrinho antes de começar' : 'Sortear os dados'}
                 >
                   🎲 Sortear
@@ -3769,7 +3947,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   disabled={raceBusy || racePendingSum !== null || raceWinner !== null}
-                  onClick={rollRaceDice}
+                  onClick={() => {
+                    const positions = Object.entries(racePositions).map(([car, pos]) => `${car}:${pos}`).join(', ');
+                    telemetryRecordInteracaoExercicio(`clicou em "🎲 Sortear" (raceRunning — sortear novo lançamento; aposta: carrinho ${raceBet}; posições atuais: [${positions}])`);
+                    rollRaceDice();
+                  }}
                   aria-label="Sortear os dados"
                 >
                   🎲 Sortear
@@ -4038,6 +4220,9 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   onClick={() => {
+                    telemetryRecordInteracaoExercicio(
+                      'Cena 7 — clicou em "Concluir Ex7" (Exercício 7 — Fixação básica) — marcou Ex7 como concluído e voltou à tela de síntese final do Ex6',
+                    );
                     scrollDiceToTop();
                     playSound('/sounds/challengeFinished.mp3');
                     setEx7Completed(true);
@@ -4074,6 +4259,9 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   style="primary"
                   size="small"
                   onClick={() => {
+                    telemetryRecordInteracaoExercicio(
+                      'Cena 7 — clicou em "Concluir Ex8" (Exercício 8 — Fixação avançada) — marcou Ex8 como concluído e voltou à tela de síntese final do Ex6',
+                    );
                     scrollDiceToTop();
                     playSound('/sounds/challengeFinished.mp3');
                     setEx8Completed(true);
@@ -4120,7 +4308,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 Lançamentos registrados: {history.length} de {TOTAL_ROUNDS}.
               </p>
               <div className="flex justify-center mt-micro">
-                <Button style="primary" size="small" onClick={nextRound}>
+                <Button style="primary" size="small" onClick={() => {
+                  const btnLbl = round + 1 >= TOTAL_ROUNDS ? 'Próximo: finalizar' : `Próximo: lançamento ${round + 2} de ${TOTAL_ROUNDS}`;
+                  telemetryRecordInteracaoExercicio(`clicou em "${btnLbl}" (feedback do Lançamento ${round + 1}, par registrado: (${greenResult}, ${blueResult}); lançamentos registrados: ${history.length} de ${TOTAL_ROUNDS})`);
+                  nextRound();
+                }}>
                   {round + 1 >= TOTAL_ROUNDS ? 'Próximo: finalizar' : `Próximo: lançamento ${round + 2} de ${TOTAL_ROUNDS}`}
                 </Button>
               </div>
@@ -4145,14 +4337,22 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               <Button
                 style={pairAnswer === 'sim' ? 'primary' : 'secondary'}
                 size="extra-small"
-                onClick={() => { setPairAnswer('sim'); setPairAnswerError(false); }}
+                onClick={() => {
+                  telemetryRecordInteracaoExercicio(`marcou "Sim, são iguais" para pergunta sobre par (${o.green}, ${o.blue}) vs (${o.blue}, ${o.green})`);
+                  setPairAnswer('sim');
+                  setPairAnswerError(false);
+                }}
               >
                 Sim, são iguais
               </Button>
               <Button
                 style={pairAnswer === 'nao' ? 'primary' : 'secondary'}
                 size="extra-small"
-                onClick={() => { setPairAnswer('nao'); setPairAnswerError(false); }}
+                onClick={() => {
+                  telemetryRecordInteracaoExercicio(`marcou "Não, são diferentes" para pergunta sobre par (${o.green}, ${o.blue}) vs (${o.blue}, ${o.green})`);
+                  setPairAnswer('nao');
+                  setPairAnswerError(false);
+                }}
               >
                 Não, são diferentes
               </Button>
@@ -4160,6 +4360,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             {pairAnswer && (
               <div className="flex justify-center">
                 <Button style="primary" size="small" onClick={() => {
+                  telemetryRecordInteracaoExercicio(`clicou em "Conferir" (pairQuestion — marcou: "${pairAnswer === 'sim' ? 'Sim, são iguais' : 'Não, são diferentes'}" sobre par (${o.green}, ${o.blue}) vs (${o.blue}, ${o.green}))`);
                   scrollDiceToTop();
                   if (pairAnswer === 'nao') {
                     playSound('/sounds/correct.mp3');
@@ -4168,6 +4369,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                       `O par (${o.green}, ${o.blue}) é diferente de (${o.blue}, ${o.green}) — a ordem importa.`,
                       'success',
                       3500,
+                      `marcou: "Não, são diferentes" sobre par (${o.green}, ${o.blue}) vs (${o.blue}, ${o.green})`,
                     );
                     setPhase('pairExplain');
                   } else {
@@ -4177,6 +4379,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                       'Observe a posição de cada resultado na tabela.',
                       'error',
                       4000,
+                      `marcou: "Sim, são iguais" sobre par (${o.green}, ${o.blue}) vs (${o.blue}, ${o.green})`,
                     );
                     setPairAnswerError(true);
                   }
@@ -4217,7 +4420,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             </p>
             {renderTable(false)}
             <div className="flex justify-center mt-micro">
-              <Button style="primary" size="small" onClick={() => { scrollDiceToTop(); setPhase('colorQuestion'); }}>
+              <Button style="primary" size="small" onClick={() => {
+                telemetryRecordInteracaoExercicio(`clicou em "Próximo" (pairExplain → colorQuestion — sai da explicação do par ordenado (${o.green}, ${o.blue}) vs (${o.blue}, ${o.green}))`);
+                scrollDiceToTop();
+                setPhase('colorQuestion');
+              }}>
                 Próximo
               </Button>
             </div>
@@ -4241,6 +4448,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                   const machine = diceMachineRef.current;
                   const machineContainer = diceMachineContainerRef.current;
                   if (!machine || !machineContainer || machineBusy) return;
+                  telemetryRecordInteracaoExercicio(`clicou em "${whiteThrowCount === 0 ? 'Lançar os dados brancos' : 'Lançar novamente (opcional)'}" (colorQuestion — lançamento ${whiteThrowCount + 1} de dados brancos)`);
                   setMachineBusy(true);
                   try {
                     // 1. Dados ficam brancos com pintas pretas (troca instantânea de textura)
@@ -4258,6 +4466,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                       'Observe os dois dados brancos. Agora responda abaixo: ainda dá pra distinguir os pares?',
                       'info',
                       5000,
+                      `dados brancos lançados (${whiteThrowCount + 1}ª vez)`,
                     );
                   } finally {
                     setMachineBusy(false);
@@ -4278,14 +4487,22 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <Button
               style={colorAnswer === 'sim' ? 'primary' : 'secondary'}
               size="extra-small"
-              onClick={() => { setColorAnswer('sim'); setColorAnswerError(false); }}
+              onClick={() => {
+                telemetryRecordInteracaoExercicio('marcou "Sim" para pergunta sobre dados da mesma cor (ainda distingue?)');
+                setColorAnswer('sim');
+                setColorAnswerError(false);
+              }}
             >
               Sim
             </Button>
             <Button
               style={colorAnswer === 'nao' ? 'primary' : 'secondary'}
               size="extra-small"
-              onClick={() => { setColorAnswer('nao'); setColorAnswerError(false); }}
+              onClick={() => {
+                telemetryRecordInteracaoExercicio('marcou "Não" para pergunta sobre dados da mesma cor (ainda distingue?)');
+                setColorAnswer('nao');
+                setColorAnswerError(false);
+              }}
             >
               Não
             </Button>
@@ -4293,6 +4510,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {colorAnswer && (
             <div className="flex justify-center">
               <Button style="primary" size="small" onClick={() => {
+                telemetryRecordInteracaoExercicio(`clicou em "Conferir" (colorQuestion — marcou: "${colorAnswer === 'sim' ? 'Sim' : 'Não'}" sobre dados da mesma cor)`);
                 scrollDiceToTop();
                 if (colorAnswer === 'sim') {
                   playSound('/sounds/correct.mp3');
@@ -4301,6 +4519,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                     'Mesmo da mesma cor, os dois dados são objetos separados — a ordem ainda importa.',
                     'success',
                     3500,
+                    'marcou: "Sim" (dados da mesma cor — ainda distingue)',
                   );
                   setPhase('colorExplain');
                 } else {
@@ -4310,6 +4529,7 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                     'Os dois dados são objetos distintos, mesmo que tenham a mesma cor.',
                     'error',
                     4000,
+                    'marcou: "Não" (dados da mesma cor — ainda distingue)',
                   );
                   setColorAnswerError(true);
                 }
@@ -4340,7 +4560,10 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             corresponde à linha e qual corresponde à coluna na tabela.
           </p>
           <div className="flex justify-center mt-micro">
-            <Button style="primary" size="small" onClick={resumeAfterPedagogic}>
+            <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio(`clicou em "Próximo: lançamento 3 de ${TOTAL_ROUNDS}" (sai do intervalo pedagógico colorExplain → retoma os lançamentos)`);
+              resumeAfterPedagogic();
+            }}>
               Próximo: lançamento 3 de {TOTAL_ROUNDS}
             </Button>
           </div>

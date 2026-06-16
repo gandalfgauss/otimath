@@ -25,15 +25,16 @@ import { playSound } from '@/hooks/global/useSound';
  * como interações da sequência.
  */
 
-/** Senha que confirma o logout. Atualmente espelha a senha de login
- *  (`@dev@`). Trocar pelo valor real antes da aplicação em sala — pode
- *  ser DIFERENTE da senha de login se quiser dificultar logout
- *  acidental. */
-const LOGOUT_PASSWORD = '@dev@';
+/**
+ * Senha de confirmação fica AGORA no server (LOGOUT_MASTER_PASSWORD
+ * env). O cliente NÃO sabe qual é — manda pro endpoint que valida.
+ * Logout aqui também ENCERRA a run ativa do aluno no banco
+ * (ended_reason='logout'), fazendo o próximo login começar do zero.
+ */
 
 interface SequenceLogoutProps {
   /** Callback executado quando o aluno confirma logout (senha correta).
-   *  A `page.tsx` deve: limpar o flag de `localStorage` + setLoggedIn(false). */
+   *  A `page.tsx` deve: limpar flag local + setLoggedIn(false). */
   onLogout: () => void;
 }
 
@@ -44,6 +45,7 @@ export function SequenceLogout({ onLogout }: Readonly<SequenceLogoutProps>) {
   const { alerts, createAlert, updateAlert, deleteAlerts } = useAlerts();
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Abre o modal num estado SEMPRE limpo — sem senha residual, sem erro
   // anterior. Defesa contra "abri o modal, fechei, reabri e ainda tinha
@@ -57,20 +59,22 @@ export function SequenceLogout({ onLogout }: Readonly<SequenceLogoutProps>) {
     });
   };
 
-  const handleSubmit = () => {
-    if (passwordInput.trim() === LOGOUT_PASSWORD) {
-      playSound('/sounds/correct.mp3');
-      // Chama direto — o `onLogout` no parent dispara setLoggedIn(false),
-      // que troca o conteúdo da página pra tela de login. Este
-      // componente desmonta junto, então o modal some sem precisar de
-      // close() explícito. A fade-out fica truncada mas o swap pra tela
-      // de login é feedback suficiente.
-      onLogout();
-    } else {
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ masterPassword: passwordInput }),
+      });
+      if (res.ok) {
+        playSound('/sounds/correct.mp3');
+        onLogout();
+        return;
+      }
       playSound('/sounds/incorrect.mp3');
-      // Toast `error` (vermelho) + erro inline. `silent: true` no 6º
-      // param pula o observador da telemetria — não polui o JSON do
-      // OVA ativo com pseudo-erros de senha de logout.
       createAlert(
         'Senha incorreta',
         'Confira a senha e tente novamente.',
@@ -80,6 +84,18 @@ export function SequenceLogout({ onLogout }: Readonly<SequenceLogoutProps>) {
         true,
       );
       setPasswordError(true);
+    } catch {
+      playSound('/sounds/incorrect.mp3');
+      createAlert(
+        'Falha de conexão',
+        'Não foi possível concluir o logout. Verifique sua internet.',
+        'error',
+        4000,
+        undefined,
+        true,
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -141,10 +157,10 @@ export function SequenceLogout({ onLogout }: Readonly<SequenceLogoutProps>) {
             <Button
               style="primary"
               size="small"
-              onClick={handleSubmit}
-              disabled={passwordInput.trim().length === 0}
+              onClick={() => void handleSubmit()}
+              disabled={passwordInput.trim().length === 0 || submitting}
             >
-              Sair
+              {submitting ? 'Saindo…' : 'Sair'}
             </Button>
           </>
         )}
@@ -172,7 +188,7 @@ export function SequenceLogout({ onLogout }: Readonly<SequenceLogoutProps>) {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  if (passwordInput.trim().length > 0) handleSubmit();
+                  if (passwordInput.trim().length > 0) void handleSubmit();
                 }
               }}
               placeholder="Digite a senha"

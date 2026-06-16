@@ -14,6 +14,8 @@ import { useCanvasRevivalKey } from '@/hooks/global/useCanvasRevivalKey';
 import {
   telemetryEnterExercise,
   telemetryExitExercise,
+  telemetryRecordInteracaoExercicio,
+  useTelemetryExercise,
 } from '@/hooks/teaching/probability/useTelemetry';
 import type { DiceSceneHandle } from './DiceScene';
 import type { TwoDiceSceneHandle } from './TwoDiceScene';
@@ -251,30 +253,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   // Android ao voltar do app switcher.
   const canvasRevivalKey = useCanvasRevivalKey();
 
-  // Telemetria por cena — apenas as cenas com validação contam como
-  // "exercício" pra estrutura de telemetria. As outras (visualização)
-  // ainda contribuem com cliques pro total_interacoes_ova via listener
-  // global, mas não geram entrada em `exercicios_interagidos`.
-  // Cenas 5/6/7 delegam pra TwoDicesPractice/DiceMachineExperiment/
-  // TwoDicesExperiment, que registram seus próprios sub-exercícios.
-  useEffect(() => {
-    if (scene === 3) {
-      telemetryEnterExercise(
-        'twoDices-cena3-espaco-amostral',
-        'Cena 3 — Espaço amostral do dado',
-        'Validação: n(S), P(S) e identificação do modelo equiprovável.',
-      );
-      return () => telemetryExitExercise('twoDices-cena3-espaco-amostral');
-    }
-    if (scene === 4) {
-      telemetryEnterExercise(
-        'twoDices-cena4-equilibrado-viciado',
-        'Cena 4 — Equilibrado × Viciado',
-        'Comparação visual entre dado honesto e viciado + identificação do modelo (radio).',
-      );
-      return () => telemetryExitExercise('twoDices-cena4-equilibrado-viciado');
-    }
-  }, [scene]);
+  // Telemetria das cenas 1-4 — declarada após os states (linha ~445+).
 
   // Ref do dado 3D e seu container (para scroll programático)
   const diceRef = useRef<DiceSceneHandle>(null);
@@ -372,6 +351,112 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   // (max-w-[800px] → max-w-[1216px]) quando entra na unionTheory, cuja
   // tabela 6×6 precisa de mais que 800px para não gerar scroll horizontal.
   const [scene7ExperimentPhase, setScene7ExperimentPhase] = useState<string>('intro');
+
+  // ─── TELEMETRIA POR CENA — title/descricao DINÂMICOS com TODO o texto
+  // da tela visível. Cada cena chama useTelemetryExercise com id estável
+  // e título/descricao reativos ao estado interno (scene3Step, scene4Step,
+  // currentFaceIdx, inputs digitados, opções marcadas).
+  //
+  // Padrão: a `descricao` carrega o ENUNCIADO completo que o aluno está
+  // lendo, os labels dos inputs visíveis, os valores que ele digitou e,
+  // quando aplicável, as opções de múltipla escolha. Isso permite que
+  // quem ler o JSON depois reconstrua a tela sem precisar abrir o app.
+  //
+  // Cenas 5/6/7 delegam para os filhos (TwoDicesPractice, DiceMachineExperiment,
+  // TwoDicesExperiment), que registram suas próprias seções enriquecidas.
+
+  // CENA 1 — Definição de dado (sólido geométrico, 6 faces, faces opostas).
+  const cena1Title = 'Cena 1 — Definição de dado (sólido geométrico)';
+  const cena1Desc =
+    'Texto na tela: "Um dado é um sólido geométrico na forma de cubo. Possui 6 faces, cada uma marcada com um número diferente de pontos chamados pintas, variando de 1 a 6. As faces opostas de um dado sempre somam 7." | Botão visível: "Próximo" (avança para Cena 2).';
+  useTelemetryExercise(
+    'twoDices-cena1-definicao-dado',
+    cena1Title,
+    cena1Desc,
+    scene === 1,
+  );
+
+  // CENA 2 — Experimento aleatório: apresentação das 6 faces uma a uma.
+  const faceLabelAtual = currentFaceIdx >= 0 && currentFaceIdx < FACE_LABELS.length
+    ? FACE_LABELS[currentFaceIdx]
+    : '(preparando lançamento)';
+  const cena2Title = `Cena 2 — Experimento aleatório (face ${currentFaceIdx >= 0 ? currentFaceIdx + 1 : '—'}/6)`;
+  const cena2Desc =
+    `Texto na tela: "No lançamento de um dado, espera-se que ele entre em repouso com uma das faces apoiada na mesa. O resultado observado é o número de pintas na face voltada para cima." | ` +
+    `Face exibida agora: ${currentFaceIdx >= 0 ? `Face ${currentFaceIdx + 1} — "${faceLabelAtual}"` : '(preparando lançamento)'} | ` +
+    `Progresso: ${Math.max(0, currentFaceIdx + 1)} de 6 faces apresentadas | ` +
+    `Botão visível: "Próximo" (aparece ao final da sequência, avança para Cena 3).`;
+  useTelemetryExercise(
+    'twoDices-cena2-experimento-aleatorio',
+    cena2Title,
+    cena2Desc,
+    scene === 2,
+  );
+
+  // CENA 3 — Dado equilibrado interativa (sub-etapas 0..6).
+  // Texto principal é sempre visível; cada sub-etapa adiciona pergunta + inputs.
+  const cena3TextoPrincipal =
+    'Texto principal (sempre visível): "Um dado é equilibrado quando todas as faces têm a mesma probabilidade de aparecer. Nenhuma face é favorecida, pois há simetria: faces com mesma área, forma, tamanho, rugosidade e mesmo tipo de material, além de massa distribuída uniformemente. Nessas condições ideais, todos os resultados têm a mesma chance. Assim, trata-se de um modelo probabilístico equiprovável."';
+  const cena3SubLabel =
+    scene3Step === 0 ? 'Etapa 0 — Ler texto e avançar'
+    : scene3Step === 1 ? 'Etapa 1 — Espaço amostral S'
+    : scene3Step === 2 ? 'Etapa 2 — Número de elementos n(S)'
+    : scene3Step === 3 ? 'Etapa 3 — Probabilidade P(S)'
+    : scene3Step === 4 ? `Etapa 4 — Probabilidade da face ${scene3RandomFace}`
+    : scene3Step === 5 ? 'Etapa 5 — Generalização para as demais faces'
+    : scene3Step === 6 ? 'Etapa 6 — Fechamento'
+    : `Etapa ${scene3Step}`;
+  const cena3SubText =
+    scene3Step === 0
+      ? 'Botão visível: "Continuar" (avança para a primeira pergunta).'
+      : scene3Step === 1
+        ? `Pergunta na tela: "Qual o espaço amostral do lançamento de um dado equilibrado?" | Campo: S = { <input type="text" placeholder="x₁, x₂, ..., xₙ" valor digitado="${scene3SampleSpace}"> } | Botão: "Conferir"${scene3SampleSpaceError ? ' | Feedback de erro visível: "Verifique quais os resultados possíveis no lançamento de um dado."' : ''}`
+        : scene3Step === 2
+          ? `Pergunta na tela: "Então, quantos resultados são possíveis no lançamento de um dado, ou seja, qual o número de elementos do espaço amostral n(S) desse experimento aleatório?" | Campo: n(S) = <input inputMode="numeric" placeholder="?" valor digitado="${scene3NS}"> | Botão: "Conferir"${scene3NSError ? ' | Feedback de erro visível: "Conte quantos elementos você listou no espaço amostral S."' : ''}`
+          : scene3Step === 3
+            ? `Pergunta na tela: "Ao lançar um dado equilibrado, qual a probabilidade de obter algum resultado?" | Campo: P(S) = <input inputMode="decimal" placeholder="?" valor digitado="${scene3PS}"> | Botão: "Conferir"${scene3PSError ? ' | Feedback de erro visível: "Se o dado é lançado, algum resultado certamente ocorrerá. Qual probabilidade representa a certeza?"' : ''}`
+            : scene3Step === 4
+              ? `Pergunta na tela: "Calcule a probabilidade de ocorrer a face ${scene3RandomFace}." | Campos: P(face ${scene3RandomFace}) = <input numerador="${scene3Num || '?'}">/<input denominador="${scene3Den || '?'}"> ≈ <input porcentagem="${scene3Pct || '?'}">% | Botão: "Conferir"${scene3ProbFeedback ? ` | Feedback visível: "${scene3ProbFeedback}"` : ''}${scene3ShowBar ? ' | Barra animada da face mostrando 1/6 aparece após acertar' : ''}`
+              : scene3Step === 5
+                ? `Pergunta na tela: "As demais faces têm a mesma probabilidade que a face ${scene3RandomFace} de ocorrer?" | Botões visíveis: "Sim" / "Não"${scene3NoError ? ' | Feedback de erro visível (após "Não"): "Releia a definição de dado equilibrado e tente novamente."' : ''}${scene3AllBars ? ' | Gráfico com 6 barras (1/6 cada) aparece após "Sim"' : ''}`
+                : scene3Step === 6
+                  ? 'Fechamento na tela: "Como o dado é equilibrado, cada face tem probabilidade P(face i) = 1/6 ≈ 16,7%, i = 1, 2, 3, 4, 5, 6. A soma de todas as probabilidades é 6 × 1/6 = 1." | Botão: "Próximo" (avança para Cena 4).'
+                  : '';
+  const cena3Title = `Cena 3 — Dado equilibrado · ${cena3SubLabel}`;
+  const cena3Desc = `${cena3TextoPrincipal} | ${cena3SubLabel}: ${cena3SubText}`;
+  useTelemetryExercise(
+    'twoDices-cena3-espaco-amostral',
+    cena3Title,
+    cena3Desc,
+    scene === 3,
+  );
+
+  // CENA 4 — Equilibrado × Viciado (sub-etapas 0..3).
+  const cena4PainelComparativo =
+    'Painéis comparativos (sempre visíveis): "Dado Equilibrado" — gráfico com 6 barras iguais + legenda "Todas as faces têm a mesma probabilidade." | "Dado Viciado" — gráfico com 6 barras desiguais + legenda "Algumas faces teriam maior probabilidade por não estarem presentes todas as condições de simetria."';
+  const eqLabel = scene4EqAnswer === 'equiprovavel' ? 'Equiprovável' : scene4EqAnswer === 'nao-equiprovavel' ? 'Não equiprovável' : '(não marcou)';
+  const vicLabel = scene4VicAnswer === 'equiprovavel' ? 'Equiprovável' : scene4VicAnswer === 'nao-equiprovavel' ? 'Não equiprovável' : '(não marcou)';
+  const cena4SubText =
+    scene4Step <= 1
+      ? `Pergunta 1 visível: "Quando utilizamos dados equilibrados, o espaço amostral é:" Opções: "Equiprovável" / "Não equiprovável" — marcou: "${eqLabel}"${scene4EqError ? ' [com feedback de erro visível: "Releia o texto apresentado e tente novamente."]' : ''} | ` +
+        `Pergunta 2 visível: "Quando utilizamos dados não equilibrados (viciados), o espaço amostral é:" Opções: "Equiprovável" / "Não equiprovável" — marcou: "${vicLabel}"${scene4VicError ? ' [com feedback de erro visível: "Releia o texto apresentado e tente novamente."]' : ''} | ` +
+        'Botão: "Conferir".'
+      : scene4Step === 2
+        ? 'Conclusão visível (texto fixo): "Quando utilizamos dados equilibrados, o espaço amostral é equiprovável. Quando utilizamos dados não equilibrados (viciados), o espaço amostral é não equiprovável." | ' +
+          `Pergunta na tela: "Mas a soma das probabilidades de ocorrer cada um dos resultados possíveis do experimento aleatório é <input placeholder="?" valor digitado="${scene4SumAnswer}"> para ambos os casos." | Botão: "Conferir"${scene4SumError ? ' | Feedback de erro visível: "Lembre-se do valor que você calculou para P(S) na etapa anterior."' : ''}`
+        : 'Fechamento visível (texto fixo): "Quando utilizamos dados equilibrados, o espaço amostral é equiprovável. Quando utilizamos dados não equilibrados (viciados), o espaço amostral é não equiprovável. Mas a soma das probabilidades de ocorrer cada um dos resultados possíveis do experimento aleatório é sempre igual a 1 (ou 100%) para ambos os casos." | Botão: "Próximo" (avança para Cena 5).';
+  const cena4SubLabel =
+    scene4Step <= 1 ? 'Etapa 1 — Classificar espaço amostral (equilibrado vs viciado)'
+    : scene4Step === 2 ? 'Etapa 2 — Soma das probabilidades'
+    : 'Etapa 3 — Fechamento';
+  const cena4Title = `Cena 4 — Equilibrado × Viciado · ${cena4SubLabel}`;
+  const cena4Desc = `${cena4PainelComparativo} | ${cena4SubLabel}: ${cena4SubText}`;
+  useTelemetryExercise(
+    'twoDices-cena4-equilibrado-viciado',
+    cena4Title,
+    cena4Desc,
+    scene === 4,
+  );
 
   // Ativar idle nas cenas 1 e 3
   useEffect(() => {
@@ -709,6 +794,11 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
   // ── Botão "Próximo" ──
   const handleNext = () => {
     if (transitioning) return;
+
+    // Telemetria do clique em "Próximo" — antes esse handler avançava
+    // de cena sem deixar rastro de interação_usuario, então as
+    // transições entre as cenas conceituais (1→2→3) sumiam da coleta.
+    telemetryRecordInteracaoExercicio(`clicou em "Próximo" (cena ${scene} → cena ${scene < 5 ? scene + 1 : scene === 5 ? 6 : scene === 6 ? 7 : 'fim'})`);
 
     if (scene === 5 && scene5Finished) {
       playSound('/sounds/nextChallenge.mp3');
@@ -1317,7 +1407,11 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                 {/* ETAPA 0 — Ler texto, avançar */}
                 {scene3Step === 0 && (
                   <div className="flex justify-center mt-macro">
-                    <Button style="primary" size="small" icon={<ArrowRight aria-hidden="true" />} onClick={() => { playSound('/sounds/nextChallenge.mp3'); setScene3Step(1); }}>
+                    <Button style="primary" size="small" icon={<ArrowRight aria-hidden="true" />} onClick={() => {
+                      telemetryRecordInteracaoExercicio('clicou em "Continuar" (Cena 3 — Dado equilibrado: ler texto → espaço amostral interativo)');
+                      playSound('/sounds/nextChallenge.mp3');
+                      setScene3Step(1);
+                    }}>
                       Continuar
                     </Button>
                   </div>
@@ -1715,6 +1809,11 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
                                   value={val}
                                   checked={tipo === 'eq' ? scene4EqAnswer === val : scene4VicAnswer === val}
                                   onChange={() => {
+                                    const optLbl = val === 'equiprovavel' ? 'Equiprovável' : 'Não equiprovável';
+                                    const perguntaLbl = tipo === 'eq'
+                                      ? 'Quando utilizamos dados equilibrados, o espaço amostral é:'
+                                      : 'Quando utilizamos dados não equilibrados (viciados), o espaço amostral é:';
+                                    telemetryRecordInteracaoExercicio(`marcou "${optLbl}" na pergunta "${perguntaLbl}" (Cena 4)`);
                                     if (tipo === 'eq') { setScene4EqAnswer(val); setScene4EqError(false); }
                                     else { setScene4VicAnswer(val); setScene4VicError(false); }
                                   }}

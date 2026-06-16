@@ -28,7 +28,12 @@ import { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHand
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
 import type { AlertType } from '@/components/global/Alert';
-import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
+import {
+  useTelemetryExercise,
+  telemetryRecordInteracaoExercicio,
+  telemetryRecordAcerto,
+  telemetryRecordErro,
+} from '@/hooks/teaching/probability/useTelemetry';
 
 // Handle exposto ao pai (TwoDicesExperiment) para o painel DEV
 // avançar pela árvore do espaço amostral simulando a interação natural
@@ -120,7 +125,7 @@ interface SampleSpaceTreeProps {
    *  para construir um cenaId que reflete a sub-cena ativa. */
   onPhaseChange?: (phaseId: string) => void;
   /** Cria um toast alert via o sistema de alerts global do OVA. */
-  createAlert?: (title: string, description: string, type: AlertType, timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: AlertType, timeout?: number, userResponse?: string) => void;
 }
 
 const GREEN_COLOR = '#1a5c2e';
@@ -130,13 +135,6 @@ const BRANCH_COLOR = '#8b1a1a'; // vermelho escuro
 export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTreeProps>(
   function SampleSpaceTree({ onFinished, diceSceneRef, onPhaseChange, createAlert }, ref) {
   const [phase, setPhase] = useState<Phase>('select1');
-  // SEÇÃO POR PHASE — cada fase (select1, multiply, etc.) é uma tela
-  // distinta com sua própria seção telemétrica.
-  useTelemetryExercise(
-    `twoDices-cena7-espaco-amostral-6x6-${phase}`,
-    'Espaço amostral 6×6 — construção via árvore',
-    'Aluno seleciona faces do azul, vê a árvore ser construída ramo a ramo e valida n(S) = 36.',
-  );
   const [selectedFaces, setSelectedFaces] = useState<Set<number>>(new Set());
   const [selectError, setSelectError] = useState('');
 
@@ -179,6 +177,43 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   const [totalAnswer, setTotalAnswer] = useState('');
   const [totalError, setTotalError] = useState('');
 
+  // ─── TELEMETRIA POR PHASE — title/descricao DINÂMICOS com TODO o texto
+  // visível na tela em cada uma das 7 sub-fases (select1, select2, animate,
+  // count, multiply, total, pairs). Sem isso, fases além de select1/select2
+  // ficavam com descricao genérica e perdiam o enunciado real + valores
+  // digitados pelo aluno.
+  const sstPhaseLabel =
+    phase === 'select1' ? 'select1 — Selecionar faces do azul para verde=1'
+    : phase === 'select2' ? 'select2 — Selecionar faces do azul para verde=2'
+    : phase === 'animate' ? 'animate — Animação da árvore ramo a ramo'
+    : phase === 'count' ? 'count — Pergunta sobre quantidade de pares por face'
+    : phase === 'multiply' ? 'multiply — Multiplicação 6 × 6 = 36'
+    : phase === 'total' ? 'total — Total de pares no espaço amostral'
+    : phase === 'pairs' ? 'pairs — Visualização final dos 36 pares'
+    : String(phase);
+  const sstSelectedList = [...selectedFaces].sort((a, b) => a - b).join(', ');
+  const sstScreenText =
+    phase === 'select1'
+      ? `Texto na tela: "Lançamento de dois dados — Construindo o espaço amostral. Você observou a máquina e registrou pares. Mas quantos pares diferentes podem sair no lançamento de dois dados? Vamos descobrir juntos, um resultado de cada vez. Primeiro lançamento — Se o dado verde resultar em 1, o que pode sair no dado azul?" | Instrução: "Toque em todas as faces possíveis do dado azul:" | Faces selecionadas agora (verde=1): [${sstSelectedList || '—'}] (${selectedFaces.size}/6) | Botão visível: "Conferir"${selectError ? ` | Feedback de erro visível: "${selectError}"` : ''}`
+      : phase === 'select2'
+        ? `Texto na tela: "Construindo o espaço amostral — Muito bem! Agora vamos verificar para o segundo resultado do dado verde. Será que as possibilidades do dado azul mudam? Primeiro lançamento — Se o dado verde resultar em 2, o que pode sair no dado azul?" | Instrução: "Toque em todas as faces possíveis do dado azul:" | Faces selecionadas agora (verde=2): [${sstSelectedList || '—'}] (${selectedFaces.size}/6) | Botão visível: "Conferir"${selectError ? ` | Feedback de erro visível: "${selectError}"` : ''}`
+        : phase === 'animate'
+          ? 'Texto na tela: "Observe a árvore sendo construída. Para cada face do dado verde, vão aparecer as 6 possibilidades do dado azul. Acompanhe ramo por ramo." | Animação: ramo a ramo, conectando cada face do verde aos 6 azuis correspondentes.'
+          : phase === 'count'
+            ? `Texto na tela: "Para cada resultado do primeiro dado, quantos pares ordenados são possíveis?" | Campo: <input placeholder="?" valor digitado="${countAnswer}"> | Botão visível: "Conferir"${countError ? ` | Feedback de erro visível: "${countError}"` : ''}`
+            : phase === 'multiply'
+              ? `Texto na tela: "Logo, no total de pares ordenados temos:" | Equação: <input A="${multA || '?'}"> <input operação="${multOp || '?'}"> <input B="${multB || '?'}"> = <input C="${multC || '?'}"> | Botão visível: "Conferir"${multError ? ` | Feedback de erro visível: "${multError}"` : ''}`
+              : phase === 'total'
+                ? `Texto na tela: "O espaço amostral S de lançar dois dados possui ___ pares ordenados." | Campo: <input placeholder="?" valor digitado="${totalAnswer}"> | Botão visível: "Conferir"${totalError ? ` | Feedback de erro visível: "${totalError}"` : ''}`
+                : phase === 'pairs'
+                  ? 'Texto na tela: "✓ O espaço amostral S tem 36 pares ordenados. Veja todos os pares organizados em 6 colunas (uma para cada face do dado verde) com 6 linhas (uma para cada face do dado azul)." | Visualização: 36 pares ordenados em grade 6×6. | Botão visível: "Continuar".'
+                  : '';
+  useTelemetryExercise(
+    `twoDices-cena7-espaco-amostral-6x6-${phase}`,
+    `Espaço amostral 6×6 — ${sstPhaseLabel}`,
+    `${sstScreenText} | Aluno constrói o espaço amostral 6×6 ramo a ramo.`,
+  );
+
   // Refs
   const greenDieRef = useRef<HTMLDivElement>(null);
   const blueDiceRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -200,12 +235,23 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   // ─── Seleção: toggle face ───
   const toggleFace = useCallback((face: number) => {
     setSelectError('');
-    setSelectedFaces(prev => {
-      const next = new Set(prev);
-      if (next.has(face)) next.delete(face); else next.add(face);
-      return next;
-    });
-  }, []);
+    // Telemetria — cada clique numa face do dado azul vira interacao_exercicio.
+    // FORA do setSelectedFaces porque, em React StrictMode, o callback de
+    // setState é executado 2× no dev para detectar side effects — colocar
+    // telemetria dentro causava registro duplicado por clique.
+    // Calculamos o novo estado a partir do snapshot atual (selectedFaces)
+    // e só depois disparamos setState com o resultado já computado.
+    const wasSelected = selectedFaces.has(face);
+    const next = new Set(selectedFaces);
+    if (wasSelected) next.delete(face);
+    else next.add(face);
+    const greenFace = phase === 'select1' ? 1 : 2;
+    const novasFaces = [...next].sort((a, b) => a - b).join(', ');
+    telemetryRecordInteracaoExercicio(
+      `${wasSelected ? 'desmarcou' : 'marcou'} face ${face} do dado azul (verde=${greenFace}) — faces selecionadas agora: [${novasFaces || '—'}]`,
+    );
+    setSelectedFaces(next);
+  }, [phase, selectedFaces]);
 
   // Rola pro topo do OVA em todo Conferir (acerto OU erro). Mirror do
   // padrão de checkAnswer no OVA do disco — o aluno SEMPRE vê o alert e
@@ -219,14 +265,33 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   // ─── Seleção: validar ───
   const validateSelection = useCallback(() => {
     scrollDiceToTop();
+    const greenFace = phase === 'select1' ? 1 : 2;
+    const markedList = [...selectedFaces].sort((a, b) => a - b).join(', ');
+    const respostaResumo = `verde=${greenFace} — marcou ${selectedFaces.size} face(s) do azul: [${markedList || '—'}]`;
     if (selectedFaces.size < 6 || ![1,2,3,4,5,6].every(v => selectedFaces.has(v))) {
+      // EXPLÍCITO antes do createAlert — bypassa o observer e garante que a
+      // resposta_usuario reflita EXATAMENTE o que o aluno marcou.
+      telemetryRecordErro(`${respostaResumo} (incorreto — não selecionou todas as 6)`);
       setSelectError('Selecione todas as 6 faces possíveis do dado azul.');
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'Selecione todas as 6 faces possíveis do dado azul.', 'error', 4000);
+      createAlert?.(
+        'Tente novamente',
+        'Selecione todas as 6 faces possíveis do dado azul.',
+        'error',
+        4000,
+        `${respostaResumo} (incorreto — não selecionou todas as 6)`,
+      );
       return;
     }
+    telemetryRecordAcerto(respostaResumo);
     playSound('/sounds/correct.mp3');
-    createAlert?.('Correto!', 'Para cada face do verde, o azul pode mostrar 1, 2, 3, 4, 5 ou 6.', 'success', 3000);
+    createAlert?.(
+      'Correto!',
+      'Para cada face do verde, o azul pode mostrar 1, 2, 3, 4, 5 ou 6.',
+      'success',
+      3000,
+      respostaResumo,
+    );
     if (phase === 'select1') {
       setSelectedFaces(new Set());
       setSelectError('');
@@ -366,16 +431,19 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   // ─── Validações ───
   const validateCount = useCallback(() => {
     scrollDiceToTop();
+    const respResumo = `digitou "${countAnswer.trim()}" para "Quantos pares ordenados surgem da face 1 verde?"`;
     if (countAnswer.trim() !== '6') {
       const msg = 'Observe a árvore: para cada resultado do primeiro dado, aparecem 6 possibilidades no segundo.';
+      telemetryRecordErro(`${respResumo} (incorreto — esperado: 6)`);
       setCountError(msg);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', msg, 'error', 4500);
+      createAlert?.('Tente novamente', msg, 'error', 4500, `${respResumo} (incorreto)`);
       return;
     }
+    telemetryRecordAcerto(respResumo);
     setCountError('');
     playSound('/sounds/correct.mp3');
-    createAlert?.('Correto!', 'Para cada face do primeiro dado, há 6 pares ordenados possíveis.', 'success', 3000);
+    createAlert?.('Correto!', 'Para cada face do primeiro dado, há 6 pares ordenados possíveis.', 'success', 3000, respResumo);
     setPhase('multiply');
   }, [countAnswer, createAlert]);
 
@@ -388,30 +456,36 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
     else if (multB.trim() !== '6') msg = 'Quantos resultados são possíveis no segundo dado?';
     else if (!opOk)                msg = 'Qual operação combina cada resultado do primeiro dado com cada resultado do segundo?';
     else if (multC.trim() !== '36') msg = 'Qual o resultado da multiplicação dos dois fatores?';
+    const respResumo = `digitou: A="${multA.trim()}" ${multOp.trim() || '?'} B="${multB.trim()}" = C="${multC.trim()}"`;
     if (msg) {
+      telemetryRecordErro(`${respResumo} (incorreto — ${msg})`);
       setMultError(msg);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', msg, 'error', 4500);
+      createAlert?.('Tente novamente', msg, 'error', 4500, `${respResumo} (incorreto)`);
       return;
     }
+    telemetryRecordAcerto(respResumo);
     setMultError('');
     playSound('/sounds/correct.mp3');
-    createAlert?.('Correto!', '6 × 6 = 36 pares ordenados.', 'success', 3000);
+    createAlert?.('Correto!', '6 × 6 = 36 pares ordenados.', 'success', 3000, respResumo);
     setPhase('total');
   }, [multA, multOp, multB, multC, createAlert]);
 
   const validateTotal = useCallback(() => {
     scrollDiceToTop();
+    const respResumo = `digitou "${totalAnswer.trim()}" para "Quantos pares ordenados existem no total?"`;
     if (totalAnswer.trim() !== '36') {
       const msg = 'Use a multiplicação que você acabou de validar pra encontrar o total de pares ordenados.';
+      telemetryRecordErro(`${respResumo} (incorreto — esperado: 36)`);
       setTotalError(msg);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', msg, 'error', 4000);
+      createAlert?.('Tente novamente', msg, 'error', 4000, `${respResumo} (incorreto)`);
       return;
     }
+    telemetryRecordAcerto(respResumo);
     setTotalError('');
     playSound('/sounds/correct.mp3');
-    createAlert?.('Correto!', 'O espaço amostral tem 36 pares ordenados.', 'success', 3000);
+    createAlert?.('Correto!', 'O espaço amostral tem 36 pares ordenados.', 'success', 3000, respResumo);
     setPhase('pairs');
   }, [totalAnswer, createAlert]);
 
@@ -843,12 +917,14 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
 
           <div className="flex justify-center mt-macro">
             <Button style="primary" size="medium" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Agora vamos organizar na tabela" (SampleSpaceTree phase=pairs → tabela 6×6 da Cena 7)');
               playSound('/sounds/nextChallenge.mp3');
               createAlert?.(
                 'Próxima etapa',
                 'Vamos reorganizar esses 36 pares numa tabela 6×6 para visualizar melhor o espaço amostral.',
                 'info',
                 4000,
+                'clicou em "Agora vamos organizar na tabela"',
               );
               onFinished();
             }}

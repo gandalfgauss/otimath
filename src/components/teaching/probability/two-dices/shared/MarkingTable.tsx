@@ -16,7 +16,6 @@
 
 import React from 'react';
 import { EVENT_COLORS, MarkMatrix } from './eventPair';
-import { telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 
 // ─── DieFace ────────────────────────────────────────────────────
 
@@ -181,16 +180,13 @@ export function MarkingTable({ marks, onToggle, eventLabel, readOnlyMarks, blink
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {
-                              // Telemetria — cada toggle de célula vira
-                              // `interacao_exercicio`. Logamos o estado QUE
-                              // VAI VIRAR (oposto do atual) e o nome do
-                              // evento ativo pra reconstruir a trajetória
-                              // (qual célula o aluno marcou, em qual ordem,
-                              // se desmarcou e remarcou, etc).
-                              const willBe = !isChecked;
-                              telemetryRecordInteracaoExercicio(
-                                `${willBe ? 'marcou' : 'desmarcou'} célula (verde=${r}, azul=${c}) do evento "${eventLabel}"`
-                              );
+                              // NÃO emite telemetria aqui — TODOS os consumidores
+                              // (UE1, UE2, UE3, UnionProbabilityTheory) já chamam
+                              // `telemetryRecordInteracaoExercicio` dentro do próprio
+                              // toggle*A/B/I/Union, com contexto específico (ex.: "como
+                              // evento A", "como A ∩ B", "— UnionTheory"). Antes este
+                              // onChange emitia uma cópia genérica antes do consumer,
+                              // causando DUPLA coleta a cada clique em checkbox.
                               onToggle(row, col);
                             }}
                             aria-label={`${eventLabel} em (${r},${c})`}

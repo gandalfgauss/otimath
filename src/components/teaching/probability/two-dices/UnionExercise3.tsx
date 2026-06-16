@@ -40,7 +40,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
-import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import {
   EventPair,
   selectPairForRound, verifyEventTableConsistency,
@@ -81,7 +81,7 @@ interface UnionExercise3Props {
   /** Passo inicial ao montar. Default: 'intro'. */
   initialStep?: ExStep;
   /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
-  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
 }
 
 export interface UnionExercise3Handle {
@@ -235,12 +235,6 @@ function validateFractionSeparate(
 export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Props>(
   function UnionExercise3({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
     const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
-    // SEÇÃO POR STEP — cada tela vira uma seção telemétrica própria.
-    useTelemetryExercise(
-      `twoDices-cena7-unionExercise3-${step}`,
-      'Exercício 3 — Diferenças de eventos (A − B e B − A)',
-      'Aluno marca os eventos A−B e B−A na tabela e calcula P(A−B) e P(B−A).',
-    );
     // Telemetria — leitura do enunciado do Ex.3.
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',
@@ -253,6 +247,42 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
     const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());
     const [currentPair, setCurrentPair] = useState<EventPair>(
       () => selectPairForExercise3(0, new Set()),
+    );
+
+    // SEÇÃO POR STEP — título DINÂMICO reflete a tela atual.
+    const A_UE3_set = pairsMatching(currentPair.eventA.predicate);
+    const B_UE3_set = pairsMatching(currentPair.eventB.predicate);
+    const nA_UE3 = A_UE3_set.size;
+    const nB_UE3 = B_UE3_set.size;
+    const nI_UE3 = setIntersection(A_UE3_set, B_UE3_set).size;
+    const nAmB_UE3 = nA_UE3 - nI_UE3;
+    const nBmA_UE3 = nB_UE3 - nI_UE3;
+    const stepLabelUE3 = step === 'intro' ? 'Enunciado'
+                       : step === 'markA' ? 'Marcar evento A'
+                       : step === 'markB' ? 'Marcar evento B'
+                       : step === 'markAmB' ? 'Marcar evento A − B'
+                       : step === 'markBmA' ? 'Marcar evento B − A'
+                       : step === 'calcPAmB' ? 'Calcular P(A − B)'
+                       : step === 'calcPBmA' ? 'Calcular P(B − A)'
+                       : step === 'done' ? 'Síntese / concluído'
+                       : String(step);
+    const eventLabelsUE3 = currentPair
+      ? `A: "${currentPair.eventA?.description ?? '?'}" (n(A) = ${nA_UE3}) | B: "${currentPair.eventB?.description ?? '?'}" (n(B) = ${nB_UE3}) | A ∩ B: n(A∩B) = ${nI_UE3} | A − B: n(A−B) = ${nAmB_UE3} | B − A: n(B−A) = ${nBmA_UE3} | Espaço amostral: 36`
+      : '';
+    const oQueCalculaUE3 =
+      step === 'intro' ? 'Leitura do enunciado: identificar diferenças A−B e B−A e calcular suas probabilidades.'
+      : step === 'markA' ? `Marcação das ${nA_UE3} células favoráveis a A.`
+      : step === 'markB' ? `Marcação das ${nB_UE3} células favoráveis a B.`
+      : step === 'markAmB' ? `Marcação das ${nAmB_UE3} células de A − B (pertencem a A mas NÃO a B).`
+      : step === 'markBmA' ? `Marcação das ${nBmA_UE3} células de B − A (pertencem a B mas NÃO a A).`
+      : step === 'calcPAmB' ? `Cálculo de P(A − B) = ${nAmB_UE3}/36 (Laplace).`
+      : step === 'calcPBmA' ? `Cálculo de P(B − A) = ${nBmA_UE3}/36 (Laplace).`
+      : step === 'done' ? `Síntese: P(A−B) = ${nAmB_UE3}/36 e P(B−A) = ${nBmA_UE3}/36. Rodada ${round + 1} concluída.`
+      : '';
+    useTelemetryExercise(
+      `twoDices-cena7-unionExercise3-${step}`,
+      `Exercício 3 — Diferenças de eventos — ${stepLabelUE3} (rodada ${round + 1}; A=${currentPair.eventA?.description ?? '?'})`,
+      `Atividade global: Aluno marca os eventos A−B e B−A na tabela e calcula P(A−B) e P(B−A). | Eventos do problema atual: ${eventLabelsUE3} | Fase atual: ${stepLabelUE3}. | Ação atual do aluno / cálculo: ${oQueCalculaUE3}`,
     );
 
     // ── Marcações ────────────────────────────────────────────────
@@ -315,22 +345,45 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
     }, []);
 
     // ── Handlers de marcação ─────────────────────────────────────
+    // Telemetria FORA dos updaters de setState — StrictMode em dev dispara
+    // o callback duas vezes para detectar side effects, e logar dentro
+    // causava dupla coleta por clique. Lemos o estado atual via closure.
     const toggleA = useCallback((r: number, c: number) => {
-      setMarksA(prev => { const cp = prev.map(row => [...row]); cp[r][c] = !cp[r][c]; return cp; });
+      const wasMarked = marksA[r][c];
+      telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (${r + 1}, ${c + 1}) como evento A`);
+      setMarksA(prev => {
+        const cp = prev.map(row => [...row]);
+        cp[r][c] = !cp[r][c];
+        return cp;
+      });
       setFeedbackA('none');
-    }, []);
+    }, [marksA]);
     const toggleB = useCallback((r: number, c: number) => {
-      setMarksB(prev => { const cp = prev.map(row => [...row]); cp[r][c] = !cp[r][c]; return cp; });
+      const wasMarked = marksB[r][c];
+      telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (${r + 1}, ${c + 1}) como evento B`);
+      setMarksB(prev => {
+        const cp = prev.map(row => [...row]);
+        cp[r][c] = !cp[r][c];
+        return cp;
+      });
       setFeedbackB('none');
-    }, []);
+    }, [marksB]);
     const toggleAmB = useCallback((r: number, c: number) => {
-      setMarksAmB(prev => { const cp = prev.map(row => [...row]); cp[r][c] = !cp[r][c]; return cp; });
+      const wasMarked = marksAmB[r][c];
+      telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (${r + 1}, ${c + 1}) como A−B`);
+      setMarksAmB(prev => {
+        const cp = prev.map(row => [...row]);
+        cp[r][c] = !cp[r][c];
+        return cp;
+      });
       setFeedbackAmB('none');
-    }, []);
+    }, [marksAmB]);
     const toggleBmA = useCallback((r: number, c: number) => {
+      const wasMarked = marksBmA[r][c];
+      telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (${r + 1}, ${c + 1}) como B−A`);
       setMarksBmA(prev => { const cp = prev.map(row => [...row]); cp[r][c] = !cp[r][c]; return cp; });
       setFeedbackBmA('none');
-    }, []);
+    }, [marksBmA]);
 
     const makeFullMatrix = (): MarkMatrix =>
       Array.from({ length: 6 }, () => Array(6).fill(true));
@@ -477,13 +530,14 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
       const v = validateFractionSeparate(pAmBNum, pAmBDen, correctSets.nAmB, 36);
       setPAmBNumError(v.numError);
       setPAmBDenError(v.denError);
+      const respFrac = `P(A − B) = ${pAmBNum || '_'}/${pAmBDen || '_'} (esperado: ${correctSets.nAmB}/36)`;
       if (v.ok) {
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', `P(A − B) = ${correctSets.nAmB}/36.`, 'success', 3000);
+        createAlert?.('Correto!', `P(A − B) = ${correctSets.nAmB}/36.`, 'success', 3000, respFrac);
         setStep('calcPBmA');
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'P(A − B) = n(A − B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+        createAlert?.('Tente novamente', 'P(A − B) = n(A − B) / 36. Frações equivalentes são aceitas.', 'error', 4500, respFrac);
       }
     }, [pAmBNum, pAmBDen, correctSets.nAmB, createAlert]);
 
@@ -492,14 +546,15 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
       const v = validateFractionSeparate(pBmANum, pBmADen, correctSets.nBmA, 36);
       setPBmANumError(v.numError);
       setPBmADenError(v.denError);
+      const respFrac = `P(B − A) = ${pBmANum || '_'}/${pBmADen || '_'} (esperado: ${correctSets.nBmA}/36)`;
       if (v.ok) {
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
-        createAlert?.('Excelente!', `P(B − A) = ${correctSets.nBmA}/36. Exercício concluído.`, 'success', 4000);
+        createAlert?.('Excelente!', `P(B − A) = ${correctSets.nBmA}/36. Exercício concluído.`, 'success', 4000, respFrac);
         setStep('done');
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'P(B − A) = n(B − A) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+        createAlert?.('Tente novamente', 'P(B − A) = n(B − A) / 36. Frações equivalentes são aceitas.', 'error', 4500, respFrac);
       }
     }, [pBmANum, pBmADen, correctSets.nBmA, createAlert]);
 

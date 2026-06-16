@@ -26,12 +26,12 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import React, {
-  useState, useCallback, useMemo, useEffect,
+  useState, useCallback, useMemo, useEffect, useRef,
   forwardRef, useImperativeHandle,
 } from 'react';
 import { Button } from '@/components/global/Button';
 import { playSound } from '@/hooks/global/useSound';
-import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import { selectExercise4Data, type Exercise4Data } from './shared/exercise4Data';
 import { EVENT_COLORS, isEquivalentFraction } from './shared/eventPair';
 import { FractionInput, FracH, formatDecimal, formatPercent } from './shared/FractionInput';
@@ -72,7 +72,7 @@ interface UnionExercise4Props {
   onRequestPreviousPhase?: () => void;
   initialStep?: Step;
   /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
-  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
 }
 
 export interface UnionExercise4Handle {
@@ -247,13 +247,17 @@ function TextBox({
 
 // Dropdown de expressão (reuso da estética do FormulaSelect do Ex1)
 function ExprSelect({
-  value, onChange, expected, options,
-}: {
+  value, onChange, expected, options, telemetryContext,
+}: Readonly<{
   value: ExprId;
   onChange: (v: ExprId) => void;
   expected: ExprId;
   options: Array<{ v: ExprId; label: string }>;
-}) {
+  /** Rótulo passado ao `telemetryRecordInteracaoExercicio` sempre que o
+   *  aluno troca a opção do select. Sem isso, mudanças intermediárias
+   *  ficavam mudas — só o clique em Validar aparecia na coleta. */
+  telemetryContext?: string;
+}>) {
   const isEmpty = value === '';
   const isCorrect = !isEmpty && value === expected;
   const color = isEmpty
@@ -264,7 +268,17 @@ function ExprSelect({
   return (
     <select
       value={value}
-      onChange={e => onChange(e.target.value as ExprId)}
+      onChange={e => {
+        const v = e.target.value as ExprId;
+        if (telemetryContext) {
+          const chosenLbl = options.find(o => o.v === v)?.label ?? v ?? '?';
+          const expectedLbl = options.find(o => o.v === expected)?.label ?? expected;
+          telemetryRecordInteracaoExercicio(
+            `${telemetryContext} — escolheu "${chosenLbl}" (id=${v || '?'}) (esperado: "${expectedLbl}")`,
+          );
+        }
+        onChange(v);
+      }}
       aria-label="Expressão"
       style={{
         padding: '3px 8px', borderRadius: 5, border: `2px solid ${color}`,
@@ -328,13 +342,51 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     // SEÇÃO POR STEP — descricao já era step-aware via
     // `ex4StepDescriptions`, mas o `id` era estático: várias telas
     // compartilhavam a mesma seção. Agora id também muda por step.
-    useTelemetryExercise(
-      `twoDices-cena7-unionExercise4-${step}`,
-      'Exercício 4 — Torcedores no bar (P(A ∩ B))',
-      ex4StepDescriptions[step] ?? 'Cálculo de P(A∩B).',
-    );
+    // Título DINÂMICO com label legível por step.
+    const stepLabelUE4 = step === 'intro' ? 'Enunciado'
+      : step === 'menu' ? 'Menu — escolha do caminho'
+      : step === 'lapMenu' ? 'Sub-menu Laplaciana'
+      : step === 'lapCard1' ? 'Caminho 1.1 — Escolher fórmula de cardinalidade'
+      : step === 'lapCard2' ? 'Caminho 1.1 — Substituir valores em n(A ∪ B)'
+      : step === 'lapCard3' ? 'Caminho 1.1 — Isolar n(A ∩ B)'
+      : step === 'lapCard3b' ? 'Caminho 1.1 — Calcular n(A − B)'
+      : step === 'lapCard4' ? 'Caminho 1.1 — Aplicar Laplace para obter P(alvo)'
+      : step === 'lapVenn1' ? 'Caminho 1.2 — Preencher x = n(A ∩ B) no Venn'
+      : step === 'lapVenn2' ? 'Caminho 1.2 — Preencher demais regiões do Venn'
+      : step === 'lapVenn3' ? 'Caminho 1.2 — Aplicar Laplace para obter P(alvo)'
+      : step === 'reasoningPlayback' ? 'Replay do raciocínio passo a passo'
+      : step === 'correct' ? 'Concluído — escolher próximo caminho'
+      : String(step);
     const [round, setRound] = useState(0);
     const [data, setData] = useState<Exercise4Data>(() => selectExercise4Data(0));
+    // ─── Descrição dos eventos do problema atual (torcedores no bar) ───
+    const eventosBlocoUE4 =
+      `Evento A: "${data.descAInfinitive}" (n(A) = ${data.b} pessoas) | ` +
+      `Evento B: "${data.descBInfinitive}" (n(B) = ${data.d} pessoas) | ` +
+      `Total no bar (universo S): ${data.S} pessoas | ` +
+      `n(A ∩ B) = ${data.e} | n(A ∪ B) = ${data.c} | n(outros sem time/sexo declarado): ${data.S - data.c} | ` +
+      `Alvo do problema: P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}` +
+      (data.invertA || data.invertB ? ` (com inversão${data.invertA ? ' em A → Ā' : ''}${data.invertB ? ' em B → B̄' : ''})` : '');
+    const oQueCalculaUE4 =
+      step === 'intro' ? `Leitura do enunciado dos torcedores. O aluno será solicitado a calcular P(${data.targetLabel}).`
+      : step === 'menu' ? 'Decisão metacognitiva: escolher Abordagem Laplaciana (via cardinalidades) ou Fórmula Geral da União.'
+      : step === 'lapMenu' ? 'Sub-decisão dentro da Laplaciana: usar fórmula de cardinalidade (Caminho 1.1) ou Venn numérico (Caminho 1.2).'
+      : step === 'lapCard1' ? 'Escolher fórmula correta de cardinalidade: n(A ∪ B) = n(A) + n(B) − n(A ∩ B).'
+      : step === 'lapCard2' ? `Substituir valores: ${data.c} = ${data.b} + ${data.d} − x, onde x = n(A ∩ B).`
+      : step === 'lapCard3' ? `Isolar n(A ∩ B): x = ${data.b} + ${data.d} − ${data.c} = ${data.e}.`
+      : step === 'lapCard3b' ? `Calcular n(A − B) = n(A) − n(A ∩ B) = ${data.b} − ${data.e} = ${data.b - data.e}.`
+      : step === 'lapCard4' ? `Aplicar Laplace: P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}.`
+      : step === 'lapVenn1' ? `Preencher x = n(A ∩ B) = ${data.e} na região central do diagrama de Venn.`
+      : step === 'lapVenn2' ? `Preencher demais regiões: A − B = ${data.b - data.e}, B − A = ${data.d - data.e}, fora de A ∪ B = ${data.S - data.c}.`
+      : step === 'lapVenn3' ? `Aplicar Laplace: P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}.`
+      : step === 'reasoningPlayback' ? 'Animação replay do raciocínio passo a passo (aluno solicitou "Não sei realmente").'
+      : step === 'correct' ? `Resolvido: P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}. Pode escolher próximo caminho ou avançar.`
+      : '';
+    useTelemetryExercise(
+      `twoDices-cena7-unionExercise4-${step}`,
+      `Exercício 4 — Torcedores no bar (P(${data.targetLabel})) — ${stepLabelUE4}`,
+      `Atividade global: contexto de torcedores em bar — Aluno calcula P(${data.targetLabel}) escolhendo entre caminhos Laplaciana (cardinalidade ou Venn) ou Fórmula Geral. | Eventos do problema atual: ${eventosBlocoUE4} | Fase atual: ${stepLabelUE4}. | Ação atual do aluno / cálculo: ${oQueCalculaUE4} | Texto base da fase: ${ex4StepDescriptions[step] ?? 'Cálculo de P(A∩B).'}`,
+    );
 
     // ── Estado do Caminho 1.1 (Cardinalidade) ────────────────────
     const [card1Pos1, setCard1Pos1] = useState<ExprId>('');
@@ -359,12 +411,13 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     }, []);
     const playCardPosFeedback = useCallback((v: ExprId, expected: ExprId, posLabel: string) => {
       if (v === '') return;
+      const respPos = `Montagem fórmula cardinalidade — posição ${posLabel} = "${exprLabelCard(v) || v}" (esperado: ${exprLabelCard(expected)})`;
       if (v === expected) {
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', `${posLabel}: ${exprLabelCard(expected)}.`, 'success', 2500);
+        createAlert?.('Correto!', `${posLabel}: ${exprLabelCard(expected)}.`, 'success', 2500, respPos);
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', `Releia a posição ${posLabel} da fórmula da cardinalidade.`, 'error', 3500);
+        createAlert?.('Tente novamente', `Releia a posição ${posLabel} da fórmula da cardinalidade.`, 'error', 3500, respPos);
       }
     }, [createAlert, exprLabelCard]);
     const handleCard1Pos1Change = useCallback((v: ExprId) => {
@@ -534,6 +587,72 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       setG3Num(''); setG3Den(''); setG3NumError(false); setG3DenError(false);
     }, []);
 
+    // Telemetria debouncada — registra digitação dos 4 campos do diagrama
+    // Venn no lapVenn1 (variável x, A−B, B−A, C/w). Sem isso, só o clique em
+    // "Validar diagrama" aparecia na coleta; mudanças intermediárias ficavam
+    // mudas. Guard `step === 'lapVenn1'` evita falsos positivos quando o
+    // resetVennState zera os campos ao trocar de problema.
+    const prevVennInputsRef = useRef<{ x: string; amb: string; bma: string; w: string } | null>(null);
+    useEffect(() => {
+      const cur = { x: vennX, amb: vennAmB, bma: vennBmA, w: vennW };
+      const prev = prevVennInputsRef.current;
+      if (prev === null) { prevVennInputsRef.current = cur; return; }
+      if (prev.x === cur.x && prev.amb === cur.amb && prev.bma === cur.bma && prev.w === cur.w) return;
+      prevVennInputsRef.current = cur;
+      if (step !== 'lapVenn1') return;
+      const handle = window.setTimeout(() => {
+        const parts: string[] = [];
+        if (prev.x !== cur.x) parts.push(`variável n(A ∩ B) = "${cur.x || '_'}"`);
+        if (prev.amb !== cur.amb) parts.push(`n(A − B) = "${cur.amb || '_'}"`);
+        if (prev.bma !== cur.bma) parts.push(`n(B − A) = "${cur.bma || '_'}"`);
+        if (prev.w !== cur.w) parts.push(`C = "${cur.w || '_'}"`);
+        if (parts.length === 0) return;
+        telemetryRecordInteracaoExercicio(
+          `UE4 lapVenn1 — digitou ${parts.join(' ; ')}`,
+        );
+      }, 600);
+      return () => window.clearTimeout(handle);
+    }, [vennX, vennAmB, vennBmA, vennW, step]);
+
+    // Telemetria debouncada — mesma técnica, agora para os 8 campos do
+    // lapVenn2 (n(A∪B), 3 expressões da equação, LHS substituído, RHS
+    // simplificado, expressão opcional p/ x, valor final de x). Guard de
+    // step evita falsos positivos no reset entre rodadas.
+    const prevVenn2InputsRef = useRef<{
+      union: string; amb: string; anb: string; bma: string;
+      lhs: string; simpl: string; xExpr: string; xVal: string;
+    } | null>(null);
+    useEffect(() => {
+      const cur = {
+        union: vennAUnionB, amb: vennEqAmB, anb: vennEqAnB, bma: vennEqBmA,
+        lhs: vennEqLhsValue, simpl: vennEqSimplified, xExpr: vennXExpr, xVal: vennXValue,
+      };
+      const prev = prevVenn2InputsRef.current;
+      if (prev === null) { prevVenn2InputsRef.current = cur; return; }
+      const changed = (Object.keys(cur) as Array<keyof typeof cur>).some(k => prev[k] !== cur[k]);
+      if (!changed) return;
+      prevVenn2InputsRef.current = cur;
+      if (step !== 'lapVenn2') return;
+      const handle = window.setTimeout(() => {
+        const parts: string[] = [];
+        if (prev.union !== cur.union) parts.push(`n(A ∪ B) [enunciado] = "${cur.union || '_'}"`);
+        if (prev.amb !== cur.amb) parts.push(`equação n(A−B) = "${cur.amb || '_'}"`);
+        if (prev.anb !== cur.anb) parts.push(`equação n(A∩B) = "${cur.anb || '_'}"`);
+        if (prev.bma !== cur.bma) parts.push(`equação n(B−A) = "${cur.bma || '_'}"`);
+        if (prev.lhs !== cur.lhs) parts.push(`substituição LHS = "${cur.lhs || '_'}"`);
+        if (prev.simpl !== cur.simpl) parts.push(`RHS simplificado = "${cur.simpl || '_'}"`);
+        if (prev.xExpr !== cur.xExpr) parts.push(`expressão p/ ${vennVar} (opcional) = "${cur.xExpr || '_'}"`);
+        if (prev.xVal !== cur.xVal) parts.push(`valor final ${vennVar} = "${cur.xVal || '_'}"`);
+        if (parts.length === 0) return;
+        telemetryRecordInteracaoExercicio(`UE4 lapVenn2 — digitou ${parts.join(' ; ')}`);
+      }, 600);
+      return () => window.clearTimeout(handle);
+    }, [
+      vennAUnionB, vennEqAmB, vennEqAnB, vennEqBmA,
+      vennEqLhsValue, vennEqSimplified, vennXExpr, vennXValue,
+      step, vennVar,
+    ]);
+
     const resetAllPaths = useCallback(() => {
       resetCardState(); resetVennState(); resetGeneralState();
       setHintsUsed(0); setShowHint(false); setChosenPath(null);
@@ -555,10 +674,14 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     const showNoIdeaButton = hintsUsed >= maxHints;
     const useHint = useCallback(() => {
       if (hintsUsed >= maxHints) return;
+      const nextN = hintsUsed + 1;
+      telemetryRecordInteracaoExercicio(
+        `UE4 — clicou em "Ajuda" no step "${step}" — pediu dica ${nextN} de ${maxHints} (restam ${maxHints - nextN})`,
+      );
       setHintsUsed(h => h + 1);
       setShowHint(true);
       playSound('/sounds/clear.mp3');
-    }, [hintsUsed]);
+    }, [hintsUsed, step]);
 
     // Rola pro topo do OVA em todo Conferir. Mirror do checkAnswer do Disco.
     const scrollDiceToTop = () => {
@@ -573,14 +696,20 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     const card1Ok = card1Pos1 === 'AuB' && card1Pos2 === 'A' && card1Pos3 === 'B' && card1Pos4 === 'AnB';
     const validateCard1 = () => {
       scrollDiceToTop();
+      const respSnap =
+        `UE4 lapCard1 Validar — montou n("${exprLabelCard(card1Pos1) || '?'}") = ` +
+        `n("${exprLabelCard(card1Pos2) || '?'}") + ` +
+        `n("${exprLabelCard(card1Pos3) || '?'}") − ` +
+        `n("${exprLabelCard(card1Pos4) || '?'}") ` +
+        `(esperado: n(A ∪ B) = n(A) + n(B) − n(A ∩ B))`;
       if (card1Ok) {
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', 'Fórmula montada: n(A ∪ B) = n(A) + n(B) − n(A ∩ B).', 'success', 3500);
+        createAlert?.('Correto!', 'Fórmula montada: n(A ∪ B) = n(A) + n(B) − n(A ∩ B).', 'success', 3500, respSnap);
         setStep('lapCard2');
         setShowHint(false);
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Reposicione as cartas para formar a fórmula da cardinalidade.', 'error', 4500);
+        createAlert?.('Tente novamente', 'Reposicione as cartas para formar a fórmula da cardinalidade.', 'error', 4500, respSnap);
       }
     };
 
@@ -590,16 +719,17 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       const cOk = parseInt(card2CInput, 10) === data.c;
       const bOk = parseInt(card2BInput, 10) === data.b;
       const dOk = parseInt(card2DInput, 10) === data.d;
+      const respSnap = `UE4 lapCard2 Validar — substituiu n(A ∪ B)="${card2CInput || '_'}", n(A)="${card2BInput || '_'}", n(B)="${card2DInput || '_'}" (esperado: ${data.c}, ${data.b}, ${data.d})`;
       if (cOk && bOk && dOk) {
         setCard2Error(false);
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', 'Valores substituídos na fórmula.', 'success', 3000);
+        createAlert?.('Correto!', 'Valores substituídos na fórmula.', 'success', 3000, respSnap);
         setStep('lapCard3');
         setShowHint(false);
       } else {
         setCard2Error(true);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Releia o enunciado e substitua n(A ∪ B), n(A) e n(B) pelos valores numéricos.', 'error', 5000);
+        createAlert?.('Tente novamente', 'Releia o enunciado e substitua n(A ∪ B), n(A) e n(B) pelos valores numéricos.', 'error', 5000, respSnap);
       }
     };
 
@@ -607,17 +737,18 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     const validateCard3 = () => {
       scrollDiceToTop();
       const parsed = parseInt(card3Num, 10);
+      const respSnap = `UE4 lapCard3 Validar — digitou n(A ∩ B) = "${card3Num || '_'}" (esperado: ${data.e})`;
       if (parsed === data.e) {
         setCard3Error(false);
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', `n(A ∩ B) = ${data.e}.`, 'success', 3000);
+        createAlert?.('Correto!', `n(A ∩ B) = ${data.e}.`, 'success', 3000, respSnap);
         // Se há inversão (A ou B), precisa etapa 3b; senão, vai direto ao Laplace
         setStep((data.invertA || data.invertB) ? 'lapCard3b' : 'lapCard4');
         setShowHint(false);
       } else {
         setCard3Error(true);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Isole n(A ∩ B) na equação da etapa anterior.', 'error', 4500);
+        createAlert?.('Tente novamente', 'Isole n(A ∩ B) na equação da etapa anterior.', 'error', 4500, respSnap);
       }
     };
 
@@ -629,16 +760,17 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
     const validateCard3b = () => {
       scrollDiceToTop();
       const parsed = parseInt(card3bNum, 10);
+      const respSnap = `UE4 lapCard3b Validar — digitou n(${data.targetLabel}) = "${card3bNum || '_'}" (esperado: ${data.targetCardinality})`;
       if (parsed === data.targetCardinality) {
         setCard3bError(false);
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', `n(${data.targetLabel}) = ${data.targetCardinality}.`, 'success', 3000);
+        createAlert?.('Correto!', `n(${data.targetLabel}) = ${data.targetCardinality}.`, 'success', 3000, respSnap);
         setStep('lapCard4');
         setShowHint(false);
       } else {
         setCard3bError(true);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', `Calcule n(${data.targetLabel}) a partir de n(A ∩ B) que você acabou de obter.`, 'error', 5000);
+        createAlert?.('Tente novamente', `Calcule n(${data.targetLabel}) a partir de n(A ∩ B) que você acabou de obter.`, 'error', 5000, respSnap);
       }
     };
 
@@ -647,15 +779,16 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       scrollDiceToTop();
       const v = validateFracSep(card4Num, card4Den, data.targetCardinality, data.S);
       setCard4NumError(v.numError); setCard4DenError(v.denError);
+      const respFrac = `Caminho Cardinalidade — P(${data.targetLabel}) = ${card4Num || '_'}/${card4Den || '_'} (esperado: ${data.targetCardinality}/${data.S})`;
       if (v.ok) {
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
-        createAlert?.('Excelente!', `P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}. Caminho concluído.`, 'success', 4000);
+        createAlert?.('Excelente!', `P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}. Caminho concluído.`, 'success', 4000, respFrac);
         setCompletedPaths(prev => new Set(prev).add('lapCard'));
         setStep('correct');
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', `Aplique Laplace: n(${data.targetLabel}) sobre n(S). Frações equivalentes são aceitas.`, 'error', 5000);
+        createAlert?.('Tente novamente', `Aplique Laplace: n(${data.targetLabel}) sobre n(S). Frações equivalentes são aceitas.`, 'error', 5000, respFrac);
       }
     };
 
@@ -716,16 +849,22 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       setVennBmAError(!bmAOk);
       setVennWError(!wOk);
 
+      const respVenn1 =
+        `UE4 lapVenn1 Validar diagrama — aluno preencheu: ` +
+        `n(A ∩ B) variável = "${vennX || '(vazio)'}" ${xOk ? '✓' : `✗ (esperado: uma letra única, ex. x — não pode ser ${[...reservedLetters].join('/')})`}, ` +
+        `n(A − B) = "${vennAmB || '(vazio)'}" ${amBOk ? '✓' : `✗ (esperado: ${data.b} − ${xVar ?? 'x'} ou equivalente)`}, ` +
+        `n(B − A) = "${vennBmA || '(vazio)'}" ${bmAOk ? '✓' : `✗ (esperado: ${data.d} − ${xVar ?? 'x'} ou equivalente)`}` +
+        (data.hasOthers ? `, C = "${vennW || '(vazio)'}" ${wOk ? '✓' : `✗ (esperado: ${data.S} − ${data.c} = ${data.w}, ou "w", ou "${data.w}")`}` : '');
       if (xOk && amBOk && bmAOk && wOk) {
         setVennVar(xVar!);       // propaga a letra escolhida para lapVenn2
         setVennLocked(true);
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', `Diagrama modelado com a variável "${xVar!}".`, 'success', 3500);
+        createAlert?.('Correto!', `Diagrama modelado com a variável "${xVar!}".`, 'success', 3500, respVenn1);
         setStep('lapVenn2');
         setShowHint(false);
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Use uma letra para n(A ∩ B) e expresse as outras regiões em função dela.', 'error', 5500);
+        createAlert?.('Tente novamente', 'Use uma letra para n(A ∩ B) e expresse as outras regiões em função dela.', 'error', 5500, respVenn1);
       }
     };
 
@@ -805,14 +944,28 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       setVennXExprError(!exprOk);
       setVennXValueError(!xValueOk);
 
+      // Snapshot completo dos 8 campos do lapVenn2 com status por campo (✓/✗
+      // + esperado). Antes a resposta_usuario só dizia "Tente novamente" ou
+      // "Equação resolvida: x = N", sem indicar QUAL campo o aluno errou nem
+      // o que ele digitou em cada um — perdíamos rastro pedagógico.
+      const respVenn2 =
+        `UE4 lapVenn2 Validar — ` +
+        `n(A ∪ B) [valor do enunciado] = "${vennAUnionB || '_'}" ${unionOk ? '✓' : `✗ (esperado: ${data.c})`} | ` +
+        `equação RHS: n(A−B) = "${vennEqAmB || '_'}" ${eqAmBOk ? '✓' : `✗ (esperado: ${data.b} − ${v} ou equivalente)`}, ` +
+        `n(A∩B) = "${vennEqAnB || '_'}" ${eqAnBOk ? '✓' : `✗ (esperado: ${v})`}, ` +
+        `n(B−A) = "${vennEqBmA || '_'}" ${eqBmAOk ? '✓' : `✗ (esperado: ${data.d} − ${v} ou equivalente)`} | ` +
+        `substituição: LHS = "${vennEqLhsValue || '_'}" ${eqLhsOk ? '✓' : `✗ (esperado: ${data.c})`}, ` +
+        `RHS simplificado = "${vennEqSimplified || '_'}" ${eqSimplOk ? '✓' : `✗ (esperado: ${data.b} + ${data.d} − ${v} = ${data.b + data.d} − ${v} ou equivalente)`} | ` +
+        `${v} (expressão opcional) = "${vennXExpr || '(em branco)'}" ${exprOk ? '✓' : `✗ (esperado: expressão que avalia para ${data.e}, ex. ${data.b} + ${data.d} − ${data.c})`} | ` +
+        `${v} (valor final OBRIGATÓRIO) = "${vennXValue || '_'}" ${xValueOk ? '✓' : `✗ (esperado: ${data.e})`}`;
       if (unionOk && eqAmBOk && eqAnBOk && eqBmAOk && eqLhsOk && eqSimplOk && exprOk && xValueOk) {
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', `Equação resolvida: ${v} = ${data.e}.`, 'success', 3500);
+        createAlert?.('Correto!', `Equação resolvida: ${v} = ${data.e}.`, 'success', 3500, respVenn2);
         setStep('lapVenn3');
         setShowHint(false);
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Confira as expressões, a substituição e o valor da variável.', 'error', 5000);
+        createAlert?.('Tente novamente', 'Confira as expressões, a substituição e o valor da variável.', 'error', 5000, respVenn2);
       }
     };
 
@@ -828,16 +981,17 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
 
       const v = validateFracSep(venn3Num, venn3Den, data.targetCardinality, data.S);
       setVenn3NumError(v.numError); setVenn3DenError(v.denError);
+      const respFrac = `Caminho Venn — n(S)=${vennNS || '_'} (esperado ${data.S}); P(${data.targetLabel}) = ${venn3Num || '_'}/${venn3Den || '_'} (esperado: ${data.targetCardinality}/${data.S})`;
 
       if (nsOk && v.ok) {
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
-        createAlert?.('Excelente!', `P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}. Caminho do Venn concluído.`, 'success', 4000);
+        createAlert?.('Excelente!', `P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}. Caminho do Venn concluído.`, 'success', 4000, respFrac);
         setCompletedPaths(prev => new Set(prev).add('lapVenn'));
         setStep('correct');
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Identifique n(S) e aplique Laplace.', 'error', 5000);
+        createAlert?.('Tente novamente', 'Identifique n(S) e aplique Laplace.', 'error', 5000, respFrac);
       }
     };
 
@@ -847,16 +1001,22 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       const cOk = isEquivalentFraction(g1CNum, g1CDen, data.c, data.S);
       const bOk = isEquivalentFraction(g1BNum, g1BDen, data.b, data.S);
       const dOk = isEquivalentFraction(g1DNum, g1DDen, data.d, data.S);
+      const respFrac =
+        `Caminho Geral G1 (substituições) — ` +
+        `P(A∪B)=${g1CNum || '_'}/${g1CDen || '_'}, ` +
+        `P(A)=${g1BNum || '_'}/${g1BDen || '_'}, ` +
+        `P(B)=${g1DNum || '_'}/${g1DDen || '_'} ` +
+        `(esperado: ${data.c}/${data.S}, ${data.b}/${data.S}, ${data.d}/${data.S})`;
       if (cOk && bOk && dOk) {
         setG1Error(false);
         playSound('/sounds/correct.mp3');
-        createAlert?.('Correto!', 'As 3 probabilidades foram substituídas na fórmula.', 'success', 3500);
+        createAlert?.('Correto!', 'As 3 probabilidades foram substituídas na fórmula.', 'success', 3500, respFrac);
         setStep('general2');
         setShowHint(false);
       } else {
         setG1Error(true);
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', `Substitua P(A ∪ B), P(A) e P(B) por valores sobre ${data.S}.`, 'error', 5000);
+        createAlert?.('Tente novamente', `Substitua P(A ∪ B), P(A) e P(B) por valores sobre ${data.S}.`, 'error', 5000, respFrac);
       }
     };
 
@@ -866,22 +1026,23 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       scrollDiceToTop();
       const v = validateFracSep(g2Num, g2Den, data.e, data.S);
       setG2NumError(v.numError); setG2DenError(v.denError);
+      const respFrac = `Caminho Geral G2 — P(A ∩ B) = ${g2Num || '_'}/${g2Den || '_'} (esperado: ${data.e}/${data.S})`;
       if (v.ok) {
         playSound('/sounds/correct.mp3');
         // Se há inversão, faz passo 3; senão, finaliza
         if (data.invertA || data.invertB) {
-          createAlert?.('Correto!', `P(A ∩ B) = ${data.e}/${data.S}. Falta ajustar para o evento pedido.`, 'success', 3500);
+          createAlert?.('Correto!', `P(A ∩ B) = ${data.e}/${data.S}. Falta ajustar para o evento pedido.`, 'success', 3500, respFrac);
           setStep('general3');
         } else {
           playSound('/sounds/challengeFinished.mp3');
-          createAlert?.('Excelente!', `P(A ∪ B) = ${data.e}/${data.S}. Caminho geral concluído.`, 'success', 4000);
+          createAlert?.('Excelente!', `P(A ∪ B) = ${data.e}/${data.S}. Caminho geral concluído.`, 'success', 4000, respFrac);
           setCompletedPaths(prev => new Set(prev).add('general'));
           setStep('correct');
         }
         setShowHint(false);
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', 'Isole P(A ∩ B) na equação e simplifique.', 'error', 4500);
+        createAlert?.('Tente novamente', 'Isole P(A ∩ B) na equação e simplifique.', 'error', 4500, respFrac);
       }
     };
 
@@ -894,20 +1055,25 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       scrollDiceToTop();
       const v = validateFracSep(g3Num, g3Den, data.targetCardinality, data.S);
       setG3NumError(v.numError); setG3DenError(v.denError);
+      const respFrac = `Caminho Geral G3 — P(${data.targetLabel}) = ${g3Num || '_'}/${g3Den || '_'} (esperado: ${data.targetCardinality}/${data.S})`;
       if (v.ok) {
         playSound('/sounds/correct.mp3');
         playSound('/sounds/challengeFinished.mp3');
-        createAlert?.('Excelente!', `P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}. Caminho geral concluído.`, 'success', 4000);
+        createAlert?.('Excelente!', `P(${data.targetLabel}) = ${data.targetCardinality}/${data.S}. Caminho geral concluído.`, 'success', 4000, respFrac);
         setCompletedPaths(prev => new Set(prev).add('general'));
         setStep('correct');
       } else {
         playSound('/sounds/incorrect.mp3');
-        createAlert?.('Tente novamente', `Use a relação entre P(A ∩ B) e P(${data.targetLabel}).`, 'error', 5000);
+        createAlert?.('Tente novamente', `Use a relação entre P(A ∩ B) e P(${data.targetLabel}).`, 'error', 5000, respFrac);
       }
     };
 
     // ── Helpers de entrada em caminhos ──────────────────────────
     const choosePath = (p: 'lapCard' | 'lapVenn' | 'general') => {
+      const lbl = p === 'lapCard' ? 'Cardinalidade da União (Abordagem Laplaciana)'
+                : p === 'lapVenn' ? 'Diagrama de Venn (Abordagem Laplaciana)'
+                : 'Fórmula Geral da Probabilidade da União';
+      telemetryRecordInteracaoExercicio(`UE4 — escolheu caminho: "${lbl}" (id=${p}) — entrou no primeiro passo dessa estratégia`);
       setChosenPath(p);
       setHintsUsed(0);
       setShowHint(false);
@@ -1057,6 +1223,9 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               style="secondary"
               size="small"
               onClick={() => {
+                telemetryRecordInteracaoExercicio(
+                  `UE4 — clicou em "Não sei realmente!" no step "${step}" (depois de esgotar as ${maxHints} dicas) — entrou no playback do raciocínio completo`,
+                );
                 playSound('/sounds/clear.mp3');
                 setStep('reasoningPlayback');
               }}
@@ -1130,7 +1299,11 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 <Button
                   style={completedPaths.has('general') ? 'secondary' : 'primary'}
                   size="small"
-                  onClick={() => { playSound('/sounds/nextChallenge.mp3'); setStep('lapMenu'); }}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio('UE4 menu — clicou em "Abordagem Laplaciana da Probabilidade" — avançou para o submenu de escolha da ferramenta (Cardinalidade ou Venn)');
+                    playSound('/sounds/nextChallenge.mp3');
+                    setStep('lapMenu');
+                  }}
                 >
                   {completedPaths.has('lapCard') || completedPaths.has('lapVenn') ? '✓ ' : ''}
                   Abordagem Laplaciana da Probabilidade
@@ -1175,7 +1348,10 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 </Button>
               </div>
               <div className="flex justify-center mt-micro">
-                <Button style="secondary" size="small" onClick={() => setStep('menu')}>
+                <Button style="secondary" size="small" onClick={() => {
+                  telemetryRecordInteracaoExercicio('UE4 lapMenu — clicou em "← Voltar ao menu" — retornou para a escolha principal entre Abordagem Laplaciana e Fórmula Geral');
+                  setStep('menu');
+                }}>
                   ← Voltar ao menu
                 </Button>
               </div>
@@ -1194,13 +1370,17 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
               <div className="flex justify-center mt-micro" style={{ maxWidth: '100%' }}>
                 <div className="flex flex-nowrap items-center gap-x-nano overflow-x-auto text-[1.1rem] font-bold" style={{ maxWidth: '100%' }}>
                   <span style={{ flexShrink: 0 }}>n(</span>
-                  <ExprSelect value={card1Pos1} onChange={handleCard1Pos1Change} expected="AuB" options={CARD_OPTIONS} />
+                  <ExprSelect value={card1Pos1} onChange={handleCard1Pos1Change} expected="AuB" options={CARD_OPTIONS}
+                    telemetryContext="UE4 lapCard1 — posição n(_) = … (1ª)" />
                   <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>) = n(</span>
-                  <ExprSelect value={card1Pos2} onChange={handleCard1Pos2Change} expected="A" options={CARD_OPTIONS} />
+                  <ExprSelect value={card1Pos2} onChange={handleCard1Pos2Change} expected="A" options={CARD_OPTIONS}
+                    telemetryContext="UE4 lapCard1 — posição = n(_) + … (2ª)" />
                   <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>) + n(</span>
-                  <ExprSelect value={card1Pos3} onChange={handleCard1Pos3Change} expected="B" options={CARD_OPTIONS} />
+                  <ExprSelect value={card1Pos3} onChange={handleCard1Pos3Change} expected="B" options={CARD_OPTIONS}
+                    telemetryContext="UE4 lapCard1 — posição + n(_) − … (3ª)" />
                   <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>) − n(</span>
-                  <ExprSelect value={card1Pos4} onChange={handleCard1Pos4Change} expected="AnB" options={CARD_OPTIONS} />
+                  <ExprSelect value={card1Pos4} onChange={handleCard1Pos4Change} expected="AnB" options={CARD_OPTIONS}
+                    telemetryContext="UE4 lapCard1 — posição − n(_) (4ª)" />
                   <span style={{ flexShrink: 0 }}>)</span>
                 </div>
               </div>
@@ -1881,6 +2061,9 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                   style="secondary"
                   size="small"
                   onClick={() => {
+                    telemetryRecordInteracaoExercicio(
+                      `UE4 tela "correct" — clicou em "Fazer a outra escolha" (caminhos já completos: [${[...completedPaths].join(', ') || 'nenhum'}]) — voltou ao menu para tentar outra estratégia`,
+                    );
                     playSound('/sounds/nextChallenge.mp3');
                     resetAllPaths();
                     setStep('menu');
@@ -1893,6 +2076,9 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 style="secondary"
                 size="small"
                 onClick={() => {
+                  telemetryRecordInteracaoExercicio(
+                    `UE4 tela "correct" — clicou em "Praticar com novo problema" (caminhos resolvidos no problema atual: [${[...completedPaths].join(', ') || 'nenhum'}]) — sorteou novo enunciado`,
+                  );
                   playSound('/sounds/nextChallenge.mp3');
                   resetForNewRound();
                 }}
@@ -1903,6 +2089,9 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
                 style="primary"
                 size="small"
                 onClick={() => {
+                  telemetryRecordInteracaoExercicio(
+                    `UE4 tela "correct" — clicou em "Finalizar exercício" (caminhos completos: [${[...completedPaths].join(', ') || 'nenhum'}]) — encerrou o exercício 4`,
+                  );
                   playSound('/sounds/gameFinished.mp3');
                   onFinished();
                 }}

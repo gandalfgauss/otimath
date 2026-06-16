@@ -8,6 +8,10 @@ import type { AlertType } from '@/components/global/Alert';
 import {
   telemetryEnterExercise,
   telemetryExitExercise,
+  telemetryRecordInteracaoExercicio,
+  telemetryRecordAcerto,
+  telemetryRecordErro,
+  useTelemetryExercise,
 } from '@/hooks/teaching/probability/useTelemetry';
 
 // Handle exposto ao pai (TwoDicesPresentation) para o painel DEV poder
@@ -372,7 +376,7 @@ interface TwoDicesPracticeProps {
   onPhaseChange?: (phaseId: string) => void;
   /** Cria um toast alert via o sistema de alerts do pai (TwoDicesPresentation).
    *  Usado pelas validações para feedback consistente com o resto do OVA. */
-  createAlert?: (title: string, description: string, type: AlertType, timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: AlertType, timeout?: number, userResponse?: string) => void;
 }
 
 export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPracticeProps>(
@@ -507,38 +511,124 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     return exerciseIdx % 2 === 0 ? colors[0] : colors[1];
   };
 
-  // Telemetria — TODA fase principal vira uma seção, inclusive 'intro'
-  // e 'finished' (eram ignoradas antes). Pra `exercises`, granularidade
-  // adicional via `exerciseIdx` (0-3) → 4 seções distintas.
-  useEffect(() => {
-    let id: string, title: string, descricao: string;
-    if (mainPhase === 'intro') {
-      id = 'twoDices-cena5-intro';
-      title = 'Praticando com um dado — Introdução';
-      descricao = 'Tela inicial da cena 5.';
-    } else if (mainPhase === 'experimentA') {
-      id = 'twoDices-cena5-experimentacao-1';
-      title = 'Praticando com um dado — Rodada 1 (azul)';
-      descricao = 'Aposta numa face do dado, lançamento e marcação do resultado real.';
-    } else if (mainPhase === 'experimentB') {
-      id = 'twoDices-cena5-experimentacao-2';
-      title = 'Praticando com um dado — Rodada 2 (verde)';
-      descricao = 'Aposta numa face do dado, lançamento e marcação do resultado real (segundo dado).';
-    } else if (mainPhase === 'exercises') {
-      const num = exerciseIdx + 1;
-      id = `twoDices-cena5-exercicio-${num}`;
-      title = `Praticando com um dado — Exercício ${num} de 4`;
-      descricao = 'Identificação de evento, cálculo de P(A) e P(Ā) a partir do resultado do dado.';
-    } else if (mainPhase === 'finished') {
-      id = 'twoDices-cena5-finished';
-      title = 'Praticando com um dado — Concluído';
-      descricao = 'Tela final da cena 5 — todos os exercícios completados.';
-    } else {
-      return;
-    }
-    telemetryEnterExercise(id, title, descricao);
-    return () => telemetryExitExercise(id);
-  }, [mainPhase, exerciseIdx]);
+  // ─── TELEMETRIA POR FASE — title/descricao DINÂMICOS com TODO o texto
+  // visível na tela (instruções, perguntas, labels de inputs, valores
+  // digitados, eventos sorteados, opções marcadas). Isso permite que quem
+  // ler o JSON reconstrua a tela sem precisar abrir o app.
+  //
+  // Cada fase principal (intro/experimentA/experimentB/exercises/finished)
+  // vira uma seção; dentro de `exercises`, granularidade adicional por
+  // `exerciseIdx` (0-3) com o evento sorteado e a sub-fase atual.
+
+  // Resumo do evento ATUAL na fase exercises — usado em vários títulos.
+  const evAtual = events[exerciseIdx];
+  const evDesc = evAtual?.description ?? '?';
+
+  // Texto principal estático de cada fase principal (sempre visível no topo).
+  const cena5MainTextIntro =
+    'Texto na tela (intro): "Vamos praticar! Você terá dois dados diferentes (azul e verde) para experimentar livremente, e depois 4 exercícios sobre eventos. Antes de lançar, escolha uma face para apostar — clique nela diretamente no dado 3D para girá-lo com o dedo/mouse."';
+  const cena5MainTextExp = (cor: 'azul' | 'verde', rodada: 1 | 2) =>
+    `Texto na tela (Rodada ${rodada} — dado ${cor}): "Aposte em uma face do dado ${cor} girando-o com o dedo/mouse. Quando estiver pronto, confirme sua aposta e lance o dado. Depois marque qual face apareceu de fato."`;
+  const cena5MainTextFin =
+    'Texto na tela (finalização): "Parabéns! Você concluiu a Cena 5 — observou um dado em ação e calculou P(A) e P(Ā) para 4 eventos diferentes. Próximo passo: observar a máquina automática de lançamento (Cena 6)."';
+
+  // Sub-fase legível por mainPhase
+  const expSubLabel =
+    expSubPhase === 'bet' ? 'Apostar (girar o dado)'
+    : expSubPhase === 'rolling' ? 'Lançando o dado'
+    : expSubPhase === 'landed' ? 'Dado parou'
+    : expSubPhase === 'markResult' ? 'Marcar resultado'
+    : expSubPhase === 'compare' ? 'Comparar aposta vs resultado'
+    : String(expSubPhase);
+  const exSubLabel =
+    exSubPhase === 'mark' ? 'Marcar faces do evento'
+    : exSubPhase === 'bet' ? 'Apostar (a favor / contra / indiferente)'
+    : exSubPhase === 'rolling' ? 'Lançando o dado'
+    : exSubPhase === 'landed' ? 'Dado parou'
+    : exSubPhase === 'readDice' ? 'Identificar face que apareceu'
+    : exSubPhase === 'result' ? 'Resultado'
+    : exSubPhase === 'calc' ? 'Calcular P(A) e P(Ā)'
+    : exSubPhase === 'next' ? 'Próximo exercício'
+    : String(exSubPhase);
+
+  // Texto detalhado da sub-fase atual de experimentação
+  const cena5ExpSubText =
+    expSubPhase === 'bet'
+      ? `Pergunta: "Aposta: qual face você acha que vai sair?" | Aposta atual: "${bet || '(sem aposta)'}" | Botão: "Confirmar aposta e lançar".`
+      : expSubPhase === 'rolling'
+        ? 'Animação: dado girando.'
+        : expSubPhase === 'landed'
+          ? `Dado parou em ${diceResult}. Botão: "Marque a face que apareceu".`
+          : expSubPhase === 'markResult'
+            ? `Pergunta: "Marque a face que apareceu" | Aposta: ${bet || '?'} | Dado caiu em: ${diceResult} | Checkboxes marcados (face): [${resultCheck.map((c, i) => c ? i + 1 : null).filter(Boolean).join(', ') || '—'}] | Botão: "Conferir".`
+            : expSubPhase === 'compare'
+              ? `Comparação: Aposta=${bet || '?'}, Resultado=${diceResult}, ${parseInt(bet || '0') === diceResult ? 'ACERTOU' : 'ERROU'} | Botão: "Próxima rodada".`
+              : '';
+
+  // Texto detalhado da sub-fase atual de exercício
+  const cena5ExSubText =
+    exSubPhase === 'mark'
+      ? `Pergunta na tela: "Marque as faces do dado favoráveis ao evento A = '${evDesc}'." | Checkboxes do evento marcados (face): [${eventChecks.map((c, i) => c ? i + 1 : null).filter(Boolean).join(', ') || '—'}] | Botão: "Conferir".`
+      : exSubPhase === 'bet'
+        ? `Pergunta na tela: "Você aposta que o resultado do lançamento será favorável ao evento A?" | Botões disponíveis: "A favor de A" / "Contra A (complementar)" / "É indiferente" | Aposta marcada: "${exBet || '(sem aposta)'}" | Botão: "🎲 Lançar dado".`
+        : exSubPhase === 'rolling'
+          ? 'Animação: dado girando.'
+          : exSubPhase === 'landed'
+            ? `Dado parou em ${exDiceResult}.`
+            : exSubPhase === 'readDice'
+              ? `Pergunta na tela: "Que face do dado apareceu?" | Resposta digitada: "${readDiceAnswer || ''}" | Botão: "Conferir".`
+              : exSubPhase === 'result'
+                ? `Resultado do exercício: aposta="${exBet || '?'}", dado caiu em ${exDiceResult}, evento "${evDesc}" — ${evAtual?.validation(exDiceResult) ? 'favorável' : 'não favorável'}.`
+                : exSubPhase === 'calc'
+                  ? `Pergunta na tela: "Calcule P(A) = ?/?" | P(A) digitado: ${calcNum || '?'}/${calcDen || '?'}` +
+                    (exBet === 'indiferente' ? ` | Também: "Calcule P(Ā) = ?/?" — P(Ā) digitado: ${calcCompNum || '?'}/${calcCompDen || '?'}` : '') +
+                    ` | Botão: "Conferir"${calcFeedback ? ` | Feedback visível: "${calcFeedback}"` : ''}${calcCompFeedback ? ` | Feedback P(Ā) visível: "${calcCompFeedback}"` : ''}`
+                  : exSubPhase === 'next'
+                    ? `Resultado do exercício ${exerciseIdx + 1}: evento "${evDesc}" — concluído. Botão: "Próximo exercício".`
+                    : '';
+
+  const cena5Title =
+    mainPhase === 'intro'
+      ? 'Cena 5 — Praticando com um dado · Introdução'
+      : mainPhase === 'experimentA'
+        ? `Cena 5 — Rodada 1 (dado azul) · ${expSubLabel}`
+        : mainPhase === 'experimentB'
+          ? `Cena 5 — Rodada 2 (dado verde) · ${expSubLabel}`
+          : mainPhase === 'exercises'
+            ? `Cena 5 — Exercício ${exerciseIdx + 1} de 4 · ${exSubLabel}`
+            : mainPhase === 'finished'
+              ? 'Cena 5 — Praticando com um dado · Concluído'
+              : `Cena 5 — ${mainPhase}`;
+  const cena5Desc =
+    mainPhase === 'intro'
+      ? `${cena5MainTextIntro} | Botão visível: "Começar prática".`
+      : mainPhase === 'experimentA'
+        ? `${cena5MainTextExp('azul', 1)} | Sub-fase: ${expSubLabel} | ${cena5ExpSubText}`
+        : mainPhase === 'experimentB'
+          ? `${cena5MainTextExp('verde', 2)} | Sub-fase: ${expSubLabel} | ${cena5ExpSubText}`
+          : mainPhase === 'exercises'
+            ? `Texto na tela: "Exercício ${exerciseIdx + 1} de 4 — Evento A = '${evDesc}'." | Sub-fase: ${exSubLabel} | ${cena5ExSubText}`
+            : mainPhase === 'finished'
+              ? `${cena5MainTextFin} | Botão visível: "Observar a máquina".`
+              : '';
+  const cena5Id =
+    mainPhase === 'exercises'
+      ? `twoDices-cena5-exercicio-${exerciseIdx + 1}`
+      : mainPhase === 'intro'
+        ? 'twoDices-cena5-intro'
+        : mainPhase === 'experimentA'
+          ? 'twoDices-cena5-experimentacao-1'
+          : mainPhase === 'experimentB'
+            ? 'twoDices-cena5-experimentacao-2'
+            : mainPhase === 'finished'
+              ? 'twoDices-cena5-finished'
+              : `twoDices-cena5-${mainPhase}`;
+  useTelemetryExercise(
+    cena5Id,
+    cena5Title,
+    cena5Desc,
+    mainPhase === 'intro' || mainPhase === 'experimentA' || mainPhase === 'experimentB' || mainPhase === 'exercises' || mainPhase === 'finished',
+  );
 
   // Mudar cor do dado e modo ao mudar fase/exercício
   const lastColorRef = useRef<DiceColor | null>(null);
@@ -554,6 +644,8 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       if (mainPhase === 'experimentA' || mainPhase === 'experimentB') {
         diceRef.current?.highlightFace(null);
         diceRef.current?.setBetting(true, (face: number) => {
+          const rodadaLbl = mainPhase === 'experimentA' ? 'Rodada 1 (dado azul)' : 'Rodada 2 (dado verde)';
+          telemetryRecordInteracaoExercicio(`girou o dado 3D e clicou na face ${face} para apostar — ${rodadaLbl}`);
           setBet(String(face));
           diceRef.current?.highlightFace(face);
           playSound('/sounds/correct.mp3');
@@ -572,6 +664,8 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
   const submitBet = () => {
     const v = parseInt(bet);
     if (v >= 1 && v <= 6) {
+      const rodadaLbl = mainPhase === 'experimentA' ? 'Rodada 1 (dado azul)' : 'Rodada 2 (dado verde)';
+      telemetryRecordInteracaoExercicio(`clicou em "🎲 Lançar dado" (${rodadaLbl}, apostou na face ${v})`);
       diceRef.current?.setBetting(false);
       launchDie();
     } else {
@@ -624,8 +718,9 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       'Marque abaixo a face que apareceu no dado.',
       'info',
       4500,
+      `dado parado em ${diceResult} (aposta: ${bet || '—'})`,
     );
-  }, [diceRef, diceContainerRef, createAlert]);
+  }, [diceRef, diceContainerRef, createAlert, diceResult, bet]);
 
   // Rola pro topo do OVA quando uma fase avança após Conferir/Próximo. Crítico
   // no mobile: o aluno termina a pergunta lá embaixo, clica Conferir, e a fase
@@ -642,6 +737,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     scrollDiceToTop();
     // Exatamente 1 checkbox marcado, e deve ser o resultado
     const marked = resultCheck.filter(Boolean).length;
+    const markedFaces = resultCheck.map((c, i) => c ? i + 1 : null).filter(Boolean).join(', ');
     if (marked === 1 && resultCheck[diceResult - 1]) {
       setResultCheckError(false);
       playSound('/sounds/correct.mp3');
@@ -653,6 +749,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
           : `Você apostou ${bet} mas o dado caiu em ${diceResult}.`,
         won ? 'success' : 'info',
         3500,
+        `marcou face ${markedFaces} (correto, dado: ${diceResult}; aposta: ${bet} → ${won ? 'ganhou' : 'perdeu'})`,
       );
       // Ir para comparação (aposta × resultado) com feedback
       setTimeout(() => {
@@ -666,12 +763,13 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       createAlert?.(
         'Tente novamente',
         marked === 0
-          ? 'Marque exatamente uma face — a que apareceu no dado.'
+          ? 'Marque exatamente uma face — observe o dado e selecione a face que apareceu.'
           : marked > 1
-            ? 'Marque APENAS uma face — a que apareceu no dado.'
-            : `O dado caiu em ${diceResult}. Marque essa face.`,
+            ? 'Marque APENAS uma face — observe o dado e selecione apenas a face que apareceu.'
+            : 'Não é essa. Observe novamente o dado e marque a face que realmente apareceu.',
         'error',
         4000,
+        `marcou ${marked} face(s): [${markedFaces || '—'}] (dado caiu em ${diceResult})`,
       );
     }
   };
@@ -682,11 +780,13 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     diceRef.current?.highlightFace(null);
     playSound('/sounds/nextChallenge.mp3');
     if (mainPhase === 'experimentA') {
+      telemetryRecordInteracaoExercicio('avançou para "Rodada 2" (experimentA → experimentB) — vai apostar no dado de outra cor');
       createAlert?.(
         'Rodada 2',
         'Agora vamos repetir a experiência com o dado de outra cor. Faça nova aposta antes de lançar.',
         'info',
         4500,
+        'avançou para Rodada 2 (experimentB)',
       );
       setMainPhase('experimentB');
       setExpSubPhase('bet');
@@ -694,11 +794,13 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       setResultCheck([false, false, false, false, false, false]);
       setDiceResult(0);
     } else {
+      telemetryRecordInteracaoExercicio('avançou para "Exercícios" (experimentB → exercises) — fim da experimentação');
       createAlert?.(
         'Hora dos exercícios!',
         'A experimentação acabou. Agora você vai identificar eventos e calcular probabilidades.',
         'info',
         4500,
+        'avançou para fase de exercícios (identificar eventos + calcular probabilidades)',
       );
       setMainPhase('exercises');
       setExSubPhase('mark');
@@ -719,7 +821,18 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
         break;
       }
     }
+    // Resumo do que o aluno marcou — faces como números (1-6) + total
+    // marcado vs. total esperado. Calcula expectedFaces para o resposta
+    // de erro mostrar o gap entre marcado x esperado SEM revelar o
+    // gabarito (só descreve o que o aluno fez).
+    const markedFaces = eventChecks.map((c, i) => c ? `Face ${i + 1}` : null).filter(Boolean).join(', ');
+    const markedCount = eventChecks.filter(Boolean).length;
+    const respostaResumo = `evento "${event.description}" — marcou ${markedCount} face(s): [${markedFaces || '—'}]`;
+    // EXPLÍCITO antes do createAlert — bypassa o observer do alert e
+    // garante que a resposta_usuario reflita EXATAMENTE o que o aluno
+    // marcou (não cai pro título "Correto!"/"Marcação incorreta").
     if (correct) {
+      telemetryRecordAcerto(respostaResumo);
       setEventChecksError(false);
       setEventChecksDisabled(true);
       playSound('/sounds/correct.mp3');
@@ -728,10 +841,12 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
         `Você identificou as faces favoráveis ao evento "${event.description}".`,
         'success',
         3000,
+        respostaResumo,
       );
       setExSubPhase('bet');
       scrollDiceToTop();
     } else {
+      telemetryRecordErro(`${respostaResumo} (incorreto)`);
       setEventChecksError(true);
       playSound('/sounds/incorrect.mp3');
       createAlert?.(
@@ -739,6 +854,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
         `Releia o evento "${event.description}" e marque apenas as faces favoráveis.`,
         'error',
         4000,
+        `${respostaResumo} (incorreto)`,
       );
     }
   };
@@ -747,6 +863,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
   const launchExDie = useCallback(async () => {
     if (rolling.current) return;
     rolling.current = true;
+    telemetryRecordInteracaoExercicio(`clicou em "🎲 Lançar dado" (Exercício ${exerciseIdx + 1} de 4 — evento A: "${events[exerciseIdx]?.description ?? '?'}", aposta: "${exBet ?? '(sem aposta)'}")`);
     setIsLaunching(true);
     setExSubPhase('rolling');
 
@@ -784,13 +901,15 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       'Leia a face que apareceu e responda à pergunta abaixo.',
       'info',
       4500,
+      `dado parado no exercício ${exerciseIdx + 1} (evento: "${events[exerciseIdx]?.description ?? '?'}")`,
     );
-  }, [diceRef, diceContainerRef, createAlert]);
+  }, [diceRef, diceContainerRef, createAlert, exerciseIdx, events, exBet]);
 
   // ── Validar cálculo de P(A) ──
   // ── Avançar para próximo exercício ou finalizar ──
   const goToNextExercise = () => {
     const next = exerciseIdx + 1;
+    telemetryRecordInteracaoExercicio(`avançou para próximo exercício (${exerciseIdx + 1} → ${next + 1 > 4 ? 'final' : next + 1}) — evento concluído: "${events[exerciseIdx]?.description ?? '?'}"`);
     if (next >= 4) {
       playSound('/sounds/challengeFinished.mp3');
       setMainPhase('finished');
@@ -852,7 +971,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       if (!numIsValid) setCalcCompNumError(true);
       if (!denIsValid || den === 0) setCalcCompDenError(true);
       setCalcCompFeedback('Preencha numerador e denominador com números inteiros (denominador maior que zero).');
-      createAlert?.('Campos inválidos', 'Preencha numerador e denominador com números inteiros (denominador maior que zero).', 'error', 4000);
+      createAlert?.('Campos inválidos', 'Preencha numerador e denominador com números inteiros (denominador maior que zero).', 'error', 4000, `P(Ā) — digitou: "${numStr}"/"${denStr}" (campos inválidos)`);
       return;
     }
 
@@ -861,7 +980,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     if (equivalent) {
       playSound('/sounds/correct.mp3');
       setBothCalcCorrect(true);
-      createAlert?.('Correto!', `P(Ā) = ${compFavorable}/6 (ou qualquer fração equivalente).`, 'success', 3000);
+      createAlert?.('Correto!', `P(Ā) = ${compFavorable}/6 (ou qualquer fração equivalente).`, 'success', 3000, `P(Ā) — digitou: ${num}/${den} (correto: ${compFavorable}/6)`);
     } else {
       playSound('/sounds/incorrect.mp3');
       setCalcCompNumError(true);
@@ -869,7 +988,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       setCalcCompFeedback(
         `A fração ${num}/${den} não é equivalente a P(Ā). Lembre: P(Ā) = nº de resultados que não pertencem a A / nº total de resultados. Frações equivalentes são aceitas (por exemplo, 2/4 = 1/2 = 3/6).`
       );
-      createAlert?.('Tente novamente', `A fração ${num}/${den} não é equivalente a P(Ā).`, 'error', 4000);
+      createAlert?.('Tente novamente', `A fração ${num}/${den} não é equivalente a P(Ā).`, 'error', 4000, `P(Ā) — digitou: ${num}/${den} (esperado: ${compFavorable}/6 — evento "${event.description}")`);
     }
   };
 
@@ -901,7 +1020,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       if (!numIsValid) setCalcNumError(true);
       if (!denIsValid || den === 0) setCalcDenError(true);
       setCalcFeedback('Preencha numerador e denominador com números inteiros (denominador maior que zero).');
-      createAlert?.('Campos inválidos', 'Preencha numerador e denominador com números inteiros (denominador maior que zero).', 'error', 4000);
+      createAlert?.('Campos inválidos', 'Preencha numerador e denominador com números inteiros (denominador maior que zero).', 'error', 4000, `P(A) — digitou: "${numStr}"/"${denStr}" (campos inválidos — evento: "${event.description}")`);
       return;
     }
 
@@ -914,11 +1033,11 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       const needsCompCalc = exBet === 'indiferente' && favorable !== 3;
       if (needsCompCalc) {
         // P(A) ok, agora precisa de P(Ā) — não muda de fase, render mostrará o campo
-        createAlert?.('P(A) correto!', 'Agora calcule também P(Ā) — a probabilidade do evento complementar.', 'info', 4000);
+        createAlert?.('P(A) correto!', 'Agora calcule também P(Ā) — a probabilidade do evento complementar.', 'info', 4000, `P(A) — digitou: ${num}/${den} (correto; agora deve calcular P(Ā) — evento "${event.description}")`);
       } else {
         setExSubPhase('next');
         scrollDiceToTop();
-        createAlert?.('Correto!', `P(A) = ${favorable}/6 (ou qualquer fração equivalente).`, 'success', 3000);
+        createAlert?.('Correto!', `P(A) = ${favorable}/6 (ou qualquer fração equivalente).`, 'success', 3000, `P(A) — digitou: ${num}/${den} (correto: ${favorable}/6 — evento "${event.description}")`);
       }
     } else {
       playSound('/sounds/incorrect.mp3');
@@ -927,7 +1046,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       setCalcFeedback(
         `A fração ${num}/${den} não é equivalente a P(A). Lembre: P(A) = nº de favoráveis / nº total de resultados. Frações equivalentes são aceitas (por exemplo, 2/4 = 1/2 = 3/6).`
       );
-      createAlert?.('Tente novamente', `A fração ${num}/${den} não é equivalente a P(A).`, 'error', 4000);
+      createAlert?.('Tente novamente', `A fração ${num}/${den} não é equivalente a P(A).`, 'error', 4000, `P(A) — digitou: ${num}/${den} (esperado: ${favorable}/6 — evento "${event.description}")`);
     }
   };
 
@@ -1193,12 +1312,14 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
           </p>
           <div className="flex justify-center">
             <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Começar" (Cena 5 intro → Rodada 1 do dado azul)');
               playSound('/sounds/nextChallenge.mp3');
               createAlert?.(
                 'Mãos à obra!',
                 'Vamos começar pela Rodada 1: aposte numa face do dado antes de lançar. Depois você vai marcar o que realmente saiu.',
                 'info',
                 4500,
+                'clicou em "Começar" para iniciar Rodada 1',
               );
               setMainPhase('experimentA');
               setExpSubPhase('bet');
@@ -1272,6 +1393,8 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
               {renderMatrix(
                 resultCheck, false,
                 (idx, val) => {
+                  const rodadaLbl = mainPhase === 'experimentA' ? 'Rodada 1 (dado azul)' : 'Rodada 2 (dado verde)';
+                  telemetryRecordInteracaoExercicio(`${val ? 'marcou' : 'desmarcou'} checkbox da face ${idx + 1} na tabela de resultado — ${rodadaLbl}`);
                   const next = [...resultCheck];
                   next[idx] = val;
                   setResultCheck(next);
@@ -1279,7 +1402,12 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                 },
               )}
               <div className="flex flex-col items-center gap-y-micro">
-                <Button style="primary" size="extra-small" onClick={validateResultMark}>Conferir</Button>
+                <Button style="primary" size="extra-small" onClick={() => {
+                  const rodadaLbl = mainPhase === 'experimentA' ? 'Rodada 1 (dado azul)' : 'Rodada 2 (dado verde)';
+                  const markedFacesNow = resultCheck.map((c, i) => c ? i + 1 : null).filter(Boolean).join(', ');
+                  telemetryRecordInteracaoExercicio(`clicou em "Conferir" (markResult ${rodadaLbl}) — faces marcadas: [${markedFacesNow || '—'}]`);
+                  validateResultMark();
+                }}>Conferir</Button>
                 {resultCheckError && (
                   <p
                     role="alert"
@@ -1390,6 +1518,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
           {renderMatrix(
             eventChecks, eventChecksDisabled,
             (idx, val) => {
+              telemetryRecordInteracaoExercicio(`${val ? 'marcou' : 'desmarcou'} checkbox da face ${idx + 1} no evento A — Exercício ${exerciseIdx + 1} (evento: "${events[exerciseIdx]?.description ?? '?'}")`);
               const next = [...eventChecks];
               next[idx] = val;
               setEventChecks(next);
@@ -1399,7 +1528,11 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
 
           {exSubPhase === 'mark' && (
             <div className="flex flex-col items-center gap-y-micro">
-              <Button style="primary" size="extra-small" onClick={validateEventMarks}>Conferir</Button>
+              <Button style="primary" size="extra-small" onClick={() => {
+                const markedNow = eventChecks.map((c, i) => c ? i + 1 : null).filter(Boolean).join(', ');
+                telemetryRecordInteracaoExercicio(`clicou em "Conferir" (Exercício ${exerciseIdx + 1} marcação evento "${events[exerciseIdx]?.description ?? '?'}") — faces marcadas: [${markedNow || '—'}]`);
+                validateEventMarks();
+              }}>Conferir</Button>
               {eventChecksError && (
                 <p
                   role="alert"
@@ -1446,21 +1579,30 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                 <Button
                   style={exBet === 'favor' ? 'primary' : 'secondary'}
                   size="extra-small"
-                  onClick={() => setExBet('favor')}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`marcou aposta "A favor de A" (exercício ${exerciseIdx + 1}, evento "${events[exerciseIdx]?.description ?? '?'}")`);
+                    setExBet('favor');
+                  }}
                 >
                   A favor de A
                 </Button>
                 <Button
                   style={exBet === 'contra' ? 'primary' : 'secondary'}
                   size="extra-small"
-                  onClick={() => setExBet('contra')}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`marcou aposta "Contra A (complementar)" (exercício ${exerciseIdx + 1}, evento "${events[exerciseIdx]?.description ?? '?'}")`);
+                    setExBet('contra');
+                  }}
                 >
                   Contra A (complementar)
                 </Button>
                 <Button
                   style={exBet === 'indiferente' ? 'primary' : 'secondary'}
                   size="extra-small"
-                  onClick={() => setExBet('indiferente')}
+                  onClick={() => {
+                    telemetryRecordInteracaoExercicio(`marcou aposta "É indiferente" (exercício ${exerciseIdx + 1}, evento "${events[exerciseIdx]?.description ?? '?'}")`);
+                    setExBet('indiferente');
+                  }}
                 >
                   É indiferente
                 </Button>
@@ -1499,7 +1641,11 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
               <div className="flex items-center gap-x-micro">
                 <select
                   value={readDiceAnswer}
-                  onChange={e => { setReadDiceAnswer(e.target.value); setReadDiceError(false); }}
+                  onChange={e => {
+                    telemetryRecordInteracaoExercicio(`selecionou opção "${e.target.value || '?'}" no select "Qual foi o resultado do lançamento?" (Exercício ${exerciseIdx + 1}, evento: "${events[exerciseIdx]?.description ?? '?'}", dado caiu em: ${exDiceResult})`);
+                    setReadDiceAnswer(e.target.value);
+                    setReadDiceError(false);
+                  }}
                   className="ds-body-bold"
                   aria-label="Resultado do lançamento do dado"
                   aria-invalid={readDiceError}
@@ -1519,6 +1665,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                   <option value="6">6</option>
                 </select>
                 <Button style="primary" size="extra-small" onClick={() => {
+                  telemetryRecordInteracaoExercicio(`clicou em "Conferir" no select "Qual foi o resultado do lançamento?" (Exercício ${exerciseIdx + 1}, evento: "${events[exerciseIdx]?.description ?? '?'}") — selecionou: "${readDiceAnswer || '?'}"`);
                   if (parseInt(readDiceAnswer) === exDiceResult) {
                     playSound('/sounds/correct.mp3');
                     // Agora calcular won e tocar som da aposta
@@ -1535,6 +1682,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                       `O dado caiu em ${exDiceResult}. ${w ? 'Sua aposta acertou!' : 'Sua aposta não acertou desta vez.'}`,
                       w ? 'success' : 'info',
                       4000,
+                      `selecionou face ${readDiceAnswer} (correto: ${exDiceResult}) — evento "${events[exerciseIdx]?.description ?? '?'}", aposta="${exBet}", ${w ? 'GANHOU' : 'PERDEU'}`,
                     );
                     setExSubPhase('result');
                   } else {
@@ -1545,6 +1693,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                       'Veja o resultado na face superior do dado 3D e selecione a face correta.',
                       'error',
                       4000,
+                      `selecionou face "${readDiceAnswer || '?'}" (incorreto — dado caiu em ${exDiceResult})`,
                     );
                   }
                 }}>Conferir</Button>
@@ -1690,7 +1839,10 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
               )}
 
               <div className="flex justify-center">
-                <Button style="primary" size="extra-small" onClick={() => setExSubPhase('calc')}>
+                <Button style="primary" size="extra-small" onClick={() => {
+                  telemetryRecordInteracaoExercicio(`clicou em "Próximo: calcular P(A)" (Exercício ${exerciseIdx + 1}, evento: "${events[exerciseIdx]?.description ?? '?'}", aposta: "${exBet}", dado caiu em: ${exDiceResult})`);
+                  setExSubPhase('calc');
+                }}>
                   Próximo: calcular P(A)
                 </Button>
               </div>
@@ -1886,6 +2038,7 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                   </p>
                   <div className="flex justify-center mt-micro">
                     <Button style="primary" size="small" onClick={() => {
+                      telemetryRecordInteracaoExercicio(`clicou em "${exerciseIdx + 1 >= 4 ? 'Próximo: finalizar' : `Próximo: exercício ${exerciseIdx + 2} de 4`}" (Exercício ${exerciseIdx + 1} concluído — evento: "${events[exerciseIdx]?.description ?? '?'}")`);
                       playSound('/sounds/nextChallenge.mp3');
                       scrollDiceToTop();
                       setExSubPhase('next');
@@ -2021,7 +2174,11 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                           value={opt.v}
                           disabled={certainNameValidated}
                           checked={certainNameAnswer === opt.v}
-                          onChange={() => { setCertainNameAnswer(opt.v); setCertainNameError(false); }}
+                          onChange={() => {
+                            telemetryRecordInteracaoExercicio(`marcou "${opt.label}" na pergunta "Como esse tipo de evento se chama?" (Cena 5 — evento certo, exercício ${exerciseIdx + 1})`);
+                            setCertainNameAnswer(opt.v);
+                            setCertainNameError(false);
+                          }}
                         />
                         {opt.label}
                       </label>
@@ -2158,7 +2315,11 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
                           value={opt.v}
                           disabled={impossibleNameValidated}
                           checked={impossibleNameAnswer === opt.v}
-                          onChange={() => { setImpossibleNameAnswer(opt.v); setImpossibleNameError(false); }}
+                          onChange={() => {
+                            telemetryRecordInteracaoExercicio(`marcou "${opt.label}" na pergunta "Como esse tipo de evento se chama?" (Cena 5 — evento impossível, exercício ${exerciseIdx + 1})`);
+                            setImpossibleNameAnswer(opt.v);
+                            setImpossibleNameError(false);
+                          }}
                         />
                         {opt.label}
                       </label>
@@ -2272,12 +2433,14 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
               style="primary"
               size="small"
               onClick={() => {
+                telemetryRecordInteracaoExercicio('clicou em "Observar a máquina" (Cena 5 finished → Cena 6 — De um para dois dados)');
                 playSound('/sounds/nextChallenge.mp3');
                 createAlert?.(
                   'Próxima etapa',
                   'Agora a máquina vai entrar em cena. Observe o lançamento de dois dados antes de organizar tudo numa tabela.',
                   'info',
                   4500,
+                  'clicou em "Observar a máquina" para avançar para Cena 6',
                 );
                 onFinished();
               }}

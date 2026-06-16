@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
-import { useTelemetryExercise, useReadingTelemetry } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, useReadingTelemetry, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import { playSound } from '@/hooks/global/useSound';
 import { VennLaboratory, type VennLaboratoryHandle } from './venn/VennLaboratory';
 
@@ -636,7 +636,7 @@ interface UnionProbabilityTheoryProps {
    *  no fim da teoria (via seta "voltar" do primeiro exercício). */
   initialPhase?: UnionPhase;
   /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
-  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
+  createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
   /** Notifica o pai a cada transição interna — usado para o cenaId DEV
    *  refletir cada sub-fase do UnionTheory como snapshot distinto. */
   onPhaseChange?: (phaseId: string) => void;
@@ -682,22 +682,43 @@ const PHASE_SEQUENCE: UnionPhase[] = [
 export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabilityTheoryProps>(function UnionProbabilityTheory({ onFinished, initialPhase, createAlert, onPhaseChange }, ref) {
   const [phase, setPhase] = useState<UnionPhase>(initialPhase ?? 'intro');
   // SEÇÃO POR PHASE — cada fase da teoria é uma tela diferente.
-  useTelemetryExercise(
-    `twoDices-cena7-unionTheory-${phase}`,
-    'Fundamentação da União — Macro 1 a 3',
-    'Aluno percorre Contagem, União por Laplace e Fórmula Geral; passa por VennLab, ProbCalc e institucionalização da fórmula geral.',
-  );
-  // Telemetria — leitura do enunciado teórico (fase 'intro').
-  const confirmReadTheoryIntro = useReadingTelemetry(
-    phase === 'intro',
-    'twoDices-cena7-unionTheory-intro',
-    'Leitura — Introdução à teoria da união (P(A∪B))',
-    'Painel inicial descrevendo o problema concreto que será resolvido para descobrir a fórmula geral.',
-    'confirmou leitura da introdução teórica e clicou em "Começar"',
-  );
+  // Título DINÂMICO com label legível por fase.
+  const phaseLabelUTh = phase === 'intro' ? 'Enunciado teórico'
+    : phase === 'markA' ? 'Macro 1 — Marcar evento A'
+    : phase === 'countA' ? 'Macro 1 — Contar n(A)'
+    : phase === 'markB' ? 'Macro 1 — Marcar evento B'
+    : phase === 'countB' ? 'Macro 1 — Contar n(B)'
+    : phase === 'defineIntersection' ? 'Macro 1 — Definir A ∩ B'
+    : phase === 'markIntersection' ? 'Macro 1 — Marcar A ∩ B'
+    : phase === 'countIntersection' ? 'Macro 1 — Contar n(A ∩ B)'
+    : phase === 'enumDisplay' ? 'Macro 1 — Enumeração'
+    : phase === 'synthM1' ? 'Macro 1 — Síntese'
+    : phase === 'defineUnion' ? 'Macro 2 — Definir A ∪ B'
+    : phase === 'markUnion' ? 'Macro 2 — Marcar A ∪ B'
+    : phase === 'countUnion' ? 'Macro 2 — Contar n(A ∪ B)'
+    : phase === 'predict' ? 'Macro 2 — Previsão da relação'
+    : phase === 'vennLab' ? 'Laboratório Venn — descoberta da fórmula'
+    : phase === 'sumCompareVisual' ? 'Macro 2 — Comparação visual n(A)+n(B) vs n(A∪B)'
+    : phase === 'formulaReveal' ? 'Macro 2 — Revelação da fórmula'
+    : phase === 'synthM2' ? 'Macro 2 — Síntese'
+    : phase === 'probTransfer' ? 'Macro 3 — Transferência para probabilidades'
+    : phase === 'probCalc' ? 'Macro 3 — Cálculo P(A∪B)'
+    : phase === 'probFormulaReveal' ? 'Macro 3 — Revelação da fórmula de probabilidade'
+    : phase === 'probFormulaApply' ? 'Macro 3 — Apresentação dos valores'
+    : phase === 'probFormulaVerify' ? 'Macro 3 — Verificação numérica'
+    : phase === 'institucionalize' ? 'Institucionalização final'
+    : phase === 'done' ? 'Concluído'
+    : String(phase);
+  // Telemetria — useReadingTelemetry e useTelemetryExercise movidos pra
+  // DEPOIS das declarações de state — ver blocos abaixo (precisam de
+  // currentPair, correctSets e helpers que ainda não foram declarados aqui).
   // Sub-step do VennLaboratory (notificado via onSubStepChange) — entra no
   // cenaId composto para que o painel DEV capture cada sub-etapa do Venn.
   const [vennSubStep, setVennSubStep] = useState<string>('intro');
+  // Step atual da animação ProbFormulaRevealAnimation (0..9). Bubble via
+  // onStepChange permite que a `descricao` da telemetria reflita o conteúdo
+  // específico do passo da derivação que o aluno está vendo.
+  const [probFormulaRevealStep, setProbFormulaRevealStep] = useState<number>(0);
   // Ref do handle do Venn — usado pelo advance() do UnionTheoryHandle para
   // delegar quando estamos na fase 'vennLab' (sem isso o DEV pula 20+ sub-etapas).
   const vennLabRef = useRef<VennLaboratoryHandle>(null);
@@ -791,6 +812,145 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     return { A, B, I, U, nA: A.size, nB: B.size, nI: I.size, nU: U.size };
   }, [currentPair]);
 
+  // ─── Telemetria — descrição RICA por fase ────────────────────────
+  // Pra cada uma das ~25 fases (M1, M2, M3 + sub-etapas Venn), monta o
+  // `descricao` com: (1) evento(s) ativo(s) e suas cardinalidades, (2) o
+  // que o aluno está marcando/calculando, (3) texto literal da tela.
+  // Antes o `descricao` era genérico ("Aluno percorre Contagem, União por
+  // Laplace e Fórmula Geral. Fase atual: X") e quem lia a coleta não
+  // recuperava nem o evento sorteado, nem o input do aluno, nem a etapa.
+  //
+  // Telemetria — leitura do enunciado teórico (fase 'intro').
+  // O `descricao` aqui replica o texto LITERAL da tela (problema concreto +
+  // ancoragem no Disco + abertura) para que a coleta da leitura do intro
+  // mostre exatamente o que o aluno leu — antes era genérico ("Painel
+  // inicial descrevendo o problema concreto..."), sem o enunciado real.
+  const predAIntro = extractSumPredicate(currentPair.eventA.description);
+  const predBIntro = extractSumPredicate(currentPair.eventB.description);
+  const introScreenText =
+    `Tela "Descobrindo a fórmula geral — O problema que vamos resolver": ` +
+    `"No lançamento simultâneo de dois dados equilibrados, qual a probabilidade de que a soma dos resultados ` +
+    `seja um número ${formatForProblem(predAIntro)} ou ${formatForProblem(predBIntro)}? ` +
+    `Chame de A o evento \\"ocorre soma ${predAIntro}\\" e de B o evento \\"ocorre soma ${predBIntro}\\". ` +
+    `Observe: alguns resultados satisfazem os dois eventos ao mesmo tempo... (n(A ∩ B) = ${correctSets.nI} > 0, então a interseção não é vazia). ` +
+    `No OVA do Disco Probabilístico, você aprendeu que P(A ∪ B) = P(A) + P(B) — mas apenas quando A e B são mutuamente exclusivos (A ∩ B = ∅). ` +
+    `Será que essa fórmula ainda funciona aqui? Vamos descobrir juntos a fórmula geral, construindo-a passo a passo na tabela 6×6 dos dois dados."`;
+  const confirmReadTheoryIntro = useReadingTelemetry(
+    phase === 'intro',
+    'twoDices-cena7-unionTheory-intro',
+    `Leitura — Introdução à teoria da união (P(A∪B)) — Evento A: "${currentPair.eventA.description}" / Evento B: "${currentPair.eventB.description}"`,
+    `${introScreenText} || Evento A: "${currentPair.eventA.description}" (n(A) = ${correctSets.nA}) | Evento B: "${currentPair.eventB.description}" (n(B) = ${correctSets.nB}) | n(A ∩ B) = ${correctSets.nI} | n(A ∪ B) = ${correctSets.nU} | espaço amostral Ω = 36`,
+    `confirmou leitura da introdução teórica e clicou em "Começar" — A="${currentPair.eventA.description}", B="${currentPair.eventB.description}"`,
+  );
+  const eventsBlocoUTh =
+    `Evento A: "${currentPair.eventA.description}" (n(A) = ${correctSets.nA} casos favoráveis) | ` +
+    `Evento B: "${currentPair.eventB.description}" (n(B) = ${correctSets.nB} casos favoráveis) | ` +
+    `n(A ∩ B) = ${correctSets.nI} | n(A ∪ B) = ${correctSets.nU} | ` +
+    `Espaço amostral Ω = 36 pares ordenados (dois dados 6×6)`;
+  const countMarksUTh = (m: MarkMatrix): number => {
+    let c = 0;
+    for (const row of m) for (const cell of row) if (cell) c++;
+    return c;
+  };
+  const oQueCalculaUTh = (() => {
+    switch (phase) {
+      case 'intro':
+        return `Tela: "Descobrindo a fórmula geral — O problema: No lançamento simultâneo de dois dados equilibrados, qual a probabilidade de que a soma seja ${currentPair.eventA.description.replace(/^ocorre soma /, '')} ou ${currentPair.eventB.description.replace(/^ocorre soma /, '')}? Chame A = "${currentPair.eventA.description}" e B = "${currentPair.eventB.description}". Observe: alguns resultados satisfazem AMBOS — então A ∩ B ≠ ∅. No OVA Disco aprendeu P(A ∪ B) = P(A) + P(B) apenas se A ∩ B = ∅. Será que funciona aqui? Vamos descobrir a fórmula geral passo a passo na tabela 6×6."`;
+      case 'markA':
+        return `Tela: "EVENTO A: ${currentPair.eventA.description} | Marque na tabela todos os pares que satisfazem o evento A." Cálculo: identificar visualmente os ${correctSets.nA} casos favoráveis a A. Aluno marcou ${countMarksUTh(marksA)} célula(s).`;
+      case 'countA':
+        return `Tela: "Quantos pares tem o conjunto A? n(A) = ?  [Conferir]  Conte de novo os pares marcados na tabela." Cálculo: contar os ${correctSets.nA} pares marcados de A ("${currentPair.eventA.description}"). Esperado n(A) = ${correctSets.nA}. Aluno digitou: "${nAInput || '(vazio)'}".`;
+      case 'markB':
+        return `Tela: "EVENTO B: ${currentPair.eventB.description} | Marque na tabela todos os pares que satisfazem o evento B." Cálculo: identificar os ${correctSets.nB} casos favoráveis a B. Aluno marcou ${countMarksUTh(marksB)} célula(s).`;
+      case 'countB':
+        return `Tela: "Quantos pares tem o conjunto B? n(B) = ?  [Conferir]  Conte de novo os pares marcados de B." Cálculo: contar os ${correctSets.nB} pares marcados de B ("${currentPair.eventB.description}"). Esperado n(B) = ${correctSets.nB}. Aluno digitou: "${nBInput || '(vazio)'}".`;
+      case 'defineIntersection':
+        return `Tela: "DEFINIÇÃO DE A ∩ B — pares que satisfazem AMBOS os eventos A e B simultaneamente". Leitura conceitual antes de marcar a interseção.`;
+      case 'markIntersection':
+        return `Tela: "Marque na tabela todos os pares que satisfazem A E B ao mesmo tempo (A ∩ B)." Cálculo: identificar os ${correctSets.nI} casos onde "${currentPair.eventA.description}" E "${currentPair.eventB.description}" simultaneamente. Aluno marcou ${countMarksUTh(marksIntersection)} célula(s).`;
+      case 'countIntersection':
+        return `Tela: "Quantos pares tem o conjunto A ∩ B? n(A ∩ B) = ?  [Conferir]  Conte de novo os pares marcados na interseção." Cálculo: contar os ${correctSets.nI} casos onde os dois eventos ocorrem simultaneamente. Esperado n(A ∩ B) = ${correctSets.nI}. Aluno digitou: "${nIntersectionInput || '(vazio)'}".`;
+      case 'enumDisplay':
+        return `Macro 1 — ENUMERAÇÃO. Tela exibe a lista dos pares de A, B e A∩B identificados (rótulos visuais), preparando o aluno para a síntese.`;
+      case 'synthM1':
+        return `SÍNTESE Macro 1 — recapitula: n(A) = ${correctSets.nA}, n(B) = ${correctSets.nB}, n(A ∩ B) = ${correctSets.nI}. Insight: alguns pares estão em A E B ao mesmo tempo. Ponte para Macro 2: como contar n(A ∪ B)?`;
+      case 'defineUnion':
+        return `Macro 2 — DEFINIÇÃO de A ∪ B (leitura). Tela: "A ∪ B = pares que satisfazem A OU B (incluindo os de A ∩ B)". Cálculo conceitual: união como "ao menos um dos eventos ocorre".`;
+      case 'markUnion':
+        return `Tela: "Marque na tabela todos os pares que satisfazem A OU B (ou ambos) — isto é, A ∪ B." Cálculo: identificar os ${correctSets.nU} casos da união. Aluno marcou ${countMarksUTh(marksUnion)} célula(s).`;
+      case 'countUnion':
+        return `Tela: "Quantos pares tem o conjunto A ∪ B? n(A ∪ B) = ?  [Conferir]" Cálculo: contar os casos da união. Esperado n(A ∪ B) = ${correctSets.nU}. Aluno digitou: "${nUnionInput || '(vazio)'}". Observação chave: n(A) + n(B) = ${correctSets.nA + correctSets.nB} ≠ ${correctSets.nU} = n(A ∪ B) — DUPLA CONTAGEM dos ${correctSets.nI} pares de A ∩ B.`;
+      case 'probTransfer':
+        return `Macro 2 — TRANSFERÊNCIA p/ probabilidades via Laplace. Cálculo direto: P(A ∪ B) = n(A ∪ B)/36 = ${correctSets.nU}/36. Aluno digitou P(A∪B) = "${pAUBNum || '_'}/${pAUBDen || '_'}".`;
+      case 'synthM2':
+        return `SÍNTESE Macro 2 — ponte: aluno JÁ SABE calcular P(A ∪ B) direto via Laplace. Mas: e se só tivesse P(A), P(B) e P(A ∩ B)? Há uma fórmula algébrica que evita recontar tudo? — abertura para Macro 3.`;
+      case 'predict':
+        return `Macro 3 — PREVISÃO da relação entre n(A) + n(B) e n(A ∪ B). Cálculo: aluno escolhe operador (>, <, =) e justificativa (duplo/igual/menor). Esperado: ">", "duplo" (porque n(A)+n(B) = ${correctSets.nA + correctSets.nB} > ${correctSets.nU} = n(A∪B), conta n(A ∩ B) duas vezes). Aluno marcou: op="${predictionOp}" reason="${predictionReason}".`;
+      case 'vennLab':
+        return `Macro 3 — LABORATÓRIO VENN (sub-etapa: ${vennSubStep}). Aluno constrói visualmente a relação entre A, B, A∩B e A∪B em um diagrama de Venn interativo, descobrindo que n(A) + n(B) = n(A ∪ B) + n(A ∩ B) — origem da fórmula geral.`;
+      case 'sumCompareVisual':
+        return `Macro 3 — COMPARAÇÃO VISUAL n(A) + n(B) vs n(A ∪ B). Cálculo: aluno marca o operador (>, <, =). Esperado: ">". n(A) + n(B) = ${correctSets.nA + correctSets.nB}, n(A ∪ B) = ${correctSets.nU}. Aluno digitou: nSum="${nSumInput}" op="${compareOp}".`;
+      case 'formulaReveal':
+        return `Macro 3 — REVELAÇÃO da fórmula geral (contagem): n(A ∪ B) = n(A) + n(B) − n(A ∩ B). Verificação numérica: ${correctSets.nA} + ${correctSets.nB} − ${correctSets.nI} = ${correctSets.nU} ✓`;
+      case 'probCalc':
+        return `Macro 3 — CÁLCULO via Laplace das probabilidades individuais. P(A) = ${correctSets.nA}/36, P(B) = ${correctSets.nB}/36, P(A ∩ B) = ${correctSets.nI}/36. Aluno digitou: P(A)="${pANum || '_'}/${pADen || '_'}", P(B)="${pBNum || '_'}/${pBDen || '_'}", P(A∩B)="${pABNum || '_'}/${pABDen || '_'}".`;
+      case 'probFormulaReveal': {
+        // Conteúdo específico mostrado no passo atual (0..9) do componente
+        // animado ProbFormulaRevealAnimation — sincronizado via callback.
+        const s = probFormulaRevealStep;
+        const screenContent =
+          s === 0 ? 'Tela: "Dedução da Fórmula Geral da Probabilidade da União de dois Eventos | Sabemos que: P(A ∪ B) = n(A ∪ B)/n(S)" (apenas o 1º pré-requisito visível)'
+          : s === 1 ? 'Tela: pré-requisitos 1–2 visíveis: P(A ∪ B) = n(A ∪ B)/n(S) ; P(A) = n(A)/n(S)'
+          : s === 2 ? 'Tela: pré-requisitos 1–3 visíveis: + P(B) = n(B)/n(S)'
+          : s === 3 ? 'Tela: pré-requisitos 1–4 visíveis: + P(A ∩ B) = n(A ∩ B)/n(S)'
+          : s === 4 ? 'Tela: pré-requisitos completos (1–5): + relação n(A ∪ B) = n(A) + n(B) − n(A ∩ B)'
+          : s === 5 ? 'Tela: "Substituindo passo a passo: | Linha 1: P(A ∪ B) = n(A ∪ B)/n(S)"'
+          : s === 6 ? 'Tela: + Linha 2: = (n(A) + n(B) − n(A ∩ B))/n(S) (substituiu n(A ∪ B))'
+          : s === 7 ? 'Tela: + Linha 3: = n(A)/n(S) + n(B)/n(S) − n(A ∩ B)/n(S) (distribuiu a divisão)'
+          : s === 8 ? 'Tela: + Linha 4: = P(A) + P(B) − P(A ∩ B) (trocou frações por P)'
+          : s === 9 ? 'Tela: + Fórmula final destacada: P(A ∪ B) = P(A) + P(B) − P(A ∩ B)'
+          : `Tela: passo ${s}`;
+        return `Macro 3 — REVELAÇÃO ANIMADA da fórmula de probabilidade (10 passos: 0–9). Passo atual: ${s + 1}/10. ${screenContent} Cálculo: derivação algébrica passo a passo a partir de P(X) = n(X)/n(S) e da relação geral da contagem.`;
+      }
+      case 'probFormulaApply':
+        return `Tela: "Valores calculados para a substituição — Você já calculou as quatro probabilidades necessárias nas fases anteriores: P(A) = ${correctSets.nA}/36 ; P(B) = ${correctSets.nB}/36 ; P(A ∩ B) = ${correctSets.nI}/36 ; P(A ∪ B) = ${correctSets.nU}/36 (calculado diretamente por Laplace). Agora vamos verificar se a fórmula que acabamos de deduzir dá o mesmo resultado. Lembre-se: P(A ∪ B) = P(A) + P(B) − P(A ∩ B) | [Substituir]." Cálculo: recapitula as 4 probabilidades antes da verificação numérica.`;
+      case 'probFormulaVerify':
+        return `Tela: "Verificação com os valores do problema | P(A ∪ B) = P(A) + P(B) − P(A ∩ B) = ${correctSets.nA}/36 + ${correctSets.nB}/36 − ${correctSets.nI}/36 = ${correctSets.nA + correctSets.nB - correctSets.nI}/36 | ✓ Duas rotas — mesmo resultado: Por Laplace direto: ${correctSets.nU}/36 = Pela fórmula geral: ${correctSets.nA + correctSets.nB - correctSets.nI}/36. As duas rotas são equivalentes. | Generalização: quando A ∩ B = ∅, P(A ∩ B) = 0 e P(A ∪ B) = P(A) + P(B) (caso do Disco como caso particular). | [Continuar]." Cálculo: verificação numérica completa + generalização institucional.`;
+      case 'institucionalize': {
+        const labels: Record<string, string> = {
+          'wrong1': 'P(A ∪ B) = P(A) + P(B)',
+          'correct': 'P(A ∪ B) = P(A) + P(B) − P(A ∩ B)',
+          'wrong2': 'P(A ∪ B) = P(A) × P(B)',
+          'wrong3': 'P(A ∪ B) = P(A) − P(B) + P(A ∩ B)',
+        };
+        const markedLabel = institutionalAnswer ? labels[institutionalAnswer] ?? institutionalAnswer : '(nada)';
+        return `Tela: "Qual fórmula você construiu? | Escolha a fórmula geral da probabilidade da união de dois eventos: | (a) P(A ∪ B) = P(A) + P(B) | (b) P(A ∪ B) = P(A) + P(B) − P(A ∩ B) | (c) P(A ∪ B) = P(A) × P(B) | (d) P(A ∪ B) = P(A) − P(B) + P(A ∩ B) | [Conferir]" Cálculo: aluno escolhe entre 4 alternativas a fórmula GERAL da união. Esperado: alternativa (b) — "P(A ∪ B) = P(A) + P(B) − P(A ∩ B)". Aluno marcou: "${markedLabel}".`;
+      }
+      case 'done':
+        return `CONCLUÍDO — o aluno descobriu e formalizou P(A ∪ B) = P(A) + P(B) − P(A ∩ B) para o par {A: "${currentPair.eventA.description}", B: "${currentPair.eventB.description}"}.`;
+      default:
+        return `Fase: ${phase}`;
+    }
+  })();
+  const enrichedDescricaoUTh = [
+    eventsBlocoUTh,
+    `Ação atual / cálculo: ${oQueCalculaUTh}`,
+    'Atividade global: Aluno percorre Macro 1 (Contagem), Macro 2 (União por Laplace) e Macro 3 (Fórmula Geral) para construir P(A ∪ B) = P(A) + P(B) − P(A ∩ B).',
+  ].filter(Boolean).join(' || ');
+  // Durante a fase 'vennLab', o componente filho `VennLaboratory` possui o
+  // seu PRÓPRIO `useTelemetryExercise` com descrição por sub-etapa (rica em
+  // texto da tela e cálculo). Em React, os efeitos rodam filho → pai —
+  // então sem este `enabled={phase !== 'vennLab'}`, o pai sobrescreveria
+  // o registro do filho a cada render, e a coleta mostraria a descrição
+  // genérica do pai ("Macro 3 — LABORATÓRIO VENN (sub-etapa: ...)") em vez
+  // da descrição específica de cada sub-etapa Venn.
+  useTelemetryExercise(
+    `twoDices-cena7-unionTheory-${phase}`,
+    `Fundamentação da União — ${phaseLabelUTh} — Evento A: "${currentPair.eventA.description}" / Evento B: "${currentPair.eventB.description}"`,
+    enrichedDescricaoUTh,
+    phase !== 'vennLab',
+  );
+
   // Verificação sistemática dos 4 conjuntos (A, B, A∩B, A∪B) na tabela 6×6
   // a cada rodada. Em DEV, reporta qualquer inconsistência entre predicados
   // e conjuntos computados — blindagem contra bugs no gerador algorítmico.
@@ -847,6 +1007,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     setCameFromPredict(false);
     setPredictReviewedEnum(false);
     setPredictJustFilled(false);
+    setProbFormulaRevealStep(0);
   }, []);
 
   // Registra o ID do par inicial (gerado no lazy init do currentPair).
@@ -903,32 +1064,41 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     scrollDiceToTop();
     const fb = evaluateMarks(marksA, correctSets.A);
     setFeedbackA(fb);
+    const markedKeys: string[] = [];
+    for (let r = 0; r < marksA.length; r++) {
+      for (let c = 0; c < marksA[r].length; c++) {
+        if (marksA[r][c]) markedKeys.push(`(${r + 1},${c + 1})`);
+      }
+    }
+    const shown = markedKeys.length <= 8 ? markedKeys.join(';') : `${markedKeys.slice(0, 8).join(';')}...+${markedKeys.length - 8}`;
+    const respMark = `Marcação evento A ("${currentPair.eventA.description}"): ${markedKeys.length} célula(s) [${shown || '—'}] (esperado: ${correctSets.nA} células)`;
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', 'Marcação do evento A completa.', 'success', 3000);
+      createAlert?.('Correto!', 'Marcação do evento A completa.', 'success', 3000, respMark);
       setTimeout(() => { setPhase('countA'); scrollDiceToTop(); }, 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
-      createAlert?.('Quase lá', 'As marcações feitas estão corretas, mas faltam pares.', 'warning', 4000);
+      createAlert?.('Quase lá', 'As marcações feitas estão corretas, mas faltam pares.', 'warning', 4000, respMark);
     } else {
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Revise a marcação', 'Há marcações que não satisfazem o evento A.', 'error', 4000);
+      createAlert?.('Revise a marcação', 'Há marcações que não satisfazem o evento A.', 'error', 4000, respMark);
     }
-  }, [marksA, correctSets.A, evaluateMarks, createAlert]);
+  }, [marksA, correctSets.A, correctSets.nA, currentPair.eventA.description, evaluateMarks, createAlert]);
 
   const validateCountA = useCallback(() => {
     scrollDiceToTop();
     const v = parseInt(nAInput.trim(), 10);
+    const respCount = `n(A) digitado: "${nAInput || '(vazio)'}" (esperado: ${correctSets.nA})`;
     if (v === correctSets.nA) {
       setNAError(false);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `n(A) = ${correctSets.nA}.`, 'success', 3000);
+      createAlert?.('Correto!', `n(A) = ${correctSets.nA}.`, 'success', 3000, respCount);
       setPhase('markB');
       scrollDiceToTop();
     } else {
       setNAError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'Conte de novo os pares marcados na tabela.', 'error', 4000);
+      createAlert?.('Tente novamente', 'Conte de novo os pares marcados na tabela.', 'error', 4000, respCount);
     }
   }, [nAInput, correctSets.nA, createAlert]);
 
@@ -936,32 +1106,41 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     scrollDiceToTop();
     const fb = evaluateMarks(marksB, correctSets.B);
     setFeedbackB(fb);
+    const markedKeys: string[] = [];
+    for (let r = 0; r < marksB.length; r++) {
+      for (let c = 0; c < marksB[r].length; c++) {
+        if (marksB[r][c]) markedKeys.push(`(${r + 1},${c + 1})`);
+      }
+    }
+    const shown = markedKeys.length <= 8 ? markedKeys.join(';') : `${markedKeys.slice(0, 8).join(';')}...+${markedKeys.length - 8}`;
+    const respMark = `Marcação evento B ("${currentPair.eventB.description}"): ${markedKeys.length} célula(s) [${shown || '—'}] (esperado: ${correctSets.nB} células)`;
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', 'Marcação do evento B completa.', 'success', 3000);
+      createAlert?.('Correto!', 'Marcação do evento B completa.', 'success', 3000, respMark);
       setTimeout(() => { setPhase('countB'); scrollDiceToTop(); }, 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
-      createAlert?.('Quase lá', 'As marcações feitas estão corretas, mas faltam pares.', 'warning', 4000);
+      createAlert?.('Quase lá', 'As marcações feitas estão corretas, mas faltam pares.', 'warning', 4000, respMark);
     } else {
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Revise a marcação', 'Há marcações que não satisfazem o evento B.', 'error', 4000);
+      createAlert?.('Revise a marcação', 'Há marcações que não satisfazem o evento B.', 'error', 4000, respMark);
     }
-  }, [marksB, correctSets.B, evaluateMarks, createAlert]);
+  }, [marksB, correctSets.B, correctSets.nB, currentPair.eventB.description, evaluateMarks, createAlert]);
 
   const validateCountB = useCallback(() => {
     scrollDiceToTop();
     const v = parseInt(nBInput.trim(), 10);
+    const respCount = `n(B) digitado: "${nBInput || '(vazio)'}" (esperado: ${correctSets.nB})`;
     if (v === correctSets.nB) {
       setNBError(false);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `n(B) = ${correctSets.nB}.`, 'success', 3000);
+      createAlert?.('Correto!', `n(B) = ${correctSets.nB}.`, 'success', 3000, respCount);
       setPhase('defineIntersection');
       scrollDiceToTop();
     } else {
       setNBError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'Conte de novo os pares marcados de B.', 'error', 4000);
+      createAlert?.('Tente novamente', 'Conte de novo os pares marcados de B.', 'error', 4000, respCount);
     }
   }, [nBInput, correctSets.nB, createAlert]);
 
@@ -969,32 +1148,41 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     scrollDiceToTop();
     const fb = evaluateMarks(marksIntersection, correctSets.I);
     setFeedbackIntersection(fb);
+    const markedKeys: string[] = [];
+    for (let r = 0; r < marksIntersection.length; r++) {
+      for (let c = 0; c < marksIntersection[r].length; c++) {
+        if (marksIntersection[r][c]) markedKeys.push(`(${r + 1},${c + 1})`);
+      }
+    }
+    const shown = markedKeys.length <= 8 ? markedKeys.join(';') : `${markedKeys.slice(0, 8).join(';')}...+${markedKeys.length - 8}`;
+    const respMark = `Marcação A ∩ B: ${markedKeys.length} célula(s) [${shown || '—'}] (esperado: ${correctSets.nI} células onde "${currentPair.eventA.description}" E "${currentPair.eventB.description}" simultaneamente)`;
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', 'Marcação de A ∩ B completa.', 'success', 3000);
+      createAlert?.('Correto!', 'Marcação de A ∩ B completa.', 'success', 3000, respMark);
       setTimeout(() => { setPhase('countIntersection'); scrollDiceToTop(); }, 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
-      createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de A ∩ B.', 'warning', 4000);
+      createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de A ∩ B.', 'warning', 4000, respMark);
     } else {
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Revise a marcação', 'Verifique se cada par satisfaz A e B ao mesmo tempo.', 'error', 4000);
+      createAlert?.('Revise a marcação', 'Verifique se cada par satisfaz A e B ao mesmo tempo.', 'error', 4000, respMark);
     }
-  }, [marksIntersection, correctSets.I, evaluateMarks, createAlert]);
+  }, [marksIntersection, correctSets.I, correctSets.nI, currentPair.eventA.description, currentPair.eventB.description, evaluateMarks, createAlert]);
 
   const validateCountIntersection = useCallback(() => {
     scrollDiceToTop();
     const v = parseInt(nIntersectionInput.trim(), 10);
+    const respCount = `n(A ∩ B) digitado: "${nIntersectionInput || '(vazio)'}" (esperado: ${correctSets.nI})`;
     if (v === correctSets.nI) {
       setNIntersectionError(false);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `n(A ∩ B) = ${correctSets.nI}.`, 'success', 3000);
+      createAlert?.('Correto!', `n(A ∩ B) = ${correctSets.nI}.`, 'success', 3000, respCount);
       setPhase('enumDisplay');
       scrollDiceToTop();
     } else {
       setNIntersectionError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'Conte de novo os pares marcados na interseção.', 'error', 4000);
+      createAlert?.('Tente novamente', 'Conte de novo os pares marcados na interseção.', 'error', 4000, respCount);
     }
   }, [nIntersectionInput, correctSets.nI, createAlert]);
 
@@ -1002,32 +1190,41 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   // TOGGLES DE MARCAÇÃO
   // ═══════════════════════════════════════════════════════════════
 
+  // Telemetria FORA dos updaters de setState — StrictMode em dev dispara
+  // o callback duas vezes para detectar side effects, e logar dentro
+  // causava dupla coleta por clique. Lemos o estado atual via closure.
   const toggleA = useCallback((r: number, c: number) => {
+    const wasMarked = marksA[r][c];
+    telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (verde=${r + 1}, azul=${c + 1}) do evento A — UnionTheory`);
     setMarksA(prev => {
       const next = prev.map(row => [...row]);
       next[r][c] = !next[r][c];
       return next;
     });
     setFeedbackA('none');
-  }, []);
+  }, [marksA]);
 
   const toggleB = useCallback((r: number, c: number) => {
+    const wasMarked = marksB[r][c];
+    telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (verde=${r + 1}, azul=${c + 1}) do evento B — UnionTheory`);
     setMarksB(prev => {
       const next = prev.map(row => [...row]);
       next[r][c] = !next[r][c];
       return next;
     });
     setFeedbackB('none');
-  }, []);
+  }, [marksB]);
 
   const toggleIntersection = useCallback((r: number, c: number) => {
+    const wasMarked = marksIntersection[r][c];
+    telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (verde=${r + 1}, azul=${c + 1}) do evento A ∩ B — UnionTheory`);
     setMarksIntersection(prev => {
       const next = prev.map(row => [...row]);
       next[r][c] = !next[r][c];
       return next;
     });
     setFeedbackIntersection('none');
-  }, []);
+  }, [marksIntersection]);
 
   const clearMarksA = useCallback(() => { setMarksA(createEmptyMatrix()); setFeedbackA('none'); playSound('/sounds/clear.mp3'); }, []);
   const clearMarksB = useCallback(() => { setMarksB(createEmptyMatrix()); setFeedbackB('none'); playSound('/sounds/clear.mp3'); }, []);
@@ -1042,13 +1239,15 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   const markAllUnion = useCallback(() => { setMarksUnion(fullMatrix()); setFeedbackUnion('none'); playSound('/sounds/clear.mp3'); }, []);
 
   const toggleUnion = useCallback((r: number, c: number) => {
+    const wasMarked = marksUnion[r][c];
+    telemetryRecordInteracaoExercicio(`${wasMarked ? 'desmarcou' : 'marcou'} célula (verde=${r + 1}, azul=${c + 1}) do evento A ∪ B — UnionTheory`);
     setMarksUnion(prev => {
       const next = prev.map(row => [...row]);
       next[r][c] = !next[r][c];
       return next;
     });
     setFeedbackUnion('none');
-  }, []);
+  }, [marksUnion]);
   const clearMarksUnion = useCallback(() => { setMarksUnion(createEmptyMatrix()); setFeedbackUnion('none'); playSound('/sounds/clear.mp3'); }, []);
 
   // ═══════════════════════════════════════════════════════════════
@@ -1059,48 +1258,62 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     scrollDiceToTop();
     const fb = evaluateMarks(marksUnion, correctSets.U);
     setFeedbackUnion(fb);
+    const markedKeys: string[] = [];
+    for (let r = 0; r < marksUnion.length; r++) {
+      for (let c = 0; c < marksUnion[r].length; c++) {
+        if (marksUnion[r][c]) markedKeys.push(`(${r + 1},${c + 1})`);
+      }
+    }
+    const shown = markedKeys.length <= 8 ? markedKeys.join(';') : `${markedKeys.slice(0, 8).join(';')}...+${markedKeys.length - 8}`;
+    const respMark = `Marcação A ∪ B: ${markedKeys.length} célula(s) [${shown || '—'}] (esperado: ${correctSets.nU} células — todos pares que satisfazem A OU B)`;
     if (fb === 'none') {
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', 'Marcação de A ∪ B completa.', 'success', 3000);
+      createAlert?.('Correto!', 'Marcação de A ∪ B completa.', 'success', 3000, respMark);
       setTimeout(() => { setPhase('countUnion'); scrollDiceToTop(); }, 600);
     } else if (fb === 'incomplete') {
       playSound('/sounds/correct.mp3');
-      createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de A ∪ B.', 'warning', 4000);
+      createAlert?.('Quase lá', 'As marcações estão corretas, mas faltam pares de A ∪ B.', 'warning', 4000, respMark);
     } else {
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Revise a marcação', 'Alguma marcação não satisfaz nem A nem B.', 'error', 4000);
+      createAlert?.('Revise a marcação', 'Alguma marcação não satisfaz nem A nem B.', 'error', 4000, respMark);
     }
-  }, [marksUnion, correctSets.U, evaluateMarks, createAlert]);
+  }, [marksUnion, correctSets.U, correctSets.nU, evaluateMarks, createAlert]);
 
   const validateCountUnion = useCallback(() => {
     scrollDiceToTop();
     const v = parseInt(nUnionInput.trim(), 10);
+    const respCount = `n(A ∪ B) digitado: "${nUnionInput || '(vazio)'}" (esperado: ${correctSets.nU})`;
     if (v === correctSets.nU) {
       setNUnionError(false);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `n(A ∪ B) = ${correctSets.nU}.`, 'success', 3000);
+      createAlert?.('Correto!', `n(A ∪ B) = ${correctSets.nU}.`, 'success', 3000, respCount);
       // Reordenação: após contar n(A∪B), aluno calcula P(A∪B) direto por Laplace
       setPhase('probTransfer');
       scrollDiceToTop();
     } else {
       setNUnionError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'Conte de novo os pares marcados de A ∪ B.', 'error', 4000);
+      createAlert?.('Tente novamente', 'Conte de novo os pares marcados de A ∪ B.', 'error', 4000, respCount);
     }
   }, [nUnionInput, correctSets.nU, createAlert]);
 
   const validatePrediction = useCallback(() => {
     scrollDiceToTop();
+    const reasonLabel = predictionReason === 'duplo' ? 'duplo (A ∩ B contado 2x)'
+                      : predictionReason === 'igual' ? 'igual (não há sobreposição)'
+                      : predictionReason === 'menor' ? 'menor (A ⊂ B ou B ⊂ A)'
+                      : '(sem justificativa)';
+    const respPred = `Previsão — operador: "${predictionOp || '(nada)'}", justificativa: "${reasonLabel}"`;
     if (!predictionOp || !predictionReason) {
       setPredictionError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Faltam respostas', 'Escolha uma operação e uma justificativa antes de continuar.', 'error', 4000);
+      createAlert?.('Faltam respostas', 'Escolha uma operação e uma justificativa antes de continuar.', 'error', 4000, respPred);
       return;
     }
     // A previsão é metacognitiva — qualquer resposta é aceita, apenas registra
     setPredictionError(false);
     playSound('/sounds/correct.mp3');
-    createAlert?.('Previsão registrada', 'Vamos verificar agora no laboratório Venn.', 'info', 3000);
+    createAlert?.('Previsão registrada', 'Vamos verificar agora no laboratório Venn.', 'info', 3000, respPred);
     // Após confirmar a previsão, aluno entra no laboratório Venn (construção
     // topológica) antes da confrontação numérica em sumCompareVisual.
     setPhase('vennLab');
@@ -1111,15 +1324,16 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     scrollDiceToTop();
     const v = parseInt(nSumInput.trim(), 10);
     const expected = correctSets.nA + correctSets.nB;
+    const respSum = `n(A) + n(B) digitado: "${nSumInput || '(vazio)'}" (esperado: ${correctSets.nA} + ${correctSets.nB} = ${expected})`;
     if (v === expected) {
       setNSumError(false);
       setNSumValidated(true);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `n(A) + n(B) = ${expected}.`, 'success', 3000);
+      createAlert?.('Correto!', `n(A) + n(B) = ${expected}.`, 'success', 3000, respSum);
     } else {
       setNSumError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', `Some n(A) e n(B). Recalcule.`, 'error', 4000);
+      createAlert?.('Tente novamente', `Some n(A) e n(B). Recalcule.`, 'error', 4000, respSum);
     }
   }, [nSumInput, correctSets.nA, correctSets.nB, createAlert]);
 
@@ -1128,16 +1342,17 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     const sum = correctSets.nA + correctSets.nB;
     const union = correctSets.nU;
     const correct: '>' | '<' | '=' = sum > union ? '>' : sum < union ? '<' : '=';
+    const respCmp = `Comparação n(A)+n(B)=${sum} vs n(A∪B)=${union} — aluno marcou "${compareOp || '(nada)'}" (esperado: "${correct}")`;
     if (compareOp === correct) {
       setCompareError(false);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `n(A) + n(B) ${correct} n(A ∪ B).`, 'success', 3000);
+      createAlert?.('Correto!', `n(A) + n(B) ${correct} n(A ∪ B).`, 'success', 3000, respCmp);
       setPhase('formulaReveal');
       scrollDiceToTop();
     } else {
       setCompareError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', `Compare ${sum} e ${union}. Qual é maior?`, 'error', 4000);
+      createAlert?.('Tente novamente', `Compare ${sum} e ${union}. Qual é maior?`, 'error', 4000, respCmp);
     }
   }, [compareOp, correctSets.nA, correctSets.nB, correctSets.nU, createAlert]);
 
@@ -1156,59 +1371,63 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
 
   const validatePAUB = useCallback(() => {
     scrollDiceToTop();
+    const respFrac = `P(A ∪ B) = ${pAUBNum || '_'}/${pAUBDen || '_'} (esperado: ${correctSets.nU}/36)`;
     if (isEquivalentFraction(pAUBNum, pAUBDen, correctSets.nU, 36)) {
       setPAUBError(false);
       setPAUBValidated(true);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `P(A ∪ B) = ${correctSets.nU}/36.`, 'success', 3000);
+      createAlert?.('Correto!', `P(A ∪ B) = ${correctSets.nU}/36.`, 'success', 3000, respFrac);
       // Não avança aqui — o avanço é controlado pelo ProbTransferScreen
       // (que mostra as conversões decimal/percentual antes de prosseguir).
     } else {
       setPAUBError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'P(A ∪ B) = n(A ∪ B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+      createAlert?.('Tente novamente', 'P(A ∪ B) = n(A ∪ B) / 36. Frações equivalentes são aceitas.', 'error', 4500, respFrac);
     }
   }, [pAUBNum, pAUBDen, correctSets.nU, isEquivalentFraction, createAlert]);
 
   const validatePA = useCallback(() => {
     scrollDiceToTop();
+    const respFrac = `P(A) = ${pANum || '_'}/${pADen || '_'} (esperado: ${correctSets.nA}/36)`;
     if (isEquivalentFraction(pANum, pADen, correctSets.nA, 36)) {
       setPAError(false);
       setPAValidated(true);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `P(A) = ${correctSets.nA}/36.`, 'success', 3000);
+      createAlert?.('Correto!', `P(A) = ${correctSets.nA}/36.`, 'success', 3000, respFrac);
     } else {
       setPAError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'P(A) = n(A) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+      createAlert?.('Tente novamente', 'P(A) = n(A) / 36. Frações equivalentes são aceitas.', 'error', 4500, respFrac);
     }
   }, [pANum, pADen, correctSets.nA, isEquivalentFraction, createAlert]);
 
   const validatePB = useCallback(() => {
     scrollDiceToTop();
+    const respFrac = `P(B) = ${pBNum || '_'}/${pBDen || '_'} (esperado: ${correctSets.nB}/36)`;
     if (isEquivalentFraction(pBNum, pBDen, correctSets.nB, 36)) {
       setPBError(false);
       setPBValidated(true);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `P(B) = ${correctSets.nB}/36.`, 'success', 3000);
+      createAlert?.('Correto!', `P(B) = ${correctSets.nB}/36.`, 'success', 3000, respFrac);
     } else {
       setPBError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'P(B) = n(B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+      createAlert?.('Tente novamente', 'P(B) = n(B) / 36. Frações equivalentes são aceitas.', 'error', 4500, respFrac);
     }
   }, [pBNum, pBDen, correctSets.nB, isEquivalentFraction, createAlert]);
 
   const validatePAB = useCallback(() => {
     scrollDiceToTop();
+    const respFrac = `P(A ∩ B) = ${pABNum || '_'}/${pABDen || '_'} (esperado: ${correctSets.nI}/36)`;
     if (isEquivalentFraction(pABNum, pABDen, correctSets.nI, 36)) {
       setPABError(false);
       setPABValidated(true);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', `P(A ∩ B) = ${correctSets.nI}/36.`, 'success', 3000);
+      createAlert?.('Correto!', `P(A ∩ B) = ${correctSets.nI}/36.`, 'success', 3000, respFrac);
     } else {
       setPABError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'P(A ∩ B) = n(A ∩ B) / 36. Frações equivalentes são aceitas.', 'error', 4500);
+      createAlert?.('Tente novamente', 'P(A ∩ B) = n(A ∩ B) / 36. Frações equivalentes são aceitas.', 'error', 4500, respFrac);
     }
   }, [pABNum, pABDen, correctSets.nI, isEquivalentFraction, createAlert]);
 
@@ -1220,11 +1439,24 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   }, [pAValidated, pBValidated, pABValidated]);
 
   const validateInstitutional = useCallback(() => {
+    // Mapa id → texto da fórmula EXIBIDA na tela. Sem isso, o resposta_usuario
+    // ficava só com o id interno ("wrong1", "correct", ...) sem o aluno (nem
+    // quem analisa a coleta) conseguir saber QUAL alternativa foi marcada.
+    const institutionalFormulaLabels: Record<string, string> = {
+      'wrong1': 'P(A ∪ B) = P(A) + P(B)',
+      'correct': 'P(A ∪ B) = P(A) + P(B) − P(A ∩ B)',
+      'wrong2': 'P(A ∪ B) = P(A) × P(B)',
+      'wrong3': 'P(A ∪ B) = P(A) − P(B) + P(A ∩ B)',
+    };
+    const markedLabel = institutionalAnswer
+      ? institutionalFormulaLabels[institutionalAnswer] ?? institutionalAnswer
+      : '(nenhuma)';
+    const respInst = `Institucionalização — alternativa marcada: "${markedLabel}" (id="${institutionalAnswer || ''}") (esperado: "P(A ∪ B) = P(A) + P(B) − P(A ∩ B)")`;
     if (institutionalAnswer === 'correct') {
       setInstitutionalError(false);
       setInstitutionalValidated(true);
       playSound('/sounds/correct.mp3');
-      createAlert?.('Correto!', 'Você dominou a fórmula da união.', 'success', 3000);
+      createAlert?.('Correto!', 'Você dominou a fórmula da união.', 'success', 3000, respInst);
       // Avanço pra 'done' ocorre via clique no Continuar (renderizado quando
       // institutionalValidated === true), não imediatamente — assim o aluno
       // vê o feedback de acerto antes da transição.
@@ -1233,11 +1465,11 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       // Som de incorreto faltava neste branch — alert aparecia mudo,
       // inconsistente com os outros dois branches que tocam som ao avisar.
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Falta escolher', 'Selecione uma alternativa antes de conferir.', 'error', 3500);
+      createAlert?.('Falta escolher', 'Selecione uma alternativa antes de conferir.', 'error', 3500, respInst);
     } else {
       setInstitutionalError(true);
       playSound('/sounds/incorrect.mp3');
-      createAlert?.('Tente novamente', 'Releia a fórmula geral e reconsidere a resposta.', 'error', 4000);
+      createAlert?.('Tente novamente', 'Releia a fórmula geral e reconsidere a resposta.', 'error', 4000, respInst);
     }
     // Ancora DEPOIS dos setState — assim o RAF do scrollDiceToTop captura
     // o estado já com `institutionalValidated=true` (que adiciona o card
@@ -1607,7 +1839,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             você <strong>já tinha marcado antes</strong>: uma vez em A e outra vez em B.
           </p>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markIntersection'); scrollDiceToTop(); }}>
+            <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Continuar" na definição de A ∩ B — avançou para a marcação de A ∩ B (UnionTheory)');
+              playSound('/sounds/nextChallenge.mp3');
+              setPhase('markIntersection');
+              scrollDiceToTop();
+            }}>
               Continuar
             </Button>
           </div>
@@ -1821,6 +2058,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                 style="primary"
                 size="small"
                 onClick={() => {
+                  telemetryRecordInteracaoExercicio('clicou em "Voltar para confirmar previsão" no enumDisplay — retornou para a tela de previsão (UnionTheory)');
                   playSound('/sounds/nextChallenge.mp3');
                   setCameFromPredict(false);
                   setPhase('predict');
@@ -1832,7 +2070,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               <Button
                 style="primary"
                 size="small"
-                onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('synthM1'); scrollDiceToTop(); }}
+                onClick={() => {
+                  telemetryRecordInteracaoExercicio('clicou em "Continuar" no enumDisplay — avançou para a síntese da Macro 1 (UnionTheory)');
+                  playSound('/sounds/nextChallenge.mp3');
+                  setPhase('synthM1');
+                  scrollDiceToTop();
+                }}
               >
                 Continuar
               </Button>
@@ -1856,7 +2099,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Agora vamos ver o que acontece com a <strong>união</strong> dos dois conjuntos.
           </p>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('defineUnion'); scrollDiceToTop(); }}>
+            <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Continuar" na síntese Macro 1 — avançou para a definição de A ∪ B (Macro 2) (UnionTheory)');
+              playSound('/sounds/nextChallenge.mp3');
+              setPhase('defineUnion');
+              scrollDiceToTop();
+            }}>
               Continuar
             </Button>
           </div>
@@ -1878,7 +2126,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             No próximo passo, você vai marcar na tabela todos os pares de A ∪ B.
           </p>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('markUnion'); scrollDiceToTop(); }}>
+            <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Continuar" na definição de A ∪ B — avançou para a marcação de A ∪ B (UnionTheory)');
+              playSound('/sounds/nextChallenge.mp3');
+              setPhase('markUnion');
+              scrollDiceToTop();
+            }}>
               Continuar
             </Button>
           </div>
@@ -2009,7 +2262,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                   name="predictOp"
                   value={opt.v}
                   checked={predictionOp === opt.v}
-                  onChange={() => { setPredictionOp(opt.v); setPredictionError(false); setPredictJustFilled(true); }}
+                  onChange={() => {
+                    telemetryRecordInteracaoExercicio(`marcou "${opt.label}" na pergunta "n(A) + n(B):" (previsão da União — UnionTheory)`);
+                    setPredictionOp(opt.v);
+                    setPredictionError(false);
+                    setPredictJustFilled(true);
+                  }}
                   style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
                 />
                 <span className="ds-body text-neutral-black">{opt.label}</span>
@@ -2031,7 +2289,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                   name="predictReason"
                   value={opt.v}
                   checked={predictionReason === opt.v}
-                  onChange={() => { setPredictionReason(opt.v); setPredictionError(false); setPredictJustFilled(true); }}
+                  onChange={() => {
+                    telemetryRecordInteracaoExercicio(`marcou "${opt.label}" na pergunta "Por quê?" (justificativa da previsão — UnionTheory)`);
+                    setPredictionReason(opt.v);
+                    setPredictionError(false);
+                    setPredictJustFilled(true);
+                  }}
                   style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)', marginTop: 3 }}
                 />
                 <span className="ds-body text-neutral-black">{opt.label}</span>
@@ -2122,7 +2385,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                 <span className="ds-body-bold text-neutral-black">{correctSets.nA + correctSets.nB}</span>
                 <select
                   value={compareOp}
-                  onChange={e => { setCompareOp(e.target.value as '>' | '<' | '=' | ''); setCompareError(false); }}
+                  onChange={e => {
+                    const v = e.target.value as '>' | '<' | '=' | '';
+                    telemetryRecordInteracaoExercicio(
+                      `sumCompareVisual — trocou operador de comparação para "${v || '?'}" (comparando n(A)+n(B) = ${correctSets.nA + correctSets.nB} ${v || '?'} ${correctSets.nU} = n(A ∪ B))`,
+                    );
+                    setCompareOp(v);
+                    setCompareError(false);
+                  }}
                   aria-label="Operador de comparação"
                   className="ds-body-bold"
                   style={{
@@ -2187,7 +2457,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             </p>
           </div>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probCalc'); scrollDiceToTop(); }}>
+            <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Continuar" na revelação da fórmula geral (contagem) — avançou para o cálculo das probabilidades individuais P(A), P(B), P(A∩B) (UnionTheory)');
+              playSound('/sounds/nextChallenge.mp3');
+              setPhase('probCalc');
+              scrollDiceToTop();
+            }}>
               Continuar
             </Button>
           </div>
@@ -2223,7 +2498,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
             Vamos investigar: se somarmos <span className="whitespace-nowrap">n(A) + n(B)</span>, será que chegamos em <span className="whitespace-nowrap">n(A ∪ B)</span>?
           </p>
           <div className="flex justify-center mt-macro">
-            <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('predict'); scrollDiceToTop(); }}>
+            <Button style="primary" size="small" onClick={() => {
+              telemetryRecordInteracaoExercicio('clicou em "Investigar" na ponte synthM2 — avançou para a previsão de n(A)+n(B) vs n(A∪B) (UnionTheory)');
+              playSound('/sounds/nextChallenge.mp3');
+              setPhase('predict');
+              scrollDiceToTop();
+            }}>
               Investigar
             </Button>
           </div>
@@ -2244,7 +2524,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           pAUBValidated={pAUBValidated}
           validatePAUB={validatePAUB}
           isEquivalentFraction={isEquivalentFraction}
-          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('synthM2'); scrollDiceToTop(); }}
+          onContinue={() => {
+            telemetryRecordInteracaoExercicio('clicou em "Continuar" no probTransfer (Laplace direto de P(A∪B)) — avançou para a ponte synthM2 (UnionTheory)');
+            playSound('/sounds/nextChallenge.mp3');
+            setPhase('synthM2');
+            scrollDiceToTop();
+          }}
         />
       )}
 
@@ -2320,7 +2605,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           )}
           {allIndividualProbsValid && (
             <div className="flex justify-center mt-macro">
-              <Button style="primary" size="small" onClick={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probFormulaReveal'); scrollDiceToTop(); }}>
+              <Button style="primary" size="small" onClick={() => {
+                telemetryRecordInteracaoExercicio('clicou em "Continuar" no probCalc (após acertar P(A), P(B), P(A∩B)) — avançou para a revelação da fórmula de probabilidade (UnionTheory)');
+                playSound('/sounds/nextChallenge.mp3');
+                setPhase('probFormulaReveal');
+                scrollDiceToTop();
+              }}>
                 Continuar
               </Button>
             </div>
@@ -2332,7 +2622,13 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       {/* ═══════ probFormulaReveal — derivação simbólica da fórmula ═══════ */}
       {phase === 'probFormulaReveal' && (
         <ProbFormulaRevealAnimation
-          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probFormulaApply'); scrollDiceToTop(); }}
+          onStepChange={setProbFormulaRevealStep}
+          onContinue={() => {
+            telemetryRecordInteracaoExercicio('clicou em "Continuar" na revelação simbólica de P(A∪B) = P(A) + P(B) − P(A∩B) — avançou para apresentação dos valores (UnionTheory)');
+            playSound('/sounds/nextChallenge.mp3');
+            setPhase('probFormulaApply');
+            scrollDiceToTop();
+          }}
         />
       )}
 
@@ -2343,7 +2639,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           nB={correctSets.nB}
           nI={correctSets.nI}
           nU={correctSets.nU}
-          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('probFormulaVerify'); scrollDiceToTop(); }}
+          onContinue={() => {
+            telemetryRecordInteracaoExercicio(
+              `clicou em "Substituir" na apresentação dos valores calculados (P(A) = ${correctSets.nA}/36, P(B) = ${correctSets.nB}/36, P(A ∩ B) = ${correctSets.nI}/36, P(A ∪ B) = ${correctSets.nU}/36 por Laplace) — avançou para a verificação numérica da fórmula (UnionTheory)`,
+            );
+            playSound('/sounds/nextChallenge.mp3');
+            setPhase('probFormulaVerify');
+            scrollDiceToTop();
+          }}
         />
       )}
 
@@ -2354,7 +2657,14 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           nB={correctSets.nB}
           nI={correctSets.nI}
           nU={correctSets.nU}
-          onContinue={() => { playSound('/sounds/nextChallenge.mp3'); setPhase('institucionalize'); scrollDiceToTop(); }}
+          onContinue={() => {
+            telemetryRecordInteracaoExercicio(
+              `clicou em "Continuar" na verificação numérica da fórmula (P(A ∪ B) = ${correctSets.nA}/36 + ${correctSets.nB}/36 − ${correctSets.nI}/36 = ${correctSets.nA + correctSets.nB - correctSets.nI}/36 ; Laplace direto = ${correctSets.nU}/36 — duas rotas coincidem) — avançou para a institucionalização (UnionTheory)`,
+            );
+            playSound('/sounds/nextChallenge.mp3');
+            setPhase('institucionalize');
+            scrollDiceToTop();
+          }}
         />
       )}
 
@@ -2381,7 +2691,12 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                   value={opt.v}
                   checked={institutionalAnswer === opt.v}
                   disabled={institutionalValidated}
-                  onChange={() => { setInstitutionalAnswer(opt.v); setInstitutionalError(false); }}
+                  onChange={() => {
+                    const formulaLbl = opt.parts.join(' ');
+                    telemetryRecordInteracaoExercicio(`marcou "${formulaLbl}" na pergunta "Qual fórmula você construiu?" (institucionalização da União — UnionTheory)`);
+                    setInstitutionalAnswer(opt.v);
+                    setInstitutionalError(false);
+                  }}
                   style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
                 />
                 <span className="ds-body text-neutral-black flex flex-wrap items-center gap-x-nano gap-y-nano">
@@ -2408,7 +2723,11 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                 ✓ Correto! Você construiu a fórmula geral.
               </p>
               <div className="flex justify-center mt-micro">
-                <Button style="primary" size="small" onClick={() => { setPhase('done'); scrollDiceToTop(); }}>
+                <Button style="primary" size="small" onClick={() => {
+                  telemetryRecordInteracaoExercicio('clicou em "Continuar" após acertar a institucionalização — avançou para a tela final "done" da UnionTheory');
+                  setPhase('done');
+                  scrollDiceToTop();
+                }}>
                   Continuar
                 </Button>
               </div>
@@ -2454,6 +2773,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
                 style="secondary"
                 size="small"
                 onClick={() => {
+                  telemetryRecordInteracaoExercicio(`clicou em "Estudar novamente (rodada ${round + 2} de 3)" — reiniciou a UnionTheory com um novo par de eventos`);
                   playSound('/sounds/nextChallenge.mp3');
                   resetForNewRound(round + 1);
                 }}
@@ -2465,6 +2785,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
               style="primary"
               size="small"
               onClick={() => {
+                telemetryRecordInteracaoExercicio('clicou em "Concluir" — finalizou a UnionTheory (avança para os exercícios 1–8)');
                 playSound('/sounds/gameFinished.mp3');
                 onFinished();
               }}
@@ -3123,9 +3444,14 @@ function FracH({
 // com botão "Próximo" para o aluno controlar o ritmo.
 function ProbFormulaRevealAnimation({
   onContinue,
-}: {
+  onStepChange,
+}: Readonly<{
   onContinue: () => void;
-}) {
+  /** Notifica o pai a cada `Próximo` (step 0–9). O pai usa isso pra
+   *  enriquecer a `descricao` da telemetria com o conteúdo específico
+   *  do passo da derivação que o aluno está vendo. */
+  onStepChange?: (step: number) => void;
+}>) {
   // step 0..3 = pré-requisitos: 4 frações (P(A∪B), P(A), P(B), P(A∩B))
   // step 4    = pré-requisito: relação n(A∪B) = n(A)+n(B)−n(A∩B)
   // step 5..8 = 4 linhas da derivação simbólica
@@ -3135,6 +3461,10 @@ function ProbFormulaRevealAnimation({
   // step 9    = fórmula final destacada
   const [step, setStep] = useState(0);
   const FINAL = 9;
+  // Notifica o pai sempre que o passo muda — inclusive no mount (step 0).
+  useEffect(() => {
+    onStepChange?.(step);
+  }, [step, onStepChange]);
 
   // Controle do piscar sincronizado ao avançar para steps de substituição.
   // Cada valor destaca os elementos correspondentes no bloco "Sabemos que"
@@ -3154,6 +3484,22 @@ function ProbFormulaRevealAnimation({
   const advance = () => {
     if (step < FINAL) {
       const next = step + 1;
+      // Rótulo do passo pra telemetria (resposta_usuario do interacao_exercicio
+      // refletir EXATAMENTE o que o aluno passou a ver na tela).
+      const stepLabel =
+        next === 1 ? 'P(A) = n(A)/n(S) (mostrou o segundo pré-requisito)'
+        : next === 2 ? 'P(B) = n(B)/n(S) (mostrou o terceiro pré-requisito)'
+        : next === 3 ? 'P(A ∩ B) = n(A ∩ B)/n(S) (mostrou o quarto pré-requisito)'
+        : next === 4 ? 'n(A ∪ B) = n(A) + n(B) − n(A ∩ B) (mostrou a relação de contagem da Macro 1/2)'
+        : next === 5 ? 'Iniciou a dedução: Linha 1 — P(A ∪ B) = n(A ∪ B)/n(S)'
+        : next === 6 ? 'Linha 2 — substituiu n(A ∪ B) por n(A) + n(B) − n(A ∩ B): = (n(A) + n(B) − n(A ∩ B))/n(S)'
+        : next === 7 ? 'Linha 3 — distribuiu a divisão: = n(A)/n(S) + n(B)/n(S) − n(A ∩ B)/n(S)'
+        : next === 8 ? 'Linha 4 — trocou cada fração pela respectiva P: = P(A) + P(B) − P(A ∩ B)'
+        : next === 9 ? 'Fórmula final destacada: P(A ∪ B) = P(A) + P(B) − P(A ∩ B)'
+        : `passo ${next}`;
+      telemetryRecordInteracaoExercicio(
+        `clicou em "Próximo" na Dedução da Fórmula Geral (probFormulaReveal — passo ${step} → ${next} de ${FINAL}) — ${stepLabel}`,
+      );
       // Dispara piscar sincronizado ao entrar em cada step de substituição
       if (next === 6) setFlashTarget('nU');           // substituiu n(A∪B)
       else if (next === 7) setFlashTarget('distrib'); // distribuiu a divisão
@@ -3401,7 +3747,12 @@ function ProbFormulaRevealAnimation({
             Próximo
           </Button>
         ) : (
-          <Button style="primary" size="small" onClick={onContinue}>
+          <Button style="primary" size="small" onClick={() => {
+            telemetryRecordInteracaoExercicio(
+              'clicou em "Continuar" no final da Dedução da Fórmula Geral (probFormulaReveal — passo 9/9: fórmula final P(A ∪ B) = P(A) + P(B) − P(A ∩ B) revelada)',
+            );
+            onContinue();
+          }}>
             Continuar
           </Button>
         )}

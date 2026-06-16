@@ -31,7 +31,7 @@
        (orquestrador externo decide como sinalizar/abrir StudyMenu).
    ═══════════════════════════════════════════════════════════════════ */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAlerts } from '@/hooks/global/useAlerts';
 import { useModal } from '@/hooks/global/useModal';
 import { playSound } from '@/hooks/global/useSound';
@@ -41,6 +41,7 @@ import type { SelectInputInterface } from '@/components/global/SelectInput';
 import type { Ex6Candidate } from '@/components/teaching/probability/two-dices/shared/exercise6Challenges';
 import { validateFractionR14 } from '@/components/teaching/probability/two-dices/shared/exercise6Challenges';
 import { logAttempt, logMarkAllUsed } from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
+import { telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 
 const MAXIMUM_VALUE_DICE = 6;
 const TOTAL = MAXIMUM_VALUE_DICE * MAXIMUM_VALUE_DICE;
@@ -304,6 +305,14 @@ export const useTwoDicesSingleShotHooks = ({
 
   const updateEventsCheckboxes = useCallback(
     (eventName: string, diceGreen: number, diceBlue: number, checked: boolean, disabled: boolean) => {
+      // Telemetria — clique do aluno numa célula. SÓ é chamada por user
+      // input (resets sistêmicos vão direto em setEventsCheckboxes). Sem
+      // este registro, no UE6 (que usa esse hook via TwoDicesGameSingleShot)
+      // as marcações de células ficavam invisíveis na coleta — só os
+      // Conferir apareciam.
+      telemetryRecordInteracaoExercicio(
+        `${checked ? 'marcou' : 'desmarcou'} célula (verde=${diceGreen}, azul=${diceBlue}) do evento "${eventName}"`,
+      );
       setEventsCheckboxes((prev) => {
         const updated = { ...prev };
         if (!updated[eventName]) return prev;
@@ -313,6 +322,34 @@ export const useTwoDicesSingleShotHooks = ({
     },
     [],
   );
+
+  // Change-detection dos SELECTS (Evento A / Operação / Evento B) — mesma
+  // técnica do useTwoDicesHooks. No UE6 (identify-operation), o aluno
+  // monta a expressão "D = (X op Y)" trocando opções dos 3 selects. Sem
+  // este efeito, só o clique em "Conferir" aparecia na coleta — a
+  // sequência de experimentação (trocas intermediárias) ficava muda.
+  // Sentinel `null` pula o mount inicial; reset (selectInputs recriado)
+  // também passa pelo sentinel sem logar.
+  const prevSelectsRefSingleShot = useRef<{ a: string; o: string; b: string } | null>(null);
+  useEffect(() => {
+    const cur = {
+      a: (operationSelectInputs?.eventsA?.value as string | undefined) ?? '',
+      o: (operationSelectInputs?.operations?.value as string | undefined) ?? '',
+      b: (operationSelectInputs?.eventsB?.value as string | undefined) ?? '',
+    };
+    const prev = prevSelectsRefSingleShot.current;
+    if (prev === null) { prevSelectsRefSingleShot.current = cur; return; }
+    if (prev.a === cur.a && prev.o === cur.o && prev.b === cur.b) return;
+    prevSelectsRefSingleShot.current = cur;
+    const changed: string[] = [];
+    if (prev.a !== cur.a) changed.push(`Evento A: "${prev.a || '_'}" → "${cur.a || '_'}"`);
+    if (prev.o !== cur.o) changed.push(`Operação: "${prev.o || '_'}" → "${cur.o || '_'}"`);
+    if (prev.b !== cur.b) changed.push(`Evento B: "${prev.b || '_'}" → "${cur.b || '_'}"`);
+    if (changed.length === 0) return;
+    telemetryRecordInteracaoExercicio(
+      `UE6 — select ${changed.join(' ; ')}`,
+    );
+  }, [operationSelectInputs]);
 
   /* ──────────────────────────────────────────────────────────────
      PROBABILITY INPUTS — build e disable

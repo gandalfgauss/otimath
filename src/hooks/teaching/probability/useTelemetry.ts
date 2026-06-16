@@ -461,6 +461,63 @@ export function telemetrySetDevMode(active: boolean): void {
   devModeActive = active;
 }
 
+/** Restaura o estado interno da telemetria a partir de um snapshot
+ *  previamente salvo (vindo do banco). Usado ao retomar uma run.
+ *
+ *  Recria os FinalizedExercise de cada OVA convertendo os campos MM:SS
+ *  (tempo_inicio_exercicio, tempo_fim_exercicio, tempo_gasto_exercicio)
+ *  pra ms internos. Não restaura `currentSection.open` — a próxima
+ *  entrada do aluno via `useTelemetryExercise` abre um exercício novo
+ *  naquela seção, com `questionCounter` continuando de onde estava
+ *  (calculado pelo nº de exercícios já finalizados naquela seção). */
+function parseMMSS(s: string | null | undefined): number {
+  if (!s) return 0;
+  const m = /^(\d+):(\d+)$/.exec(s);
+  if (!m) return 0;
+  return (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) * 1000;
+}
+
+export function telemetryRestore(snapshot: TelemetrySnapshot): void {
+  // Zera primeiro pra garantir estado consistente.
+  telemetryReset();
+
+  for (const ovaSnap of snapshot.ovas) {
+    const ovaId = ovaSnap.ova_id as OvaId;
+    const ova = session.ovas.get(ovaId);
+    if (!ova) continue;
+    ova.totalInteractions = ovaSnap.total_interacoes_ova;
+    ova.totalAcertos = ovaSnap.total_acertos_ova;
+    ova.totalErros = ovaSnap.total_erros_ova;
+    ova.accumMs = parseMMSS(ovaSnap.tempo_total_ova);
+    ova.startedAt = null;
+    ova.currentSection = null;
+    // Recria FinalizedExercise pra cada item salvo.
+    ova.exercises = ovaSnap.exercicios_interagidos.map((ex) => {
+      const inicioMs = parseMMSS(ex.tempo_inicio_exercicio);
+      const fimMs = ex.tempo_fim_exercicio !== null ? parseMMSS(ex.tempo_fim_exercicio) : inicioMs;
+      const duracaoMs = parseMMSS(ex.tempo_gasto_exercicio);
+      return {
+        id: ex.id,
+        title: ex.title,
+        descricao: ex.descricao,
+        durationMs: duracaoMs,
+        finishedAt: 0,
+        startedAtSessionTime: inicioMs,
+        finishedAtSessionTime: fimMs,
+        totalInteracoes: ex.total_interacoes_exercicio,
+        totalAcertos: ex.total_acertos_exercicio,
+        totalErros: ex.total_erros_exercicio,
+        history: ex.historico_atividades.slice(),
+      };
+    });
+  }
+  session.totalInteractions = snapshot.total_interacoes_sequencia;
+  // Mantém startedAt sincronizado com restoreSession — usa o mesmo wall
+  // clock que getElapsedTotalMs vai usar.
+  session.startedAt = Date.now() - parseMMSS(snapshot.tempo_total_sequencia);
+  session.activeOvaId = null;
+}
+
 /** Reseta o estado interno. Chamar ao começar uma nova sequência. */
 export function telemetryReset(): void {
   session.startedAt = null;

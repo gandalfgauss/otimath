@@ -16,6 +16,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/global/Button';
+import { telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 
 /** Avalia uma expressão contendo apenas inteiros, + e −.
  *  Não usa eval — parser manual para segurança.
@@ -82,13 +83,20 @@ export function SimpleCalculator() {
 
   const calculate = () => {
     const r = safeEvaluate(expression);
-    setResult(Number.isNaN(r) ? null : r);
+    const valid = !Number.isNaN(r);
+    telemetryRecordInteracaoExercicio(
+      `SimpleCalculator — clicou em "=" com expressão "${expression || '(vazio)'}" → resultado ${valid ? r : '(inválido)'}`,
+    );
+    setResult(valid ? r : null);
   };
 
   if (!open) {
     return (
       <div className="flex justify-center my-micro">
-        <Button style="secondary" size="small" onClick={() => setOpen(true)}>
+        <Button style="secondary" size="small" onClick={() => {
+          telemetryRecordInteracaoExercicio('SimpleCalculator — clicou em "🧮 Abrir calculadora"');
+          setOpen(true);
+        }}>
           🧮 Abrir calculadora
         </Button>
       </div>
@@ -107,7 +115,12 @@ export function SimpleCalculator() {
         </span>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            telemetryRecordInteracaoExercicio(
+              `SimpleCalculator — fechou a calculadora (expressão final: "${expression || '(vazio)'}"${result !== null ? ` = ${result}` : ''})`,
+            );
+            setOpen(false);
+          }}
           aria-label="Fechar calculadora"
           className="bg-transparent border-none cursor-pointer text-neutral-dark px-quarck text-md hover:text-brand-otimath-pure focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure rounded-sm transition-colors duration-200"
         >

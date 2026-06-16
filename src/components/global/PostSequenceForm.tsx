@@ -35,10 +35,11 @@ import { playSound } from '@/hooks/global/useSound';
 export const POST_SEQUENCE_QUESTIONNAIRE_URL =
   'https://forms.gle/SUBSTITUIR_PELO_LINK_DO_QUESTIONARIO';
 
-/** Senha de acesso ao questionário. Substituir pelo valor real antes
- *  da aplicação em sala. Comparação é case-sensitive e ignora espaços
- *  no início/fim do que o aluno digita (vide `handleSubmit`). */
-const POST_SEQUENCE_QUESTIONNAIRE_PASSWORD = '@dev@';
+/**
+ * Senha de acesso ao questionário fica AGORA no server (env
+ * `QUESTIONNAIRE_PASSWORD`). O client só envia o que o aluno
+ * digitou pra `/api/auth/verify-password` — nada vaza no bundle.
+ */
 
 export function PostSequenceForm() {
   const { modal, updateModal } = useModal();
@@ -50,6 +51,7 @@ export function PostSequenceForm() {
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Abre o modal — sempre num estado limpo (sem senha digitada antes,
   // sem erro anterior, NÃO destravado). Mesmo que o aluno tenha
@@ -65,34 +67,56 @@ export function PostSequenceForm() {
     });
   };
 
-  // Valida a senha digitada. Trim pra tolerar espaços acidentais
-  // no copy-paste; case-sensitive porque senhas devem ser exatas.
+  // Valida a senha contra o servidor (env QUESTIONNAIRE_PASSWORD).
   //
-  // FEEDBACK SONORO/VISUAL:
-  //  • Acerto: só som (`correct.mp3`) — a transição visual do modal
-  //    (estado destravado com check verde) já é o feedback suficiente.
-  //    Sem alert pra não duplicar.
-  //  • Erro: som (`incorrect.mp3`) + alert tipo `error` (vermelho) na
-  //    overlay. Passamos `silent: true` (6º param do createAlert) pra
-  //    que o observador da telemetria NÃO capture isso como um erro de
-  //    OVA — sem o flag, um erro de senha aberto durante uma seção
-  //    ativa viraria pseudo-erro no JSON do OVA corrente.
-  const handleSubmit = () => {
-    if (passwordInput.trim() === POST_SEQUENCE_QUESTIONNAIRE_PASSWORD) {
-      playSound('/sounds/correct.mp3');
-      setUnlocked(true);
-      setPasswordError(false);
-    } else {
+  // FEEDBACK:
+  //  • Acerto: só som — a transição visual do modal é feedback suficiente.
+  //  • Erro: som + alert tipo `error` (vermelho) com `silent: true`
+  //    pra que o observador da telemetria NÃO capture como erro de OVA.
+  //  • Rate-limit: o endpoint devolve 429 se brute-force; mostramos
+  //    mensagem específica.
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/verify-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ kind: 'questionnaire', password: passwordInput }),
+      });
+      if (res.ok) {
+        playSound('/sounds/correct.mp3');
+        setUnlocked(true);
+        setPasswordError(false);
+        return;
+      }
       playSound('/sounds/incorrect.mp3');
+      let msg = 'Confira a senha com o pesquisador e tente novamente.';
+      if (res.status === 429) {
+        msg = 'Muitas tentativas. Espere alguns segundos e tente novamente.';
+      }
       createAlert(
         'Senha incorreta',
-        'Confira a senha com o pesquisador e tente novamente.',
+        msg,
         'error',
         4000,
         undefined,
         true, // silent — não notifica telemetria
       );
       setPasswordError(true);
+    } catch {
+      playSound('/sounds/incorrect.mp3');
+      createAlert(
+        'Falha de conexão',
+        'Não foi possível validar a senha agora. Verifique sua internet.',
+        'error',
+        4000,
+        undefined,
+        true,
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -235,10 +259,10 @@ export function PostSequenceForm() {
               <Button
                 style="primary"
                 size="small"
-                onClick={handleSubmit}
-                disabled={passwordInput.trim().length === 0}
+                onClick={() => void handleSubmit()}
+                disabled={passwordInput.trim().length === 0 || submitting}
               >
-                Validar senha
+                {submitting ? 'Validando…' : 'Validar senha'}
               </Button>
             </>
           )
@@ -293,7 +317,7 @@ export function PostSequenceForm() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    handleSubmit();
+                    void handleSubmit();
                   }
                 }}
                 placeholder="Digite a senha fornecida pelo pesquisador"

@@ -924,6 +924,7 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
       currentStepKind === 'mark-B' ? 'B' :
       currentStepKind === 'mark-D' ? 'D' : null;
     if (!targetName) return;
+    telemetryRecordInteracaoExercicio(`clicou em "Marcar todos!" (marca todas as 36 células do evento ${targetName} — desafio ${challenge}, step ${step})`);
     logMarkAllUsed('unionExercise8', `c${challenge}-s${step}`, targetName);
 
     setEventsCheckboxes((prev) => {

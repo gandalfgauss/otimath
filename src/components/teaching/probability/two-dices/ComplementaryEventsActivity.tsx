@@ -17,7 +17,7 @@
 
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
-import { useTelemetryExercise } from '@/hooks/teaching/probability/useTelemetry';
+import { useTelemetryExercise, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import { Alerts } from '@/components/global/Alerts';
 import { Modal } from '@/components/global/Modal';
 import { TextBlock } from '@/components/global/TextBlock';
@@ -81,13 +81,68 @@ export const ComplementaryEventsActivity = forwardRef<
     h.subPhase === 'formalization' ? `formalization|step=${h.formStep}` : h.subPhase;
   // SEÇÃO POR SUB-FASE (+ formStep) — cada tela vira uma seção própria.
   // Mudou a fase → seção anterior é finalizada, exercícios não se misturam.
+  // Título dinâmico — inclui a sub-fase pra refletir a tela específica.
+  const subPhaseLabel = h.subPhase === 'strategyChoice' ? 'Escolha da estratégia'
+                      : h.subPhase === 'marking' ? 'Marcação na tabela 6×6'
+                      : h.subPhase === 'reveal' ? 'Revelação A ∪ Ā = Ω'
+                      : h.subPhase === 'strategyReview' ? 'Confronto / revisão da estratégia'
+                      : h.subPhase === 'computeComplementProb' ? 'Cálculo de P(Ā) pela definição clássica'
+                      : h.subPhase === 'formalization' ? `Formalização P(Ā) = 1 − P(A) (passo ${h.formStep})`
+                      : h.subPhase === 'probabilities' ? 'Cálculo final de P(A) = 1 − P(Ā)'
+                      : h.subPhase === 'complete' ? 'Concluído'
+                      : (h.subPhase || 'iniciando');
+  // Instruções/texto da tela atual.
+  const stripTextComp = (raw: string, max: number): string => {
+    const cleaned = (raw || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
+  };
+  const screenTextComp = stripTextComp(h.instructions || '', 480);
+  // ─── Nomes dos eventos do problema ATUAL — sem isso, a coleta perdia
+  // a descrição do evento A e do complementar Ā que o aluno está vendo
+  // na tela. Cada rodada sorteia um par diferente, e quem ler o JSON
+  // depois precisa saber qual evento está sendo trabalhado.
+  const eventoADesc = h.data?.eventA?.description ?? '?';
+  const eventoCompDesc = h.data?.eventComplement?.description ?? '?';
+  const nA = h.data?.nA;
+  const nE = h.data?.nE;
+  const eventosBloco =
+    `Evento A: "${eventoADesc}" (n(A) = ${nA ?? '?'} casos favoráveis) | ` +
+    `Evento complementar Ā: "${eventoCompDesc}" (n(Ā) = ${nE ?? '?'} casos favoráveis) | ` +
+    `Total de pares ordenados (espaço amostral Ω): 36`;
+  // ─── O que está sendo CALCULADO em cada sub-fase ───
+  const oQueCalcula =
+    h.subPhase === 'strategyChoice' ? 'Decisão metacognitiva sobre o caminho: marcar A diretamente ou marcar Ā (mais rápido em eventos densos).'
+    : h.subPhase === 'marking' ? (h.strategyChoice === COMPLEMENT_LABEL
+        ? `Marcação dos ${nE ?? '?'} casos favoráveis a Ā (complementar) na tabela 6×6.`
+        : `Marcação dos ${nA ?? '?'} casos favoráveis a A diretamente na tabela 6×6.`)
+    : h.subPhase === 'reveal' ? 'Visualização da relação A ∪ Ā = Ω (universo): juntos cobrem TODAS as 36 células.'
+    : h.subPhase === 'strategyReview' ? `Confronto: o aluno escolheu "${h.strategyChoice ?? '?'}". Agora decide se mantém ou muda essa estratégia.`
+    : h.subPhase === 'computeComplementProb' ? `Cálculo: P(Ā) = n(Ā) / n(Ω) = ${nE ?? '?'} / 36 — definição clássica de Laplace aplicada ao complementar.`
+    : h.subPhase === 'formalization' ? (() => {
+        const stepDesc =
+          h.formStep === 0 ? 'Passo 0 — Reconhecer que A e Ā cobrem Ω: P(A ∪ Ā) = P(Ω) = 1.'
+          : h.formStep === 1 ? 'Passo 1 — Reconhecer que A e Ā são disjuntos: P(A ∪ Ā) = P(A) + P(Ā).'
+          : h.formStep === 2 ? `Passo 2 — Substituir P(A ∪ Ā) por 1: 1 = P(A) + P(Ā).`
+          : h.formStep === 3 ? 'Passo 3 — Substituir P(Ā) calculado pela definição clássica: 1 = P(A) + n(Ā)/36.'
+          : h.formStep === 4 ? `Passo 4 — Isolar P(A): P(A) = 1 − P(Ā) = 1 − ${nE ?? '?'}/36 = ${(36 - (nE ?? 0))}/36.`
+          : h.formStep === 5 ? `Passo 5 — Reduzir a fração ${(36 - (nE ?? 0))}/36 (se aplicável) e expressar P(A) na forma simplificada.`
+          : `Passo ${h.formStep}`;
+        return `Derivação algébrica da fórmula P(A) = 1 − P(Ā). ${stepDesc}`;
+      })()
+    : h.subPhase === 'probabilities' ? `Cálculo final do problema: P(A) = ? para o evento "${eventoADesc}". Esperado: P(A) = ${nA ?? '?'}/36.`
+    : h.subPhase === 'complete' ? `Conclusão: P(A) = ${nA ?? '?'}/36 para o evento "${eventoADesc}".`
+    : '';
+  const fullDescricaoComp = [
+    screenTextComp && `Tela: ${screenTextComp}`,
+    eventosBloco,
+    oQueCalcula && `Ação atual do aluno / cálculo: ${oQueCalcula}`,
+    'Atividade global: aluno descobre P(A) + P(Ā) = 1 explorando casos na tabela 6×6 e formaliza P(Ā) = 1 − P(A).',
+    contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
+  ].filter(Boolean).join(' || ');
   useTelemetryExercise(
     `twoDices-cena7-complementaryEvents-${composedPhaseId}`,
-    'Eventos complementares — descoberta e formalização',
-    [
-      'Aluno descobre P(A) + P(Ā) = 1 explorando casos na tabela 6×6 e formaliza P(Ā) = 1 − P(A).',
-      contextParts.length > 0 ? `[aluno ${contextParts.join('; ')}]` : '',
-    ].filter(Boolean).join(' '),
+    `Eventos complementares — ${subPhaseLabel} — Evento A: "${eventoADesc}"`,
+    fullDescricaoComp,
   );
   useEffect(() => {
     onPhaseChange?.(composedPhaseId);
@@ -148,7 +203,10 @@ export const ComplementaryEventsActivity = forwardRef<
               type="radio"
               name="comp-strategy"
               checked={choice === A_LABEL}
-              onChange={() => h.setStrategyChoice(A_LABEL)}
+              onChange={() => {
+                telemetryRecordInteracaoExercicio('marcou estratégia: "Marcar diretamente os casos favoráveis ao evento A"');
+                h.setStrategyChoice(A_LABEL);
+              }}
               style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
             />
             <span className="ds-body">
@@ -160,7 +218,10 @@ export const ComplementaryEventsActivity = forwardRef<
               type="radio"
               name="comp-strategy"
               checked={choice === COMPLEMENT_LABEL}
-              onChange={() => h.setStrategyChoice(COMPLEMENT_LABEL)}
+              onChange={() => {
+                telemetryRecordInteracaoExercicio('marcou estratégia: "Marcar os casos favoráveis ao evento complementar de A (Ā)"');
+                h.setStrategyChoice(COMPLEMENT_LABEL);
+              }}
               style={{ width: 18, height: 18, accentColor: COLOR_COMPLEMENT }}
             />
             <span className="ds-body">
@@ -220,7 +281,10 @@ export const ComplementaryEventsActivity = forwardRef<
               name="comp-review"
               checked={reviewed === 'keep'}
               disabled={!!h.confrontMessage}
-              onChange={() => h.setReviewChoice('keep')}
+              onChange={() => {
+                telemetryRecordInteracaoExercicio(`marcou revisão: "Mantenho minha escolha" (escolha inicial: ${chooseLabel})`);
+                h.setReviewChoice('keep');
+              }}
               style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
             />
             <span className="ds-body">Mantenho minha escolha.</span>
@@ -237,7 +301,10 @@ export const ComplementaryEventsActivity = forwardRef<
               name="comp-review"
               checked={reviewed === 'change'}
               disabled={!!h.confrontMessage}
-              onChange={() => h.setReviewChoice('change')}
+              onChange={() => {
+                telemetryRecordInteracaoExercicio(`marcou revisão: "Mudo minha escolha" (escolha inicial: ${chooseLabel})`);
+                h.setReviewChoice('change');
+              }}
               style={{ width: 18, height: 18, accentColor: 'var(--color-brand-otimath-pure)' }}
             />
             <span className="ds-body">Mudo minha escolha.</span>
@@ -293,7 +360,10 @@ export const ComplementaryEventsActivity = forwardRef<
               <span className="ds-body-bold whitespace-nowrap">A ∪ Ā =</span>
               <select
                 value={h.formStep0Value}
-                onChange={e => h.setFormStep0Value(e.target.value)}
+                onChange={e => {
+                  telemetryRecordInteracaoExercicio(`formalização passo 0 — trocou opção do select "A ∪ Ā = ?" para "${e.target.value || '(?)'}"`);
+                  h.setFormStep0Value(e.target.value);
+                }}
                 disabled={h.formStep > 0}
               style={{
                 padding: '6px 10px',
