@@ -170,14 +170,21 @@ export default function DidacticSequencePage() {
     setLoginState('logged-in');
   }, [hydrateFromServer]);
 
-  // Logout: cai pro SequenceLogin. O POST /api/auth/logout já encerrou
-  // a run no banco e limpou o cookie via SequenceLogout — aqui só
-  // atualizamos UI e zeramos estado local pra próximo login não ver lixo.
+  // Logout: o POST /api/auth/logout já encerrou a run no banco
+  // (endedReason='logout') e limpou o cookie. Mas o React state daqui é
+  // só uma fatia do estado vivo do app — `useTelemetry` e
+  // `useSequenceSession` mantêm CONTADORES, HISTÓRICO e CRONÔMETROS em
+  // variáveis de MÓDULO (fora do React), que setState não zera. Sem
+  // reload, o próximo login do mesmo aluno na mesma aba veria a tela
+  // inicial com tempo já correndo do anterior, e o primeiro POST de
+  // /api/progress criaria a nova run com `telemetryJson` herdado da
+  // sequência antiga. Reload completo é a única forma robusta de zerar
+  // simultaneamente: (a) React state, (b) refs (`restoredRef`,
+  // `getSnapshotRef`), (c) variáveis de módulo dos hooks de telemetria
+  // e cronômetro, (d) timers do useProgressSync. Como o cookie já foi
+  // destruído pelo POST, o reload cai automaticamente na tela de login.
   const handleLogout = useCallback(() => {
-    restoredRef.current = false;
-    setStage('intro');
-    setCurrentOvaPhase(null);
-    setLoginState('logged-out');
+    if (typeof window !== 'undefined') window.location.reload();
   }, []);
 
   // Silencia a telemetria enquanto o painel DEV está aberto — navegação
