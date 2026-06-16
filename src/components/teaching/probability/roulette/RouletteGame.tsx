@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/global/Button";
 import { RefreshCw, Play, X, ArrowRight, Check, Info, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { Alerts } from "@/components/global/Alerts";
@@ -62,9 +62,30 @@ interface RouletteGameProps {
    *  simultaneamente, então sem este sinal o cronômetro ficaria preso ao
    *  último OVA mexido. */
   isActiveStage?: boolean;
+  /** Notificado a cada mudança de STAGE interna do OVA (1, 2 ou 3).
+   *  Pai usa pra persistir em `/api/progress` no campo `currentOvaPhase`
+   *  no formato `"roulette:stage:N"`. NÃO há restauração reversa — a
+   *  Roleta sempre começa no stage 1 ao re-montar, mesmo se o banco
+   *  tiver registrado stage > 1. Restaurar uma stage avançada exigiria
+   *  reconstruir state acumulado (setores configurados, frequências,
+   *  predições) — refactor inviável neste escopo. */
+  onPhaseChange?: (phase: string) => void;
 }
 
-export function RouletteGame({ onFinished, devMode = false, onProgressChange, isActiveStage = true }: Readonly<RouletteGameProps> = {}) {
+/** Handle exposto via ref pra persistência precisa do estado interno.
+ *  - `getSnapshot()`: retorna o `DevSnapshotOpaque` do useRouletteHooks
+ *    (estado COMPLETO — gameState + ~80 sub-states). Serializável via JSON.
+ *  - `applySnapshot(snap)`: aplica via `applyDevSnapshot` do hook.
+ *    Idempotente — aplicar 2x com o mesmo snap não muda nada. */
+export interface RouletteGameHandle {
+  getSnapshot: () => unknown;
+  applySnapshot: (snap: unknown) => void;
+}
+
+export const RouletteGame = forwardRef<RouletteGameHandle, RouletteGameProps>(function RouletteGameInner(
+  { onFinished, devMode = false, onProgressChange, isActiveStage = true, onPhaseChange }: Readonly<RouletteGameProps>,
+  ref,
+) {
   const {
     // Game state
     gameState,
@@ -320,6 +341,21 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     downloadLog,
     getLogSummary
   } = useRouletteHooks();
+
+  // Handle exposto pra persistência precisa (página pai puxa snapshot
+  // periodicamente no useProgressSync e aplica no mount caso o aluno
+  // tenha uma run ativa com `ovaSnapshot` salvo).
+  useImperativeHandle(ref, () => ({
+    getSnapshot: () => getDevSnapshot(),
+    applySnapshot: (snap: unknown) => {
+      try {
+        applyDevSnapshot(snap as DevSnapshotOpaque);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[RouletteGame.applySnapshot]', e);
+      }
+    },
+  }), [getDevSnapshot, applyDevSnapshot]);
 
   const frequencyData = getFrequencyData();
   const chartData = getChartData();
@@ -596,6 +632,13 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
     if (atFinalScreen) freezeOva('roulette');
     else                unfreezeOva('roulette');
   }, [gameState.stage, gameState.subStep]);
+
+  // Bubble da stage pro pai a cada mudança. Persistido em
+  // /api/progress como `currentOvaPhase = "roulette:stage:N"`.
+  // Restauração reversa NÃO está implementada (vide JSDoc da prop).
+  useEffect(() => {
+    onPhaseChange?.(`roulette:stage:${gameState.stage}`);
+  }, [gameState.stage, onPhaseChange]);
 
   // Telemetria por etapa — cada uma das 3 etapas conta como um "contexto/seção"
   // distinto. Cada Conferir vira um EXERCÍCIO novo no JSON estruturado.
@@ -6276,7 +6319,7 @@ export function RouletteGame({ onFinished, devMode = false, onProgressChange, is
 
     </div>
   );
-}
+});
 
 // ─────────────────────────────────────────────────────────────────
 // Barra de DEV interna do disco — uso restrito ao painel de DEV da

@@ -40,6 +40,11 @@ export interface ProgressPayload {
   elapsedTwoDicesMs: number;
   currentStage: string;
   currentOvaPhase: string | null;
+  /** Snapshot estruturado COMPLETO do OVA ativo — produto de
+   *  `RouletteGame.getSnapshot()` ou `TwoDicesPresentation.getSnapshot()`.
+   *  Forma: { ova: 'roulette'|'twoDices', snapshot: {...} } ou null
+   *  quando não há OVA ativo (stage 'intro' / 'transition' / 'complete'). */
+  ovaSnapshot: { ova: string; snapshot: unknown } | null;
 }
 
 interface UseProgressSyncOpts {

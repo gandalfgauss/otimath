@@ -11,8 +11,8 @@ import { Button } from "@/components/global/Button";
 import { Grid } from "@/components/global/Grid";
 import { GridItem } from "@/components/global/GridItem";
 import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
-import { RouletteGame } from "@/components/teaching/probability/roulette/RouletteGame";
-import { TwoDicesPresentation } from "@/components/teaching/probability/two-dices/TwoDicesPresentation";
+import { RouletteGame, type RouletteGameHandle } from "@/components/teaching/probability/roulette/RouletteGame";
+import { TwoDicesPresentation, type TwoDicesPresentationHandle } from "@/components/teaching/probability/two-dices/TwoDicesPresentation";
 import { StudyMenu } from "@/components/teaching/probability/two-dices/shared/StudyMenu";
 import {
   DISCO_GLOSSARY,
@@ -34,6 +34,7 @@ import {
 } from "@/hooks/teaching/probability/useSequenceSession";
 import {
   telemetrySetDevMode,
+  telemetrySetActiveOva,
   telemetryRecordInteracaoExercicio,
   telemetryRestore,
   getTelemetrySnapshot,
@@ -85,6 +86,11 @@ export default function DidacticSequencePage() {
   // concordam), e o useEffect abaixo lê o localStorage só no client.
   type LoginState = 'checking' | 'logged-in' | 'logged-out';
   const [loginState, setLoginState] = useState<LoginState>('checking');
+  // Flag global "sequência habilitada" lida de /api/admin/sequence-status.
+  // Inicia como null (sem dado) → trata como "habilitada" pra não trancar
+  // visualmente enquanto carrega. Polling a cada 10s pra detectar
+  // mudanças feitas pelo pesquisador (no DevPanel).
+  const [sequenceEnabled, setSequenceEnabled] = useState<boolean | null>(null);
   // Cena atual dentro do OVA ativo (string opaca, ex: "scene3-step2",
   // "complementaryEvents-marking"). Bubble dos OVAs via onPhaseChange.
   // Salvo no banco; restaurado ao retomar.
@@ -93,6 +99,52 @@ export default function DidacticSequencePage() {
   // — usado pra (a) passar pros OVAs como `initialPhase` na primeira
   // montagem e (b) NÃO chamar startSequence (que zeraria tudo).
   const restoredRef = useRef(false);
+  // Snapshot completo do OVA ativo, restaurado do banco. Aplicado via
+  // ref nos OVAs no useEffect abaixo (depois que o componente monta).
+  // Cleared pra null assim que aplicado pra não re-aplicar em re-renders.
+  const [pendingOvaSnapshot, setPendingOvaSnapshot] = useState<{ ova: string; snapshot: unknown } | null>(null);
+  // Refs pros 2 OVAs raiz pra puxar snapshots via getSnapshot() e
+  // aplicar via applySnapshot() na restauração.
+  const rouletteRef = useRef<RouletteGameHandle>(null);
+  const twoDicesRef = useRef<TwoDicesPresentationHandle>(null);
+
+  // Detecta transição BLOQUEADO → LIBERADO. Quando o pesquisador
+  // reativa a sequência, os OVAs vão re-montar do zero (estavam
+  // desmontados na tela de bloqueio). Pra restaurar a cena/snapshot
+  // do aluno, re-hidratamos do servidor — pega o snapshot que ficou
+  // intacto no banco (sync foi desligado durante o bloqueio).
+  const prevSequenceEnabledRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const prev = prevSequenceEnabledRef.current;
+    const cur = sequenceEnabled;
+    // Transição false → true (ignoramos null→true do mount inicial).
+    if (prev === false && cur === true && loginState === 'logged-in') {
+      void hydrateFromServer();
+    }
+    prevSequenceEnabledRef.current = cur;
+    // hydrateFromServer é stable (useCallback []).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sequenceEnabled, loginState]);
+
+  // Polling do status global da sequência. Roda 1x no mount + cada 10s.
+  // Quando o pesquisador toggla no DevPanel, alunos com a aba aberta
+  // detectam em até 10s e ganham/perdem acesso. Polling deduplica
+  // sozinho via setState (re-render só se valor mudou).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+    const fetchStatus = async () => {
+      try {
+        const r = await fetch('/api/admin/sequence-status', { credentials: 'same-origin' });
+        if (cancelled || !r.ok) return;
+        const d = await r.json() as { enabled: boolean };
+        setSequenceEnabled(d.enabled);
+      } catch { /* silencioso */ }
+    };
+    void fetchStatus();
+    const id = window.setInterval(fetchStatus, 10_000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
 
   // Verifica sessão no servidor; se logado E tem run ativa, hidrata.
   useEffect(() => {
@@ -134,6 +186,7 @@ export default function DidacticSequencePage() {
         elapsedTwoDicesMs: number;
         currentStage: string;
         currentOvaPhase: string | null;
+        ovaSnapshot: { ova: string; snapshot: unknown } | null;
       };
       if (!data.runId) return; // sem run ativa, começa do zero
       // Restaura cronômetro (tempo continua de onde parou).
@@ -152,6 +205,25 @@ export default function DidacticSequencePage() {
         setStage(data.currentStage as Stage);
       }
       setCurrentOvaPhase(data.currentOvaPhase);
+      // `telemetryRestore` zera `session.activeOvaId` da telemetria.
+      // `setActiveOva` do useSequenceSession tem early-return quando o
+      // valor é igual ao atual (linha 173) — durante o bloqueio, o
+      // `activeOva` lá continuou sendo 'roulette'/'twoDices' (a tela
+      // de bloqueio não muda), então `setActiveOva('roulette')` aqui
+      // pularia o `telemetrySetActiveOva()` interno e o
+      // `session.activeOvaId` da telemetria ficaria `null` pra sempre,
+      // fazendo toda interação cair no early-return `if (!ova)`.
+      // Solução: chamar `telemetrySetActiveOva` DIRETO pra restaurar
+      // o ID no namespace da telemetria sem depender do guard do
+      // useSequenceSession.
+      if (data.currentStage === 'roulette') telemetrySetActiveOva('roulette');
+      else if (data.currentStage === 'twoDices') telemetrySetActiveOva('twoDices');
+      // Enfileira aplicação do snapshot completo — vai disparar via
+      // useEffect abaixo assim que o OVA correto montar e o ref estiver
+      // disponível.
+      if (data.ovaSnapshot && typeof data.ovaSnapshot === 'object') {
+        setPendingOvaSnapshot(data.ovaSnapshot);
+      }
       restoredRef.current = true;
     } catch (e) {
       console.warn('[hydrateFromServer]', e);
@@ -191,9 +263,19 @@ export default function DidacticSequencePage() {
   // via setas, jumps de subStep e cliques nos controles DEV não devem
   // poluir a coleta real do aluno. O contexto (enter/exit/section)
   // continua sendo rastreado, só a GRAVAÇÃO de eventos é pulada.
-  useEffect(() => {
-    telemetrySetDevMode(devMode);
-  }, [devMode]);
+  //
+  // Wrapper SÍNCRONO em vez de useEffect: o setDevMode + useEffect
+  // tem race — entre o commit do React e o effect rodar, qualquer
+  // interação do aluno cai com `devModeActive` no valor antigo.
+  // Exemplo: aluno clicava X do DevPanel e fazia primeira interação
+  // rápida → recordValidation fazia early-return porque devModeActive
+  // ainda era true → só o click global era registrado, sem acerto/erro.
+  // Atualizando o flag DENTRO do callback, antes do setState, garante
+  // que toda interação subsequente já vê o valor novo.
+  const updateDevMode = useCallback((next: boolean) => {
+    telemetrySetDevMode(next);
+    setDevMode(next);
+  }, []);
   // Progresso interno do OVA ativo (0..1) — reportado pelos OVAs via
   // callback `onProgressChange`. Mapeado para a faixa global do estágio
   // (roulette: 0→0.25; twoDices: 0.5→0.75) na barra do topo.
@@ -288,32 +370,112 @@ export default function DidacticSequencePage() {
     // Se a sessão foi restaurada via hydrateFromServer, restoreSession() já
     // foi chamado (com tempos preservados). NÃO chamar startSequence aqui
     // — ele zeraria os contadores.
+    //
+    // IMPORTANTE: NÃO zera `restoredRef.current` aqui dentro. Em React
+    // StrictMode dev, o effect roda DUAS vezes intencionalmente — se
+    // zerássemos no 1º run, o 2º run veria a flag false e chamaria
+    // startSequence(), zerando todos os contadores recém-restaurados.
+    // O reset da flag fica fora deste effect (via lastStageRef abaixo).
     if (stage !== 'intro' && !restoredRef.current) startSequence();
     if (stage === 'complete')                                  endSequence();
     else if (stage === 'intro' || stage === 'transition')      setActiveOva(null);
     else if (stage === 'roulette')                             setActiveOva('roulette');
     else if (stage === 'twoDices')                             setActiveOva('twoDices');
-    // Depois de aplicar o stage restaurado uma vez, libera startSequence
-    // pra próximos stages serem registrados normalmente (não é mais
-    // restauração, é avanço natural do aluno).
-    if (restoredRef.current && stage !== 'intro') restoredRef.current = false;
+  }, [stage]);
+
+  // Libera `restoredRef` SOMENTE quando o stage realmente mudou pra
+  // diferente do que foi restaurado — é o "avanço natural" do aluno, e
+  // a próxima entrada em outro stage deve seguir o caminho normal.
+  // Rodando em useEffect separado e comparando contra lastStageRef pra
+  // ser imune a re-execução de StrictMode (que dispara o effect com o
+  // mesmo `stage` 2x consecutivas).
+  const lastStageRef = useRef<Stage | null>(null);
+  useEffect(() => {
+    if (lastStageRef.current !== null && lastStageRef.current !== stage) {
+      // Stage realmente mudou — não é mais restauração.
+      restoredRef.current = false;
+    }
+    lastStageRef.current = stage;
   }, [stage]);
 
   // ─── Sync contínuo de progresso para o servidor ──────────────────
   // Liga o salvamento em /api/progress. NO-OP enquanto devMode=true.
   // Snapshot inclui: telemetria, tempos de sessão e dos OVAs, stage atual
   // e cena dentro do OVA (currentOvaPhase). Veja useProgressSync.ts.
-  const getProgressSnapshot = useCallback((): ProgressPayload => ({
-    telemetryJson: getTelemetrySnapshot(),
-    elapsedTotalMs: getElapsedTotalMs(),
-    elapsedRouletteMs: getElapsedOvaMs('roulette'),
-    elapsedTwoDicesMs: getElapsedOvaMs('twoDices'),
-    currentStage: stage,
-    currentOvaPhase,
-  }), [stage, currentOvaPhase]);
+  const getProgressSnapshot = useCallback((): ProgressPayload => {
+    // Puxa snapshot do OVA ativo via ref (se houver). Esse snapshot
+    // contém ~100 campos de state interno (gameState completo da Roleta
+    // ou todas as cenas/sub-fases do Dois Dados). Permite restauração
+    // PRECISA na próxima sessão.
+    let ovaSnapshot: { ova: string; snapshot: unknown } | null = null;
+    try {
+      if (stage === 'roulette' && rouletteRef.current) {
+        ovaSnapshot = { ova: 'roulette', snapshot: rouletteRef.current.getSnapshot() };
+      } else if (stage === 'twoDices' && twoDicesRef.current) {
+        ovaSnapshot = { ova: 'twoDices', snapshot: twoDicesRef.current.getSnapshot() };
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[getProgressSnapshot] falhou ao puxar ovaSnapshot', e);
+    }
+    return {
+      telemetryJson: getTelemetrySnapshot(),
+      elapsedTotalMs: getElapsedTotalMs(),
+      elapsedRouletteMs: getElapsedOvaMs('roulette'),
+      elapsedTwoDicesMs: getElapsedOvaMs('twoDices'),
+      currentStage: stage,
+      currentOvaPhase,
+      ovaSnapshot,
+    };
+  }, [stage, currentOvaPhase]);
+
+  // Aplica `pendingOvaSnapshot` assim que o ref do OVA correto estiver
+  // disponível. RETRY loop com setTimeout porque refs não disparam
+  // re-render quando setados — sem retry, se o ref ainda for null no
+  // 1º tentamento (componente em mid-mount), o useEffect não roda de
+  // novo (stage/pendingOvaSnapshot não mudaram) e o snapshot fica
+  // enfileirado pra sempre. Loop tenta a cada 100ms por até 3s.
+  useEffect(() => {
+    if (!pendingOvaSnapshot) return;
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 30; // ~3s total
+    const apply = () => {
+      if (cancelled) return;
+      if (pendingOvaSnapshot.ova === 'roulette' && rouletteRef.current && stage === 'roulette') {
+        rouletteRef.current.applySnapshot(pendingOvaSnapshot.snapshot);
+        setPendingOvaSnapshot(null);
+        return;
+      }
+      if (pendingOvaSnapshot.ova === 'twoDices' && twoDicesRef.current && stage === 'twoDices') {
+        twoDicesRef.current.applySnapshot(pendingOvaSnapshot.snapshot);
+        setPendingOvaSnapshot(null);
+        return;
+      }
+      attempts++;
+      if (attempts < MAX_ATTEMPTS) {
+        setTimeout(apply, 100);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn('[applyPendingOvaSnapshot] esgotou tentativas — ref do OVA nunca ficou pronto');
+      }
+    };
+    // 1ª tentativa após 1 frame (espera commit do render)
+    requestAnimationFrame(apply);
+    return () => { cancelled = true; };
+  }, [stage, pendingOvaSnapshot]);
   useProgressSync({
     // Liga apenas após login + sai do `intro` (antes não há nada pra salvar).
-    enabled: loginState === 'logged-in' && stage !== 'intro' && !devMode,
+    // `sequenceEnabled !== false` cobre os 3 estados:
+    //   true  → sync roda (acesso liberado)
+    //   null  → sync roda (ainda carregando — assume liberado)
+    //   false → sync NÃO roda (acesso bloqueado pelo pesquisador)
+    // Sem este guard, durante a tela "Sequência indisponível" o
+    // RouletteGame/TwoDicesPresentation estão DESMONTADOS, ref vira
+    // null, e o tick mandaria `ovaSnapshot: null` ao banco —
+    // sobrescrevendo o snapshot bom que existia. Bug reportado:
+    // "ativo→desativo→ativo: dados voltam mas etapa não".
+    enabled: loginState === 'logged-in' && stage !== 'intro' && !devMode && sequenceEnabled !== false,
     getSnapshot: getProgressSnapshot,
   });
 
@@ -337,9 +499,11 @@ export default function DidacticSequencePage() {
 
   const goToStage = useCallback((target: Stage) => setStage(target), []);
 
-  // "Iniciar a sequência didática" — botão único que dispara o
-  // cronômetro global e limpa logs prévios para que as estatísticas
-  // da nova sessão fiquem isoladas.
+  // "Iniciar a sequência didática" — dispara o cronômetro global e
+  // avança pro primeiro OVA. O gating de acesso (habilitar/desabilitar
+  // a sequência) é controlado server-side via AppSetting; quando o
+  // pesquisador desliga, o aluno não chega até este botão (vê tela de
+  // "sequência indisponível"). Nenhum gating local aqui.
   const handleStartSequence = useCallback(() => {
     startSequence();
     goToStage('roulette');
@@ -371,10 +535,12 @@ export default function DidacticSequencePage() {
             </GridItem>
             <GridItem cols="col-[1_/_13]">
               <RouletteGame
+                ref={rouletteRef}
                 onFinished={handleRouletteFinished}
                 devMode={devMode}
                 onProgressChange={setRouletteProgress}
                 isActiveStage={stage === 'roulette'}
+                onPhaseChange={setCurrentOvaPhase}
               />
             </GridItem>
           </Grid>
@@ -391,10 +557,13 @@ export default function DidacticSequencePage() {
             </GridItem>
             <GridItem cols="col-[1_/_13]">
               <TwoDicesPresentation
+                ref={twoDicesRef}
                 onFinished={handleTwoDicesFinished}
                 devMode={devMode}
                 onProgressChange={setTwoDicesProgress}
                 isActiveStage={stage === 'twoDices'}
+                initialPhase={currentOvaPhase}
+                onPhaseChange={setCurrentOvaPhase}
               />
             </GridItem>
           </Grid>
@@ -472,6 +641,40 @@ export default function DidacticSequencePage() {
             </div>
           </GridItem>
         </Grid>
+      ) : loginState === 'logged-in' && sequenceEnabled === false && !devMode ? (
+        // Sequência DESABILITADA pelo pesquisador. Aluno fica nessa tela
+        // até o pesquisador ligar no DevPanel. Mostra logout (caso queira
+        // sair) + DevPanel (pra que o pesquisador ative o devMode aqui
+        // mesmo e libere o acesso). Polling de 10s renova `sequenceEnabled`
+        // — quando virar true, esta árvore desmonta e cai no fluxo normal.
+        <>
+          <div className="flex justify-end pt-micro pb-micro pl-xxs pr-xxs">
+            <SequenceLogout onLogout={handleLogout} />
+          </div>
+          <Grid paddings="pt-xxs pb-xxs">
+            <GridItem cols="col-[2_/_12] max-md:col-[1_/_13]">
+              <div className="bg-feedback-warning-lightest border-thin border-feedback-warning-dark rounded-lg p-xxs flex flex-col items-center text-center gap-y-xs">
+                <h2 className="ds-heading-mega text-feedback-warning-darkest">
+                  Sequência didática indisponível
+                </h2>
+                <p className="ds-body text-neutral-darkest max-w-[560px]">
+                  O acesso à sequência ainda não foi liberado pelo pesquisador.
+                  Aguarde a liberação — esta tela será atualizada
+                  automaticamente em poucos segundos.
+                </p>
+                <p className="ds-small text-neutral-dark italic">
+                  Se acha que isso é um erro, avise o pesquisador.
+                </p>
+              </div>
+            </GridItem>
+          </Grid>
+          <DevPanel
+            devMode={devMode}
+            setDevMode={updateDevMode}
+            stage={stage}
+            goToStage={goToStage}
+          />
+        </>
       ) : loginState === 'logged-in' ? (
         <>
           {/* Faixa acima da barra de progresso — alinha o botão de
@@ -506,7 +709,7 @@ export default function DidacticSequencePage() {
 
           <DevPanel
             devMode={devMode}
-            setDevMode={setDevMode}
+            setDevMode={updateDevMode}
             stage={stage}
             goToStage={goToStage}
           />
@@ -587,6 +790,56 @@ function DevPanel({
     setJumpInput('');
   };
 
+  // ─── Toggle global "sequência habilitada" ─────────────────────────
+  // Quando devMode está ativo, mostra o estado atual da flag global
+  // (lida de /api/admin/sequence-status) e permite ligar/desligar pra
+  // todos os alunos. O POST exige DEV_MODE_PASSWORD (já que o pesquisador
+  // chegou no DevPanel digitando ela, mandamos junto na mesma req).
+  const [seqEnabled, setSeqEnabled] = useState<boolean | null>(null);
+  const [seqToggling, setSeqToggling] = useState(false);
+  // Carrega o estado atual quando devMode liga.
+  useEffect(() => {
+    if (!devMode) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch('/api/admin/sequence-status', { credentials: 'same-origin' });
+        if (cancelled) return;
+        if (r.ok) {
+          const d = await r.json() as { enabled: boolean };
+          setSeqEnabled(d.enabled);
+        }
+      } catch { /* silencioso */ }
+    })();
+    return () => { cancelled = true; };
+  }, [devMode]);
+  const toggleSeq = async () => {
+    if (seqEnabled === null || seqToggling) return;
+    setSeqToggling(true);
+    try {
+      const r = await fetch('/api/admin/sequence-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        // Reusa a senha que o pesquisador acabou de digitar pra ativar o
+        // devMode. Como o `secret` foi limpo após ativação, pedimos de
+        // novo via prompt() — frágil mas pragmático pro DevPanel.
+        body: JSON.stringify({
+          devPassword: window.prompt('Confirme a senha DEV pra alterar:') ?? '',
+          enabled: !seqEnabled,
+        }),
+      });
+      if (r.ok) {
+        const d = await r.json() as { enabled: boolean };
+        setSeqEnabled(d.enabled);
+      } else {
+        window.alert('Falha ao alterar (senha errada ou rede).');
+      }
+    } finally {
+      setSeqToggling(false);
+    }
+  };
+
   const goPrev = () => { if (currentIdx > 0) goToStage(STAGES[currentIdx - 1]); };
   const goNext = () => { if (currentIdx < total - 1) goToStage(STAGES[currentIdx + 1]); };
   const handleJump = () => {
@@ -664,6 +917,29 @@ function DevPanel({
             Ir
           </button>
         </div>
+
+        {/* ─── Toggle global "Sequência habilitada" ───────────────── */}
+        <div className="border-t border-neutral-lighter pt-micro mt-micro">
+          <p className="ds-caption text-neutral-dark mb-quarck">Acesso dos alunos</p>
+          {seqEnabled === null ? (
+            <p className="ds-small text-neutral-medium italic">carregando…</p>
+          ) : (
+            <button
+              onClick={toggleSeq}
+              disabled={seqToggling}
+              className={`w-full px-micro py-quarck rounded-md ds-small-bold cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-otimath-dark disabled:opacity-50 ${
+                seqEnabled
+                  ? 'bg-feedback-success-darker text-neutral-white hover:opacity-90'
+                  : 'bg-feedback-error-darker text-neutral-white hover:opacity-90'
+              }`}
+              title={seqEnabled
+                ? 'Clique pra DESABILITAR o acesso (alunos verão "indisponível")'
+                : 'Clique pra HABILITAR o acesso (alunos podem usar)'}
+            >
+              {seqToggling ? 'salvando…' : seqEnabled ? '🟢 Habilitada — clique p/ desligar' : '🔴 Desabilitada — clique p/ ligar'}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -678,17 +954,41 @@ function DevPanel({
       {inputVisible && (
         <input
           ref={secretInputRef}
-          type="password"
+          // type="text" + ofuscação CSS em vez de type="password". Motivo:
+          // o autofill agressivo do Chrome/Edge dispara em type=password,
+          // podendo preencher tanto este input quanto OUTROS inputs da
+          // tela (era o bug reportado — input do exercício recebia valor
+          // ao abrir a bolinha do DEV). Marcadores extras (autoComplete,
+          // data-1p-ignore, data-lpignore, name aleatório) desabilitam
+          // gerenciadores de senha (1Password, LastPass, Bitwarden).
+          type="text"
+          name={`dev-secret-${Math.random().toString(36).slice(2)}`}
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-form-type="other"
           value={secret}
           onChange={(e) => handleSecretChange(e.target.value)}
           onBlur={() => { if (!secret) setInputVisible(false); }}
           placeholder="..."
           aria-label="Senha de desenvolvimento"
           className="w-24 px-micro py-quarck rounded-md border border-neutral-light ds-small text-center outline-none focus:border-brand-otimath-pure bg-neutral-white shadow-sm"
+          style={{ WebkitTextSecurity: 'disc' } as React.CSSProperties}
         />
       )}
       <button
-        onClick={() => setInputVisible(v => !v)}
+        type="button"
+        onClick={() => {
+          // Tira o foco de QUALQUER input atualmente focado antes de
+          // mostrar o input do DEV. Sem isso, o Chrome pode disparar
+          // autofill no campo focado anteriormente (input do exercício)
+          // quando o novo input aparece em foco.
+          if (typeof document !== 'undefined') {
+            const a = document.activeElement;
+            if (a instanceof HTMLElement) a.blur();
+          }
+          setInputVisible(v => !v);
+        }}
         aria-label="Acesso ao painel de desenvolvimento"
         className="w-3 h-3 rounded-full bg-neutral-darkest opacity-15 hover:opacity-70 focus:opacity-70 cursor-pointer transition-opacity duration-200 focus:outline-none focus:ring-2 focus:ring-brand-otimath-pure"
       />

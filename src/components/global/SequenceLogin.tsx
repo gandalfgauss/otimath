@@ -110,8 +110,7 @@ export function SequenceLogin({ onLogin }: Readonly<SequenceLoginProps>) {
             <div className="w-12 h-0.5 bg-brand-otimath-pure rounded-full" />
             <p className="ds-body text-neutral-darkest max-w-[520px] leading-relaxed">
               Esta sequência didática faz parte de uma <strong>pesquisa
-              acadêmica do PROFMAT</strong>. Use o usuário e a senha que o
-              pesquisador combinou com você pra começar.
+              acadêmica do PROFMAT</strong>.
             </p>
           </div>
 
@@ -213,12 +212,6 @@ export function SequenceLogin({ onLogin }: Readonly<SequenceLoginProps>) {
               </p>
             )}
           </div>
-
-          {/* Microcopy de tom + recurso de recuperação informal. */}
-          <p className="ds-caption text-neutral-dark italic text-center">
-            Esqueceu o acesso? Entre em contato com o pesquisador
-            responsável pra recuperar suas credenciais.
-          </p>
         </form>
       </GridItem>
       </Grid>

@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'bad_payload' }, { status: 400 });
   }
-  const kind = body.kind === 'questionnaire' || body.kind === 'devmode' ? body.kind : null;
+  const kind: Kind | null =
+    body.kind === 'questionnaire' || body.kind === 'devmode' ? body.kind : null;
   const password = typeof body.password === 'string' ? body.password.trim() : '';
   if (!kind || !password) {
     return NextResponse.json({ error: 'bad_payload' }, { status: 400 });

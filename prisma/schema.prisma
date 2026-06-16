@@ -57,6 +57,27 @@ model SequenceRun {
   // currentOvaPhase: cenaId / phase string específico do OVA atual (opaco aqui).
   currentOvaPhase     String?   @map("current_ova_phase")
 
+  // Snapshot ESTRUTURADO de TODO o state interno do OVA ativo (resultado
+  // de getDevSnapshot() do RouletteGame ou TwoDicesPresentation). Permite
+  // restauração PRECISA de sub-fases (subStep da Roleta, sub-cena interna
+  // do Dois Dados) — granularidade muito mais fina que currentOvaPhase.
+  // Forma: { ova: 'roulette'|'twoDices', snapshot: {...} } ou null se o
+  // aluno ainda não entrou em nenhum OVA (stage='intro') ou se está num
+  // OVA cujo handle não expõe snapshot (transição/complete).
+  ovaSnapshot         Json?     @map("ova_snapshot")
+
   @@index([userId, endedAt])
   @@map("sequence_runs")
+}
+
+// Configurações globais do app — key/value simples. Hoje só usado pra
+// flag "sequence_enabled" (ligar/desligar acesso à sequência didática
+// pra todos os alunos). O DevPanel tem um toggle que escreve aqui.
+// Em produção poderia migrar pra Redis/KV se ficar muito grande.
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
 }

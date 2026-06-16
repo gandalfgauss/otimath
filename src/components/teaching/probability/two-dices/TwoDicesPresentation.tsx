@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { forwardRef, useState, useEffect, useCallback, useImperativeHandle, useRef, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/global/Button';
@@ -235,16 +235,55 @@ interface TwoDicesPresentationProps {
    *  do `setActiveOva` ficaria preso ao último OVA mexido mesmo após o
    *  pai trocar de stage. */
   isActiveStage?: boolean;
+  /** Fase persistida da sessão anterior (vindo de `/api/progress`).
+   *  Formato: `"twoDices:scene:N"` (N=1..7). Restaurada uma única vez
+   *  no mount; mudanças posteriores não re-disparam o restore.
+   *  Granularidade hoje: nível de CENA. Sub-fases internas das cenas
+   *  (sub-steps de cena 5/6/7) não são restauradas — futuras melhorias. */
+  initialPhase?: string | null;
+  /** Notificado a cada mudança de cena INTERNA do OVA. Pai usa pra
+   *  persistir em `/api/progress` (campo `currentOvaPhase`). */
+  onPhaseChange?: (phase: string) => void;
 }
 
-export function TwoDicesPresentation({ children, onFinished, devMode = false, onProgressChange, isActiveStage = true }: TwoDicesPresentationProps) {
+/** Parse de `"twoDices:scene:3"` → 3. Retorna null se formato inválido.
+ *  Tolerante: aceita qualquer N ∈ {1..7}; valores fora são tratados como null. */
+function parseScene(phase: string | null | undefined): number | null {
+  if (!phase) return null;
+  const match = /^twoDices:scene:(\d)$/.exec(phase);
+  if (!match) return null;
+  const n = Number(match[1]);
+  return n >= 1 && n <= 7 ? n : null;
+}
+
+/** Handle exposto via ref pra persistência precisa.
+ *  - `getSnapshot()`: retorna o DevSnapshot completo do componente.
+ *  - `applySnapshot(snap)`: aplica via applyDevSnapshot interno. */
+export interface TwoDicesPresentationHandle {
+  getSnapshot: () => unknown;
+  applySnapshot: (snap: unknown) => void;
+}
+
+export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDicesPresentationProps>(function TwoDicesPresentationInner(
+  { children, onFinished, devMode = false, onProgressChange, isActiveStage = true, initialPhase = null, onPhaseChange }: TwoDicesPresentationProps,
+  ref,
+) {
   // Sistema de alerts toast — consistente com o restante do OVA dos dados
   // (ComplementaryEventsActivity, useComplementaryEventsHooks, etc.).
   const { alerts, createAlert, updateAlert, deleteAlerts } = useAlerts();
 
   const [done, setDone] = useState(false);
-  const [scene, setScene] = useState(1);
+  // Cena restaurada do banco se houver — caso contrário, começa em 1.
+  // `parseScene` é chamado UMA VEZ no init do useState (lazy initializer).
+  const [scene, setScene] = useState(() => parseScene(initialPhase) ?? 1);
   const [transitioning, setTransitioning] = useState(false);
+
+  // Bubble da cena pro pai a cada mudança. Inclui o mount inicial pra
+  // garantir que `currentOvaPhase` seja persistido logo na entrada do
+  // OVA (mesmo sem restauração, garante que o banco tenha o ponto certo).
+  useEffect(() => {
+    onPhaseChange?.(`twoDices:scene:${scene}`);
+  }, [scene, onPhaseChange]);
 
   // Chave que incrementa quando a página fica visível depois de ter ficado
   // oculta. Aplicada como `key` em cada cena WebGL (DiceScene, TwoDiceScene,
@@ -972,6 +1011,20 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       }
     });
   };
+
+  // Handle exposto pra persistência precisa (pai puxa snapshot via
+  // useProgressSync e aplica no mount se houver `ovaSnapshot` salvo).
+  useImperativeHandle(ref, () => ({
+    getSnapshot: () => getDevSnapshot(),
+    applySnapshot: (snap: unknown) => {
+      try {
+        applyDevSnapshot(snap as DevSnapshot);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[TwoDicesPresentation.applySnapshot]', e);
+      }
+    },
+  }), [getDevSnapshot, applyDevSnapshot]);
 
   // Histórico de snapshots — vive aqui (não no DevNav) para persistir
   // capturas mesmo quando o painel DEV está desligado.
@@ -2072,7 +2125,7 @@ export function TwoDicesPresentation({ children, onFinished, devMode = false, on
       <Alerts alerts={alerts} updateAlert={updateAlert} deleteAlerts={deleteAlerts} />
     </main>
   );
-}
+});
 
 // ─────────────────────────────────────────────────────────────────
 // Barra de DEV interna do Dois Dados — uso restrito ao painel de DEV da
