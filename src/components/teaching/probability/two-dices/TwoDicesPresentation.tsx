@@ -954,8 +954,18 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
   const applyDevSnapshot = (snap: DevSnapshot) => {
     setDone(snap.done);
     setScene(snap.scene);
-    setTransitioning(snap.transitioning);
-    setCurrentFaceIdx(snap.currentFaceIdx);
+    // `transitioning` é flag transitória (400ms entre cenas) — o
+    // setTimeout que a limpa NÃO sobrevive ao F5. Restaurar com `true`
+    // travaria `goToScene` (que early-returna se transitioning=true).
+    setTransitioning(false);
+    // Cena 2 = animação automática que percorre as 6 faces e termina
+    // com `goToScene(3)`. O loop async original NÃO sobrevive ao F5 —
+    // qualquer snapshot pego com `scene === 2` deixaria o aluno preso
+    // (numa face intermediária ou na última, sem disparar o goToScene).
+    // Zera pro estado inicial (-1) e re-dispara `startScene2` mais
+    // abaixo pra que o aluno assista a animação completa de novo.
+    const needsScene2Restart = snap.scene === 2;
+    setCurrentFaceIdx(needsScene2Restart ? -1 : snap.currentFaceIdx);
     setBarsAnimated(snap.barsAnimated);
     setScene3Step(snap.scene3Step);
     setScene3SampleSpace(snap.scene3SampleSpace);
@@ -1000,6 +1010,13 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
     // da fase REAL e o aluno via cenas serem puladas. Aqui sincronizamos
     // explicitamente o phase interno de cada handle filho.
     requestAnimationFrame(() => {
+      if (needsScene2Restart) {
+        // Reset do guard ref e re-disparo da sequência automática.
+        // 300ms espelha o delay usado em `goToScene(2)` — dá tempo do
+        // diceRef montar e do scroll terminar.
+        scene2Running.current = false;
+        setTimeout(() => startScene2(), 300);
+      }
       if (snap.scene === 5) {
         practiceRef.current?.setCurrentPhaseId?.(snap.scene5InternalPhase);
       }

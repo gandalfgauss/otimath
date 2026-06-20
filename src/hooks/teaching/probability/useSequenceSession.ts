@@ -47,6 +47,7 @@ import {
   telemetryReset,
   telemetrySetActiveOva,
   initTelemetryListeners,
+  getTelemetrySnapshot,
 } from './useTelemetry';
 
 export type OvaKey = 'roulette' | 'twoDices';
@@ -356,32 +357,36 @@ export interface SequenceStats {
   total: OvaStats;
 }
 
-// `attempts` foi removido das stats públicas — a métrica "Tentativas" não é
-// mais coletada/exibida. Entries do tipo 'attempt' continuam logados pra
-// derivar `errors` e `successes` (filtrando por success=false/true).
-function statsFromEntries(
-  entries: readonly { type: string; data: Record<string, unknown> }[],
-  elapsedMs: number,
-): OvaStats {
-  const attemptsArr = entries.filter((e) => e.type === 'attempt');
-  const errors = attemptsArr.filter((e) => e.data.success === false).length;
-  const successes = attemptsArr.filter((e) => e.data.success === true).length;
-  return {
-    elapsedMs,
-    interactions: entries.length,
-    errors,
-    successes,
-  };
-}
-
+// Lê interações/erros/acertos da TELEMETRIA ESTRUTURADA (getTelemetrySnapshot)
+// — não dos logs internos de cada OVA. Motivo: os logs internos
+// (useRouletteLog/useTwoDicesLog) são ZERADOS por restoreSession durante
+// hidratação pós-F5 (sem persistência no snapshot do banco). Já a
+// telemetria estruturada é restaurada via telemetryRestore com os
+// contadores intactos. Cronômetros continuam vindo de getElapsedOvaMs/
+// getElapsedTotalMs (restaurados corretamente em restoreSession).
 export function getSequenceStats(): SequenceStats {
-  const roulette = statsFromEntries(getRouletteLogEntries(), getElapsedOvaMs('roulette'));
-  const twoDices = statsFromEntries(getTwoDicesEntries(), getElapsedOvaMs('twoDices'));
+  const snap = getTelemetrySnapshot();
+  const findOva = (id: 'roulette' | 'twoDices') =>
+    snap.ovas.find((o) => o.ova_id === id);
+  const r = findOva('roulette');
+  const t = findOva('twoDices');
+  const roulette: OvaStats = {
+    elapsedMs: getElapsedOvaMs('roulette'),
+    interactions: r?.total_interacoes_ova ?? 0,
+    errors: r?.total_erros_ova ?? 0,
+    successes: r?.total_acertos_ova ?? 0,
+  };
+  const twoDices: OvaStats = {
+    elapsedMs: getElapsedOvaMs('twoDices'),
+    interactions: t?.total_interacoes_ova ?? 0,
+    errors: t?.total_erros_ova ?? 0,
+    successes: t?.total_acertos_ova ?? 0,
+  };
   const total: OvaStats = {
     elapsedMs: getElapsedTotalMs(),
-    interactions: roulette.interactions + twoDices.interactions,
-    errors: roulette.errors + twoDices.errors,
-    successes: roulette.successes + twoDices.successes,
+    interactions: snap.total_interacoes_sequencia,
+    errors: snap.total_erros_sequencia,
+    successes: snap.total_acertos_sequencia,
   };
   return { roulette, twoDices, total };
 }

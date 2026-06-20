@@ -12194,8 +12194,20 @@ export const useRouletteHooks = () => {
       return out;
     };
 
-    // Core
-    setGameState(snap.gameState);
+    // Core — zerar TODAS as flags de animação transitória. Os
+    // setTimeouts que as desligam NÃO sobrevivem ao F5; restaurar com
+    // true trava a UI pra sempre na animação. Casos cobertos:
+    //   • isSpinning      — giro manual (botão Sortear)
+    //   • isAutoSpinning  — bloco de giros automáticos (50/100/150/200,
+    //                       Etapa 1 SubStep 10 + Etapa 2 SubStep 8 etc.)
+    // O aluno volta no estado "pronto pra clicar de novo" e a contagem
+    // de giros (totalSpins, frequências, tabela) é preservada do
+    // snapshot — só o lote em curso é descartado.
+    setGameState({
+      ...snap.gameState,
+      isSpinning: false,
+      isAutoSpinning: false,
+    });
     setShowInfoBox(snap.showInfoBox);
     setInfoBoxContent(snap.infoBoxContent);
     setInstructions(snap.instructions);
@@ -12311,8 +12323,16 @@ export const useRouletteHooks = () => {
     setTrainProbInputs(mergeInputDict(setTrainProbInputs, snap.trainProbInputs));
     setFracTraining(snap.fracTraining);
     setFracThetaInputs(snap.fracThetaInputs);
-    setConvergenceSim(snap.convergenceSim);
-    setS2SpinReflection(snap.s2SpinReflection);
+    // convergenceSim.running e s2SpinReflection.phase='spinning' são
+    // estados transitórios de animação automática (setTimeouts internos
+    // que não sobrevivem ao F5). Promove pra estado estável: convergência
+    // volta a "parado, pronto pra clicar no próximo bloco"; reflexão
+    // pula direto pra fase 'question' (o aluno acabou de ver o giro).
+    setConvergenceSim({ ...snap.convergenceSim, running: false, progress: 0 });
+    setS2SpinReflection({
+      ...snap.s2SpinReflection,
+      phase: snap.s2SpinReflection.phase === 'spinning' ? 'question' : snap.s2SpinReflection.phase,
+    });
     // Etapa 3
     setS3State(snap.s3State);
     // UI flags

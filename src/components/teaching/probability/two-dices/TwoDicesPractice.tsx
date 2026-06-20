@@ -1283,10 +1283,20 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
         const eq = part.indexOf('=');
         if (eq > 0) fields[part.slice(0, eq)] = part.slice(eq + 1);
       }
+      // Restauração de snapshot: as sub-fases `rolling` são transitórias
+      // (animação 3D do dado) e dependem de timers que NÃO sobrevivem
+      // ao F5. Promove pra `landed` — estado estável onde o resultado
+      // já está visível e o aluno clica pra continuar.
       if (fields.main) setMainPhase(fields.main as typeof mainPhase);
-      if (fields.exp)  setExpSubPhase(fields.exp as typeof expSubPhase);
+      if (fields.exp) {
+        const exp = fields.exp === 'rolling' ? 'landed' : fields.exp;
+        setExpSubPhase(exp as typeof expSubPhase);
+      }
       if (fields.ex)   setExerciseIdx(parseInt(fields.ex, 10) || 0);
-      if (fields.sub)  setExSubPhase(fields.sub as typeof exSubPhase);
+      if (fields.sub) {
+        const sub = fields.sub === 'rolling' ? 'landed' : fields.sub;
+        setExSubPhase(sub as typeof exSubPhase);
+      }
     },
   }), [
     mainPhase, expSubPhase, exSubPhase, exerciseIdx, bet, diceResult,

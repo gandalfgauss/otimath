@@ -2447,7 +2447,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
         });
         return;
       }
-      setPhase(phaseId as Phase);
+      // Restauração de snapshot: a fase `rolling` é transitória
+      // (animação 3D dos dados) e depende de timers que NÃO sobrevivem
+      // ao F5. Sem mapear, o aluno fica vendo os dados girarem
+      // eternamente. Promove pra `landed` — estado estável onde o
+      // resultado já está visível e o aluno clica pra continuar.
+      const stableId = phaseId === 'rolling' ? 'landed' : phaseId;
+      setPhase(stableId as Phase);
     },
   }), [phase, round, pedagogicDone, greenResult, blueResult, sampleSpaceTreePhase, complementaryEventsPhase, unionTheoryPhase, onFinished, ex7Completed, ex8Completed, unionTheoryRef, unionExercise1Ref, unionExercise2Ref, unionExercise3Ref, unionExercise4Ref, unionExercise5Ref, unionExercise6Ref]);
 

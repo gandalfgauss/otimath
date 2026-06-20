@@ -1050,7 +1050,19 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
       }
     },
     setCurrentPhaseId: (phaseId: string) => {
-      setPhase(phaseId as typeof phase);
+      // Restauração de snapshot: fases `*-rolling` são transitórias
+      // (animação 3D de dado girando) e dependem de timers que NÃO
+      // sobrevivem ao F5. Sem mapear, o aluno fica preso assistindo
+      // dado eternamente sem timer pra resolver. Promovemos pra fase
+      // estável seguinte (s1-pick / s2-pick / s3-pick) onde o aluno
+      // marca o resultado — mesma transição que o DEV `advance` usa
+      // quando pula a animação.
+      const stableId =
+        phaseId === 's1-rolling' ? 's1-pick'
+        : phaseId === 's2-rolling' ? 's2-pick'
+        : phaseId === 's3-rolling' ? 's3-pick'
+        : phaseId;
+      setPhase(stableId as typeof phase);
     },
   }), [phase, onFinished]);
 
