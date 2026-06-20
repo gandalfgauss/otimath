@@ -36,7 +36,7 @@
      um objeto NOVO (não é mutado retroativamente).
    ═══════════════════════════════════════════════════════════════════ */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { subscribeToAlerts } from '@/hooks/global/useAlerts';
 import type { AlertType } from '@/components/global/Alert';
 // Importa a fonte canônica do cronômetro da sessão pra evitar drift entre
@@ -1364,23 +1364,42 @@ export function useReadingTelemetry(
   descricao: string,
   detalhe: string,
 ): () => void {
+  // Token incremental compartilhado entre runs do effect. Cada run captura
+  // o próprio número; o cleanup defere o confirm pra microtask e só
+  // executa se o token ainda for o mesmo no momento da execução. Em
+  // React StrictMode (dev), o ciclo é effect→cleanup→effect síncrono na
+  // mesma task — então quando a microtask do cleanup intermediário roda,
+  // o segundo effect já avançou o token, e o confirm fantasma é pulado.
+  // Sem essa proteção, F5 numa cena com balão restaurado gerava DOIS
+  // exercícios atômicos por balão (cleanup do strict mode confirmava 1,
+  // cleanup real confirmava o 2º).
+  const tokenRef = useRef(0);
   useEffect(() => {
     if (!active) return;
+    const myToken = ++tokenRef.current;
     telemetryStartReading(id);
     // Cleanup roda quando:
     //   • `active` muda pra false (dispensa do balão)
     //   • `id` muda (novo balão substitui o atual)
     //   • Componente desmonta (navegação, troca de stage, logout)
-    // Confirma com os valores DESTE ciclo (closure capturada agora,
-    // não os de um ciclo futuro). Idempotente: se foi chamado
-    // manualmente via `confirm()` antes, o `telemetryConfirmReading`
-    // detecta que o pending já foi consumido e vira no-op.
+    //   • StrictMode dev (entre effect e re-effect)
+    // Confirma com os valores DESTE ciclo (closure). Idempotente
+    // contra StrictMode via tokenRef; idempotente contra duplo
+    // confirm via `telemetryConfirmReading` (que checa pending).
     return () => {
-      telemetryConfirmReading(id, title, descricao, detalhe);
+      queueMicrotask(() => {
+        if (tokenRef.current !== myToken) return;
+        telemetryConfirmReading(id, title, descricao, detalhe);
+      });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, id]); // title/descricao/detalhe lidos via closure — mudanças não disparam novo ciclo
   return useCallback(() => {
+    // Confirmação manual (clique em "Li."): avança o token pra invalidar
+    // qualquer microtask de cleanup que esteja na fila — evita o confirm
+    // ser executado 2x quando o handler do botão chama isso ANTES do
+    // cleanup do efeito (que rodaria logo após, via setShowInfoBox(false)).
+    tokenRef.current++;
     telemetryConfirmReading(id, title, descricao, detalhe);
   }, [id, title, descricao, detalhe]);
 }

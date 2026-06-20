@@ -12157,6 +12157,43 @@ export const useRouletteHooks = () => {
   type DevSnapshot = ReturnType<typeof getDevSnapshot>;
 
   const applyDevSnapshot = useCallback((snap: DevSnapshot) => {
+    // Helpers de merge pra inputs com `setValue` (TextInputInterface).
+    // Snapshots passam por JSON.stringify no servidor — funções são
+    // descartadas. Se sobrescrevermos o estado direto pelo snap, o
+    // `setValue` original (closure sobre o setter desta render) some, e
+    // o `<TextInput value={...} setValue={...}>` chama `undefined` no
+    // onChange — input fica travado, aluno digita mas nada aparece.
+    // Estas funções preservam o `setValue` do estado atual e atualizam
+    // apenas value/disabled/error/etc (campos serializáveis).
+    const mergeInput = <T extends TextInputInterface>(snapInput: T) =>
+      (prev: T): T => ({ ...snapInput, setValue: prev.setValue });
+    // Para dicts, `prev[key]` pode não existir (dict começa vazio no mount
+    // e o snapshot traz as keys depois). Quando não há `setValue` a
+    // preservar, RECRIAMOS a closure com o mesmo padrão das declarações
+    // originais: `setter(prev => ({...prev, [key]: {...prev[key], value: val}}))`.
+    // Sem isso, o input fica travado com `setValue is not a function`.
+    const mergeInputDict = <T extends TextInputInterface>(
+      setter: React.Dispatch<React.SetStateAction<Record<string, T>>>,
+      snapDict: Record<string, T>,
+    ) => (prev: Record<string, T>): Record<string, T> => {
+      const out: Record<string, T> = {};
+      for (const key of Object.keys(snapDict)) {
+        const preservedSetValue = prev[key]?.setValue;
+        if (preservedSetValue !== undefined) {
+          out[key] = { ...snapDict[key], setValue: preservedSetValue };
+        } else {
+          const recreatedSetValue = (val: string) => {
+            setter(curr => ({
+              ...curr,
+              [key]: { ...curr[key], value: val } as T,
+            }));
+          };
+          out[key] = { ...snapDict[key], setValue: recreatedSetValue };
+        }
+      }
+      return out;
+    };
+
     // Core
     setGameState(snap.gameState);
     setShowInfoBox(snap.showInfoBox);
@@ -12169,21 +12206,22 @@ export const useRouletteHooks = () => {
     setCurrentQuestion(snap.currentQuestion);
     setSuboptimalAttempts(snap.suboptimalAttempts);
     setProgressiveReadingStep(snap.progressiveReadingStep);
-    // Inputs Etapa 1
-    setSampleSpaceInput(snap.sampleSpaceInput);
-    setSampleSpaceCountInput(snap.sampleSpaceCountInput);
-    setProbabilityInputs(snap.probabilityInputs);
-    setRelativeFrequencyInputs(snap.relativeFrequencyInputs);
-    setConvergenceInputs(snap.convergenceInputs);
-    setColorCountInputs(snap.colorCountInputs);
-    setTheoreticalQuestion1Input(snap.theoreticalQuestion1Input);
-    setTheoreticalQuestion2Input(snap.theoreticalQuestion2Input);
-    setFavorableCasesInput(snap.favorableCasesInput);
-    setPredictionInput(snap.predictionInput);
-    setExerciseNEInput(snap.exerciseNEInput);
-    setExerciseNSInput(snap.exerciseNSInput);
-    setExercisePENumeratorInput(snap.exercisePENumeratorInput);
-    setExercisePEDenominatorInput(snap.exercisePEDenominatorInput);
+    // Inputs Etapa 1 — usar mergeInput / mergeInputDict pra preservar
+    // o `setValue` original (vide comentário no topo deste callback).
+    setSampleSpaceInput(mergeInput(snap.sampleSpaceInput));
+    setSampleSpaceCountInput(mergeInput(snap.sampleSpaceCountInput));
+    setProbabilityInputs(mergeInputDict(setProbabilityInputs, snap.probabilityInputs));
+    setRelativeFrequencyInputs(mergeInputDict(setRelativeFrequencyInputs, snap.relativeFrequencyInputs));
+    setConvergenceInputs(mergeInputDict(setConvergenceInputs, snap.convergenceInputs));
+    setColorCountInputs(mergeInputDict(setColorCountInputs, snap.colorCountInputs));
+    setTheoreticalQuestion1Input(mergeInput(snap.theoreticalQuestion1Input));
+    setTheoreticalQuestion2Input(mergeInput(snap.theoreticalQuestion2Input));
+    setFavorableCasesInput(mergeInput(snap.favorableCasesInput));
+    setPredictionInput(mergeInput(snap.predictionInput));
+    setExerciseNEInput(mergeInput(snap.exerciseNEInput));
+    setExerciseNSInput(mergeInput(snap.exerciseNSInput));
+    setExercisePENumeratorInput(mergeInput(snap.exercisePENumeratorInput));
+    setExercisePEDenominatorInput(mergeInput(snap.exercisePEDenominatorInput));
     setDeterministicExamplesViewed(snap.deterministicExamplesViewed);
     setRandomExamplesViewed(snap.randomExamplesViewed);
     // Disjuntos
@@ -12242,16 +12280,16 @@ export const useRouletteHooks = () => {
     // Etapa 2
     setS2RandomColors(snap.s2RandomColors);
     setS2AngleReadingStep(snap.s2AngleReadingStep);
-    setS2RatioInputs(snap.s2RatioInputs);
-    setS2IxInputs(snap.s2IxInputs);
-    setS2SumEquationInput(snap.s2SumEquationInput);
-    setS2XInput(snap.s2XInput);
-    setS2NumProbInputs(snap.s2NumProbInputs);
-    setS2AngleProbInputs(snap.s2AngleProbInputs);
-    setS2PredictionInput(snap.s2PredictionInput);
-    setS2FreqAbsInputs(snap.s2FreqAbsInputs);
-    setS2FreqRelInputs(snap.s2FreqRelInputs);
-    setS2ConclusionInput(snap.s2ConclusionInput);
+    setS2RatioInputs(mergeInputDict(setS2RatioInputs, snap.s2RatioInputs));
+    setS2IxInputs(mergeInputDict(setS2IxInputs, snap.s2IxInputs));
+    setS2SumEquationInput(mergeInput(snap.s2SumEquationInput));
+    setS2XInput(mergeInput(snap.s2XInput));
+    setS2NumProbInputs(mergeInputDict(setS2NumProbInputs, snap.s2NumProbInputs));
+    setS2AngleProbInputs(mergeInputDict(setS2AngleProbInputs, snap.s2AngleProbInputs));
+    setS2PredictionInput(mergeInput(snap.s2PredictionInput));
+    setS2FreqAbsInputs(mergeInputDict(setS2FreqAbsInputs, snap.s2FreqAbsInputs));
+    setS2FreqRelInputs(mergeInputDict(setS2FreqRelInputs, snap.s2FreqRelInputs));
+    setS2ConclusionInput(mergeInput(snap.s2ConclusionInput));
     setS2RatioPhase(snap.s2RatioPhase);
     setS2ConceptQuestion(snap.s2ConceptQuestion);
     setS2ConceptSelected(snap.s2ConceptSelected);
@@ -12267,10 +12305,10 @@ export const useRouletteHooks = () => {
     setS2IxSumSelected(snap.s2IxSumSelected);
     setS2IxCalcStep(snap.s2IxCalcStep);
     setTrainingState(snap.trainingState);
-    setTrainRatioInputs(snap.trainRatioInputs);
-    setTrainIxInputs(snap.trainIxInputs);
-    setTrainSumInput(snap.trainSumInput);
-    setTrainProbInputs(snap.trainProbInputs);
+    setTrainRatioInputs(mergeInputDict(setTrainRatioInputs, snap.trainRatioInputs));
+    setTrainIxInputs(mergeInputDict(setTrainIxInputs, snap.trainIxInputs));
+    setTrainSumInput(mergeInput(snap.trainSumInput));
+    setTrainProbInputs(mergeInputDict(setTrainProbInputs, snap.trainProbInputs));
     setFracTraining(snap.fracTraining);
     setFracThetaInputs(snap.fracThetaInputs);
     setConvergenceSim(snap.convergenceSim);

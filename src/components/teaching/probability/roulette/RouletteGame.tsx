@@ -342,6 +342,16 @@ export const RouletteGame = forwardRef<RouletteGameHandle, RouletteGameProps>(fu
     getLogSummary
   } = useRouletteHooks();
 
+  // Sinaliza pros trackers de mudança (slider, selectedOption, etc.) que
+  // os próximos renders são consequência da aplicação programática de um
+  // snapshot — não interações do aluno. Quando true, os trackers
+  // atualizam `prevRef` mas NÃO emitem `telemetryRecordInteracaoExercicio`.
+  // Sem isso, restaurar um snapshot via F5 gerava: (a) um exercício
+  // fantasma na seção velha contendo o `selectedOption` do snapshot e
+  // (b) às vezes um item "slider: 1 → X" no histórico do exercício real
+  // (debounce de 500ms que pegava a mudança programática do sliderValue).
+  const isRestoringSnapshotRef = useRef(false);
+
   // Handle exposto pra persistência precisa (página pai puxa snapshot
   // periodicamente no useProgressSync e aplica no mount caso o aluno
   // tenha uma run ativa com `ovaSnapshot` salvo).
@@ -349,8 +359,20 @@ export const RouletteGame = forwardRef<RouletteGameHandle, RouletteGameProps>(fu
     getSnapshot: () => getDevSnapshot(),
     applySnapshot: (snap: unknown) => {
       try {
+        isRestoringSnapshotRef.current = true;
         applyDevSnapshot(snap as DevSnapshotOpaque);
+        // Mantém a flag ativa até o ciclo render+effects do snapshot
+        // terminar. 2 frames de RAF garantem que os useEffect dos
+        // trackers (que rodam logo após o commit) e qualquer setTimeout
+        // agendado dentro deles (debounce 500ms do slider) sejam vistos
+        // sob a flag — efeito do snapshot, não do aluno.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            isRestoringSnapshotRef.current = false;
+          });
+        });
       } catch (e) {
+        isRestoringSnapshotRef.current = false;
         // eslint-disable-next-line no-console
         console.error('[RouletteGame.applySnapshot]', e);
       }
@@ -503,6 +525,9 @@ export const RouletteGame = forwardRef<RouletteGameHandle, RouletteGameProps>(fu
     if (prev === sliderValue) return;
     prevSliderRef.current = sliderValue;
     if (prev === null) return; // skip initial mount/reativação
+    // Restauração via snapshot (F5 + login) muda sliderValue
+    // programaticamente — pula sem disparar.
+    if (isRestoringSnapshotRef.current) return;
     // (Não anotamos stage/subStep no texto — quem lê o JSON já tem o
     // `title`/`descricao` da seção corrente como âncora. Numeração
     // interna polui sem agregar.)
@@ -553,6 +578,11 @@ export const RouletteGame = forwardRef<RouletteGameHandle, RouletteGameProps>(fu
       if (prev === null) return; // primeira leitura
       if (!cur && !prev) return; // ambos vazios
       if (!cur && prev) return; // não-vazio→vazio é quase sempre reset programático
+      // Restauração via snapshot na MESMA cena (subStep não muda) — pula
+      // o tracker. A guarda de subStep acima já cobre o caso comum (F5
+      // que cai em outro subStep); essa flag cobre o edge case do
+      // snapshot na cena 1.0 default.
+      if (isRestoringSnapshotRef.current) return;
       const handle = window.setTimeout(() => {
         telemetryRecordInteracaoExercicio(
           prev
@@ -585,6 +615,9 @@ export const RouletteGame = forwardRef<RouletteGameHandle, RouletteGameProps>(fu
     prevInterpRef.current = cur;
     if (prev === null) return; // mount inicial
     if (!cur) return; // reset programático
+    // Restauração via snapshot (F5 + login) muda interpretationSelected
+    // programaticamente — pula sem disparar.
+    if (isRestoringSnapshotRef.current) return;
     // Resolve label legível: 'sim'/'nao' direto; em q3, o id ('correct'/'e0'/...)
     // não é informativo, então usamos o texto da alternativa se disponível.
     const q3Label = interpretationQ3?.alternatives.find(a => a.id === cur)?.text;
@@ -610,6 +643,9 @@ export const RouletteGame = forwardRef<RouletteGameHandle, RouletteGameProps>(fu
     prevSelectedOptionRef.current = selectedOption;
     if (prev === null) return; // skip initial mount/reativação
     if (!selectedOption) return; // reset pra '' não é interação
+    // Restauração via snapshot (F5 + login) muda selectedOption
+    // programaticamente — pula sem disparar.
+    if (isRestoringSnapshotRef.current) return;
     // Traduz value → label legível. `currentQuestion` reflete a pergunta
     // ATUAL — se o aluno mudou de opção antes de trocar de pergunta, é a
     // mesma pergunta pra ambos os values. Em casos de race onde a pergunta

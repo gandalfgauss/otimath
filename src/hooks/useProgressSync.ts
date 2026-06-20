@@ -98,7 +98,14 @@ export function useProgressSync(opts: UseProgressSyncOpts): void {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'same-origin',
           body: JSON.stringify(payload),
-          keepalive: true,
+          // keepalive REMOVIDO de propósito — esse flag impõe um limite
+          // GLOBAL de 64KB no body de TODOS os requests keepalive em
+          // flight. Em cenas tardias (ex.: Stage 1 SubStep 6.56 — União
+          // de eventos), gameState + telemetryJson combinados podem
+          // passar disso, e o browser rejeita o fetch com "Failed to
+          // fetch" antes mesmo de tentar mandar. O caso real do
+          // keepalive (sobreviver ao fechamento da aba) já é coberto
+          // pelo navigator.sendBeacon mais abaixo no beforeUnload.
         });
         if (res.ok) {
           retries = 0;
