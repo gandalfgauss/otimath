@@ -356,6 +356,10 @@ export interface DiceSceneHandle {
   setBetting: (betting: boolean, onSelect?: (face: number) => void) => void;
   highlightFace: (face: number | null) => void;
   setMuteImpact: (mute: boolean) => void;
+  /** Posiciona o dado em repouso mostrando a face indicada (1-6) SEM
+   *  animação. Usado pra restaurar o resultado visual após F5 — o
+   *  `diceResult` do snapshot é re-aplicado direto no dado 3D. */
+  setFace: (face: number) => void;
 }
 
 const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialColor?: DiceColor }>(function DiceScene(
@@ -901,7 +905,20 @@ const DiceScene = forwardRef<DiceSceneHandle, { aspectRatio?: string; initialCol
     if (s) s.muteImpact = mute;
   }, []);
 
-  useImperativeHandle(ref, () => ({ roll, setIdle, setColor, setBetting, highlightFace, setMuteImpact }), [roll, setIdle, setColor, setBetting, highlightFace, setMuteImpact]);
+  // Mesma lógica da restauração pós-revival WebGL (linha 533), mas
+  // exposta pra ser chamada explicitamente pelo pai com o resultado
+  // restaurado do snapshot após F5.
+  const setFace = useCallback((face: number) => {
+    const s = internals.current;
+    if (!s || face < 1 || face > 6) return;
+    s.die.position.set(0, REST_Y, 0);
+    s.die.quaternion.copy(s.snapRot[face]);
+    s.mode = 'resting';
+    s.rollTarget = face;
+    lastFaceCache = face;
+  }, []);
+
+  useImperativeHandle(ref, () => ({ roll, setIdle, setColor, setBetting, highlightFace, setMuteImpact, setFace }), [roll, setIdle, setColor, setBetting, highlightFace, setMuteImpact, setFace]);
 
   return (
     <div

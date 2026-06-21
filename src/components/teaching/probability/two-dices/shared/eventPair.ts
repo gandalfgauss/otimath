@@ -251,6 +251,52 @@ export function selectPairForRound(round: number, _usedIds?: Set<string>): Event
   throw new Error('eventPair: falha ao gerar par — espaço paramétrico inesperadamente vazio');
 }
 
+// ─── Serialização para snapshot F5 ──────────────────────────────
+
+export interface EventPairSerialized {
+  id: string;
+  category: string;
+  eventA: { description: string; sumsDescription: string; predicatePairs: string[] };
+  eventB: { description: string; sumsDescription: string; predicatePairs: string[] };
+}
+
+function serializeEventDef(ev: EventDef): { description: string; sumsDescription: string; predicatePairs: string[] } {
+  const pairs: string[] = [];
+  for (let r = 1; r <= 6; r++) {
+    for (let c = 1; c <= 6; c++) {
+      if (ev.predicate(r, c)) pairs.push(`${r},${c}`);
+    }
+  }
+  return { description: ev.description, sumsDescription: ev.sumsDescription, predicatePairs: pairs };
+}
+
+function deserializeEventDef(s: { description: string; sumsDescription: string; predicatePairs: string[] }): EventDef {
+  const set = new Set(s.predicatePairs);
+  return {
+    description: s.description,
+    sumsDescription: s.sumsDescription,
+    predicate: (r, c) => set.has(`${r},${c}`),
+  };
+}
+
+export function serializeEventPair(pair: EventPair): EventPairSerialized {
+  return {
+    id: pair.id,
+    category: pair.category,
+    eventA: serializeEventDef(pair.eventA),
+    eventB: serializeEventDef(pair.eventB),
+  };
+}
+
+export function deserializeEventPair(s: EventPairSerialized): EventPair {
+  return {
+    id: s.id,
+    category: s.category,
+    eventA: deserializeEventDef(s.eventA),
+    eventB: deserializeEventDef(s.eventB),
+  };
+}
+
 // ─── Utilitários de conjuntos no plano Ω = {1,...,6}² ───────────
 
 export function pairsMatching(predicate: (r: number, c: number) => boolean): Set<string> {

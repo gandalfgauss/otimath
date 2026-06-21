@@ -35,7 +35,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import React, {
-  useState, useCallback, useMemo, useEffect,
+  useState, useCallback, useMemo, useEffect, useRef,
   forwardRef, useImperativeHandle,
 } from 'react';
 import { Button } from '@/components/global/Button';
@@ -47,6 +47,7 @@ import {
   pairsMatching, setIntersection,
   MarkMatrix, createEmptyMatrix, matrixToKeySet,
   EVENT_COLORS,
+  serializeEventPair, deserializeEventPair, type EventPairSerialized,
 } from './shared/eventPair';
 import { selectExclusivePairForRound } from './shared/eventPairExclusive';
 import { MarkingTable, EventCard } from './shared/MarkingTable';
@@ -82,6 +83,10 @@ interface UnionExercise3Props {
   initialStep?: ExStep;
   /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
   createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
+  /** Emite snapshot JSON v2 completo pro pai. */
+  onPhaseChange?: (phaseId: string) => void;
+  /** Snapshot pra restauração pós-F5 no mount. */
+  initialPhaseSnapshot?: string;
 }
 
 export interface UnionExercise3Handle {
@@ -89,6 +94,8 @@ export interface UnionExercise3Handle {
   back: () => void;
   canAdvance: () => boolean;
   canBack: () => boolean;
+  getCurrentPhaseId: () => string;
+  setCurrentPhaseId: (phaseId: string) => void;
 }
 
 // Seleção de gerador por rodada:
@@ -233,8 +240,16 @@ function validateFractionSeparate(
 // ═══════════════════════════════════════════════════════════════
 
 export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Props>(
-  function UnionExercise3({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
-    const [step, setStep] = useState<ExStep>(initialStep ?? 'intro');
+  function UnionExercise3({ onFinished, onRequestPreviousPhase, initialStep, createAlert, onPhaseChange, initialPhaseSnapshot }, ref) {
+    const initialStepFromSnapshot = (() => {
+      if (!initialPhaseSnapshot) return null;
+      try {
+        const obj = JSON.parse(initialPhaseSnapshot);
+        if (obj && typeof obj === 'object' && typeof obj.step === 'string') return obj.step as ExStep;
+      } catch { /* ignore */ }
+      return null;
+    })();
+    const [step, setStep] = useState<ExStep>(initialStepFromSnapshot ?? initialStep ?? 'intro');
     // Telemetria — leitura do enunciado do Ex.3.
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',
@@ -595,12 +610,58 @@ export const UnionExercise3 = forwardRef<UnionExercise3Handle, UnionExercise3Pro
       }
     }, [step, onRequestPreviousPhase]);
 
+    const snapshotPayload = JSON.stringify({
+      v: 2,
+      step, round, currentPair: serializeEventPair(currentPair),
+      usedPairIds: Array.from(usedPairIds),
+      marksA, marksB, marksAmB, marksBmA,
+      pAmBNum, pAmBDen, pBmANum, pBmADen,
+    });
+    useEffect(() => {
+      onPhaseChange?.(snapshotPayload);
+    }, [snapshotPayload, onPhaseChange]);
+
+    const applyPhaseId = useCallback((phaseId: string) => {
+      try {
+        const obj = JSON.parse(phaseId);
+        if (obj && typeof obj === 'object') {
+          if (typeof obj.step === 'string') setStep(obj.step as ExStep);
+          if (typeof obj.round === 'number') setRound(obj.round);
+          if (obj.currentPair && typeof obj.currentPair === 'object' && 'eventA' in obj.currentPair) {
+            setCurrentPair(deserializeEventPair(obj.currentPair as EventPairSerialized));
+          }
+          if (Array.isArray(obj.usedPairIds)) setUsedPairIds(new Set(obj.usedPairIds));
+          if (Array.isArray(obj.marksA)) setMarksA(obj.marksA);
+          if (Array.isArray(obj.marksB)) setMarksB(obj.marksB);
+          if (Array.isArray(obj.marksAmB)) setMarksAmB(obj.marksAmB);
+          if (Array.isArray(obj.marksBmA)) setMarksBmA(obj.marksBmA);
+          if (typeof obj.pAmBNum === 'string') setPAmBNum(obj.pAmBNum);
+          if (typeof obj.pAmBDen === 'string') setPAmBDen(obj.pAmBDen);
+          if (typeof obj.pBmANum === 'string') setPBmANum(obj.pBmANum);
+          if (typeof obj.pBmADen === 'string') setPBmADen(obj.pBmADen);
+          return;
+        }
+      } catch { /* formato antigo */ }
+      setStep(phaseId as ExStep);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const didInitialRestoreRef = useRef(false);
+    useEffect(() => {
+      if (didInitialRestoreRef.current) return;
+      didInitialRestoreRef.current = true;
+      if (initialPhaseSnapshot) applyPhaseId(initialPhaseSnapshot);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useImperativeHandle(ref, () => ({
       advance: advanceStep,
       back: backStep,
       canAdvance: () => STEP_SEQUENCE.indexOf(step) >= 0,
       canBack: () => STEP_SEQUENCE.indexOf(step) > 0 || !!onRequestPreviousPhase,
-    }), [advanceStep, backStep, step, onRequestPreviousPhase]);
+      getCurrentPhaseId: () => snapshotPayload,
+      setCurrentPhaseId: applyPhaseId,
+    }), [advanceStep, backStep, step, onRequestPreviousPhase, snapshotPayload, applyPhaseId]);
 
     // ── Props do MarkingTable conforme step ──────────────────────
     const tableProps = useMemo(() => {

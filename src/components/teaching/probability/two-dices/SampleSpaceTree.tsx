@@ -126,16 +126,52 @@ interface SampleSpaceTreeProps {
   onPhaseChange?: (phaseId: string) => void;
   /** Cria um toast alert via o sistema de alerts global do OVA. */
   createAlert?: (title: string, description: string, type: AlertType, timeout?: number, userResponse?: string) => void;
+  /** Snapshot JSON v2 pra inicializar o state direto no mount — evita
+   *  a janela onde o componente monta com defaults ('select1', etc.) e
+   *  precisa esperar um RAF do `setCurrentPhaseId` pra restaurar. Sem
+   *  isso, o emit do useEffect no mount sobrescrevia o JSON do banco
+   *  com o default no parent. */
+  initialSnapshot?: string;
 }
 
 const GREEN_COLOR = '#1a5c2e';
 const BLUE_COLOR = 'var(--color-brand-otimath-pure)';
 const BRANCH_COLOR = '#8b1a1a'; // vermelho escuro
 
+// Tenta parsear o JSON v2 de inicialização. Retorna parciais — cada
+// useState abaixo cai pro default se o campo faltar.
+function parseInitial(snapshot: string | undefined): {
+  phase?: Phase;
+  selectedFaces?: Set<number>;
+  countAnswer?: string;
+  multA?: string; multOp?: string; multB?: string; multC?: string;
+  totalAnswer?: string;
+} {
+  if (!snapshot) return {};
+  try {
+    const obj = JSON.parse(snapshot);
+    if (!obj || typeof obj !== 'object') return {};
+    return {
+      phase: typeof obj.phase === 'string' ? obj.phase as Phase : undefined,
+      selectedFaces: Array.isArray(obj.selectedFaces) ? new Set(obj.selectedFaces) : undefined,
+      countAnswer: typeof obj.countAnswer === 'string' ? obj.countAnswer : undefined,
+      multA: typeof obj.multA === 'string' ? obj.multA : undefined,
+      multOp: typeof obj.multOp === 'string' ? obj.multOp : undefined,
+      multB: typeof obj.multB === 'string' ? obj.multB : undefined,
+      multC: typeof obj.multC === 'string' ? obj.multC : undefined,
+      totalAnswer: typeof obj.totalAnswer === 'string' ? obj.totalAnswer : undefined,
+    };
+  } catch { return {}; }
+}
+
 export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTreeProps>(
-  function SampleSpaceTree({ onFinished, diceSceneRef, onPhaseChange, createAlert }, ref) {
-  const [phase, setPhase] = useState<Phase>('select1');
-  const [selectedFaces, setSelectedFaces] = useState<Set<number>>(new Set());
+  function SampleSpaceTree({ onFinished, diceSceneRef, onPhaseChange, createAlert, initialSnapshot }, ref) {
+  // Lazy init: parseia o snapshot UMA vez no mount (não a cada render).
+  // Se o pai passar um JSON v2 válido, o state inicial JÁ vem correto —
+  // sem precisar passar por 'select1' default → setCurrentPhaseId via RAF.
+  const initial = useRef(parseInitial(initialSnapshot)).current;
+  const [phase, setPhase] = useState<Phase>(initial.phase ?? 'select1');
+  const [selectedFaces, setSelectedFaces] = useState<Set<number>>(initial.selectedFaces ?? new Set());
   const [selectError, setSelectError] = useState('');
 
   // Animação da árvore
@@ -166,15 +202,15 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
   const greenDieSize = viewportTier === 'mobile' ? 42 : viewportTier === 'tablet' ? 50 : 56;
   const branchGap    = viewportTier === 'mobile' ? 4  : viewportTier === 'tablet' ? 8  : 12;
 
-  // Respostas
-  const [countAnswer, setCountAnswer] = useState('');
+  // Respostas — inicializadas com snapshot se fornecido.
+  const [countAnswer, setCountAnswer] = useState(initial.countAnswer ?? '');
   const [countError, setCountError] = useState('');
-  const [multA, setMultA] = useState('');
-  const [multOp, setMultOp] = useState('');
-  const [multB, setMultB] = useState('');
-  const [multC, setMultC] = useState('');
+  const [multA, setMultA] = useState(initial.multA ?? '');
+  const [multOp, setMultOp] = useState(initial.multOp ?? '');
+  const [multB, setMultB] = useState(initial.multB ?? '');
+  const [multC, setMultC] = useState(initial.multC ?? '');
   const [multError, setMultError] = useState('');
-  const [totalAnswer, setTotalAnswer] = useState('');
+  const [totalAnswer, setTotalAnswer] = useState(initial.totalAnswer ?? '');
   const [totalError, setTotalError] = useState('');
 
   // ─── TELEMETRIA POR PHASE — title/descricao DINÂMICOS com TODO o texto
@@ -433,7 +469,7 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
     scrollDiceToTop();
     const respResumo = `digitou "${countAnswer.trim()}" para "Quantos pares ordenados surgem da face 1 verde?"`;
     if (countAnswer.trim() !== '6') {
-      const msg = 'Observe a árvore: para cada resultado do primeiro dado, aparecem 6 possibilidades no segundo.';
+      const msg = 'Fixe UM resultado para o primeiro dado e lembre-se de quantas faces o segundo dado tem.';
       telemetryRecordErro(`${respResumo} (incorreto — esperado: 6)`);
       setCountError(msg);
       playSound('/sounds/incorrect.mp3');
@@ -525,17 +561,36 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
     boxShadow: '0 4px 16px rgba(36, 80, 190, 0.10)',
   };
 
-  // Notifica o pai quando a fase muda — para o cenaId DEV.
+  // Emite JSON v2 com TODOS os states restauráveis. Sem isso, F5 perde
+  // selectedFaces (checkboxes marcados das faces possíveis), countAnswer,
+  // multA/B/C/Op (multiplicação), totalAnswer (total de pares). O pai
+  // (TwoDicesExperiment) salva isso em `sampleSpaceTreePhase` que vai
+  // pro banco. Setado fora de useState (Set<number>) é convertido pra
+  // array — restaurado como `new Set(array)` no setCurrentPhaseId.
   useEffect(() => {
-    onPhaseChange?.(phase);
-  }, [phase, onPhaseChange]);
+    onPhaseChange?.(JSON.stringify({
+      v: 2,
+      phase,
+      selectedFaces: Array.from(selectedFaces),
+      countAnswer, multA, multOp, multB, multC, totalAnswer,
+    }));
+  }, [
+    phase, selectedFaces,
+    countAnswer, multA, multOp, multB, multC, totalAnswer,
+    onPhaseChange,
+  ]);
 
   // Handle exposto ao painel DEV — simula a próxima ação correta.
   // Para fases que envolvem animações ou inputs específicos, inlineamos a
   // transição de sucesso (DEV sempre fornece a resposta correta) — assim
   // não dependemos do timing das animações nem de closure stale.
   useImperativeHandle(ref, () => ({
-    getCurrentPhaseId: () => phase,
+    getCurrentPhaseId: () => JSON.stringify({
+      v: 2,
+      phase,
+      selectedFaces: Array.from(selectedFaces),
+      countAnswer, multA, multOp, multB, multC, totalAnswer,
+    }),
     advance: () => {
       switch (phase) {
         case 'select1':
@@ -567,9 +622,28 @@ export const SampleSpaceTree = forwardRef<SampleSpaceTreeHandle, SampleSpaceTree
       }
     },
     setCurrentPhaseId: (phaseId: string) => {
+      // Tenta JSON v2; fallback pro formato antigo (string única).
+      try {
+        const obj = JSON.parse(phaseId);
+        if (obj && typeof obj === 'object') {
+          if (obj.phase) setPhase(obj.phase as Phase);
+          if (Array.isArray(obj.selectedFaces)) setSelectedFaces(new Set(obj.selectedFaces));
+          if (typeof obj.countAnswer === 'string') setCountAnswer(obj.countAnswer);
+          if (typeof obj.multA === 'string') setMultA(obj.multA);
+          if (typeof obj.multOp === 'string') setMultOp(obj.multOp);
+          if (typeof obj.multB === 'string') setMultB(obj.multB);
+          if (typeof obj.multC === 'string') setMultC(obj.multC);
+          if (typeof obj.totalAnswer === 'string') setTotalAnswer(obj.totalAnswer);
+          return;
+        }
+      } catch { /* não é JSON — formato antigo */ }
       setPhase(phaseId as Phase);
     },
-  }), [phase, onFinished]);
+  }), [
+    phase, selectedFaces,
+    countAnswer, multA, multOp, multB, multC, totalAnswer,
+    onFinished,
+  ]);
 
   return (
     <div className="w-full" style={{ maxWidth: 660, margin: '0 auto', position: 'relative' }}>

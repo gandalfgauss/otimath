@@ -33,13 +33,25 @@ export function FractionInput({ num, den, setNum, setDen, error, onEnter, disabl
 
   // Telemetria — captura num/den DEPOIS de 600ms estável, evitando spam
   // de eventos por keystroke. Skip initial mount (sentinel null).
+  //
+  // GUARD ANTI-RESTORE-F5: se a mudança acontece nos primeiros 1500ms
+  // após o mount, supressa o emit. Isso cobre o cenário do F5: o pai
+  // monta o FractionInput com valor default ('') e DEPOIS aplica o
+  // restoreSnapshot (setNum('36')); o useEffect interpretaria isso
+  // como "aluno digitou" e geraria telemetria fantasma. Aluno real
+  // demora > 1.5s pra digitar algo após chegar na tela.
   const prevRef = useRef<{ n: string; d: string } | null>(null);
+  const mountTimeRef = useRef<number>(0);
+  useEffect(() => {
+    mountTimeRef.current = performance.now();
+  }, []);
   useEffect(() => {
     const cur = { n: num, d: den };
     const prev = prevRef.current;
     if (prev === null) { prevRef.current = cur; return; }
     if (prev.n === cur.n && prev.d === cur.d) return;
     prevRef.current = cur;
+    if (performance.now() - mountTimeRef.current < 1500) return;
     const handle = window.setTimeout(() => {
       const label = telemetryLabel || 'fração';
       const changed: string[] = [];

@@ -5,6 +5,7 @@ import { Button } from '@/components/global/Button';
 import { useTelemetryExercise, useReadingTelemetry, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import { playSound } from '@/hooks/global/useSound';
 import { VennLaboratory, type VennLaboratoryHandle } from './venn/VennLaboratory';
+import { serializeEventPair, deserializeEventPair, type EventPairSerialized } from './shared/eventPair';
 
 /* ═══════════════════════════════════════════════════════════════
    UnionProbabilityTheory — Fundamentação teórica de P(A ∪ B)
@@ -640,6 +641,11 @@ interface UnionProbabilityTheoryProps {
   /** Notifica o pai a cada transição interna — usado para o cenaId DEV
    *  refletir cada sub-fase do UnionTheory como snapshot distinto. */
   onPhaseChange?: (phaseId: string) => void;
+  /** Snapshot JSON v2 pra restauração pós-F5 — aplicado UMA VEZ no
+   *  mount (antes do emit do useEffect onPhaseChange sobrescrever
+   *  o JSON do banco com defaults). Sobrescreve initialPhase quando
+   *  presente, e restaura TODOS os states (marks, inputs, validados). */
+  initialPhaseSnapshot?: string;
 }
 
 export interface UnionTheoryHandle {
@@ -652,6 +658,10 @@ export interface UnionTheoryHandle {
    *  trás (seta esquerda) — sem isso a fase interna do componente
    *  desincronizava do snapshot e o cursor visualmente "ficava preso". */
   setCurrentPhaseId: (phaseId: string) => void;
+  /** Retorna o snapshot JSON v2 ATUAL — usado pelo pai (TwoDicesExperiment)
+   *  pra coletar o estado mais recente de forma síncrona, evitando atrasos
+   *  do chain de `onPhaseChange` (setState assíncrono) na hora do F5. */
+  getCurrentPhaseId: () => string;
 }
 
 // Sequência linear de fases — usada pelas setinhas de navegação dev.
@@ -679,8 +689,21 @@ const PHASE_SEQUENCE: UnionPhase[] = [
   'done',
 ];
 
-export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabilityTheoryProps>(function UnionProbabilityTheory({ onFinished, initialPhase, createAlert, onPhaseChange }, ref) {
-  const [phase, setPhase] = useState<UnionPhase>(initialPhase ?? 'intro');
+export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabilityTheoryProps>(function UnionProbabilityTheory({ onFinished, initialPhase, createAlert, onPhaseChange, initialPhaseSnapshot }, ref) {
+  // Extrai a fase do snapshot JSON v2 (se houver) ANTES do useState init,
+  // pra evitar o ciclo intro→fase-real que ativava useReadingTelemetry
+  // do balão da intro e gerava exercício atômico fantasma no F5.
+  const initialPhaseFromSnapshot = (() => {
+    if (!initialPhaseSnapshot) return null;
+    try {
+      const obj = JSON.parse(initialPhaseSnapshot);
+      if (obj && typeof obj === 'object' && typeof obj.phase === 'string' && PHASE_SEQUENCE.includes(obj.phase as UnionPhase)) {
+        return obj.phase as UnionPhase;
+      }
+    } catch { /* ignore */ }
+    return null;
+  })();
+  const [phase, setPhase] = useState<UnionPhase>(initialPhaseFromSnapshot ?? initialPhase ?? 'intro');
   // SEÇÃO POR PHASE — cada fase da teoria é uma tela diferente.
   // Título DINÂMICO com label legível por fase.
   const phaseLabelUTh = phase === 'intro' ? 'Enunciado teórico'
@@ -714,11 +737,46 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   // currentPair, correctSets e helpers que ainda não foram declarados aqui).
   // Sub-step do VennLaboratory (notificado via onSubStepChange) — entra no
   // cenaId composto para que o painel DEV capture cada sub-etapa do Venn.
-  const [vennSubStep, setVennSubStep] = useState<string>('intro');
+  // Extrai do snapshot v2 ANTES do useState init pra que o VennLaboratory
+  // monte com a sub-etapa correta (sem isso, F5 no meio do laboratório
+  // voltava pra 'intro' porque o pai aplicava setVennSubStep só no useEffect
+  // [], DEPOIS do VennLab já ter montado com state interno = 'intro').
+  const initialVennSubStepFromSnapshot = (() => {
+    if (!initialPhaseSnapshot) return null;
+    try {
+      const obj = JSON.parse(initialPhaseSnapshot);
+      if (obj && typeof obj === 'object' && typeof obj.vennSubStep === 'string') return obj.vennSubStep;
+    } catch { /* ignore */ }
+    return null;
+  })();
+  const [vennSubStep, setVennSubStep] = useState<string>(initialVennSubStepFromSnapshot ?? 'intro');
+  // Snapshot COMPLETO do VennLaboratory (JSON v2 com TODOS os states
+  // internos — geometria, inputs digitados, regiões marcadas, etc.).
+  // Persiste tudo pra que F5 dentro do Venn restaure exatamente onde
+  // o aluno parou — sem reset de inputs ou de marcações.
+  const initialVennLabPhaseFromSnapshot = (() => {
+    if (!initialPhaseSnapshot) return '';
+    try {
+      const obj = JSON.parse(initialPhaseSnapshot);
+      if (obj && typeof obj === 'object' && typeof obj.vennLabPhase === 'string') return obj.vennLabPhase;
+    } catch { /* ignore */ }
+    return '';
+  })();
+  const [vennLabPhase, setVennLabPhase] = useState<string>(initialVennLabPhaseFromSnapshot);
   // Step atual da animação ProbFormulaRevealAnimation (0..9). Bubble via
   // onStepChange permite que a `descricao` da telemetria reflita o conteúdo
-  // específico do passo da derivação que o aluno está vendo.
-  const [probFormulaRevealStep, setProbFormulaRevealStep] = useState<number>(0);
+  // específico do passo da derivação que o aluno está vendo. Extrai do
+  // snapshot ANTES do useState init pra que o componente filho monte
+  // com initialStep correto (sem isso F5 sempre voltava pra step 0).
+  const initialProbFormulaRevealStepFromSnapshot = (() => {
+    if (!initialPhaseSnapshot) return null;
+    try {
+      const obj = JSON.parse(initialPhaseSnapshot);
+      if (obj && typeof obj === 'object' && typeof obj.probFormulaRevealStep === 'number') return obj.probFormulaRevealStep;
+    } catch { /* ignore */ }
+    return null;
+  })();
+  const [probFormulaRevealStep, setProbFormulaRevealStep] = useState<number>(initialProbFormulaRevealStepFromSnapshot ?? 0);
   // Ref do handle do Venn — usado pelo advance() do UnionTheoryHandle para
   // delegar quando estamos na fase 'vennLab' (sem isso o DEV pula 20+ sub-etapas).
   const vennLabRef = useRef<VennLaboratoryHandle>(null);
@@ -727,9 +785,9 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
   // do vennLab). Sem isso, o cenaId DEV ficaria estagnado em 'unionTheory'
   // e o contador do painel DEV não andaria nas 25+ sub-fases internas.
   const composedPhaseId = phase === 'vennLab' ? `vennLab|${vennSubStep}` : phase;
-  useEffect(() => {
-    onPhaseChange?.(composedPhaseId);
-  }, [composedPhaseId, onPhaseChange]);
+  // Emit do snapshot JSON v2 movido pra DEPOIS das declarações de todos
+  // os states (não dá pra fazer aqui — vários states ainda não existem).
+  // Ver useEffect mais abaixo.
   const [round, setRound] = useState(0);
   const [usedPairIds, setUsedPairIds] = useState<Set<string>>(new Set());
   // Gera o par inicial da rodada 0 via gerador algorítmico (lazy init para
@@ -1531,27 +1589,120 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
     setPhase(prevPhase);
   }, [phase]);
 
+  // Snapshot JSON v2 completo — emitido pro pai a cada mudança de qualquer
+  // state relevante. Persiste TODOS os inputs/marcações pra restauração
+  // após F5. Excluído: feedback*, *Error (UI transitória derivada).
+  const snapshotPayload = JSON.stringify({
+    v: 2,
+    composed: composedPhaseId,
+    phase, vennSubStep, probFormulaRevealStep,
+    // Snapshot COMPLETO do VennLaboratory (inputs digitados, regiões
+    // marcadas, geometria dos círculos, etc.). Pega via ref pra capturar
+    // o estado mais recente síncrono — sem isso, F5 dentro do Venn
+    // perde inputs digitados nos últimos ms antes do refresh.
+    vennLabPhase: vennLabRef.current?.getCurrentPhaseId?.() ?? vennLabPhase,
+    round, currentPair: serializeEventPair(currentPair),
+    usedPairIds: Array.from(usedPairIds),
+    marksA, marksB, marksIntersection, marksUnion,
+    nAInput, nBInput, nIntersectionInput, nUnionInput,
+    predictionOp, predictionReason,
+    cameFromPredict, predictReviewedEnum,
+    nSumInput, nSumValidated, compareOp,
+    pAUBNum, pAUBDen, pAUBValidated,
+    pAValidated, pBValidated, pABValidated,
+    pANum, pADen, pBNum, pBDen, pABNum, pABDen,
+    institutionalAnswer, institutionalValidated,
+  });
+  useEffect(() => {
+    onPhaseChange?.(snapshotPayload);
+  }, [snapshotPayload, onPhaseChange]);
+
+  // Helper de restauração — usado pelo setCurrentPhaseId (DevPanel) E
+  // pelo useEffect [] no mount (pós-F5 via initialPhaseSnapshot).
+  const applyPhaseId = useCallback((phaseId: string) => {
+    try {
+      const obj = JSON.parse(phaseId);
+      if (obj && typeof obj === 'object') {
+        if (obj.phase && PHASE_SEQUENCE.includes(obj.phase as UnionPhase)) setPhase(obj.phase as UnionPhase);
+        if (typeof obj.vennSubStep === 'string') {
+          setVennSubStep(obj.vennSubStep);
+          // Propaga pro VennLaboratory (state interno) — necessário pra
+          // navegação DEV depois do mount (no mount inicial, initialSubStep
+          // como prop já cobre o caso F5).
+          vennLabRef.current?.setCurrentSubStep?.(obj.vennSubStep);
+        }
+        if (typeof obj.vennLabPhase === 'string') setVennLabPhase(obj.vennLabPhase);
+        if (typeof obj.probFormulaRevealStep === 'number') setProbFormulaRevealStep(obj.probFormulaRevealStep);
+        if (typeof obj.round === 'number') setRound(obj.round);
+        // Reconstrói o predicate (closure) a partir dos pares materializados
+        // — JSON.stringify perde funções, então sem deserializeEventPair o
+        // `currentPair.eventA.predicate(r, c)` quebraria com TypeError.
+        if (obj.currentPair && typeof obj.currentPair === 'object' && 'eventA' in obj.currentPair) {
+          setCurrentPair(deserializeEventPair(obj.currentPair as EventPairSerialized));
+        }
+        if (Array.isArray(obj.usedPairIds)) setUsedPairIds(new Set(obj.usedPairIds));
+        if (Array.isArray(obj.marksA)) setMarksA(obj.marksA);
+        if (Array.isArray(obj.marksB)) setMarksB(obj.marksB);
+        if (Array.isArray(obj.marksIntersection)) setMarksIntersection(obj.marksIntersection);
+        if (Array.isArray(obj.marksUnion)) setMarksUnion(obj.marksUnion);
+        if (typeof obj.nAInput === 'string') setNAInput(obj.nAInput);
+        if (typeof obj.nBInput === 'string') setNBInput(obj.nBInput);
+        if (typeof obj.nIntersectionInput === 'string') setNIntersectionInput(obj.nIntersectionInput);
+        if (typeof obj.nUnionInput === 'string') setNUnionInput(obj.nUnionInput);
+        if (obj.predictionOp === '>' || obj.predictionOp === '<' || obj.predictionOp === '=' || obj.predictionOp === '') setPredictionOp(obj.predictionOp);
+        if (obj.predictionReason === 'duplo' || obj.predictionReason === 'igual' || obj.predictionReason === 'menor' || obj.predictionReason === '') setPredictionReason(obj.predictionReason);
+        if (typeof obj.cameFromPredict === 'boolean') setCameFromPredict(obj.cameFromPredict);
+        if (typeof obj.predictReviewedEnum === 'boolean') setPredictReviewedEnum(obj.predictReviewedEnum);
+        if (typeof obj.nSumInput === 'string') setNSumInput(obj.nSumInput);
+        if (typeof obj.nSumValidated === 'boolean') setNSumValidated(obj.nSumValidated);
+        if (obj.compareOp === '>' || obj.compareOp === '<' || obj.compareOp === '=' || obj.compareOp === '') setCompareOp(obj.compareOp);
+        if (typeof obj.pAUBNum === 'string') setPAUBNum(obj.pAUBNum);
+        if (typeof obj.pAUBDen === 'string') setPAUBDen(obj.pAUBDen);
+        if (typeof obj.pAUBValidated === 'boolean') setPAUBValidated(obj.pAUBValidated);
+        if (typeof obj.pAValidated === 'boolean') setPAValidated(obj.pAValidated);
+        if (typeof obj.pBValidated === 'boolean') setPBValidated(obj.pBValidated);
+        if (typeof obj.pABValidated === 'boolean') setPABValidated(obj.pABValidated);
+        if (typeof obj.pANum === 'string') setPANum(obj.pANum);
+        if (typeof obj.pADen === 'string') setPADen(obj.pADen);
+        if (typeof obj.pBNum === 'string') setPBNum(obj.pBNum);
+        if (typeof obj.pBDen === 'string') setPBDen(obj.pBDen);
+        if (typeof obj.pABNum === 'string') setPABNum(obj.pABNum);
+        if (typeof obj.pABDen === 'string') setPABDen(obj.pABDen);
+        if (typeof obj.institutionalAnswer === 'string') setInstitutionalAnswer(obj.institutionalAnswer);
+        if (typeof obj.institutionalValidated === 'boolean') setInstitutionalValidated(obj.institutionalValidated);
+        return;
+      }
+    } catch { /* não é JSON — formato antigo */ }
+    // Formato antigo: 'vennLab|<sub>' ou fase pura.
+    if (phaseId.startsWith('vennLab|')) {
+      setPhase('vennLab');
+      return;
+    }
+    if (PHASE_SEQUENCE.includes(phaseId as UnionPhase)) {
+      setPhase(phaseId as UnionPhase);
+    }
+  // setters são estáveis (useState garantia).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Aplica initialPhaseSnapshot UMA VEZ no mount — antes do useEffect
+  // de emit sobrescrever scene7ExperimentPhase.unionTheoryPhase no pai.
+  const didInitialRestoreRef = useRef(false);
+  useEffect(() => {
+    if (didInitialRestoreRef.current) return;
+    didInitialRestoreRef.current = true;
+    if (initialPhaseSnapshot) applyPhaseId(initialPhaseSnapshot);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useImperativeHandle(ref, () => ({
     advance: advancePhase,
     back: backPhase,
     canAdvance: () => PHASE_SEQUENCE.indexOf(phase) >= 0,
     canBack: () => PHASE_SEQUENCE.indexOf(phase) > 0,
-    setCurrentPhaseId: (phaseId: string) => {
-      // 'vennLab|<sub>' → fase vennLab + delega sub-step pro VennLaboratory.
-      if (phaseId.startsWith('vennLab|')) {
-        setPhase('vennLab');
-        // Nota: VennLaboratory mantém seu próprio step interno sem setter
-        // público — restauramos só a fase pai (vennLab). Aceitável porque a
-        // sub-etapa do Venn é interativa (clique em região), não puramente
-        // sequencial — restaurar visualmente é menos crítico.
-        return;
-      }
-      // Fase plana — coincide com algum item de PHASE_SEQUENCE.
-      if (PHASE_SEQUENCE.includes(phaseId as UnionPhase)) {
-        setPhase(phaseId as UnionPhase);
-      }
-    },
-  }), [advancePhase, backPhase, phase]);
+    setCurrentPhaseId: applyPhaseId,
+    getCurrentPhaseId: () => snapshotPayload,
+  }), [advancePhase, backPhase, phase, applyPhaseId, snapshotPayload]);
 
   // ═══════════════════════════════════════════════════════════════
   // RENDER
@@ -2323,6 +2474,9 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
           nI={correctSets.nI}
           nU={correctSets.nU}
           onSubStepChange={setVennSubStep}
+          initialSubStep={vennSubStep}
+          initialPhaseSnapshot={vennLabPhase || undefined}
+          onPhaseChange={setVennLabPhase}
           createAlert={createAlert}
           onComplete={onVennLabComplete}
         />
@@ -2622,6 +2776,7 @@ export const UnionProbabilityTheory = forwardRef<UnionTheoryHandle, UnionProbabi
       {/* ═══════ probFormulaReveal — derivação simbólica da fórmula ═══════ */}
       {phase === 'probFormulaReveal' && (
         <ProbFormulaRevealAnimation
+          initialStep={probFormulaRevealStep}
           onStepChange={setProbFormulaRevealStep}
           onContinue={() => {
             telemetryRecordInteracaoExercicio('clicou em "Continuar" na revelação simbólica de P(A∪B) = P(A) + P(B) − P(A∩B) — avançou para apresentação dos valores (UnionTheory)');
@@ -3445,12 +3600,16 @@ function FracH({
 function ProbFormulaRevealAnimation({
   onContinue,
   onStepChange,
+  initialStep,
 }: Readonly<{
   onContinue: () => void;
   /** Notifica o pai a cada `Próximo` (step 0–9). O pai usa isso pra
    *  enriquecer a `descricao` da telemetria com o conteúdo específico
    *  do passo da derivação que o aluno está vendo. */
   onStepChange?: (step: number) => void;
+  /** Step inicial — usado pra restaurar pós-F5. Sem isso, F5 sempre
+   *  voltava pra step 0 mesmo com o pai tendo persistido o step real. */
+  initialStep?: number;
 }>) {
   // step 0..3 = pré-requisitos: 4 frações (P(A∪B), P(A), P(B), P(A∩B))
   // step 4    = pré-requisito: relação n(A∪B) = n(A)+n(B)−n(A∩B)
@@ -3459,7 +3618,7 @@ function ProbFormulaRevealAnimation({
   //   o elemento do bloco "Sabemos que" e o elemento substituído na linha
   //   anterior da dedução. O piscar dura 1500ms e depois para.
   // step 9    = fórmula final destacada
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(typeof initialStep === 'number' ? initialStep : 0);
   const FINAL = 9;
   // Notifica o pai sempre que o passo muda — inclusive no mount (step 0).
   useEffect(() => {

@@ -15,7 +15,7 @@
    Em R≥2 (treino): pula para marking → probabilities.
    ═══════════════════════════════════════════════════════════════ */
 
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { useTelemetryExercise, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 import { Alerts } from '@/components/global/Alerts';
@@ -27,6 +27,7 @@ import { TwoDicesFormulation } from './TwoDicesFormulation';
 import { ComplementaryReviewModal } from './shared/ComplementaryReviewModal';
 import { BarA, BAR_A_CSS } from './shared/BarA';
 import { useComplementaryEventsHooks } from '@/hooks/teaching/probability/two-dices/useComplementaryEventsHooks';
+import { serializeComplementaryEventData, deserializeComplementaryEventData, type ComplementaryEventDataSerialized } from './shared/eventBank';
 
 const COMPLEMENT_LABEL = 'Ā';
 const A_LABEL = 'A';
@@ -38,6 +39,12 @@ interface ComplementaryEventsActivityProps {
   /** Notifica o pai (TwoDicesExperiment) quando a sub-fase muda — usado
    *  para o cenaId DEV refletir cada transição interna como snapshot. */
   onPhaseChange?: (phaseId: string) => void;
+  /** Snapshot JSON v2 pra restauração pós-F5. Aplicado NO MOUNT do
+   *  componente, antes do useEffect onPhaseChange disparar — evita a
+   *  janela onde o hook montaria com defaults e seu emit sobrescreveria
+   *  o JSON do banco no pai. Esse mecanismo substitui o caminho do
+   *  setCurrentPhaseId via RAF (mais frágil em StrictMode). */
+  initialPhaseSnapshot?: string;
 }
 
 // Handle exposto ao painel DEV para avançar pelas sub-fases internas
@@ -45,14 +52,17 @@ interface ComplementaryEventsActivityProps {
 export interface ComplementaryEventsActivityHandle {
   getCurrentPhaseId: () => string;
   advance: () => void;
+  /** Restauração pós-F5 — parseia o `composedPhaseId` (formato:
+   *  `formalization|step=N` ou sub-phase pura) e propaga pro hook. */
+  setCurrentPhaseId: (phaseId: string) => void;
 }
 
 export const ComplementaryEventsActivity = forwardRef<
   ComplementaryEventsActivityHandle,
   ComplementaryEventsActivityProps
->(function ComplementaryEventsActivity({ onContinue, onPhaseChange }, ref) {
+>(function ComplementaryEventsActivity({ onContinue, onPhaseChange, initialPhaseSnapshot }, ref) {
   const [reviewOpen, setReviewOpen] = useState(false);
-  const h = useComplementaryEventsHooks({ onContinue });
+  const h = useComplementaryEventsHooks({ onContinue, isRestoringFromSnapshot: !!initialPhaseSnapshot });
 
   // Contexto dinâmico do aluno — sub-fase + escolhas registradas, pra
   // que o JSON da seção mostre QUE ESTRATÉGIA ele apostou primeiro,
@@ -144,14 +154,127 @@ export const ComplementaryEventsActivity = forwardRef<
     `Eventos complementares — ${subPhaseLabel} — Evento A: "${eventoADesc}"`,
     fullDescricaoComp,
   );
+  // Snapshot v2 COMPLETO do componente — inclui sub-fase, marcações da
+  // tabela, estratégia, escolha pós-confronto, e TODOS os inputs de
+  // fração da formalização (passos 0-5 + decimal/percent finais).
+  const snapshotPayload = JSON.stringify({
+    v: 2,
+    composed: composedPhaseId,
+    // Persiste o ComplementaryEventData REAL sorteado nesta rodada —
+    // sem isso, F5 re-sorteava outro evento e o aluno via problema
+    // diferente do que estava resolvendo.
+    data: h.data ? serializeComplementaryEventData(h.data) : null,
+    round: h.round,
+    subPhase: h.subPhase,
+    formStep: h.formStep,
+    checkboxes: h.eventsCheckboxes,
+    strategy: h.strategyChoice ?? '',
+    reviewChoice: h.reviewChoice ?? null,
+    formStep0Value: h.formStep0Value,
+    formStep1Value: h.formStep1Value,
+    formStep2Value: h.formStep2Value,
+    formStep2DenValue: h.formStep2DenValue,
+    formStep3NumValue: h.formStep3NumValue,
+    formStep3DenValue: h.formStep3DenValue,
+    formStep4NumValue: h.formStep4NumValue,
+    formStep4DenValue: h.formStep4DenValue,
+    formStep5NumValue: h.formStep5NumValue,
+    formStep5DenValue: h.formStep5DenValue,
+    formStep5Validated: h.formStep5Validated,
+    formStep5Decimal: h.formStep5Decimal,
+    formStep5Percent: h.formStep5Percent,
+    // Persistência dos VALUES de probabilitiesTextInputs (sub-fase
+    // computeComplementProb/probabilities). O objeto inteiro tem closures
+    // `setValue` que não passam por JSON.stringify — extraímos só os
+    // strings de valor; as closures são reconstruídas pelo restoreSnapshot.
+    probNum: h.probabilitiesTextInputs?.numerator?.value ?? '',
+    probDen: h.probabilitiesTextInputs?.denominator?.value ?? '',
+    probCompNum: h.probabilitiesTextInputs?.complementaryNumerator?.value ?? '',
+    probCompDen: h.probabilitiesTextInputs?.complementaryDenominator?.value ?? '',
+  });
   useEffect(() => {
-    onPhaseChange?.(composedPhaseId);
-  }, [composedPhaseId, onPhaseChange]);
+    // GUARD anti-overwrite: enquanto o `applyPhaseId(initialPhaseSnapshot)`
+    // não rodou no mount, o `snapshotPayload` reflete state DEFAULT
+    // (startRound zerou tudo). Emitir esse default sobrescreveria o
+    // bom snapshot que o pai recebeu do banco — corrompendo a próxima
+    // restauração caso o aluno dê F5 em sequência. Quando NÃO há
+    // initialPhaseSnapshot (primeiro acesso à fase), emite normalmente.
+    if (initialPhaseSnapshot && !didInitialRestoreRef.current) return;
+    onPhaseChange?.(snapshotPayload);
+  }, [snapshotPayload, onPhaseChange, initialPhaseSnapshot]);
+
+  // Helper de restauração — usado tanto pelo setCurrentPhaseId (DevPanel)
+  // quanto pelo initialPhaseSnapshot (pós-F5 via prop no mount).
+  const applyPhaseId = useCallback((phaseId: string) => {
+    // Fallback formato antigo: string única ('marking', 'formalization|step=2', etc).
+    const applyComposedFallback = (composed: string) => {
+      if (composed.startsWith('formalization|step=')) {
+        const stepNum = parseInt(composed.slice('formalization|step='.length), 10);
+        h.restoreSnapshot({ subPhase: 'formalization', formStep: Number.isFinite(stepNum) ? stepNum : 0 });
+        return;
+      }
+      h.restoreSnapshot({ subPhase: composed as Parameters<typeof h.restoreSnapshot>[0]['subPhase'] });
+    };
+    try {
+      const obj = JSON.parse(phaseId);
+      if (obj && typeof obj === 'object') {
+        // Formato v2: passa o objeto inteiro pro hook (todos os campos
+        // opcionais são tratados internamente; campos extras são ignorados).
+        h.restoreSnapshot({
+          // Restaura o ComplementaryEventData REAL — reconstrói validation
+          // como `(g,b) => E.has(...)` (closures não passam por JSON).
+          data: obj.data && typeof obj.data === 'object'
+            ? deserializeComplementaryEventData(obj.data as ComplementaryEventDataSerialized)
+            : undefined,
+          round: typeof obj.round === 'number' ? obj.round : undefined,
+          subPhase: obj.subPhase ?? (typeof obj.composed === 'string' && !obj.composed.startsWith('formalization|') ? obj.composed as Parameters<typeof h.restoreSnapshot>[0]['subPhase'] : undefined),
+          formStep: typeof obj.formStep === 'number' ? obj.formStep : undefined,
+          eventsCheckboxes: obj.checkboxes && typeof obj.checkboxes === 'object' ? obj.checkboxes : undefined,
+          strategyChoice: typeof obj.strategy === 'string' ? obj.strategy : undefined,
+          reviewChoice: obj.reviewChoice === 'keep' || obj.reviewChoice === 'change' || obj.reviewChoice === null ? obj.reviewChoice : undefined,
+          formStep0Value: typeof obj.formStep0Value === 'string' ? obj.formStep0Value : undefined,
+          formStep1Value: typeof obj.formStep1Value === 'string' ? obj.formStep1Value : undefined,
+          formStep2Value: typeof obj.formStep2Value === 'string' ? obj.formStep2Value : undefined,
+          formStep2DenValue: typeof obj.formStep2DenValue === 'string' ? obj.formStep2DenValue : undefined,
+          formStep3NumValue: typeof obj.formStep3NumValue === 'string' ? obj.formStep3NumValue : undefined,
+          formStep3DenValue: typeof obj.formStep3DenValue === 'string' ? obj.formStep3DenValue : undefined,
+          formStep4NumValue: typeof obj.formStep4NumValue === 'string' ? obj.formStep4NumValue : undefined,
+          formStep4DenValue: typeof obj.formStep4DenValue === 'string' ? obj.formStep4DenValue : undefined,
+          formStep5NumValue: typeof obj.formStep5NumValue === 'string' ? obj.formStep5NumValue : undefined,
+          formStep5DenValue: typeof obj.formStep5DenValue === 'string' ? obj.formStep5DenValue : undefined,
+          formStep5Validated: typeof obj.formStep5Validated === 'boolean' ? obj.formStep5Validated : undefined,
+          formStep5Decimal: typeof obj.formStep5Decimal === 'string' ? obj.formStep5Decimal : undefined,
+          formStep5Percent: typeof obj.formStep5Percent === 'string' ? obj.formStep5Percent : undefined,
+          probNum: typeof obj.probNum === 'string' ? obj.probNum : undefined,
+          probDen: typeof obj.probDen === 'string' ? obj.probDen : undefined,
+          probCompNum: typeof obj.probCompNum === 'string' ? obj.probCompNum : undefined,
+          probCompDen: typeof obj.probCompDen === 'string' ? obj.probCompDen : undefined,
+        });
+        return;
+      }
+    } catch { /* não é JSON — formato antigo */ }
+    applyComposedFallback(phaseId);
+  // h é estável (instância do hook); ok com lint.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Aplica initialPhaseSnapshot UMA VEZ no mount — antes do useEffect
+  // onPhaseChange disparar com defaults sobrescrevendo o JSON do banco
+  // no pai. Sem isso, a janela entre mount-com-defaults e propagação
+  // via RAF do pai era suscetível a races em StrictMode dev.
+  const didInitialRestoreRef = useRef(false);
+  useEffect(() => {
+    if (didInitialRestoreRef.current) return;
+    didInitialRestoreRef.current = true;
+    if (initialPhaseSnapshot) applyPhaseId(initialPhaseSnapshot);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useImperativeHandle(ref, () => ({
-    getCurrentPhaseId: () => composedPhaseId,
+    getCurrentPhaseId: () => snapshotPayload,
     advance: () => h.devAdvance(),
-  }), [composedPhaseId, h]);
+    setCurrentPhaseId: applyPhaseId,
+  }), [snapshotPayload, h, applyPhaseId]);
 
   // ─── Cores e rótulos customizados passados aos componentes ───
   const eventColors: Record<string, string> = {

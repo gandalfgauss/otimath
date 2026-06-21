@@ -1019,16 +1019,42 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
     );
   };
 
-  // ═══════ Notificação de mudança de fase para o pai (cenaId DEV) ═══════
+  // ═══════ Notificação de mudança de fase para o pai (cenaId DEV
+  // E snapshot persistido em /api/progress) ═══════
+  //
+  // Emite JSON v2 com TODOS os states restauráveis. Sem isso, F5 perde
+  // blueResult/greenResult (dados 3D ficam em faces aleatórias),
+  // pickedGreen/pickedBlue (aluno perde a escolha), inputs digitados,
+  // etc. Mesma estrutura que `setCurrentPhaseId` decodifica abaixo.
   useEffect(() => {
-    onPhaseChange?.(phase);
-  }, [phase, onPhaseChange]);
+    onPhaseChange?.(JSON.stringify({
+      v: 2,
+      phase,
+      blueResult, greenResult,
+      pickedGreen, pickedBlue, pickGreenError, pickBlueError, pickFeedback,
+      sumInput, sumError, sumFeedback,
+      predictionInput, predictionError, predictionReason, predictionReasonError,
+    }));
+  }, [
+    phase, blueResult, greenResult,
+    pickedGreen, pickedBlue, pickGreenError, pickBlueError, pickFeedback,
+    sumInput, sumError, sumFeedback,
+    predictionInput, predictionError, predictionReason, predictionReasonError,
+    onPhaseChange,
+  ]);
 
   // ═══════ Handle exposto ao painel DEV ═══════
   // Avança simulando a interação natural do aluno em cada fase. Pula
   // animações de rolagem (3D) direto para a próxima fase relevante.
   useImperativeHandle(ref, () => ({
-    getCurrentPhaseId: () => phase,
+    getCurrentPhaseId: () => JSON.stringify({
+      v: 2,
+      phase,
+      blueResult, greenResult,
+      pickedGreen, pickedBlue, pickGreenError, pickBlueError, pickFeedback,
+      sumInput, sumError, sumFeedback,
+      predictionInput, predictionError, predictionReason, predictionReasonError,
+    }),
     advance: () => {
       switch (phase) {
         case 'intro':       setPhase('s1-ready'); return;
@@ -1050,21 +1076,71 @@ export const DiceMachineExperiment = forwardRef<DiceMachineExperimentHandle, Dic
       }
     },
     setCurrentPhaseId: (phaseId: string) => {
-      // Restauração de snapshot: fases `*-rolling` são transitórias
-      // (animação 3D de dado girando) e dependem de timers que NÃO
-      // sobrevivem ao F5. Sem mapear, o aluno fica preso assistindo
-      // dado eternamente sem timer pra resolver. Promovemos pra fase
-      // estável seguinte (s1-pick / s2-pick / s3-pick) onde o aluno
-      // marca o resultado — mesma transição que o DEV `advance` usa
-      // quando pula a animação.
-      const stableId =
-        phaseId === 's1-rolling' ? 's1-pick'
-        : phaseId === 's2-rolling' ? 's2-pick'
-        : phaseId === 's3-rolling' ? 's3-pick'
-        : phaseId;
-      setPhase(stableId as typeof phase);
+      // Mapeia fases transitórias `*-rolling` (animação 3D que depende
+      // de timers que não sobrevivem ao F5) pras fases estáveis pick.
+      const promoteRolling = (p: string) =>
+        p === 's1-rolling' ? 's1-pick'
+        : p === 's2-rolling' ? 's2-pick'
+        : p === 's3-rolling' ? 's3-pick'
+        : p;
+      // Tenta JSON v2; fallback pro formato antigo (string simples).
+      try {
+        const obj = JSON.parse(phaseId);
+        if (obj && typeof obj === 'object') {
+          if (obj.phase) setPhase(promoteRolling(obj.phase) as typeof phase);
+          if (typeof obj.blueResult === 'number' || obj.blueResult === null) setBlueResult(obj.blueResult);
+          if (typeof obj.greenResult === 'number' || obj.greenResult === null) setGreenResult(obj.greenResult);
+          if (typeof obj.pickedGreen === 'number' || obj.pickedGreen === null) setPickedGreen(obj.pickedGreen);
+          if (typeof obj.pickedBlue === 'number' || obj.pickedBlue === null) setPickedBlue(obj.pickedBlue);
+          if (typeof obj.pickGreenError === 'boolean') setPickGreenError(obj.pickGreenError);
+          if (typeof obj.pickBlueError === 'boolean') setPickBlueError(obj.pickBlueError);
+          if (typeof obj.pickFeedback === 'string') setPickFeedback(obj.pickFeedback);
+          if (typeof obj.sumInput === 'string') setSumInput(obj.sumInput);
+          if (typeof obj.sumError === 'boolean') setSumError(obj.sumError);
+          if (typeof obj.sumFeedback === 'string') setSumFeedback(obj.sumFeedback);
+          if (typeof obj.predictionInput === 'string') setPredictionInput(obj.predictionInput);
+          if (typeof obj.predictionError === 'string') setPredictionError(obj.predictionError);
+          if (typeof obj.predictionReason === 'string') {
+            setPredictionReason(obj.predictionReason as 'equip' | 'maisChance' | 'intuicao' | '');
+          }
+          if (typeof obj.predictionReasonError === 'boolean') setPredictionReasonError(obj.predictionReasonError);
+          return;
+        }
+      } catch { /* não é JSON — cai no parser antigo */ }
+      // Formato antigo (string única).
+      setPhase(promoteRolling(phaseId) as typeof phase);
     },
-  }), [phase, onFinished]);
+  }), [
+    phase, blueResult, greenResult,
+    pickedGreen, pickedBlue, pickGreenError, pickBlueError, pickFeedback,
+    sumInput, sumError, sumFeedback,
+    predictionInput, predictionError, predictionReason, predictionReasonError,
+    onFinished,
+  ]);
+
+  // Restaura a face visível dos dois dados 3D quando o snapshot é
+  // aplicado em fases pós-rolagem. Sem isso, após F5 o aluno vê os
+  // dados em faces aleatórias e o label "par sorteado: (verde=N, azul=M)"
+  // não bate visualmente. Retry loop pelo mesmo motivo do TwoDicesPractice:
+  // DiceMachineScene é lazy/WebGL, ref demora pra ficar pronto.
+  useEffect(() => {
+    const postRollPhases: Phase[] = ['s1-pick', 's1-correct', 's2-ready', 's2-pick', 's2-sum', 's2-correct', 's3-predict', 's3-pick', 's3-sum', 's3-reflect', 'bridge'];
+    if (!postRollPhases.includes(phase)) return;
+    if (blueResult === null || greenResult === null) return;
+    let cancelled = false;
+    let attempts = 0;
+    const apply = () => {
+      if (cancelled) return;
+      if (!diceMachineRef.current) {
+        attempts++;
+        if (attempts < 30) setTimeout(apply, 100);
+        return;
+      }
+      diceMachineRef.current.setFaces(blueResult, greenResult);
+    };
+    apply();
+    return () => { cancelled = true; };
+  }, [phase, blueResult, greenResult, diceMachineRef]);
 
   // ═══════ RENDER ═══════
   return (

@@ -60,7 +60,13 @@ export function Roulette({
   highlightSelected = false,
   largeNumbers = false
 }: RouletteProps) {
-  const [currentRotation, setCurrentRotation] = useState(0);
+  // Inicializa a rotação direto no `targetAngle` (em vez de 0). Sem
+  // isso, após F5 o `gameState.targetAngle` restaurado refletia o último
+  // sorteio (ex.: ponteiro em "Vermelho"), mas o disco renderizava em
+  // 0° (parado no primeiro setor). A animação useEffect só atualiza
+  // `currentRotation` se `isSpinning=true` — e o restore força
+  // `isSpinning=false`, então o disco ficava preso em 0° pra sempre.
+  const [currentRotation, setCurrentRotation] = useState(targetAngle);
   const wheelRef = useRef<SVGGElement>(null);
   const animationRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);

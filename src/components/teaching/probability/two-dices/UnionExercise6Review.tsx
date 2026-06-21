@@ -78,6 +78,10 @@ interface UnionExercise6Props {
   /** Disparado pra mostrar alerts de feedback (acerto, conclusão de rodada,
    *  finalização do OVA). Mesma assinatura do alerts global. */
   createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number) => void;
+  /** Emite snapshot JSON v2 completo pro pai. */
+  onPhaseChange?: (phaseId: string) => void;
+  /** Snapshot pra restauração pós-F5 no mount. */
+  initialPhaseSnapshot?: string;
 }
 
 export interface UnionExercise6Handle {
@@ -85,6 +89,8 @@ export interface UnionExercise6Handle {
   back: () => void;
   canAdvance: () => boolean;
   canBack: () => boolean;
+  getCurrentPhaseId: () => string;
+  setCurrentPhaseId: (phaseId: string) => void;
 }
 
 interface RoundOutcome {
@@ -105,10 +111,27 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       ex7Completed = false,
       ex8Completed = false,
       createAlert,
+      onPhaseChange,
+      initialPhaseSnapshot,
     },
     ref,
   ) {
-    const [step, setStep] = useState<Step>(initialStep);
+    // Parse uma vez o snapshot v2 — usado pra inicializar TANTO `step` quanto
+    // `session`. Sem inicializar `session` aqui, o useState abaixo cria uma
+    // session NOVA (RNG), depois o applyPhaseId no useEffect [] substitui
+    // por outra. Resultado: o `candidate` passado ao TwoDicesGameSingleShot
+    // MUDA de referência, e o useEffect [candidate] interno do hook reseta
+    // os checkboxes que o `restoreSnapshot` acabou de restaurar.
+    const initialFromSnapshot = (() => {
+      if (!initialPhaseSnapshot) return null;
+      try {
+        const obj = JSON.parse(initialPhaseSnapshot);
+        return obj && typeof obj === 'object' ? obj as Record<string, unknown> : null;
+      } catch { return null; }
+    })();
+    const initialStepFromSnapshot = typeof initialFromSnapshot?.step === 'string'
+      ? (initialFromSnapshot.step as Step) : null;
+    const [step, setStep] = useState<Step>(initialStepFromSnapshot ?? initialStep);
     // Telemetria — leitura do enunciado do Ex.6 (revisão).
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',
@@ -117,7 +140,17 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
       'Painel inicial — descrição das 2 rodadas e botão para abrir o menu de ajuda/revisão.',
       'confirmou leitura do enunciado e clicou em "Começar revisão"',
     );
-    const [session] = useState<readonly [Ex6Round, Ex6Round]>(() => buildEx6Session());
+    // Sessão sorteada via RNG no mount. Setter exposto pra restauração
+    // pós-F5 — sem setter, F5 re-sorteia e o aluno perde os candidatos
+    // já trabalhados (incluindo errorsCount acumulado em round1Outcome).
+    // Lê do snapshot ANTES de sortear — sem isso, o candidate trocava
+    // de referência após applyPhaseId, disparando o useEffect [candidate]
+    // do hook single-shot que zera os checkboxes restaurados.
+    const initialSessionFromSnapshot = (() => {
+      const s = initialFromSnapshot?.session;
+      return Array.isArray(s) && s.length === 2 ? (s as unknown as readonly [Ex6Round, Ex6Round]) : null;
+    })();
+    const [session, setSession] = useState<readonly [Ex6Round, Ex6Round]>(() => initialSessionFromSnapshot ?? buildEx6Session());
     // Título DINÂMICO com label legível por step + dados da sessão.
     const stepLabelUE6 = step === 'intro' ? 'Enunciado'
       : step === 'round1' ? 'Rodada 1'
@@ -157,23 +190,94 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
     const round1ShotRef = useRef<TwoDicesGameSingleShotHandle>(null);
     const round2ShotRef = useRef<TwoDicesGameSingleShotHandle>(null);
 
-    const [round1Outcome, setRound1Outcome] = useState<RoundOutcome>({
-      candidateId: session[0].candidate.id,
-      operation: session[0].operation,
-      errorsCount: 0,
-      finished: false,
-    });
-    const [round2Outcome, setRound2Outcome] = useState<RoundOutcome>({
-      candidateId: session[1].candidate.id,
-      operation: session[1].operation,
-      errorsCount: 0,
-      finished: false,
-    });
+    const [round1Outcome, setRound1Outcome] = useState<RoundOutcome>(
+      (initialFromSnapshot?.round1Outcome && typeof initialFromSnapshot.round1Outcome === 'object'
+        ? initialFromSnapshot.round1Outcome as RoundOutcome
+        : {
+          candidateId: session[0].candidate.id,
+          operation: session[0].operation,
+          errorsCount: 0,
+          finished: false,
+        }),
+    );
+    const [round2Outcome, setRound2Outcome] = useState<RoundOutcome>(
+      (initialFromSnapshot?.round2Outcome && typeof initialFromSnapshot.round2Outcome === 'object'
+        ? initialFromSnapshot.round2Outcome as RoundOutcome
+        : {
+          candidateId: session[1].candidate.id,
+          operation: session[1].operation,
+          errorsCount: 0,
+          finished: false,
+        }),
+    );
 
     /* ──────────────────────────────────────────────────────────────
        HANDLE EXTERNO (forwardRef) — usado pelas setinhas dev e pelo
        Presentation. Reflete capacidade de avançar/recuar entre steps.
        ──────────────────────────────────────────────────────────── */
+    // Snapshots internos dos single-shots (mark-A → mark-B → mark-D →
+    // identify-operation → compute-probability). Persistidos pra que F5
+    // restaure os inputs digitados pelo aluno (probabilitiesTextInputs /
+    // operationSelectInputs têm closures que não passam por JSON; os
+    // values são extraídos via snapshotData do hook single-shot).
+    // Inicializa do snapshot pra que TwoDicesGameSingleShot já monte com
+    // initialPhaseSnapshot correto — sem isso, ele recebia '' no primeiro
+    // render, montava com checkboxes vazios, e a propagação posterior
+    // chegava TARDE DEMAIS (depois do useEffect [candidate] interno do hook).
+    const [round1ShotPhase, setRound1ShotPhase] = useState<string>(
+      typeof initialFromSnapshot?.round1ShotPhase === 'string' ? initialFromSnapshot.round1ShotPhase : '',
+    );
+    const [round2ShotPhase, setRound2ShotPhase] = useState<string>(
+      typeof initialFromSnapshot?.round2ShotPhase === 'string' ? initialFromSnapshot.round2ShotPhase : '',
+    );
+    // Snapshot JSON v2 completo — step + session (sorteada) + outcomes
+    // (errorsCount/finished/operation por rodada) + estado interno de
+    // cada single-shot (rodada 1 e 2).
+    const snapshotPayload = JSON.stringify({
+      v: 2,
+      step,
+      session,
+      round1Outcome,
+      round2Outcome,
+      round1ShotPhase: round1ShotRef.current?.getCurrentPhaseId?.() ?? round1ShotPhase,
+      round2ShotPhase: round2ShotRef.current?.getCurrentPhaseId?.() ?? round2ShotPhase,
+    });
+    useEffect(() => {
+      onPhaseChange?.(snapshotPayload);
+    }, [snapshotPayload, onPhaseChange]);
+
+    const applyPhaseId = useCallback((phaseId: string) => {
+      try {
+        const obj = JSON.parse(phaseId);
+        if (obj && typeof obj === 'object') {
+          if (typeof obj.step === 'string') setStep(obj.step as Step);
+          if (Array.isArray(obj.session) && obj.session.length === 2) {
+            setSession(obj.session as readonly [Ex6Round, Ex6Round]);
+          }
+          if (obj.round1Outcome && typeof obj.round1Outcome === 'object') setRound1Outcome(obj.round1Outcome as RoundOutcome);
+          if (obj.round2Outcome && typeof obj.round2Outcome === 'object') setRound2Outcome(obj.round2Outcome as RoundOutcome);
+          // Restaura snapshot interno de cada single-shot (stepIndex +
+          // checkboxes + values). Os single-shots aplicam via prop
+          // initialPhaseSnapshot no mount; mantemos no state aqui pra que
+          // o snapshot ainda esteja correto se F5 acontecer antes de
+          // remontarem (transição entre rodadas).
+          if (typeof obj.round1ShotPhase === 'string') setRound1ShotPhase(obj.round1ShotPhase);
+          if (typeof obj.round2ShotPhase === 'string') setRound2ShotPhase(obj.round2ShotPhase);
+          return;
+        }
+      } catch { /* formato antigo */ }
+      setStep(phaseId as Step);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const didInitialRestoreRef = useRef(false);
+    useEffect(() => {
+      if (didInitialRestoreRef.current) return;
+      didInitialRestoreRef.current = true;
+      if (initialPhaseSnapshot) applyPhaseId(initialPhaseSnapshot);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useImperativeHandle(
       ref,
       () => ({
@@ -209,8 +313,10 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
         },
         canAdvance: () => true,
         canBack: () => STEP_SEQUENCE.indexOf(step) > 0 || !!onRequestPreviousPhase,
+        getCurrentPhaseId: () => snapshotPayload,
+        setCurrentPhaseId: applyPhaseId,
       }),
-      [step, onFinished, onRequestPreviousPhase],
+      [step, onFinished, onRequestPreviousPhase, snapshotPayload, applyPhaseId],
     );
 
     /* ──────────────────────────────────────────────────────────────
@@ -390,6 +496,8 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
               candidate={session[0].candidate}
               onChallengeFinished={handleRound1Finished}
               onStepError={handleStepError}
+              onPhaseChange={setRound1ShotPhase}
+              initialPhaseSnapshot={round1ShotPhase || undefined}
             />
           </div>
         )}
@@ -435,6 +543,8 @@ export const UnionExercise6Review = forwardRef<UnionExercise6Handle, UnionExerci
               candidate={session[1].candidate}
               onChallengeFinished={handleRound2Finished}
               onStepError={handleStepError}
+              onPhaseChange={setRound2ShotPhase}
+              initialPhaseSnapshot={round2ShotPhase || undefined}
             />
           </div>
         )}

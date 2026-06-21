@@ -256,6 +256,10 @@ export interface TwoDiceSceneHandle {
   roll: () => Promise<{ green: number; blue: number }>;
   setWhiteMode: (enabled: boolean) => void;
   setRandomSides: (enabled: boolean) => void;
+  /** Posiciona os dois dados em repouso mostrando as faces indicadas
+   *  sem animação. Usado pra restaurar resultado visual após F5 — o
+   *  `lastFacesCache` (variável módulo) é zerado pelo refresh. */
+  setFaces: (green: number, blue: number) => void;
 }
 
 const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(function TwoDiceScene(
@@ -393,20 +397,25 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
     };
     internals.current = state;
 
-    // Restauração pós-revival: se houve roll anterior, encaixar os dois dados
-    // em repouso nas faces correspondentes para o aluno não perder o resultado
-    // após uma remontagem por context-loss WebGL.
-    if (lastFacesCache !== null) {
-      const apply = (d: DieState, value: number) => {
+    // Helper compartilhado entre o reviver de WebGL context-loss
+    // (`lastFacesCache`) e o método público `setFaces` (chamado pelo
+    // pai pra restaurar visualmente após F5).
+    const applyResultFaces = (green: number, blue: number) => {
+      const setOne = (d: DieState, value: number) => {
         const [tx, ty, tz] = SNAP_ROT[value];
         d.value = value;
         d.mesh.rotation.set(tx, ty, tz);
         d.mesh.position.set(d.xBase, REST_Y, 0);
         d.x = d.xBase; d.y = REST_Y; d.z = 0;
       };
-      apply(state.dice[0], lastFacesCache.green);
-      apply(state.dice[1], lastFacesCache.blue);
+      setOne(state.dice[0], green);
+      setOne(state.dice[1], blue);
+    };
+
+    if (lastFacesCache !== null) {
+      applyResultFaces(lastFacesCache.green, lastFacesCache.blue);
     }
+    (state as unknown as { _applyResultFaces: (g: number, b: number) => void })._applyResultFaces = applyResultFaces;
 
     // Resize
     const onResize = () => {
@@ -636,7 +645,16 @@ const TwoDiceScene = forwardRef<TwoDiceSceneHandle, { aspectRatio?: string }>(fu
     if (s) s.randomSides = enabled;
   }, []);
 
-  useImperativeHandle(ref, () => ({ roll, setWhiteMode, setRandomSides }), [roll, setWhiteMode, setRandomSides]);
+  const setFaces = useCallback((green: number, blue: number) => {
+    const s = internals.current;
+    if (!s) return;
+    if (green < 1 || green > 6 || blue < 1 || blue > 6) return;
+    const fn = (s as unknown as { _applyResultFaces?: (g: number, b: number) => void })._applyResultFaces;
+    fn?.(green, blue);
+    lastFacesCache = { green, blue };
+  }, []);
+
+  useImperativeHandle(ref, () => ({ roll, setWhiteMode, setRandomSides, setFaces }), [roll, setWhiteMode, setRandomSides, setFaces]);
 
   return (
     <div

@@ -61,6 +61,72 @@ export interface ComplementaryEventData {
   family: string;
 }
 
+// ─── Serialização para snapshot F5 ──────────────────────────────
+
+/** Forma serializável (sem funções) de um ComplementaryEventData.
+ *  `validation` de cada Event é reconstruída a partir do conjunto E. */
+export interface ComplementaryEventDataSerialized {
+  id: string;
+  family: string;
+  nA: number;
+  nE: number;
+  eventA: { name?: string; description: string; complementaryDescription: string };
+  eventComplement: { name?: string; description: string; complementaryDescription: string };
+  /** Pares "g,b" do conjunto Ā (complementar) — base pra reconstruir validation. */
+  E: string[];
+}
+
+/** Converte ComplementaryEventData → forma serializável (descarta funções). */
+export function serializeComplementaryEventData(data: ComplementaryEventData): ComplementaryEventDataSerialized {
+  return {
+    id: data.id,
+    family: data.family,
+    nA: data.nA,
+    nE: data.nE,
+    eventA: {
+      name: data.eventA.name,
+      description: data.eventA.description,
+      complementaryDescription: data.eventA.complementaryDescription,
+    },
+    eventComplement: {
+      name: data.eventComplement.name,
+      description: data.eventComplement.description,
+      complementaryDescription: data.eventComplement.complementaryDescription,
+    },
+    E: Array.from(data.E),
+  };
+}
+
+/** Reconstrói ComplementaryEventData a partir da forma serializada.
+ *  `validation` de A = NÃO pertence a E; `validation` de Ā = pertence a E.
+ *  CUIDADO: `name` só é incluído se estiver definido — `{ name: undefined,
+ *  ...x }` sobrescreve o name de spread posteriores e quebra os consumidores
+ *  que fazem `{ name: A_LABEL, ...d.eventA }` (vide useComplementaryEventsHooks). */
+export function deserializeComplementaryEventData(s: ComplementaryEventDataSerialized): ComplementaryEventData {
+  const E = new Set(s.E);
+  const eventA: Event = {
+    description: s.eventA.description,
+    complementaryDescription: s.eventA.complementaryDescription,
+    validation: (g, b) => !E.has(`${g},${b}`),
+  };
+  if (s.eventA.name !== undefined) eventA.name = s.eventA.name;
+  const eventComplement: Event = {
+    description: s.eventComplement.description,
+    complementaryDescription: s.eventComplement.complementaryDescription,
+    validation: (g, b) => E.has(`${g},${b}`),
+  };
+  if (s.eventComplement.name !== undefined) eventComplement.name = s.eventComplement.name;
+  return {
+    id: s.id,
+    family: s.family,
+    nA: s.nA,
+    nE: s.nE,
+    eventA,
+    eventComplement,
+    E,
+  };
+}
+
 // ─── Utilitários neutros ────────────────────────────────────────
 
 /** Calcula |evento| iterando o grid 6×6 sob a função validation. */

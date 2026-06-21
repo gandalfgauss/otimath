@@ -52,9 +52,30 @@ interface VennLaboratoryProps {
   /** Notifica o pai a cada mudança de sub-etapa interna — usado para o
    *  cenaId DEV refletir cada uma das ~17 sub-etapas do laboratório Venn. */
   onSubStepChange?: (subStep: string) => void;
+  /** Sub-etapa inicial — usada para restauração pós-F5. Quando ausente,
+   *  começa em 'intro'. Lido apenas no mount (useState init); mudanças
+   *  posteriores vêm via `setCurrentSubStep` do handle. */
+  initialSubStep?: string;
+  /** Snapshot JSON v2 do estado COMPLETO do laboratório — usado para
+   *  restauração pós-F5 (inputs digitados, regiões marcadas, expressões
+   *  posicionadas, etc.). Lido no useState init de cada state. */
+  initialPhaseSnapshot?: string;
+  /** Notifica o pai a cada mudança no estado interno (snapshot JSON v2).
+   *  Pai persiste isso no seu próprio snapshot pra que F5 restaure tudo. */
+  onPhaseChange?: (snapshot: string) => void;
   /** Toast alert do OVA. Disparado em validações erradas e acertos
    *  relevantes para feedback consistente com o resto do OVA. */
   createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
+}
+
+/** Parse defensivo do snapshot JSON v2 — retorna `{}` em qualquer falha.
+ *  Cada useState abaixo lê seu campo com `initial.X ?? default`. */
+function parseVennInitial(snapshot?: string): Record<string, unknown> {
+  if (!snapshot) return {};
+  try {
+    const obj = JSON.parse(snapshot) as Record<string, unknown>;
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch { return {}; }
 }
 
 // Handle exposto ao painel DEV — permite avançar pelas sub-etapas internas
@@ -62,6 +83,14 @@ interface VennLaboratoryProps {
 export interface VennLaboratoryHandle {
   getCurrentSubStep: () => string;
   advance: () => void;
+  /** Restaura a sub-etapa interna a partir de um id (ex: 'createIntersection').
+   *  Usado pelo DevPanel pra navegar pra trás e pelo pai pra sincronizar
+   *  após F5 quando applyPhaseId roda APÓS o useState init do VennLab. */
+  setCurrentSubStep: (subStep: string) => void;
+  /** Retorna o snapshot JSON v2 COMPLETO do estado interno — usado pelo
+   *  pai (UnionProbabilityTheory) pra capturar o estado mais recente
+   *  síncrono no `buildSnapshot`, evitando atrasos da cadeia onPhaseChange. */
+  getCurrentPhaseId: () => string;
 }
 
 // Sequência linear das sub-etapas — usada por advance() do handle DEV.
@@ -109,9 +138,14 @@ export function VennLaboratory({
   nA, nB, nI, nU,
   onComplete,
   onSubStepChange,
+  initialSubStep,
+  initialPhaseSnapshot,
+  onPhaseChange,
   createAlert,
   ref,
 }: Readonly<VennLaboratoryProps> & { ref?: React.Ref<VennLaboratoryHandle> }) {
+  // Parse do snapshot pós-F5 — cada useState abaixo lê seu campo com fallback.
+  const initial = parseVennInitial(initialPhaseSnapshot);
   const sets = useMemo<VennSetSpec[]>(() => [
     { label: 'A', description: eventADescription, cardinality: nA, color: COLOR_A, fill: FILL_A },
     { label: 'B', description: eventBDescription, cardinality: nB, color: COLOR_B, fill: FILL_B },
@@ -122,7 +156,20 @@ export function VennLaboratory({
     [nA, nB, nI],
   );
 
-  const [step, setStep] = useState<VennSubStep>('intro');
+  // initialSubStep restaura a sub-etapa exata após F5 — sem isso, o
+  // VennLaboratory remontava sempre em 'intro' mesmo que o pai tivesse
+  // restaurado vennSubStep='createIntersection' no snapshot.
+  // Snapshot tem prioridade sobre initialSubStep (mais completo).
+  const stepFromSnapshot = typeof initial.step === 'string' && VENN_SUBSTEP_SEQUENCE.includes(initial.step as VennSubStep)
+    ? (initial.step as VennSubStep)
+    : null;
+  const initialSubStepValidated = (
+    stepFromSnapshot
+    ?? (initialSubStep && VENN_SUBSTEP_SEQUENCE.includes(initialSubStep as VennSubStep)
+      ? (initialSubStep as VennSubStep)
+      : 'intro')
+  );
+  const [step, setStep] = useState<VennSubStep>(initialSubStepValidated);
   // SEÇÃO POR SUB-ETAPA — cada uma das ~17 sub-etapas do laboratório
   // Venn (intro → createIntersection → ... → conclusion) é uma tela
   // distinta. Mudou de step → nova seção telemétrica, exercícios não
@@ -197,49 +244,68 @@ export function VennLaboratory({
     `Laboratório de Venn — ${stepLabelVenn} — Eventos: A="${eventADescription}", B="${eventBDescription}"`,
     `Atividade global: Construção INTERATIVA do diagrama de Venn (N=2) para descobrir a fórmula geral n(A ∪ B) = n(A) + n(B) − n(A ∩ B). || ${eventosBlocoVenn} || Ação atual do aluno / cálculo: ${oQueCalculaVenn}`,
   );
-  const [geometry, setGeometry] = useState<VennGeometry>(defaultGeometry2Disjoint);
-  const [descriptionsOutside, setDescriptionsOutside] = useState(false);
+  // Helpers de leitura defensiva do snapshot — fallback pra default.
+  const readStr = (k: string, def: string) => typeof initial[k] === 'string' ? (initial[k] as string) : def;
+  const readBool = (k: string, def: boolean) => typeof initial[k] === 'boolean' ? (initial[k] as boolean) : def;
+  const readNum = (k: string, def: number) => typeof initial[k] === 'number' ? (initial[k] as number) : def;
+  const readStrSet = (k: string): Set<string> => Array.isArray(initial[k])
+    ? new Set((initial[k] as unknown[]).filter((x): x is string => typeof x === 'string'))
+    : new Set();
+  const readStrArr = (k: string, def: string[]): string[] => Array.isArray(initial[k])
+    ? (initial[k] as unknown[]).map(x => typeof x === 'string' ? x : '').slice(0, def.length).concat(def.slice((initial[k] as unknown[]).length))
+    : def;
+  const readGeometry = (): VennGeometry => {
+    const g = initial.geometry as VennGeometry | undefined;
+    return g && typeof g === 'object' && 'circles' in g && Array.isArray(g.circles) ? g : defaultGeometry2Disjoint();
+  };
+
+  const [geometry, setGeometry] = useState<VennGeometry>(() => readGeometry());
+  const [descriptionsOutside, setDescriptionsOutside] = useState(() => readBool('descriptionsOutside', false));
 
   // Estados de cada sub-etapa
-  const [intersectionClicked, setIntersectionClicked] = useState(false);
-  const [intersectionValueDeposited, setIntersectionValueDeposited] = useState(false);
-  const [aMinusBClicked, setAMinusBClicked] = useState(false);
-  const [aMinusBFormulaAccepted, setAMinusBFormulaAccepted] = useState(false);
-  const [aMinusBInput, setAMinusBInput] = useState('');
-  const [aMinusBValueDeposited, setAMinusBValueDeposited] = useState(false);
-  const [bMinusAClicked, setBMinusAClicked] = useState(false);
-  const [bMinusAFormulaAccepted, setBMinusAFormulaAccepted] = useState(false);
-  const [bMinusAInput, setBMinusAInput] = useState('');
-  const [bMinusAValueDeposited, setBMinusAValueDeposited] = useState(false);
-  const [unionSelection, setUnionSelection] = useState<Set<string>>(new Set());
+  const [intersectionClicked, setIntersectionClicked] = useState(() => readBool('intersectionClicked', false));
+  const [intersectionValueDeposited, setIntersectionValueDeposited] = useState(() => readBool('intersectionValueDeposited', false));
+  const [aMinusBClicked, setAMinusBClicked] = useState(() => readBool('aMinusBClicked', false));
+  const [aMinusBFormulaAccepted, setAMinusBFormulaAccepted] = useState(() => readBool('aMinusBFormulaAccepted', false));
+  const [aMinusBInput, setAMinusBInput] = useState(() => readStr('aMinusBInput', ''));
+  const [aMinusBValueDeposited, setAMinusBValueDeposited] = useState(() => readBool('aMinusBValueDeposited', false));
+  const [bMinusAClicked, setBMinusAClicked] = useState(() => readBool('bMinusAClicked', false));
+  const [bMinusAFormulaAccepted, setBMinusAFormulaAccepted] = useState(() => readBool('bMinusAFormulaAccepted', false));
+  const [bMinusAInput, setBMinusAInput] = useState(() => readStr('bMinusAInput', ''));
+  const [bMinusAValueDeposited, setBMinusAValueDeposited] = useState(() => readBool('bMinusAValueDeposited', false));
+  const [unionSelection, setUnionSelection] = useState<Set<string>>(() => readStrSet('unionSelection'));
   // Sub-etapas novas: escrita de operações a partir do diagrama
-  const [unionCountInput, setUnionCountInput] = useState('');
-  const [unionCountAccepted, setUnionCountAccepted] = useState(false);
+  const [unionCountInput, setUnionCountInput] = useState(() => readStr('unionCountInput', ''));
+  const [unionCountAccepted, setUnionCountAccepted] = useState(() => readBool('unionCountAccepted', false));
   const [unionCountError, setUnionCountError] = useState(false);
-  const [countAInput, setCountAInput] = useState('');
-  const [countAAccepted, setCountAAccepted] = useState(false);
+  const [countAInput, setCountAInput] = useState(() => readStr('countAInput', ''));
+  const [countAAccepted, setCountAAccepted] = useState(() => readBool('countAAccepted', false));
   const [countAError, setCountAError] = useState(false);
-  const [countBInput, setCountBInput] = useState('');
-  const [countBAccepted, setCountBAccepted] = useState(false);
+  const [countBInput, setCountBInput] = useState(() => readStr('countBInput', ''));
+  const [countBAccepted, setCountBAccepted] = useState(() => readBool('countBAccepted', false));
   const [countBError, setCountBError] = useState(false);
   // Estados de erro para os inputs aritméticos dentro do SVG (A−B, B−A).
   // Sinalizam visualmente (borda vermelha) quando a operação foi validada e está incorreta.
   const [aMinusBInputError, setAMinusBInputError] = useState(false);
   const [bMinusAInputError, setBMinusAInputError] = useState(false);
   // sumAB: controla quais chips foram clicados (0 = nenhum, 1 = só n(A), 2 = ambos)
-  const [sumABFilledA, setSumABFilledA] = useState(false);
-  const [sumABFilledB, setSumABFilledB] = useState(false);
-  // placeExpressions: expressão armada na 2ª linha + mapa de regiões preenchidas
+  const [sumABFilledA, setSumABFilledA] = useState(() => readBool('sumABFilledA', false));
+  const [sumABFilledB, setSumABFilledB] = useState(() => readBool('sumABFilledB', false));
+  // placeExpressions: expressão armada na 2ª linha + mapa de regiões preenchidas.
+  // `armedExpression` é transitório (chip selecionado pra colocar) — zera no F5.
   const [armedExpression, setArmedExpression] = useState<ExpressionId | null>(null);
-  const [placedExpressions, setPlacedExpressions] = useState<Record<string, ExpressionId>>({});
+  const [placedExpressions, setPlacedExpressions] = useState<Record<string, ExpressionId>>(() => {
+    const p = initial.placedExpressions;
+    return p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, ExpressionId>) : {};
+  });
   // writeUnionFormula: slots preenchidos em ordem conforme cliques no diagrama
-  const [formulaSlots, setFormulaSlots] = useState<string[]>(['', '', '']);
-  const [formulaUsedRegions, setFormulaUsedRegions] = useState<Set<string>>(new Set());
+  const [formulaSlots, setFormulaSlots] = useState<string[]>(() => readStrArr('formulaSlots', ['', '', '']));
+  const [formulaUsedRegions, setFormulaUsedRegions] = useState<Set<string>>(() => readStrSet('formulaUsedRegions'));
   // conclusion: fase interna da animação da derivação algébrica
-  const [conclusionPhase, setConclusionPhase] = useState(0);
+  const [conclusionPhase, setConclusionPhase] = useState(() => readNum('conclusionPhase', 0));
   const [flashingMask, setFlashingMask] = useState<MembershipMask | null>(null);
-  const [doubleCountChoice, setDoubleCountChoice] = useState('');
-  const [doubleCountConfirmed, setDoubleCountConfirmed] = useState(false);
+  const [doubleCountChoice, setDoubleCountChoice] = useState(() => readStr('doubleCountChoice', ''));
+  const [doubleCountConfirmed, setDoubleCountConfirmed] = useState(() => readBool('doubleCountConfirmed', false));
   const [feedback, setFeedback] = useState<{ type: 'ok' | 'err' | 'none'; msg?: string }>({ type: 'none' });
   // Chip armado: qual cardinalidade o aluno selecionou no painel superior para depositar no diagrama
   const [armedChip, setArmedChip] = useState<'nI' | null>(null);
@@ -263,11 +329,46 @@ export function VennLaboratory({
     onSubStepChange?.(step);
   }, [step, onSubStepChange]);
 
+  // Snapshot JSON v2 do estado COMPLETO — emitido a cada mudança
+  // pra que o pai persista e F5 restaure tudo (inputs, marcações,
+  // expressões posicionadas, geometria dos círculos, etc.).
+  // Transitórios excluídos: feedback/flashingMask/armedExpression/armedChip
+  // (limpos ao restaurar — aluno reativa). Erros (count*Error) também
+  // são derivados; o aluno re-validando os re-deriva.
+  const snapshotPayload = JSON.stringify({
+    v: 2,
+    step,
+    geometry,
+    descriptionsOutside,
+    intersectionClicked, intersectionValueDeposited,
+    aMinusBClicked, aMinusBFormulaAccepted, aMinusBInput, aMinusBValueDeposited,
+    bMinusAClicked, bMinusAFormulaAccepted, bMinusAInput, bMinusAValueDeposited,
+    unionSelection: Array.from(unionSelection),
+    unionCountInput, unionCountAccepted,
+    countAInput, countAAccepted,
+    countBInput, countBAccepted,
+    sumABFilledA, sumABFilledB,
+    placedExpressions,
+    formulaSlots,
+    formulaUsedRegions: Array.from(formulaUsedRegions),
+    conclusionPhase,
+    doubleCountChoice, doubleCountConfirmed,
+  });
+  useEffect(() => {
+    onPhaseChange?.(snapshotPayload);
+  }, [snapshotPayload, onPhaseChange]);
+
   // Handle DEV — avança 1 sub-etapa na sequência linear.
   // Quando aplicável, também preenche estados "de aceito" para que a UI
   // da próxima sub-etapa não dependa de cliques anteriores do aluno.
   useImperativeHandle(ref, () => ({
     getCurrentSubStep: () => step,
+    setCurrentSubStep: (sub: string) => {
+      if (VENN_SUBSTEP_SEQUENCE.includes(sub as VennSubStep)) {
+        setStep(sub as VennSubStep);
+      }
+    },
+    getCurrentPhaseId: () => snapshotPayload,
     advance: () => {
       const idx = VENN_SUBSTEP_SEQUENCE.indexOf(step as typeof VENN_SUBSTEP_SEQUENCE[number]);
       if (idx < 0) return;
@@ -351,7 +452,7 @@ export function VennLaboratory({
       }
       setStep(next);
     },
-  }), [step, onComplete, nA, nB, nI, nU]);
+  }), [step, onComplete, nA, nB, nI, nU, snapshotPayload]);
 
   // --- Sub-etapa 2: createIntersection ---
   const moveCircleB = useCallback((direction: 'left' | 'right') => {

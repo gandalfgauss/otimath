@@ -19,7 +19,7 @@
      />
    ═══════════════════════════════════════════════════════════════════ */
 
-import React, { forwardRef, useImperativeHandle } from 'react';
+import React, { forwardRef, useImperativeHandle, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/global/Button';
 import { Alerts } from '@/components/global/Alerts';
 import { Modal } from '@/components/global/Modal';
@@ -37,12 +37,19 @@ interface TwoDicesGameSingleShotProps {
   candidate: Ex6Candidate;
   onChallengeFinished: () => void;
   onStepError?: (stepKind: SingleShotStepKind) => void;
+  /** Notifica o pai (UnionExercise6Review) a cada mudança de stepIndex/inputs.
+   *  Permite o ex6 persistir o snapshot interno do single-shot pra F5. */
+  onPhaseChange?: (phaseId: string) => void;
+  /** Snapshot JSON v2 vindo do pai pra restaurar pós-F5. Aplicado no mount. */
+  initialPhaseSnapshot?: string;
 }
 
 // Handle exposto ao painel DEV — permite avançar pelas 5 sub-fases internas
 // (mark-A → mark-B → mark-D → identify-operation → compute-probability).
 export interface TwoDicesGameSingleShotHandle {
   advance: () => void;
+  getCurrentPhaseId: () => string;
+  setCurrentPhaseId: (phaseId: string) => void;
 }
 
 export const TwoDicesGameSingleShot = forwardRef<TwoDicesGameSingleShotHandle, TwoDicesGameSingleShotProps>(
@@ -50,6 +57,8 @@ function TwoDicesGameSingleShot({
   candidate,
   onChallengeFinished,
   onStepError,
+  onPhaseChange,
+  initialPhaseSnapshot,
 }: Readonly<TwoDicesGameSingleShotProps>, ref) {
   const {
     instructions,
@@ -74,15 +83,54 @@ function TwoDicesGameSingleShot({
     markAllOnClick,
     disabledMarkAllButton,
     devAdvance,
+    restoreSnapshot,
+    snapshotData,
   } = useTwoDicesSingleShotHooks({
     candidate,
     onChallengeFinished,
     onStepError,
   });
 
+  const snapshotPayload = JSON.stringify({ v: 2, ...snapshotData });
+
+  const applyPhaseId = useCallback((phaseId: string) => {
+    try {
+      const obj = JSON.parse(phaseId);
+      if (obj && typeof obj === 'object') {
+        restoreSnapshot({
+          stepIndex: typeof obj.stepIndex === 'number' ? obj.stepIndex : undefined,
+          eventsCheckboxes: obj.eventsCheckboxes && typeof obj.eventsCheckboxes === 'object' ? obj.eventsCheckboxes : undefined,
+          probValues: obj.probValues && typeof obj.probValues === 'object' ? obj.probValues : undefined,
+          selectValues: obj.selectValues && typeof obj.selectValues === 'object' ? obj.selectValues : undefined,
+          disabledCheckButton: typeof obj.disabledCheckButton === 'boolean' ? obj.disabledCheckButton : undefined,
+          disabledNextStepButton: typeof obj.disabledNextStepButton === 'boolean' ? obj.disabledNextStepButton : undefined,
+          disabledClearButton: typeof obj.disabledClearButton === 'boolean' ? obj.disabledClearButton : undefined,
+          probInputsDisabled: typeof obj.probInputsDisabled === 'boolean' ? obj.probInputsDisabled : undefined,
+          selectInputsDisabled: typeof obj.selectInputsDisabled === 'boolean' ? obj.selectInputsDisabled : undefined,
+        });
+      }
+    } catch { /* JSON inválido — ignora */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const didInitialRestoreRef = useRef(false);
+  useEffect(() => {
+    if (didInitialRestoreRef.current) return;
+    didInitialRestoreRef.current = true;
+    if (initialPhaseSnapshot) applyPhaseId(initialPhaseSnapshot);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (initialPhaseSnapshot && !didInitialRestoreRef.current) return;
+    onPhaseChange?.(snapshotPayload);
+  }, [snapshotPayload, onPhaseChange, initialPhaseSnapshot]);
+
   useImperativeHandle(ref, () => ({
     advance: () => devAdvance(),
-  }), [devAdvance]);
+    getCurrentPhaseId: () => snapshotPayload,
+    setCurrentPhaseId: applyPhaseId,
+  }), [devAdvance, snapshotPayload, applyPhaseId]);
 
   return (
     <div className="flex flex-col gap-y-xxs">

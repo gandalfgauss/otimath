@@ -302,6 +302,12 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
   // Fase interna atual da Cena 5 (notificada via onPhaseChange) — entra
   // no cenaId DEV para que cada sub-fase seja capturada como snapshot.
   const [scene5InternalPhase, setScene5InternalPhase] = useState<string>('main=intro');
+  // Flag de bloqueio durante restauração via snapshot. Os wrappers
+  // handleScene{5,6,7}PhaseChange (declarados mais abaixo, depois dos
+  // setters de scene6/scene7) ignoram emits enquanto esta flag está
+  // true — evita que o mount inicial dos filhos sobrescreva o estado
+  // que veio do banco com JSON default (state padrão pré-setCurrentPhaseId).
+  const isRestoringSceneRef = useRef(false);
   // Mesmo padrão para Cena 6 (DiceMachineExperiment).
   const machineExperimentRef = useRef<DiceMachineExperimentHandle>(null);
   const [scene6InternalPhase, setScene6InternalPhase] = useState<string>('intro');
@@ -390,6 +396,27 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
   // (max-w-[800px] → max-w-[1216px]) quando entra na unionTheory, cuja
   // tabela 6×6 precisa de mais que 800px para não gerar scroll horizontal.
   const [scene7ExperimentPhase, setScene7ExperimentPhase] = useState<string>('intro');
+
+  // Wrappers de onPhaseChange — bloqueiam emits dos filhos durante a
+  // janela de restauração (isRestoringSceneRef.current=true). Sem isso,
+  // o useEffect onPhaseChange do filho dispara no mount com state default
+  // e sobrescreve o `scene{5,6,7}InternalPhase` que veio do banco —
+  // perdendo checkboxes/inputs/resultados. A flag é liberada DENTRO do
+  // RAF do applyDevSnapshot, logo após o setCurrentPhaseId restaurar
+  // os states corretos; o próximo emit (com state já restaurado) passa
+  // normalmente.
+  const handleScene5PhaseChange = useCallback((p: string) => {
+    if (isRestoringSceneRef.current) return;
+    setScene5InternalPhase(p);
+  }, []);
+  const handleScene6PhaseChange = useCallback((p: string) => {
+    if (isRestoringSceneRef.current) return;
+    setScene6InternalPhase(p);
+  }, []);
+  const handleScene7PhaseChange = useCallback((p: string) => {
+    if (isRestoringSceneRef.current) return;
+    setScene7ExperimentPhase(p);
+  }, []);
 
   // ─── TELEMETRIA POR CENA — title/descricao DINÂMICOS com TODO o texto
   // da tela visível. Cada cena chama useTelemetryExercise com id estável
@@ -947,11 +974,26 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
     compareBarsAnimated, scene4Step,
     scene4EqAnswer, scene4EqError, scene4VicAnswer, scene4VicError,
     scene4SumAnswer, scene4SumError, scene4RadioOrder,
-    scene5Finished, scene5InternalPhase, scene6Finished, scene6InternalPhase, machineReady, scene7Finished,
-    scene7UsesMachine, scene7HideAllDice, scene7ExperimentPhase,
+    scene5Finished,
+    // PREFERE puxar via ref do filho — síncrono, captura digitação que
+    // ainda não propagou pelo chain de setState (crítico no beforeunload
+    // do F5, onde o usuário pode ter digitado nos últimos ms antes do
+    // refresh; o state local `sceneNInternalPhase` ainda está stale).
+    scene5InternalPhase: practiceRef.current?.getCurrentPhaseId?.() ?? scene5InternalPhase,
+    scene6Finished,
+    scene6InternalPhase: machineExperimentRef.current?.getCurrentPhaseId?.() ?? scene6InternalPhase,
+    machineReady, scene7Finished,
+    scene7UsesMachine, scene7HideAllDice,
+    scene7ExperimentPhase: twoDicesExperimentRef.current?.getCurrentPhaseId?.() ?? scene7ExperimentPhase,
   });
 
   const applyDevSnapshot = (snap: DevSnapshot) => {
+    // ATIVA bloqueio: os filhos (Practice/MachineExperiment/Experiment)
+    // vão emitir onPhaseChange no mount inicial com JSON default — os
+    // wrappers `handleScene{5,6,7}PhaseChange` ignoram enquanto esta
+    // flag está true. Sem isso, o snapshot bom vindo do banco é
+    // sobrescrito pelo default e o aluno perde checkboxes/inputs/etc.
+    isRestoringSceneRef.current = true;
     setDone(snap.done);
     setScene(snap.scene);
     // `transitioning` é flag transitória (400ms entre cenas) — o
@@ -1026,6 +1068,16 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
       if (snap.scene === 7) {
         twoDicesExperimentRef.current?.setCurrentPhaseId?.(snap.scene7ExperimentPhase);
       }
+      // DESBLOQUEIA wrappers DEPOIS do setCurrentPhaseId disparar os
+      // setStates. O próximo onPhaseChange dos filhos (emitido em
+      // microtask após o commit do re-render restaurado) JÁ refletirá
+      // o estado correto — pode atualizar o pai normalmente. Atraso de
+      // 2 RAFs cobre commit + microtask + frame.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          isRestoringSceneRef.current = false;
+        });
+      });
     });
   };
 
@@ -1134,7 +1186,19 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
       };
       const PHASE_ORDER = Object.keys(PHASE_WEIGHTS);
       const totalWeight = Object.values(PHASE_WEIGHTS).reduce((s, w) => s + w, 0);
-      const base = scene7ExperimentPhase.split('|')[0];
+      // Extrai a `phase` do snapshot JSON v2 (formato atual). Fallback
+      // pro split antigo cobre snapshots legacy "phase|sub|sub". Antes,
+      // a string JSON inteira passava por `split('|')[0]` e dava
+      // `indexOf = -1` — within=0 — barra parava de avançar.
+      let base = scene7ExperimentPhase;
+      if (base.startsWith('{')) {
+        try {
+          const obj = JSON.parse(base) as { phase?: string };
+          base = typeof obj.phase === 'string' ? obj.phase : '';
+        } catch { base = ''; }
+      } else {
+        base = base.split('|')[0];
+      }
       const idx = PHASE_ORDER.indexOf(base);
       if (idx >= 0) {
         // Soma os pesos das fases ATÉ a atual (exclusiva) = posição de início.
@@ -1362,7 +1426,7 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
       )}
       <Grid id="apresentacao-dado" paddings="pt-md" noEdgeMargins>
         <GridItem cols="col-[1_/_13]">
-          <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && (scene7ExperimentPhase.startsWith('complementaryEvents') || scene7ExperimentPhase.startsWith('unionTheory') || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5' || scene7ExperimentPhase === 'unionExercise6' || scene7ExperimentPhase === 'twoDicesGameFree' || scene7ExperimentPhase === 'unionExercise8') ? 'max-w-[1216px]' : 'max-w-[800px]'}`}>
+          <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && (scene7ExperimentPhase.startsWith('complementaryEvents') || scene7ExperimentPhase.startsWith('unionTheory') || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5' || scene7ExperimentPhase === 'unionExercise6' || scene7ExperimentPhase === 'twoDicesGameFree' || scene7ExperimentPhase === 'unionExercise8') ? 'max-w-[1216px]' : 'max-w-[1200px]'}`}>
 
             {/* Título da cena atual */}
             {scene === 1 && (
@@ -1998,7 +2062,7 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
                 ref={practiceRef}
                 diceRef={diceRef}
                 diceContainerRef={diceContainerRef}
-                onPhaseChange={setScene5InternalPhase}
+                onPhaseChange={handleScene5PhaseChange}
                 createAlert={createAlert}
                 onFinished={() => {
                   setScene5Finished(true);
@@ -2050,7 +2114,7 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
                 ref={machineExperimentRef}
                 diceMachineRef={diceMachineRef}
                 diceContainerRef={diceMachineContainerRef}
-                onPhaseChange={setScene6InternalPhase}
+                onPhaseChange={handleScene6PhaseChange}
                 createAlert={createAlert}
                 onFinished={() => {
                   setScene6Finished(true);
@@ -2106,7 +2170,7 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
                   unionExercise6Ref={unionExercise6Ref}
                   onMachineVisibilityChange={setScene7UsesMachine}
                   onHideAllDice={setScene7HideAllDice}
-                  onPhaseChange={setScene7ExperimentPhase}
+                  onPhaseChange={handleScene7PhaseChange}
                   createAlert={createAlert}
                   onFinished={() => {
                     setScene7Finished(true);

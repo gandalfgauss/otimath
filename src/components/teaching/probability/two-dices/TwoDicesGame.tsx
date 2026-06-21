@@ -1,5 +1,6 @@
 'use client'
 
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import { Button } from "@/components/global/Button";
 import { RefreshCw, Check, X, ArrowRight, CheckSquare } from "lucide-react";
 import { useTelemetryExercise, telemetryRecordInteracaoExercicio } from "@/hooks/teaching/probability/useTelemetry";
@@ -10,15 +11,27 @@ import { Modal } from "@/components/global/Modal";
 import { TwoDicesFormulation } from "./TwoDicesFormulation";
 import { TextBlock } from "@/components/global/TextBlock";
 
+export interface TwoDicesGameHandle {
+  getCurrentPhaseId: () => string;
+  setCurrentPhaseId: (phaseId: string) => void;
+}
+
 interface TwoDicesGameProps {
   /** Quando true, exibe o botão "Marcar todos!" ao lado de "Limpar".
    *  Default false — preserva comportamento original da seção introdutória.
    *  Usado pelo Ex7 (Exercícios de Fixação) onde a estratégia "marcar tudo
    *  e desmarcar não-favoráveis" é útil para eventos com cardinalidade alta. */
   enableMarkAll?: boolean;
+  /** Emite snapshot JSON v2 pro pai (TwoDicesExperiment) persistir. */
+  onPhaseChange?: (phaseId: string) => void;
+  /** Snapshot pra restauração pós-F5 no mount. */
+  initialPhaseSnapshot?: string;
 }
 
-export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGameProps> = {}) {
+export const TwoDicesGame = forwardRef<TwoDicesGameHandle, TwoDicesGameProps>(function TwoDicesGame(
+  { enableMarkAll = false, onPhaseChange, initialPhaseSnapshot }: Readonly<TwoDicesGameProps>,
+  ref,
+) {
   const {
     instructions,
     resetGameOnClick,
@@ -32,7 +45,53 @@ export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGamePro
     markAllOnClick,
     challenge,
     step,
+    restoreSnapshot,
+    snapshotData,
   } = useTwoDicesHooks();
+
+  // Snapshot JSON v2 — challenge + step + eventsCheckboxes.
+  const snapshotPayload = JSON.stringify({ v: 2, ...snapshotData });
+  useEffect(() => {
+    onPhaseChange?.(snapshotPayload);
+  }, [snapshotPayload, onPhaseChange]);
+
+  const applyPhaseId = useCallback((phaseId: string) => {
+    try {
+      const obj = JSON.parse(phaseId);
+      if (obj && typeof obj === 'object') {
+        restoreSnapshot({
+          challenge: typeof obj.challenge === 'number' ? obj.challenge : undefined,
+          step: typeof obj.step === 'number' ? obj.step : undefined,
+          eventsCheckboxes: obj.eventsCheckboxes && typeof obj.eventsCheckboxes === 'object' ? obj.eventsCheckboxes : undefined,
+          eventsOrder: Array.isArray(obj.eventsOrder) ? obj.eventsOrder : undefined,
+          operationsOrder: Array.isArray(obj.operationsOrder) ? obj.operationsOrder : undefined,
+          probValues: obj.probValues && typeof obj.probValues === 'object' ? obj.probValues : undefined,
+          selectValues: obj.selectValues && typeof obj.selectValues === 'object' ? obj.selectValues : undefined,
+          disabledCheckButton: typeof obj.disabledCheckButton === 'boolean' ? obj.disabledCheckButton : undefined,
+          disabledNextStepButton: typeof obj.disabledNextStepButton === 'boolean' ? obj.disabledNextStepButton : undefined,
+          disabledClearButton: typeof obj.disabledClearButton === 'boolean' ? obj.disabledClearButton : undefined,
+          probInputsDisabled: typeof obj.probInputsDisabled === 'boolean' ? obj.probInputsDisabled : undefined,
+          selectInputsDisabled: typeof obj.selectInputsDisabled === 'boolean' ? obj.selectInputsDisabled : undefined,
+        });
+      }
+    } catch { /* JSON inválido — ignora */ }
+  // restoreSnapshot é estável (definido inline no hook a cada render mas
+  // só usa setStates internos que são estáveis).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const didInitialRestoreRef = useRef(false);
+  useEffect(() => {
+    if (didInitialRestoreRef.current) return;
+    didInitialRestoreRef.current = true;
+    if (initialPhaseSnapshot) applyPhaseId(initialPhaseSnapshot);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useImperativeHandle(ref, () => ({
+    getCurrentPhaseId: () => snapshotPayload,
+    setCurrentPhaseId: applyPhaseId,
+  }), [snapshotPayload, applyPhaseId]);
 
   // Telemetria — Ex7: jogo livre com a tabela 6×6 (eventos pré-definidos
   // ou modo "marcar tudo"). Enriquece a `descricao` com CONTEXTO do
@@ -166,7 +225,7 @@ export function TwoDicesGame({ enableMarkAll = false }: Readonly<TwoDicesGamePro
       </div>
     </div>
   );
-}
+});
 
 
 /* Example 

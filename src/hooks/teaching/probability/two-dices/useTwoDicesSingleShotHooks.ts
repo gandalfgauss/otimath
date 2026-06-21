@@ -219,8 +219,25 @@ export const useTwoDicesSingleShotHooks = ({
 }: UseSingleShotArgs) => {
   const steps = useMemo(() => buildSteps(candidate), [candidate]);
 
+  // useState init com grid pro step 0 — evita "Sem grid pra clicar"
+  // no mount inicial (sem snapshot). Quando há snapshot, `restoreSnapshot`
+  // sobrescreve via `setEventsCheckboxes` logo no useEffect [] do componente.
+  const buildInitialCheckboxes = (): EventCheckboxes => {
+    const newState: EventCheckboxes = {};
+    steps[0].activeEvents.forEach((ev) => {
+      newState[ev.name] = [];
+      for (let g = 0; g < MAXIMUM_VALUE_DICE; g++) {
+        newState[ev.name][g] = [];
+        for (let b = 0; b < MAXIMUM_VALUE_DICE; b++) {
+          newState[ev.name][g].push({ checked: false, disabled: false });
+        }
+      }
+    });
+    return newState;
+  };
+
   const [stepIndex, setStepIndex] = useState<number>(0);
-  const [eventsCheckboxes, setEventsCheckboxes] = useState<EventCheckboxes>({});
+  const [eventsCheckboxes, setEventsCheckboxes] = useState<EventCheckboxes>(buildInitialCheckboxes);
   const [probabilitiesTextInputs, setProbabilitiesTextInputs] = useState<ProbabilitiesTextInputs>(
     {} as ProbabilitiesTextInputs,
   );
@@ -231,7 +248,7 @@ export const useTwoDicesSingleShotHooks = ({
   const [disabledCheckButton, setDisabledCheckButton] = useState(false);
   const [disabledNextStepButton, setDisabledNextStepButton] = useState(true);
   const [disabledClearButton, setDisabledClearButton] = useState(false);
-  const [instructions, setInstructions] = useState<string>('');
+  const [instructions, setInstructions] = useState<string>(() => steps[0].instructions);
 
   const { alerts, createAlert, updateAlert, deleteAlerts } = useAlerts();
   const { modal, updateModal } = useModal();
@@ -241,7 +258,24 @@ export const useTwoDicesSingleShotHooks = ({
   /* ──────────────────────────────────────────────────────────────
      INITIALIZAÇÃO — monta o estado para o primeiro step
      ──────────────────────────────────────────────────────────── */
+  // Tracking pra distinguir mount inicial (que NÃO deve resetar — o
+  // restoreSnapshot vai aplicar o estado correto logo após) de candidate
+  // realmente novo (Próxima Rodada — DEVE resetar). Em StrictMode dev,
+  // o useEffect roda 2x no mount e zerava o restoreSnapshot. Em prod,
+  // sem strict, a fix segue válida porque candidate só muda quando o
+  // pai realmente troca a rodada.
+  const prevCandidateIdRef = useRef<string | null>(null);
   useEffect(() => {
+    if (prevCandidateIdRef.current === candidate.id) return;
+    const isFirstMount = prevCandidateIdRef.current === null;
+    prevCandidateIdRef.current = candidate.id;
+    if (isFirstMount) {
+      // Mount inicial — NÃO reseta. O `restoreSnapshot` (chamado pelo
+      // componente via initialPhaseSnapshot) já configura o estado
+      // correto, OU o useState init de cada state já cobre defaults.
+      // Resetar aqui sobrescreveria o restore após F5.
+      return;
+    }
     setStepIndex(0);
     setInstructions(steps[0].instructions);
     initCheckboxesForStep(steps[0]);
@@ -330,6 +364,8 @@ export const useTwoDicesSingleShotHooks = ({
   // sequência de experimentação (trocas intermediárias) ficava muda.
   // Sentinel `null` pula o mount inicial; reset (selectInputs recriado)
   // também passa pelo sentinel sem logar.
+  // Flag suprime detect-and-emit durante F5 restore.
+  const isRestoringSnapshotRef = useRef(false);
   const prevSelectsRefSingleShot = useRef<{ a: string; o: string; b: string } | null>(null);
   useEffect(() => {
     const cur = {
@@ -341,6 +377,7 @@ export const useTwoDicesSingleShotHooks = ({
     if (prev === null) { prevSelectsRefSingleShot.current = cur; return; }
     if (prev.a === cur.a && prev.o === cur.o && prev.b === cur.b) return;
     prevSelectsRefSingleShot.current = cur;
+    if (isRestoringSnapshotRef.current) return;
     const changed: string[] = [];
     if (prev.a !== cur.a) changed.push(`Evento A: "${prev.a || '_'}" → "${cur.a || '_'}"`);
     if (prev.o !== cur.o) changed.push(`Operação: "${prev.o || '_'}" → "${cur.o || '_'}"`);
@@ -354,14 +391,14 @@ export const useTwoDicesSingleShotHooks = ({
   /* ──────────────────────────────────────────────────────────────
      PROBABILITY INPUTS — build e disable
      ──────────────────────────────────────────────────────────── */
-  const buildProbabilitiesInputs = (eventName: string, hasComplementary: boolean) => {
+  const buildProbabilitiesInputs = (eventName: string, hasComplementary: boolean, initialValues?: { num?: string; den?: string; compNum?: string; compDen?: string }) => {
     const aux: ProbabilitiesTextInputs = {
       eventName,
       hasComplementary,
-      numerator:   { value: '', disabled: false, error: false },
-      denominator: { value: '', disabled: false, error: false },
-      complementaryNumerator:   { value: '', disabled: false, error: false },
-      complementaryDenominator: { value: '', disabled: false, error: false },
+      numerator:   { value: initialValues?.num ?? '', disabled: false, error: false },
+      denominator: { value: initialValues?.den ?? '', disabled: false, error: false },
+      complementaryNumerator:   { value: initialValues?.compNum ?? '', disabled: false, error: false },
+      complementaryDenominator: { value: initialValues?.compDen ?? '', disabled: false, error: false },
     };
     aux.numerator.setValue = (v: string) =>
       setProbabilitiesTextInputs((p) => ({ ...p, numerator: { ...p.numerator, value: v } }));
@@ -407,20 +444,20 @@ export const useTwoDicesSingleShotHooks = ({
   /* ──────────────────────────────────────────────────────────────
      SELECT INPUTS — build, disable, error
      ──────────────────────────────────────────────────────────── */
-  const buildSelectInputs = (eventOptions: string[], opOptions: { value: string; label: string }[]) => {
+  const buildSelectInputs = (eventOptions: string[], opOptions: { value: string; label: string }[], initialValues?: { a?: string; o?: string; b?: string }) => {
     setOperationSelectInputs({
       eventsA: {
-        disabled: false, value: ' ', error: false,
+        disabled: false, value: initialValues?.a ?? ' ', error: false,
         setValue: (v) => setOperationSelectInputs((p) => ({ ...p, eventsA: { ...p.eventsA, value: v } })),
         options: eventOptions.map((e) => ({ value: e, label: e })),
       },
       operations: {
-        disabled: false, value: ' ', error: false,
+        disabled: false, value: initialValues?.o ?? ' ', error: false,
         setValue: (v) => setOperationSelectInputs((p) => ({ ...p, operations: { ...p.operations, value: v } })),
         options: opOptions.map((o) => ({ value: o.value, label: o.label })),
       },
       eventsB: {
-        disabled: false, value: ' ', error: false,
+        disabled: false, value: initialValues?.b ?? ' ', error: false,
         setValue: (v) => setOperationSelectInputs((p) => ({ ...p, eventsB: { ...p.eventsB, value: v } })),
         options: eventOptions.map((e) => ({ value: e, label: e })),
       },
@@ -780,5 +817,86 @@ export const useTwoDicesSingleShotHooks = ({
      *  por marking → identify-operation → compute-probability. Quando
      *  estamos no último, chama onChallengeFinished. */
     devAdvance: advanceToNextStep,
+    // Restauração pós-F5 — recebe stepIndex + marcações + values dos
+    // inputs (closures recriadas a partir do step atual).
+    restoreSnapshot: (snap: {
+      stepIndex?: number;
+      eventsCheckboxes?: EventCheckboxes;
+      probValues?: { num?: string; den?: string; compNum?: string; compDen?: string };
+      selectValues?: { a?: string; o?: string; b?: string };
+      disabledCheckButton?: boolean;
+      disabledNextStepButton?: boolean;
+      disabledClearButton?: boolean;
+      probInputsDisabled?: boolean;
+      selectInputsDisabled?: boolean;
+    }) => {
+      isRestoringSnapshotRef.current = true;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => { isRestoringSnapshotRef.current = false; }, 700);
+        });
+      });
+      if (typeof snap.stepIndex === 'number') {
+        setStepIndex(snap.stepIndex);
+        setInstructions(steps[snap.stepIndex]?.instructions ?? '');
+      }
+      if (snap.eventsCheckboxes && typeof snap.eventsCheckboxes === 'object') {
+        setEventsCheckboxes(snap.eventsCheckboxes);
+      }
+      const stepIdx = snap.stepIndex ?? stepIndex;
+      const stepConfig = steps[stepIdx];
+      if (snap.probValues && stepConfig?.kind === 'compute-probability' && stepConfig.eventToProbability) {
+        buildProbabilitiesInputs(stepConfig.eventToProbability.name, false, snap.probValues);
+        // Se o aluno JÁ tinha validado o cálculo antes do F5, os inputs
+        // estavam disabled e o botão "Próximo passo" visível. Aplicamos
+        // ambos os efeitos pra preservar o estado pós-acerto.
+        if (snap.probInputsDisabled) {
+          disableProbabilitiesInputs();
+        }
+      }
+      if (snap.selectValues && stepConfig?.kind === 'identify-operation') {
+        buildSelectInputs(
+          stepConfig.eventsForSelect ?? [],
+          stepConfig.selectOperations ?? [],
+          snap.selectValues,
+        );
+        if (snap.selectInputsDisabled) {
+          disableSelectInputs();
+        }
+      }
+
+      // Botões — sem isso, F5 após acerto VOLTA o "Próximo passo" pra
+      // disabled, o aluno vê inputs "editáveis novamente" e parece que
+      // o cálculo foi desfeito.
+      if (typeof snap.disabledCheckButton === 'boolean') setDisabledCheckButton(snap.disabledCheckButton);
+      if (typeof snap.disabledNextStepButton === 'boolean') setDisabledNextStepButton(snap.disabledNextStepButton);
+      if (typeof snap.disabledClearButton === 'boolean') setDisabledClearButton(snap.disabledClearButton);
+    },
+    // Snapshot serializável pro getCurrentPhaseId — VALUES dos inputs
+    // (strings extraídas dos objetos com closures) + flags de UI que
+    // governam visibilidade dos botões (sem isso, F5 após acerto
+    // volta os botões pro estado pré-validação).
+    snapshotData: {
+      stepIndex,
+      eventsCheckboxes,
+      probValues: {
+        num: probabilitiesTextInputs?.numerator?.value ?? '',
+        den: probabilitiesTextInputs?.denominator?.value ?? '',
+        compNum: probabilitiesTextInputs?.complementaryNumerator?.value ?? '',
+        compDen: probabilitiesTextInputs?.complementaryDenominator?.value ?? '',
+      },
+      selectValues: {
+        a: operationSelectInputs?.eventsA?.value ?? '',
+        o: operationSelectInputs?.operations?.value ?? '',
+        b: operationSelectInputs?.eventsB?.value ?? '',
+      },
+      disabledCheckButton,
+      disabledNextStepButton,
+      disabledClearButton,
+      // Inputs estão disabled quando o aluno já validou o cálculo —
+      // captura via `numerator.disabled` (representativo do conjunto).
+      probInputsDisabled: probabilitiesTextInputs?.numerator?.disabled ?? false,
+      selectInputsDisabled: operationSelectInputs?.eventsA?.disabled ?? false,
+    },
   };
 };

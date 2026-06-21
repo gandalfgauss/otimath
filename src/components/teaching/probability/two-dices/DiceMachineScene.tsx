@@ -829,6 +829,14 @@ export interface DiceMachineSceneHandle {
    * durante a fase colorQuestion.
    */
   setWhiteMode: (enabled: boolean) => void;
+  /**
+   * Posiciona os dois dados em repouso no estado RESULT mostrando as
+   * faces indicadas (sem rodar a animação de ~12s). Usado na restauração
+   * via snapshot após F5 — `lastFacesCache` (variável módulo) é zerado
+   * pelo refresh, então o pai chama esse método explicitamente com o
+   * `blueResult/greenResult` do snapshot.
+   */
+  setFaces: (blue: number, green: number) => void;
 }
 
 interface Props {
@@ -2222,15 +2230,16 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     };
     state.animId = requestAnimationFrame(animate);
 
-    // Restauração pós-revival WebGL — encaixa os dois dados em RESULT com as
-    // faces cacheadas, sem rodar a animação de ~12s da máquina. Posições padrão
-    // centradas na mesa (a posição original do lançamento se perde com o
-    // remount; o importante é o aluno conseguir LER as faces pra responder a
-    // questão pendente). state.cur='RESULT' bloqueia o loop de avançar pelos
-    // estados (vide guarda `state.cur !== 'RESULT'` em animate).
-    if (lastFacesCache !== null) {
-      state.die1 = lastFacesCache.blue;
-      state.die2 = lastFacesCache.green;
+    // Helper compartilhado entre o reviver de WebGL context-loss
+    // (`lastFacesCache`) e o método público `setFaces` (chamado pelo
+    // pai pra restaurar visualmente após F5 com o blueResult/greenResult
+    // do snapshot). Encaixa os dois dados em RESULT sem rodar a
+    // animação de ~12s — `state.cur='RESULT'` bloqueia o loop de
+    // avançar pelos estados (vide guarda `state.cur !== 'RESULT'` em
+    // animate).
+    const applyResultFaces = (blue: number, green: number) => {
+      state.die1 = blue;
+      state.die2 = green;
       setDieMats(die1Mesh, state.die1, true);
       setDieMats(die2Mesh, state.die2, false);
       state.d1Final.set(-0.6, DIE_Y, 0);
@@ -2241,10 +2250,16 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
       state.p2.x = 0.6; state.p2.y = DIE_Y; state.p2.z = 0;
       state.cur = 'RESULT';
       state.running = false;
+    };
+
+    // Restauração pós-revival WebGL — usa o cache se houver.
+    if (lastFacesCache !== null) {
+      applyResultFaces(lastFacesCache.blue, lastFacesCache.green);
     }
 
-    // Exposição do enterState para o handle
+    // Exposição do enterState e do applyResultFaces para o handle
     (state as unknown as { _enterState: (s: State) => void })._enterState = enterState;
+    (state as unknown as { _applyResultFaces: (b: number, g: number) => void })._applyResultFaces = applyResultFaces;
 
     /* ───── Cleanup ───── */
     return () => {
@@ -2324,7 +2339,16 @@ const DiceMachineScene = forwardRef<DiceMachineSceneHandle, Props>(function Dice
     s.rebuildDieTextures(enabled);
   }, []);
 
-  useImperativeHandle(ref, () => ({ roll, getCurrentStep, getCurrentLabel, setWhiteMode }), [roll, getCurrentStep, getCurrentLabel, setWhiteMode]);
+  const setFaces = useCallback((blue: number, green: number) => {
+    const s = internals.current;
+    if (!s) return;
+    if (blue < 1 || blue > 6 || green < 1 || green > 6) return;
+    const fn = (s as unknown as { _applyResultFaces?: (b: number, g: number) => void })._applyResultFaces;
+    fn?.(blue, green);
+    lastFacesCache = { blue, green };
+  }, []);
+
+  useImperativeHandle(ref, () => ({ roll, getCurrentStep, getCurrentLabel, setWhiteMode, setFaces }), [roll, getCurrentStep, getCurrentLabel, setWhiteMode, setFaces]);
 
   return (
     <div

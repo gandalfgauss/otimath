@@ -167,11 +167,16 @@ function decimalAndPercent(num: number, den: number): { decimal: string; percent
 
 interface UseComplementaryEventsHooksProps {
   onContinue: () => void;
+  /** Quando true (F5 com snapshot), o `startRound(0)` inicial roda mas
+   *  NÃO emite a telemetria "iniciou rodada 1..." — evita registrar um
+   *  exercício fantasma a cada refresh. O snapshot externo restaura a
+   *  subPhase/formStep reais; só `data` é re-sorteado (limitação atual). */
+  isRestoringFromSnapshot?: boolean;
 }
 
 // ════════════════════════════════════════════════════════════════
 
-export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEventsHooksProps) => {
+export const useComplementaryEventsHooks = ({ onContinue, isRestoringFromSnapshot }: UseComplementaryEventsHooksProps) => {
   // ─── Estado de geração e progressão ──────────────────────────
   const [data, setData] = useState<ComplementaryEventData | null>(null);
   const [round, setRound] = useState<number>(0);
@@ -293,6 +298,12 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   const dataRef = useRef<ComplementaryEventData | null>(null);
   useEffect(() => { dataRef.current = data; }, [data]);
 
+  // Flag de "restaurando snapshot F5" — usada pelos useEffects de
+  // change-detection abaixo pra NÃO emitir telemetria fantasma quando
+  // os setX vêm do restoreSnapshot (aluno só refrescou a página, não
+  // digitou nada). Setada true em restoreSnapshot e liberada após RAF.
+  const isRestoringSnapshotRef = useRef(false);
+
   // Sincroniza snapshot do aluno pro wrapper do createAlert.
   useEffect(() => {
     studentInputRef.current = {
@@ -321,6 +332,9 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
     if (prev === null) { prevFractionsRef.current = cur; return; }
     if (prev.n === cur.n && prev.d === cur.d && prev.cn === cur.cn && prev.cd === cur.cd) return;
     prevFractionsRef.current = cur;
+    // Suprime emit quando os setX vieram do restoreSnapshot (F5) —
+    // o aluno não digitou nada, só refrescou.
+    if (isRestoringSnapshotRef.current) return;
     if (subPhase !== 'computeComplementProb' && subPhase !== 'probabilities') return;
     const handle = window.setTimeout(() => {
       const parts: string[] = [];
@@ -365,6 +379,9 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
       .filter(k => prev[k] !== cur[k]);
     if (changedKeys.length === 0) return;
     prevFormRef.current = cur;
+    // Suprime emit quando os setX vieram do restoreSnapshot (F5) —
+    // o aluno não digitou nada, só refrescou.
+    if (isRestoringSnapshotRef.current) return;
     if (subPhase !== 'formalization') return;
     const handle = window.setTimeout(() => {
       const parts: string[] = [];
@@ -453,7 +470,7 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   // GERAÇÃO DE NOVA RODADA
   // ════════════════════════════════════════════════════════════
 
-  const startRound = useCallback((uiRound: number) => {
+  const startRound = useCallback((uiRound: number, opts?: { skipTelemetry?: boolean }) => {
     const newData = selectComplementaryEvent(generatorRoundFor(uiRound));
     setData(newData);
     setRound(uiRound);
@@ -500,7 +517,12 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
       // Telemetria do início de rodada R<2 (obrigatória) — antes essa
       // transição ficava silenciosa e o aluno chegava na escolha de
       // estratégia sem rastro de "iniciou rodada N".
-      telemetryRecordInteracaoExercicio(`iniciou rodada ${uiRound + 1} de ${MANDATORY_ROUNDS} (obrigatória — Escolha de estratégia) — evento A: "${newData.eventA.description}"`);
+      // `skipTelemetry` é usado no mount após F5: o aluno não "iniciou"
+      // a rodada agora, apenas refrescou a página — não deve gerar
+      // exercício novo.
+      if (!opts?.skipTelemetry) {
+        telemetryRecordInteracaoExercicio(`iniciou rodada ${uiRound + 1} de ${MANDATORY_ROUNDS} (obrigatória — Escolha de estratégia) — evento A: "${newData.eventA.description}"`);
+      }
       setSubPhase('strategyChoice');
       setActiveEvents([{ name: A_LABEL, ...newData.eventA }]);
       setInstructions(buildInstructions('strategyChoice', newData));
@@ -808,19 +830,25 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
 
   /** Monta mensagem de confronto didático.
    *  Em ambos os cenários a heurística é nomeada APÓS a observação. */
-  function buildConfrontMessage(): string {
-    if (!data) return '';
-    const chose = strategyChoice;
+  function buildConfrontMessage(
+    /** Permite override pra contextos sem state atualizado (restoreSnapshot
+     *  no F5 — setData ainda não refletiu no render quando chamamos isso). */
+    overrideData?: ComplementaryEventData | null,
+    overrideStrategy?: typeof strategyChoice,
+  ): string {
+    const useData = overrideData ?? data;
+    if (!useData) return '';
+    const chose = overrideStrategy ?? strategyChoice;
     if (chose === COMPLEMENT_LABEL) {
       return (
         `Sua intuição se confirmou. O complementar <strong style="color:#FF6A00"><span class="ova-bar-a">A</span></strong> tem apenas ` +
-        `<strong>${data.nE} casos favoráveis</strong>, enquanto o evento <strong>A</strong> ` +
-        `teria <strong>${data.nA} casos</strong>. Marcar o menor deles é o caminho mais curto.`
+        `<strong>${useData.nE} casos favoráveis</strong>, enquanto o evento <strong>A</strong> ` +
+        `teria <strong>${useData.nA} casos</strong>. Marcar o menor deles é o caminho mais curto.`
       );
     }
     return (
-      `Repare: ao marcar <strong>A</strong> diretamente, você precisaria marcar <strong>${data.nA} ` +
-      `casos</strong>. Pelo complementar <strong style="color:#FF6A00"><span class="ova-bar-a">A</span></strong>, são apenas <strong>${data.nE}</strong>. ` +
+      `Repare: ao marcar <strong>A</strong> diretamente, você precisaria marcar <strong>${useData.nA} ` +
+      `casos</strong>. Pelo complementar <strong style="color:#FF6A00"><span class="ova-bar-a">A</span></strong>, são apenas <strong>${useData.nE}</strong>. ` +
       `O complementar é o caminho mais rápido sempre que o evento tem mais da metade dos casos do ` +
       `espaço amostral.`
     );
@@ -1255,9 +1283,20 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
   };
 
   // ─── Inicialização ────────────────────────────────────────────
+  // Guard contra StrictMode dev — o useEffect roda 2x no mount inicial,
+  // e cada `startRound(0)` chama `telemetryRecordInteracaoExercicio`
+  // ("iniciou rodada 1..."). Sem o ref, o aluno via 2 exercícios criados
+  // só por chegar na cena (um na seção do pai que sumia, outro na seção
+  // do filho recém-montada).
+  // Quando `isRestoringFromSnapshot=true` (F5), o startRound roda pra
+  // sortear `data` e popular UI, mas SEM emitir telemetria — o aluno
+  // não está iniciando agora, só refrescando.
+  const didStartFirstRoundRef = useRef(false);
   useEffect(() => {
-    startRound(0);
-  }, [startRound]);
+    if (didStartFirstRoundRef.current) return;
+    didStartFirstRoundRef.current = true;
+    startRound(0, { skipTelemetry: !!isRestoringFromSnapshot });
+  }, [startRound, isRestoringFromSnapshot]);
 
   // ════════════════════════════════════════════════════════════
   // RETORNO
@@ -1314,5 +1353,144 @@ export const useComplementaryEventsHooks = ({ onContinue }: UseComplementaryEven
 
     // DEV — avança para a próxima sub-fase como se o aluno tivesse acertado.
     devAdvance,
+
+    // Restauração pós-F5 — chamado pelo ComplementaryEventsActivity via
+    // setCurrentPhaseId. Aceita um objeto parcial com TODOS os states
+    // restauráveis. Cada campo é opcional — só restaura se vier presente.
+    // Estados de erro visual (formStep*Error) e disabled buttons são
+    // derivados e ficam fora; o aluno re-validando ou avançando os
+    // re-deriva naturalmente.
+    restoreSnapshot: (snap: {
+      data?: ComplementaryEventData;
+      round?: number;
+      subPhase?: ComplementarySubPhase;
+      formStep?: number;
+      eventsCheckboxes?: EventCheckboxes;
+      strategyChoice?: typeof strategyChoice;
+      reviewChoice?: 'keep' | 'change' | null;
+      formStep0Value?: string;
+      formStep1Value?: string;
+      formStep2Value?: string;
+      formStep2DenValue?: string;
+      formStep3NumValue?: string;
+      formStep3DenValue?: string;
+      formStep4NumValue?: string;
+      formStep4DenValue?: string;
+      formStep5NumValue?: string;
+      formStep5DenValue?: string;
+      formStep5Validated?: boolean;
+      formStep5Decimal?: string;
+      formStep5Percent?: string;
+      probNum?: string;
+      probDen?: string;
+      probCompNum?: string;
+      probCompDen?: string;
+    }) => {
+      // Marca início do restore — os useEffects de detect-and-emit
+      // (probabilities/formStep) checam essa flag e NÃO emitem
+      // telemetria durante a janela, evitando "exercício fantasma" no F5.
+      isRestoringSnapshotRef.current = true;
+      // Libera APÓS o React processar todos os setX + useEffects de
+      // change-detection rodarem com prevRef atualizado. RAF cobre commit
+      // + microtasks; setTimeout 700 ms cobre o debounce de 600 ms que
+      // ainda estiver pendente da janela do restore.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => { isRestoringSnapshotRef.current = false; }, 700);
+        });
+      });
+      // Restaura o ComplementaryEventData REAL do snapshot — sem isso, F5
+      // re-sorteava um evento novo e o aluno via outro problema. O data
+      // é restaurado ANTES de subPhase/checkboxes pra que activeEvents
+      // (derivado de data.eventA/eventComplement) fique consistente.
+      if (snap.data) {
+        setData(snap.data);
+        setActiveEvents([{ name: A_LABEL, ...snap.data.eventA }]);
+      }
+      if (typeof snap.round === 'number') setRound(snap.round);
+      if (snap.subPhase) setSubPhase(snap.subPhase);
+      if (typeof snap.formStep === 'number') setFormStep(snap.formStep as FormalizationStep);
+      if (snap.eventsCheckboxes && typeof snap.eventsCheckboxes === 'object') setEventsCheckboxes(snap.eventsCheckboxes);
+      if (typeof snap.strategyChoice === 'string') setStrategyChoice(snap.strategyChoice);
+      // `setReviewChoice` exposto não aceita `null` — usa setter raw pra restaurar.
+      if (snap.reviewChoice === 'keep' || snap.reviewChoice === 'change' || snap.reviewChoice === null) setReviewChoiceState(snap.reviewChoice);
+      if (typeof snap.formStep0Value === 'string') setFormStep0Value(snap.formStep0Value);
+      if (typeof snap.formStep1Value === 'string') setFormStep1Value(snap.formStep1Value);
+      if (typeof snap.formStep2Value === 'string') setFormStep2Value(snap.formStep2Value);
+      if (typeof snap.formStep2DenValue === 'string') setFormStep2DenValue(snap.formStep2DenValue);
+      if (typeof snap.formStep3NumValue === 'string') setFormStep3NumValue(snap.formStep3NumValue);
+      if (typeof snap.formStep3DenValue === 'string') setFormStep3DenValue(snap.formStep3DenValue);
+      if (typeof snap.formStep4NumValue === 'string') setFormStep4NumValue(snap.formStep4NumValue);
+      if (typeof snap.formStep4DenValue === 'string') setFormStep4DenValue(snap.formStep4DenValue);
+      if (typeof snap.formStep5NumValue === 'string') setFormStep5NumValue(snap.formStep5NumValue);
+      if (typeof snap.formStep5DenValue === 'string') setFormStep5DenValue(snap.formStep5DenValue);
+      if (typeof snap.formStep5Validated === 'boolean') setFormStep5Validated(snap.formStep5Validated);
+      if (typeof snap.formStep5Decimal === 'string') setFormStep5Decimal(snap.formStep5Decimal);
+      if (typeof snap.formStep5Percent === 'string') setFormStep5Percent(snap.formStep5Percent);
+
+      // ─── Estado DERIVADO que normalmente é setado pelo goToX() ───
+      // Sem recriar isto, fases pós-marking ficam quebradas no F5:
+      //   • strategyReview com reviewChoice='keep'/'change' → o aluno tinha
+      //     visto o confronto e o botão "Entendi, continuar"; sem
+      //     confrontMessage a UI volta pra estado pré-confronto.
+      //   • computeComplementProb / formalization / probabilities → o painel
+      //     Cálculo(s) precisa de probabilitiesTextInputs com closures
+      //     (setValue) válidas. JSON não preserva funções.
+      const restoredData = snap.data ?? data;
+      const restoredStrategy = (typeof snap.strategyChoice === 'string' ? snap.strategyChoice : strategyChoice) as typeof strategyChoice;
+
+      if (snap.subPhase === 'strategyReview'
+          && (snap.reviewChoice === 'keep' || snap.reviewChoice === 'change')
+          && restoredData) {
+        setConfrontMessage(buildConfrontMessage(restoredData, restoredStrategy));
+      }
+
+      if (snap.subPhase === 'computeComplementProb'
+          || snap.subPhase === 'formalization'
+          || snap.subPhase === 'probabilities'
+          || snap.subPhase === 'complete') {
+        const eventName = (snap.subPhase === 'probabilities' || snap.subPhase === 'complete') ? A_LABEL : COMPLEMENT_LABEL;
+        // Disabled APENAS quando o painel já não é editável:
+        //  - formalization: P(Ā) já validado, entra como dado fixo na derivação.
+        //  - complete: rodada finalizada, todos inputs travados.
+        //  - computeComplementProb e probabilities: aluno está DIGITANDO, deixa
+        //    habilitado pra poder editar/corrigir após F5.
+        const inputsDisabled = snap.subPhase === 'formalization' || snap.subPhase === 'complete';
+        // VALUES restaurados do snapshot — sem isso, F5 perdia a digitação
+        // parcial do aluno em P(Ā)=?/? ou P(A)=?/? (closures `setValue` não
+        // serializam, mas os strings de value sim).
+        const probInputs: ProbabilitiesTextInputs = {
+          eventName,
+          hasComplementary: false,
+          numerator: { value: snap.probNum ?? '', disabled: inputsDisabled, error: false },
+          denominator: { value: snap.probDen ?? '', disabled: inputsDisabled, error: false },
+        };
+        probInputs.numerator.setValue = (v: string) =>
+          setProbabilitiesTextInputs(prev => ({ ...prev, numerator: { ...prev.numerator, value: v } }));
+        probInputs.denominator.setValue = (v: string) =>
+          setProbabilitiesTextInputs(prev => ({ ...prev, denominator: { ...prev.denominator, value: v } }));
+        setProbabilitiesTextInputs(probInputs);
+      }
+
+      // Botões de progressão da fase 'complete' (síntese final) — sem
+      // restaurar disabled*, o aluno via a tela sem nenhum botão e
+      // ficava preso. Mesma lógica de goToComplete (linha ~720):
+      // round < MANDATORY_ROUNDS-1 → mostra "Próximo Desafio";
+      // round >= MANDATORY_ROUNDS-1 → mostra "Treinar novamente" + "Continuar".
+      if (snap.subPhase === 'complete') {
+        const restoredRound = snap.round ?? round;
+        setDisabledCheckButton(true);
+        setDisabledClearButton(true);
+        if (restoredRound < MANDATORY_ROUNDS - 1) {
+          setDisabledNextStepButton(false);
+          setDisabledTrainAgainButton(true);
+          setDisabledContinueButton(true);
+        } else {
+          setDisabledNextStepButton(true);
+          setDisabledTrainAgainButton(false);
+          setDisabledContinueButton(false);
+        }
+      }
+    },
   };
 };

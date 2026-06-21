@@ -76,6 +76,10 @@ interface UnionExercise5Props {
   initialStep?: Step;
   /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
   createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
+  /** Emite snapshot JSON v2 completo pro pai. */
+  onPhaseChange?: (phaseId: string) => void;
+  /** Snapshot pra restauração pós-F5 no mount. */
+  initialPhaseSnapshot?: string;
 }
 
 export interface UnionExercise5Handle {
@@ -83,6 +87,8 @@ export interface UnionExercise5Handle {
   back: () => void;
   canAdvance: () => boolean;
   canBack: () => boolean;
+  getCurrentPhaseId: () => string;
+  setCurrentPhaseId: (phaseId: string) => void;
 }
 
 // Sequência completa que o DEV percorre — inclui todos os Steps do fluxo
@@ -193,8 +199,16 @@ function buildReasoningLines(data: Exercise5Data): ReasoningLine[] {
 // ═══════════════════════════════════════════════════════════════
 
 export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Props>(
-  function UnionExercise5({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
-    const [step, setStep] = useState<Step>(initialStep ?? 'intro');
+  function UnionExercise5({ onFinished, onRequestPreviousPhase, initialStep, createAlert, onPhaseChange, initialPhaseSnapshot }, ref) {
+    const initialStepFromSnapshot = (() => {
+      if (!initialPhaseSnapshot) return null;
+      try {
+        const obj = JSON.parse(initialPhaseSnapshot);
+        if (obj && typeof obj === 'object' && typeof obj.step === 'string') return obj.step as Step;
+      } catch { /* ignore */ }
+      return null;
+    })();
+    const [step, setStep] = useState<Step>(initialStepFromSnapshot ?? initialStep ?? 'intro');
     // Telemetria — leitura do enunciado do Ex.5.
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',
@@ -351,12 +365,45 @@ export const UnionExercise5 = forwardRef<UnionExercise5Handle, UnionExercise5Pro
       }
     }, [step, onRequestPreviousPhase]);
 
+    const snapshotPayload = JSON.stringify({
+      v: 2,
+      step, round, data, totals,
+    });
+    useEffect(() => {
+      onPhaseChange?.(snapshotPayload);
+    }, [snapshotPayload, onPhaseChange]);
+
+    const applyPhaseId = useCallback((phaseId: string) => {
+      try {
+        const obj = JSON.parse(phaseId);
+        if (obj && typeof obj === 'object') {
+          if (typeof obj.step === 'string') setStep(obj.step as Step);
+          if (typeof obj.round === 'number') setRound(obj.round);
+          if (obj.data && typeof obj.data === 'object') setData(obj.data as Exercise5Data);
+          if (obj.totals && typeof obj.totals === 'object') setTotals(obj.totals as TotalsState);
+          return;
+        }
+      } catch { /* formato antigo */ }
+      setStep(phaseId as Step);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const didInitialRestoreRef = useRef(false);
+    useEffect(() => {
+      if (didInitialRestoreRef.current) return;
+      didInitialRestoreRef.current = true;
+      if (initialPhaseSnapshot) applyPhaseId(initialPhaseSnapshot);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useImperativeHandle(ref, () => ({
       advance: advanceStep,
       back: backStep,
       canAdvance: () => true,
       canBack: () => step !== 'intro' || !!onRequestPreviousPhase,
-    }), [advanceStep, backStep, step, onRequestPreviousPhase]);
+      getCurrentPhaseId: () => snapshotPayload,
+      setCurrentPhaseId: applyPhaseId,
+    }), [advanceStep, backStep, step, onRequestPreviousPhase, snapshotPayload, applyPhaseId]);
 
     // Rola pro topo do OVA em todo Conferir. Mirror do checkAnswer do Disco.
     const scrollDiceToTop = () => {

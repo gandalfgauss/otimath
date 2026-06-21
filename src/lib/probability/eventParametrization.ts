@@ -667,6 +667,45 @@ export const DEFAULT_OPERATION_POOL: readonly Operation[] = [
   "Intersection", "Union", "Difference", "ReverseDifference",
 ];
 
+// ─── Serialização para snapshot F5 ──────────────────────────────
+
+export interface ValidatedSetupSerialized {
+  simpleEvents: [string, string];
+  compoundSlots: Array<{ descA: string; descB: string; operation: Operation }>;
+}
+
+/** Converte ValidatedSetup → forma serializável.
+ *  Usa `description` como chave única (DEFAULT_EVENT_POOL não tem duplicatas). */
+export function serializeValidatedSetup(setup: ValidatedSetup): ValidatedSetupSerialized {
+  return {
+    simpleEvents: [setup.simpleEvents[0].description, setup.simpleEvents[1].description],
+    compoundSlots: setup.compoundSlots.map(slot => ({
+      descA: slot.A.description,
+      descB: slot.B.description,
+      operation: slot.operation,
+    })),
+  };
+}
+
+/** Reconstrói ValidatedSetup a partir da forma serializada.
+ *  Lookup por description em DEFAULT_EVENT_POOL. Lança se algum
+ *  evento não for encontrado (pool não deveria mudar entre F5). */
+export function deserializeValidatedSetup(s: ValidatedSetupSerialized): ValidatedSetup {
+  const findByDesc = (desc: string): Event => {
+    const e = DEFAULT_EVENT_POOL.find(ev => ev.description === desc);
+    if (!e) throw new Error(`Evento "${desc}" não está no DEFAULT_EVENT_POOL — snapshot inválido.`);
+    return e;
+  };
+  return {
+    simpleEvents: [findByDesc(s.simpleEvents[0]), findByDesc(s.simpleEvents[1])],
+    compoundSlots: s.compoundSlots.map(slot => ({
+      A: findByDesc(slot.descA),
+      B: findByDesc(slot.descB),
+      operation: slot.operation,
+    })),
+  };
+}
+
 // ============================================================================
 // 8. HELPERS DE INTEGRAÇÃO COM O HOOK
 // ============================================================================

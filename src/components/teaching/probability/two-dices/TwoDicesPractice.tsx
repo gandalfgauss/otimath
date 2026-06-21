@@ -381,16 +381,20 @@ interface TwoDicesPracticeProps {
 
 export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPracticeProps>(
   function TwoDicesPractice({ diceRef, diceContainerRef, onFinished, onPhaseChange, createAlert }, ref) {
-  // Cor inicial sorteada via xoshiro128** — segundo é sempre o oposto
-  const [colors] = useState<[DiceColor, DiceColor]>(() => {
+  // Cor inicial sorteada via xoshiro128** — segundo é sempre o oposto.
+  // Setter exposto pra restauração via snapshot (sem ele, F5 re-sorteia
+  // e o aluno vê dado de cor diferente da Rodada salva).
+  const [colors, setColors] = useState<[DiceColor, DiceColor]>(() => {
     const first: DiceColor = rng.color();
     const second: DiceColor = first === 'green' ? 'blue' : 'green';
     return [first, second];
   });
 
-  // Eventos sorteados para os 4 exercícios
+  // Eventos sorteados para os 4 exercícios.
+  // Setter exposto pra restauração via snapshot (sem ele, F5 re-sorteia
+  // e os exercícios mudam — aluno perde o que estava resolvendo).
   // Garante que pelo menos 1 evento tenha exatamente 3 favoráveis (indiferente válido)
-  const [events] = useState<SingleDieEvent[]>(() => {
+  const [events, setEvents] = useState<SingleDieEvent[]>(() => {
     const countFavorable = (ev: SingleDieEvent) => {
       let c = 0; for (let f = 1; f <= 6; f++) if (ev.validation(f)) c++; return c;
     };
@@ -630,20 +634,66 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     mainPhase === 'intro' || mainPhase === 'experimentA' || mainPhase === 'experimentB' || mainPhase === 'exercises' || mainPhase === 'finished',
   );
 
-  // Mudar cor do dado e modo ao mudar fase/exercício
+  // Restaura a face visível do dado 3D quando o snapshot é aplicado em
+  // fases POSTERIORES ao lançamento (landed/compare/markResult/readDice/
+  // result/calc/next). Sem isso, após F5 o dado re-monta mostrando uma
+  // face arbitrária — o aluno marca essa face na tabela mas o
+  // validation compara com `diceResult` (do snapshot), causando erro.
+  // Retry loop pelo mesmo motivo do useEffect abaixo: DiceScene é lazy,
+  // ref pode demorar pra ficar pronto. Roda sempre que expSubPhase/
+  // exSubPhase muda ou o resultado é re-aplicado.
+  useEffect(() => {
+    const shouldShowExp = mainPhase === 'experimentA' || mainPhase === 'experimentB';
+    const shouldShowEx  = mainPhase === 'exercises';
+    const expPostRoll   = shouldShowExp && (expSubPhase === 'landed' || expSubPhase === 'compare' || expSubPhase === 'markResult');
+    const exPostRoll    = shouldShowEx  && (exSubPhase === 'landed' || exSubPhase === 'readDice' || exSubPhase === 'result' || exSubPhase === 'calc' || exSubPhase === 'next');
+    const faceToShow    = expPostRoll ? diceResult : exPostRoll ? exDiceResult : 0;
+    if (faceToShow < 1 || faceToShow > 6) return;
+    let cancelled = false;
+    let attempts = 0;
+    const apply = () => {
+      if (cancelled) return;
+      if (!diceRef.current) {
+        attempts++;
+        if (attempts < 30) setTimeout(apply, 100);
+        return;
+      }
+      diceRef.current.setFace(faceToShow);
+    };
+    apply();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainPhase, expSubPhase, exSubPhase, diceResult, exDiceResult]);
+
+  // Mudar cor do dado e modo ao mudar fase/exercício.
+  //
+  // RETRY LOOP — `diceRef.current` pode ser `null` quando este effect
+  // dispara: o DiceScene é `dynamic({ ssr: false })`, então o chunk
+  // carrega assíncrono. Restauração via snapshot acontece tipicamente
+  // antes do canvas WebGL estar montado, e sem o retry o dado ficava
+  // preso em idle (girando sozinho) porque `setBetting(true)` era
+  // chamado contra ref null e nunca repetido. Polling de 100ms × 30
+  // tentativas (~3s) cobre tempos de carga de chunk em conexões lentas.
   const lastColorRef = useRef<DiceColor | null>(null);
   useEffect(() => {
-    if (mainPhase !== 'intro' && mainPhase !== 'finished') {
+    if (mainPhase === 'intro' || mainPhase === 'finished') return;
+    let cancelled = false;
+    let attempts = 0;
+    const apply = () => {
+      if (cancelled) return;
+      if (!diceRef.current) {
+        attempts++;
+        if (attempts < 30) setTimeout(apply, 100);
+        return;
+      }
       const color = currentColor();
-      // Só recriar dado se cor realmente mudou
       if (color !== lastColorRef.current) {
-        diceRef.current?.setColor(color);
+        diceRef.current.setColor(color);
         lastColorRef.current = color;
       }
-      // Experimentação: modo betting (girar com dedo/mouse)
       if (mainPhase === 'experimentA' || mainPhase === 'experimentB') {
-        diceRef.current?.highlightFace(null);
-        diceRef.current?.setBetting(true, (face: number) => {
+        diceRef.current.highlightFace(null);
+        diceRef.current.setBetting(true, (face: number) => {
           const rodadaLbl = mainPhase === 'experimentA' ? 'Rodada 1 (dado azul)' : 'Rodada 2 (dado verde)';
           telemetryRecordInteracaoExercicio(`girou o dado 3D e clicou na face ${face} para apostar — ${rodadaLbl}`);
           setBet(String(face));
@@ -651,10 +701,26 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
           playSound('/sounds/correct.mp3');
         });
       } else {
-        diceRef.current?.setBetting(false);
-        diceRef.current?.setIdle(true);
+        diceRef.current.setBetting(false);
+        // NÃO forçar idle quando o aluno está em fase pós-rolagem do
+        // exercício (landed/readDice/result/calc/next) — o useEffect
+        // logo acima já chamou setFace(exDiceResult) pra mostrar o
+        // resultado parado, e setIdle(true) aqui sobrescreveria
+        // jogando o dado de volta no modo girando-sozinho. F5 nessas
+        // fases mostrava o dado em modo idle até o aluno escolher a
+        // resposta correta (que via outro path chamava setFace).
+        const exPostRoll = mainPhase === 'exercises' && (
+          exSubPhase === 'landed' || exSubPhase === 'readDice' ||
+          exSubPhase === 'result' || exSubPhase === 'calc' ||
+          exSubPhase === 'next'
+        );
+        if (!exPostRoll) {
+          diceRef.current.setIdle(true);
+        }
       }
-    }
+    };
+    apply();
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mainPhase, exerciseIdx]);
 
@@ -1149,19 +1215,49 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
     return 'pa';
   })();
 
-  // ═══════ Notificação de mudança de fase ao pai (para o cenaId DEV) ═══════
+  // ═══════ Notificação de mudança de fase ao pai (para o cenaId DEV
+  // E para o snapshot persistido em /api/progress) ═══════
+  //
+  // CRÍTICO: o pai (TwoDicesPresentation) salva o que recebemos aqui
+  // no `scene5InternalPhase` que vai pro banco. Se mandarmos o formato
+  // antigo (só pipe-delimited com mainPhase/expSubPhase/...), F5 perde
+  // bet/diceResult/colors/events — aluno volta com "Sua aposta" vazio
+  // e qualquer marcação dá erro (validation compara com diceResult=0).
+  // Precisa ser o MESMO JSON que `getCurrentPhaseId()` produz.
   useEffect(() => {
     if (!onPhaseChange) return;
-    const parts: string[] = [`main=${mainPhase}`];
-    if (mainPhase === 'experimentA' || mainPhase === 'experimentB') {
-      parts.push(`exp=${expSubPhase}`);
-    }
-    if (mainPhase === 'exercises') {
-      parts.push(`ex=${exerciseIdx}`, `sub=${exSubPhase}`);
-      if (exSubPhase === 'calc' && calcSubStep) parts.push(`calc=${calcSubStep}`);
-    }
-    onPhaseChange(parts.join('|'));
-  }, [mainPhase, expSubPhase, exSubPhase, exerciseIdx, calcSubStep, onPhaseChange]);
+    onPhaseChange(JSON.stringify({
+      v: 2,
+      mainPhase, expSubPhase, exSubPhase, exerciseIdx,
+      colors,
+      events: events.map(ev => ev.description),
+      bet, diceResult,
+      resultCheck, resultCheckError,
+      eventChecks, eventChecksDisabled, eventChecksError,
+      exBet, exDiceResult,
+      calcNum, calcDen, calcNumError, calcDenError, calcFeedback,
+      calcCompNum, calcCompDen, calcCompNumError, calcCompDenError, calcCompFeedback,
+      bothCalcCorrect,
+      readDiceAnswer, readDiceError,
+      compOperator, compOperatorError, compValidated,
+      certainNameAnswer, certainNameValidated, certainNameError,
+      impossibleNameAnswer, impossibleNameValidated, impossibleNameError,
+    }));
+  }, [
+    mainPhase, expSubPhase, exSubPhase, exerciseIdx,
+    colors, events, bet, diceResult,
+    resultCheck, resultCheckError,
+    eventChecks, eventChecksDisabled, eventChecksError,
+    exBet, exDiceResult,
+    calcNum, calcDen, calcNumError, calcDenError, calcFeedback,
+    calcCompNum, calcCompDen, calcCompNumError, calcCompDenError, calcCompFeedback,
+    bothCalcCorrect,
+    readDiceAnswer, readDiceError,
+    compOperator, compOperatorError, compValidated,
+    certainNameAnswer, certainNameValidated, certainNameError,
+    impossibleNameAnswer, impossibleNameValidated, impossibleNameError,
+    onPhaseChange,
+  ]);
 
   // ═══════ Handle exposto ao painel DEV ═══════
   // Identifica a sub-cena atual + simula a próxima ação correta.
@@ -1170,15 +1266,30 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
   // sem chamar validateCalc/validateCompCalc (closure stale após flushSync).
   useImperativeHandle(ref, () => ({
     getCurrentPhaseId: () => {
-      const parts: string[] = [`main=${mainPhase}`];
-      if (mainPhase === 'experimentA' || mainPhase === 'experimentB') {
-        parts.push(`exp=${expSubPhase}`);
-      }
-      if (mainPhase === 'exercises') {
-        parts.push(`ex=${exerciseIdx}`, `sub=${exSubPhase}`);
-        if (exSubPhase === 'calc' && calcSubStep) parts.push(`calc=${calcSubStep}`);
-      }
-      return parts.join('|');
+      // Serializa via JSON v2 todos os states restauráveis. Sem isso,
+      // F5 perde checkboxes marcados (eventChecks/resultCheck), inputs
+      // digitados (calcNum/calcDen/etc), respostas validadas (compOperator,
+      // certainName, impossibleName, readDice) e o aluno tem que refazer.
+      // `events` é só por descrição — função `validation` é re-derivada
+      // via lookup em EVENT_CATEGORIES no setCurrentPhaseId. `isLaunching`
+      // e `rolling.current` não vão (transitórios de animação).
+      return JSON.stringify({
+        v: 2,
+        mainPhase, expSubPhase, exSubPhase, exerciseIdx,
+        colors,
+        events: events.map(ev => ev.description),
+        bet, diceResult,
+        resultCheck, resultCheckError,
+        eventChecks, eventChecksDisabled, eventChecksError,
+        exBet, exDiceResult,
+        calcNum, calcDen, calcNumError, calcDenError, calcFeedback,
+        calcCompNum, calcCompDen, calcCompNumError, calcCompDenError, calcCompFeedback,
+        bothCalcCorrect,
+        readDiceAnswer, readDiceError,
+        compOperator, compOperatorError, compValidated,
+        certainNameAnswer, certainNameValidated, certainNameError,
+        impossibleNameAnswer, impossibleNameValidated, impossibleNameError,
+      });
     },
     advance: () => {
       if (mainPhase === 'intro') {
@@ -1276,27 +1387,84 @@ export const TwoDicesPractice = forwardRef<TwoDicesPracticeHandle, TwoDicesPract
       }
     },
     setCurrentPhaseId: (phaseId: string) => {
-      // Decodifica o formato 'main=X|exp=Y|ex=N|sub=Z|calc=W' produzido por
-      // getCurrentPhaseId e restaura os estados correspondentes.
+      // Tenta JSON (formato v2 atual). Se falhar, cai pro formato
+      // antigo (pipe-delimited) — compat com snapshots já salvos.
+      // Estado `rolling` é promovido pra `landed` em ambos os formatos
+      // porque é fase transitória (animação 3D) que não sobrevive ao F5.
+      const promoteRolling = (s: string) => s === 'rolling' ? 'landed' : s;
+      try {
+        const obj = JSON.parse(phaseId);
+        if (obj && typeof obj === 'object') {
+          if (obj.mainPhase) setMainPhase(obj.mainPhase as typeof mainPhase);
+          if (obj.expSubPhase) setExpSubPhase(promoteRolling(obj.expSubPhase) as typeof expSubPhase);
+          if (typeof obj.exerciseIdx === 'number') setExerciseIdx(obj.exerciseIdx);
+          if (obj.exSubPhase) setExSubPhase(promoteRolling(obj.exSubPhase) as typeof exSubPhase);
+          // Re-derivar events pelas descrições — função `validation`
+          // não sobrevive ao JSON. Se alguma descrição não bater (deploy
+          // mudou a lista), mantém o sorteio aleatório atual pra
+          // aquele índice — evita travar o aluno em estado vazio.
+          if (Array.isArray(obj.events)) {
+            const all = EVENT_CATEGORIES.flat();
+            const restored = obj.events.map((desc: unknown) =>
+              typeof desc === 'string' ? all.find(e => e.description === desc) : undefined,
+            );
+            if (restored.every(Boolean) && restored.length === 4) {
+              setEvents(restored as SingleDieEvent[]);
+            }
+          }
+          if (Array.isArray(obj.colors) && obj.colors.length === 2) {
+            setColors(obj.colors as [DiceColor, DiceColor]);
+          }
+          if (typeof obj.bet === 'string') setBet(obj.bet);
+          if (typeof obj.diceResult === 'number') setDiceResult(obj.diceResult);
+          if (Array.isArray(obj.resultCheck) && obj.resultCheck.length === 6) {
+            setResultCheck(obj.resultCheck as boolean[]);
+          }
+          if (typeof obj.resultCheckError === 'boolean') setResultCheckError(obj.resultCheckError);
+          if (Array.isArray(obj.eventChecks) && obj.eventChecks.length === 6) {
+            setEventChecks(obj.eventChecks as boolean[]);
+          }
+          if (typeof obj.eventChecksDisabled === 'boolean') setEventChecksDisabled(obj.eventChecksDisabled);
+          if (typeof obj.eventChecksError === 'boolean') setEventChecksError(obj.eventChecksError);
+          if (obj.exBet === null || typeof obj.exBet === 'string') {
+            setExBet(obj.exBet as ExBetType);
+          }
+          if (typeof obj.exDiceResult === 'number') setExDiceResult(obj.exDiceResult);
+          if (typeof obj.calcNum === 'string') setCalcNum(obj.calcNum);
+          if (typeof obj.calcDen === 'string') setCalcDen(obj.calcDen);
+          if (typeof obj.calcNumError === 'boolean') setCalcNumError(obj.calcNumError);
+          if (typeof obj.calcDenError === 'boolean') setCalcDenError(obj.calcDenError);
+          if (typeof obj.calcFeedback === 'string') setCalcFeedback(obj.calcFeedback);
+          if (typeof obj.calcCompNum === 'string') setCalcCompNum(obj.calcCompNum);
+          if (typeof obj.calcCompDen === 'string') setCalcCompDen(obj.calcCompDen);
+          if (typeof obj.calcCompNumError === 'boolean') setCalcCompNumError(obj.calcCompNumError);
+          if (typeof obj.calcCompDenError === 'boolean') setCalcCompDenError(obj.calcCompDenError);
+          if (typeof obj.calcCompFeedback === 'string') setCalcCompFeedback(obj.calcCompFeedback);
+          if (typeof obj.bothCalcCorrect === 'boolean') setBothCalcCorrect(obj.bothCalcCorrect);
+          if (typeof obj.readDiceAnswer === 'string') setReadDiceAnswer(obj.readDiceAnswer);
+          if (typeof obj.readDiceError === 'boolean') setReadDiceError(obj.readDiceError);
+          if (typeof obj.compOperator === 'string') setCompOperator(obj.compOperator);
+          if (typeof obj.compOperatorError === 'boolean') setCompOperatorError(obj.compOperatorError);
+          if (typeof obj.compValidated === 'boolean') setCompValidated(obj.compValidated);
+          if (typeof obj.certainNameAnswer === 'string') setCertainNameAnswer(obj.certainNameAnswer);
+          if (typeof obj.certainNameValidated === 'boolean') setCertainNameValidated(obj.certainNameValidated);
+          if (typeof obj.certainNameError === 'boolean') setCertainNameError(obj.certainNameError);
+          if (typeof obj.impossibleNameAnswer === 'string') setImpossibleNameAnswer(obj.impossibleNameAnswer);
+          if (typeof obj.impossibleNameValidated === 'boolean') setImpossibleNameValidated(obj.impossibleNameValidated);
+          if (typeof obj.impossibleNameError === 'boolean') setImpossibleNameError(obj.impossibleNameError);
+          return;
+        }
+      } catch { /* não é JSON — cai no parser antigo */ }
+      // Formato antigo (pipe-delimited): 'main=X|exp=Y|ex=N|sub=Z|calc=W'.
       const fields: Record<string, string> = {};
       for (const part of phaseId.split('|')) {
         const eq = part.indexOf('=');
         if (eq > 0) fields[part.slice(0, eq)] = part.slice(eq + 1);
       }
-      // Restauração de snapshot: as sub-fases `rolling` são transitórias
-      // (animação 3D do dado) e dependem de timers que NÃO sobrevivem
-      // ao F5. Promove pra `landed` — estado estável onde o resultado
-      // já está visível e o aluno clica pra continuar.
       if (fields.main) setMainPhase(fields.main as typeof mainPhase);
-      if (fields.exp) {
-        const exp = fields.exp === 'rolling' ? 'landed' : fields.exp;
-        setExpSubPhase(exp as typeof expSubPhase);
-      }
+      if (fields.exp) setExpSubPhase(promoteRolling(fields.exp) as typeof expSubPhase);
       if (fields.ex)   setExerciseIdx(parseInt(fields.ex, 10) || 0);
-      if (fields.sub) {
-        const sub = fields.sub === 'rolling' ? 'landed' : fields.sub;
-        setExSubPhase(sub as typeof exSubPhase);
-      }
+      if (fields.sub) setExSubPhase(promoteRolling(fields.sub) as typeof exSubPhase);
     },
   }), [
     mainPhase, expSubPhase, exSubPhase, exerciseIdx, bet, diceResult,

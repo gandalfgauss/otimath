@@ -19,7 +19,7 @@
        TextBlock, StudyMenu — sem criar componentes globais novos.
    ═══════════════════════════════════════════════════════════════════ */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import { Alerts } from '@/components/global/Alerts';
 import { Modal } from '@/components/global/Modal';
@@ -42,14 +42,24 @@ import {
 import { logStudyMenuOpened } from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
 import { useTelemetryExercise, telemetryRecordInteracaoExercicio } from '@/hooks/teaching/probability/useTelemetry';
 
+export interface TwoDicesGameAdvancedHandle {
+  getCurrentPhaseId: () => string;
+  setCurrentPhaseId: (phaseId: string) => void;
+}
+
 interface TwoDicesGameAdvancedProps {
   /** Disparado quando o estudante conclui o último step do último desafio. */
   onGameFinished?: () => void;
+  /** Emite snapshot JSON v2 pro pai (TwoDicesExperiment) persistir. */
+  onPhaseChange?: (phaseId: string) => void;
+  /** Snapshot pra restauração pós-F5 no mount. */
+  initialPhaseSnapshot?: string;
 }
 
-export function TwoDicesGameAdvanced({
-  onGameFinished,
-}: Readonly<TwoDicesGameAdvancedProps> = {}) {
+export const TwoDicesGameAdvanced = forwardRef<TwoDicesGameAdvancedHandle, TwoDicesGameAdvancedProps>(function TwoDicesGameAdvanced(
+  { onGameFinished, onPhaseChange, initialPhaseSnapshot }: Readonly<TwoDicesGameAdvancedProps>,
+  ref,
+) {
   const [studyMenuOpen, setStudyMenuOpen] = useState(false);
   const [lastErrorStep, setLastErrorStep] = useState<AdvancedStepKind | null>(null);
   const [pulseHelp, setPulseHelp] = useState(false);
@@ -78,10 +88,53 @@ export function TwoDicesGameAdvanced({
     currentStepKind,
     challenge,
     step,
+    restoreSnapshot,
+    snapshotData,
   } = useTwoDicesGameAdvancedHooks({
     onStepError: handleStepError,
     onGameFinished,
   });
+
+  // Snapshot JSON v2 — challenge + step + eventsCheckboxes.
+  const snapshotPayload = JSON.stringify({ v: 2, ...snapshotData });
+  useEffect(() => {
+    onPhaseChange?.(snapshotPayload);
+  }, [snapshotPayload, onPhaseChange]);
+
+  const applyPhaseId = useCallback((phaseId: string) => {
+    try {
+      const obj = JSON.parse(phaseId);
+      if (obj && typeof obj === 'object') {
+        restoreSnapshot({
+          challenge: typeof obj.challenge === 'number' ? obj.challenge : undefined,
+          step: typeof obj.step === 'number' ? obj.step : undefined,
+          eventsCheckboxes: obj.eventsCheckboxes && typeof obj.eventsCheckboxes === 'object' ? obj.eventsCheckboxes : undefined,
+          setup: obj.setup && typeof obj.setup === 'object' ? obj.setup : undefined,
+          probValues: obj.probValues && typeof obj.probValues === 'object' ? obj.probValues : undefined,
+          selectValues: obj.selectValues && typeof obj.selectValues === 'object' ? obj.selectValues : undefined,
+          disabledCheckButton: typeof obj.disabledCheckButton === 'boolean' ? obj.disabledCheckButton : undefined,
+          disabledNextStepButton: typeof obj.disabledNextStepButton === 'boolean' ? obj.disabledNextStepButton : undefined,
+          disabledClearButton: typeof obj.disabledClearButton === 'boolean' ? obj.disabledClearButton : undefined,
+          probInputsDisabled: typeof obj.probInputsDisabled === 'boolean' ? obj.probInputsDisabled : undefined,
+          selectInputsDisabled: typeof obj.selectInputsDisabled === 'boolean' ? obj.selectInputsDisabled : undefined,
+        });
+      }
+    } catch { /* JSON inválido — ignora */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const didInitialRestoreRef = useRef(false);
+  useEffect(() => {
+    if (didInitialRestoreRef.current) return;
+    didInitialRestoreRef.current = true;
+    if (initialPhaseSnapshot) applyPhaseId(initialPhaseSnapshot);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useImperativeHandle(ref, () => ({
+    getCurrentPhaseId: () => snapshotPayload,
+    setCurrentPhaseId: applyPhaseId,
+  }), [snapshotPayload, applyPhaseId]);
 
   // Telemetria — Ex8: operações avançadas com eventos. Descrição
   // dinâmica refletindo o estado atual do aluno.
@@ -333,4 +386,4 @@ export function TwoDicesGameAdvanced({
       />
     </div>
   );
-}
+});

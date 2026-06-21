@@ -3,8 +3,6 @@
 import React, { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/global/Button';
 import {
-  telemetryEnterExercise,
-  telemetryExitExercise,
   telemetryRecordInteracaoExercicio,
   useTelemetryExercise,
 } from '@/hooks/teaching/probability/useTelemetry';
@@ -20,8 +18,8 @@ import { UnionExercise3, type UnionExercise3Handle } from './UnionExercise3';
 import { UnionExercise4, type UnionExercise4Handle } from './UnionExercise4';
 import { UnionExercise5, type UnionExercise5Handle } from './UnionExercise5';
 import { UnionExercise6Review, type UnionExercise6Handle } from './UnionExercise6Review';
-import { TwoDicesGame } from './TwoDicesGame';
-import { TwoDicesGameAdvanced } from './TwoDicesGameAdvanced';
+import { TwoDicesGame, type TwoDicesGameHandle } from './TwoDicesGame';
+import { TwoDicesGameAdvanced, type TwoDicesGameAdvancedHandle } from './TwoDicesGameAdvanced';
 import { ComplementaryEventsActivity, type ComplementaryEventsActivityHandle } from './ComplementaryEventsActivity';
 // TwoDicesClosingScreen importação removida — tela de fechamento foi removida do fluxo.
 import {
@@ -417,6 +415,77 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   const [complementaryEventsPhase, setComplementaryEventsPhase] = useState<string>('strategyChoice');
   // Mesma ideia para unionTheory (25+ sub-fases + 17 sub-etapas do Venn).
   const [unionTheoryPhase, setUnionTheoryPhase] = useState<string>('intro');
+  // Step interno de cada UnionExerciseN (Opção A: preserva só a posição
+  // dentro do exercício; inputs/marks ainda zeram no F5). Atualizado
+  // pelos `onPhaseChange` dos filhos e persistido no snapshot.
+  const [unionExercise1Phase, setUnionExercise1Phase] = useState<string>('intro');
+  const [unionExercise2Phase, setUnionExercise2Phase] = useState<string>('intro');
+  const [unionExercise3Phase, setUnionExercise3Phase] = useState<string>('intro');
+  const [unionExercise4Phase, setUnionExercise4Phase] = useState<string>('intro');
+  const [unionExercise5Phase, setUnionExercise5Phase] = useState<string>('intro');
+  const [unionExercise6Phase, setUnionExercise6Phase] = useState<string>('intro');
+  // Ex7 / Ex8 — snapshots dos jogos livres opcionais (TwoDicesGame /
+  // TwoDicesGameAdvanced). Estes jogos sorteiam desafios via Math.random
+  // no mount — sem persistir o `challenge`/`step`, F5 reinicia tudo do
+  // primeiro desafio. Persistir aqui resolve.
+  const [unionExercise7Phase, setUnionExercise7Phase] = useState<string>('');
+  const [unionExercise8Phase, setUnionExercise8Phase] = useState<string>('');
+  // Refs pros handles dos jogos — permitem propagar setCurrentPhaseId
+  // via RAF (igual aos outros filhos).
+  const ex7Ref = useRef<TwoDicesGameHandle>(null);
+  const ex8Ref = useRef<TwoDicesGameAdvancedHandle>(null);
+
+  // Flag de bloqueio durante restauração via snapshot. Quando true, os
+  // emits do `onPhaseChange` dos sub-componentes (SampleSpaceTree,
+  // UnionExerciseN, etc.) são IGNORADOS — evita que o mount inicial
+  // deles sobrescreva `sampleSpaceTreePhase`/`unionExerciseNPhase` que
+  // veio do banco com JSON default (state padrão pré-setCurrentPhaseId).
+  // Liberada 2 RAFs após o setCurrentPhaseId propagar pros filhos.
+  const isRestoringExperimentRef = useRef(false);
+  const handleSampleSpaceTreePhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setSampleSpaceTreePhase(p);
+  }, []);
+  const handleComplementaryEventsPhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setComplementaryEventsPhase(p);
+  }, []);
+  const handleUnionTheoryPhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setUnionTheoryPhase(p);
+  }, []);
+  const handleUnionExercise1PhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setUnionExercise1Phase(p);
+  }, []);
+  const handleUnionExercise2PhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setUnionExercise2Phase(p);
+  }, []);
+  const handleUnionExercise3PhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setUnionExercise3Phase(p);
+  }, []);
+  const handleUnionExercise4PhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setUnionExercise4Phase(p);
+  }, []);
+  const handleUnionExercise5PhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setUnionExercise5Phase(p);
+  }, []);
+  const handleUnionExercise6PhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setUnionExercise6Phase(p);
+  }, []);
+  const handleUnionExercise7PhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setUnionExercise7Phase(p);
+  }, []);
+  const handleUnionExercise8PhaseChange = useCallback((p: string) => {
+    if (isRestoringExperimentRef.current) return;
+    setUnionExercise8Phase(p);
+  }, []);
 
   // ── Exercícios opcionais Ex7/Ex8: rastreio de conclusão ──
   // Quando o aluno finaliza Ex7 ou Ex8, voltamos à tela de "Parabéns" do
@@ -498,6 +567,12 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   // Lançamentos com a máquina (reaproveitada da Cena 6) + dados brancos
   // Máximo 2 usos, segundo opcional, sem loop automático.
   const [whiteThrowCount, setWhiteThrowCount] = useState(0);
+  // Faces sorteadas no ÚLTIMO lançamento dos dados BRANCOS (colorQuestion).
+  // Sem persistir: F5 em colorQuestion após lançar perde o resultado
+  // visual + os dados voltam pra coloridos (default do mount). O aluno
+  // marca Sim/Não sem ver o que saiu nos dados brancos.
+  const [whiteDiceGreenResult, setWhiteDiceGreenResult] = useState(0);
+  const [whiteDiceBlueResult, setWhiteDiceBlueResult] = useState(0);
   const [machineBusy, setMachineBusy] = useState(false);
 
   // ═══════ Rodada 3 — Momento A: exercício da soma ═══════
@@ -583,6 +658,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   const RACE_LENGTH = 6;
   // Aposta do aluno no carrinho vencedor (null = ainda não apostou)
   const [raceBet, setRaceBet] = useState<number | null>(null);
+  // Faces sorteadas no ÚLTIMO lançamento da corrida — separadas de
+  // greenResult/blueResult (que pertencem às rondas 0-2 pré-corrida).
+  // Sem isso, F5 em 'raceRunning' após Sortear restaurava os dados 3D
+  // mostrando o resultado das rondas antigas (ou nada), enquanto
+  // racePendingSum dizia outra coisa — aluno via inconsistência.
+  const [raceGreenResult, setRaceGreenResult] = useState<number>(0);
+  const [raceBlueResult, setRaceBlueResult] = useState<number>(0);
   // Posição de cada carrinho na pista (índice = número do carrinho, valor = célula atual 0..6)
   const [racePositions, setRacePositions] = useState<Record<number, number>>(() => {
     const init: Record<number, number> = {};
@@ -765,13 +847,24 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
 
   const cena7Title = `Cena 7 — Experimento com 2 dados · ${cena7PhaseLabel}`;
   const cena7Desc = cena7Screen;
-  // Para fases delegadas, manter habilitado mas o sub-componente vai
-  // sobrescrever a seção com a sua própria descrição mais granular.
+  // DESABILITADO em fases que delegam pra sub-componentes — esses têm
+  // seus próprios `useTelemetryExercise` com IDs mais granulares.
+  // Sem o gate, pai e filho COMPETEM pela `currentSection` do hook
+  // (ambos chamam enterExercise no mesmo render); em StrictMode dev
+  // os useEffects rodam 2x e a competição se DUPLICA — cada interação
+  // do aluno via console mostrava o evento contabilizado em 2 exercícios.
+  const delegatedPhases: Phase[] = [
+    'tree', 'complementaryEvents', 'unionTheory',
+    'unionExercises', 'unionExercise2', 'unionExercise3',
+    'unionExercise4', 'unionExercise5', 'unionExercise6',
+    'twoDicesGameFree', 'unionExercise8',
+  ];
+  const isDelegated = delegatedPhases.includes(phase);
   useTelemetryExercise(
     `twoDices-cena7-${phase}`,
     cena7Title,
     cena7Desc,
-    true,
+    !isDelegated,
   );
 
   // Par para a pergunta pedagógica: pegar um par do histórico onde green !== blue
@@ -1452,6 +1545,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       const result = await scene.roll();
       const sum = result.green + result.blue;
       setRacePendingSum(sum);
+      setRaceGreenResult(result.green);
+      setRaceBlueResult(result.blue);
       setRaceClickError(false);
       logSpinResult('raceRunning', '0', `green=${result.green},blue=${result.blue},sum=${sum}`);
       // 600ms depois dos dados pararem, ancora para baixo (pista de carrinhos).
@@ -1640,21 +1735,101 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     onHideAllDice(shouldHide);
   }, [phase, onHideAllDice]);
 
+  // Restaura visualmente as faces dos dois dados 3D quando o snapshot é
+  // aplicado em fases pós-rolagem. Sem isso, após F5 o aluno vê os dados
+  // em faces aleatórias e marca a célula errada na tabela de pares.
+  // Retry loop pelo mesmo motivo do TwoDicesPractice: TwoDiceScene é
+  // lazy/WebGL e o ref demora pra ficar pronto.
   useEffect(() => {
-    // Notifica o pai com fase + sub-fase (quando aplicável). Inclui sub-fase
-    // interna de SampleSpaceTree (7), ComplementaryEventsActivity (~7) e
-    // UnionProbabilityTheory (25+ incluindo Venn) para o cenaId DEV refletir
-    // cada transição como snapshot distinto (contador do painel anda direito).
-    if (phase === 'tree') {
-      onPhaseChange?.(`tree|${sampleSpaceTreePhase}` as Phase);
-    } else if (phase === 'complementaryEvents') {
-      onPhaseChange?.(`complementaryEvents|${complementaryEventsPhase}` as Phase);
-    } else if (phase === 'unionTheory') {
-      onPhaseChange?.(`unionTheory|${unionTheoryPhase}` as Phase);
-    } else {
-      onPhaseChange?.(phase);
-    }
-  }, [phase, sampleSpaceTreePhase, complementaryEventsPhase, unionTheoryPhase, onPhaseChange]);
+    const postRollPhases: Phase[] = ['landed', 'pickPair', 'pickConfirm', 'markTable', 'feedback', 'sumInput', 'sumMarkTable', 'sumComplete'];
+    const racePhases: Phase[] = ['raceRunning', 'raceFinished'];
+    // Na corrida, usa raceGreenResult/raceBlueResult (último lançamento
+    // dentro da corrida); nas outras fases, usa greenResult/blueResult
+    // (rondas 0-2). Sem isso, F5 em 'raceRunning' restaurava racePendingSum
+    // mas os dados 3D mostravam faces antigas das rondas pré-corrida.
+    const isRace = racePhases.includes(phase);
+    const isPostRoll = postRollPhases.includes(phase) || isRace;
+    if (!isPostRoll) return;
+    const green = isRace ? raceGreenResult : greenResult;
+    const blue  = isRace ? raceBlueResult  : blueResult;
+    if (!green || !blue) return;
+    let cancelled = false;
+    let attempts = 0;
+    const apply = () => {
+      if (cancelled) return;
+      if (!diceSceneRef.current) {
+        attempts++;
+        if (attempts < 30) setTimeout(apply, 100);
+        return;
+      }
+      diceSceneRef.current.setFaces(green, blue);
+    };
+    apply();
+    return () => { cancelled = true; };
+  }, [phase, greenResult, blueResult, raceGreenResult, raceBlueResult, diceSceneRef]);
+
+  useEffect(() => {
+    // Emite o snapshot JSON completo. O pai (TwoDicesPresentation) salva
+    // isso no `scene7ExperimentPhase` que vai pro banco. F5 + restauração
+    // chama `setCurrentPhaseId` com esse JSON, que reconstitui TODOS os
+    // states (não apenas a phase). Sem isso, o aluno volta com dado em
+    // face errada, marcações apagadas, inputs vazios.
+    onPhaseChange?.(JSON.stringify({
+      v: 2,
+      phase, round, pedagogicDone, history,
+      ex6InitialStep, ex7Completed, ex8Completed,
+      greenResult, blueResult,
+      pickedGreen, pickedBlue, pickAttempts,
+      pickGreenError, pickBlueError, pickFeedback,
+      tableMarks, markAttempts, markSolvedCell,
+      sumAnswer, sumAnswerError,
+      sumMarks: Array.from(sumMarks),
+      sumWrongMarks: Array.from(sumWrongMarks),
+      sumFeedbackState, sumCountAnswer, sumCountError, sumCountValidated,
+      sumPredictedMax, sumPredictedMin,
+      sumImpossibleOptions,
+      sumImpossibleSelected: Array.from(sumImpossibleSelected),
+      sumImpossibleError,
+      pairAnswer, pairAnswerError, cachedPair,
+      colorAnswer, colorAnswerError, whiteThrowCount,
+      whiteDiceGreenResult, whiteDiceBlueResult,
+      probPairX, probPairY, probPairNum, probPairDen,
+      probPairError, probPairErrorType,
+      probSumInputs,
+      probSumWrongRows: Array.from(probSumWrongRows),
+      probSumFeedback,
+      raceBet, racePositions, racePendingSum, raceWinner,
+      raceGreenResult, raceBlueResult,
+      sampleSpaceTreePhase, complementaryEventsPhase, unionTheoryPhase,
+      unionExercise1Phase, unionExercise2Phase, unionExercise3Phase,
+      unionExercise4Phase, unionExercise5Phase, unionExercise6Phase,
+      unionExercise7Phase, unionExercise8Phase,
+    }) as Phase);
+  }, [
+    phase, round, pedagogicDone, history,
+    ex6InitialStep, ex7Completed, ex8Completed,
+    greenResult, blueResult,
+    pickedGreen, pickedBlue, pickAttempts,
+    pickGreenError, pickBlueError, pickFeedback,
+    tableMarks, markAttempts, markSolvedCell,
+    sumAnswer, sumAnswerError, sumMarks, sumWrongMarks,
+    sumFeedbackState, sumCountAnswer, sumCountError, sumCountValidated,
+    sumPredictedMax, sumPredictedMin,
+    sumImpossibleOptions, sumImpossibleSelected, sumImpossibleError,
+    pairAnswer, pairAnswerError, cachedPair,
+    colorAnswer, colorAnswerError, whiteThrowCount,
+    whiteDiceGreenResult, whiteDiceBlueResult,
+    probPairX, probPairY, probPairNum, probPairDen,
+    probPairError, probPairErrorType,
+    probSumInputs, probSumWrongRows, probSumFeedback,
+    raceBet, racePositions, racePendingSum, raceWinner,
+    raceGreenResult, raceBlueResult,
+    sampleSpaceTreePhase, complementaryEventsPhase, unionTheoryPhase,
+    unionExercise1Phase, unionExercise2Phase, unionExercise3Phase,
+    unionExercise4Phase, unionExercise5Phase, unionExercise6Phase,
+    unionExercise7Phase, unionExercise8Phase,
+    onPhaseChange,
+  ]);
 
   // Log de transição de phase — instrumentação invisível para análise
   // a posteriori. Cada mudança de phase do Experiment vira um entry de
@@ -1772,6 +1947,33 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
+
+  // Restaura visualmente os dados BRANCOS quando F5 acontece em
+  // colorQuestion após pelo menos 1 lançamento. Sem isso, o aluno volta
+  // vendo dados coloridos (default do mount da máquina) e sem o
+  // resultado do lançamento — não consegue responder a pergunta.
+  // Retry loop pelo mesmo motivo do TwoDicesPractice: DiceMachineScene
+  // é lazy/WebGL e o ref demora pra ficar pronto após mount.
+  useEffect(() => {
+    if (phase !== 'colorQuestion') return;
+    if (whiteThrowCount <= 0) return;
+    if (!whiteDiceGreenResult || !whiteDiceBlueResult) return;
+    let cancelled = false;
+    let attempts = 0;
+    const apply = () => {
+      if (cancelled) return;
+      const machine = diceMachineRef.current;
+      if (!machine) {
+        attempts++;
+        if (attempts < 30) setTimeout(apply, 100);
+        return;
+      }
+      machine.setWhiteMode(true);
+      machine.setFaces(whiteDiceBlueResult, whiteDiceGreenResult);
+    };
+    apply();
+    return () => { cancelled = true; };
+  }, [phase, whiteThrowCount, whiteDiceGreenResult, whiteDiceBlueResult, diceMachineRef]);
 
   // ── Histograma reutilizável (final, todas as barras em altura máxima) ──
   // Usado em probSumTable como referência visual para o aluno preencher a
@@ -2208,13 +2410,58 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
   // Para fases delegadas a sub-componentes (UnionTheory, UnionExerciseN),
   // delega para o handle do filho. Para as outras, mapeia diretamente
   // para a próxima fase pulando animações 3D.
+  // Serialização JSON v2 do snapshot completo da Cena 7. Inclui TODOS
+  // os states pedagógicos relevantes (resultados dos dados, marcações
+  // de tabela, inputs, fases internas dos sub-componentes). Sets são
+  // convertidos pra arrays (e restaurados como `new Set(array)`).
+  // Estados transitórios de animação (markCelebStep, markBusy,
+  // activeHaloPair, blinkPairs, sumRevealStep, race*Busy, etc.) NÃO
+  // entram — são derivados/animação que devem zerar no F5.
+  const buildSnapshot = () => JSON.stringify({
+    v: 2,
+    phase, round, pedagogicDone, history,
+    ex6InitialStep, ex7Completed, ex8Completed,
+    greenResult, blueResult,
+    pickedGreen, pickedBlue, pickAttempts,
+    pickGreenError, pickBlueError, pickFeedback,
+    tableMarks, markAttempts, markSolvedCell,
+    sumAnswer, sumAnswerError,
+    sumMarks: Array.from(sumMarks),
+    sumWrongMarks: Array.from(sumWrongMarks),
+    sumFeedbackState, sumCountAnswer, sumCountError, sumCountValidated,
+    sumPredictedMax, sumPredictedMin,
+    sumImpossibleOptions,
+    sumImpossibleSelected: Array.from(sumImpossibleSelected),
+    sumImpossibleError,
+    pairAnswer, pairAnswerError, cachedPair,
+    colorAnswer, colorAnswerError, whiteThrowCount,
+    whiteDiceGreenResult, whiteDiceBlueResult,
+    probPairX, probPairY, probPairNum, probPairDen,
+    probPairError, probPairErrorType,
+    probSumInputs,
+    probSumWrongRows: Array.from(probSumWrongRows),
+    probSumFeedback,
+    raceBet, racePositions, racePendingSum, raceWinner,
+    raceGreenResult, raceBlueResult,
+    // PREFERE refs dos filhos — síncrono, captura digitação ainda não
+    // propagada via onPhaseChange (que vai por setState assíncrono).
+    // Fallback pro state local pra cobrir o intervalo entre mount do
+    // pai e mount do filho.
+    sampleSpaceTreePhase: sampleSpaceTreeRef.current?.getCurrentPhaseId?.() ?? sampleSpaceTreePhase,
+    complementaryEventsPhase: complementaryEventsRef.current?.getCurrentPhaseId?.() ?? complementaryEventsPhase,
+    unionTheoryPhase: unionTheoryRef?.current?.getCurrentPhaseId?.() ?? unionTheoryPhase,
+    unionExercise1Phase: unionExercise1Ref?.current?.getCurrentPhaseId?.() ?? unionExercise1Phase,
+    unionExercise2Phase: unionExercise2Ref?.current?.getCurrentPhaseId?.() ?? unionExercise2Phase,
+    unionExercise3Phase: unionExercise3Ref?.current?.getCurrentPhaseId?.() ?? unionExercise3Phase,
+    unionExercise4Phase: unionExercise4Ref?.current?.getCurrentPhaseId?.() ?? unionExercise4Phase,
+    unionExercise5Phase: unionExercise5Ref?.current?.getCurrentPhaseId?.() ?? unionExercise5Phase,
+    unionExercise6Phase: unionExercise6Ref?.current?.getCurrentPhaseId?.() ?? unionExercise6Phase,
+    unionExercise7Phase: ex7Ref.current?.getCurrentPhaseId?.() ?? unionExercise7Phase,
+    unionExercise8Phase: ex8Ref.current?.getCurrentPhaseId?.() ?? unionExercise8Phase,
+  });
+
   useImperativeHandle(ref, () => ({
-    getCurrentPhaseId: () => {
-      if (phase === 'tree') return `tree|${sampleSpaceTreePhase}`;
-      if (phase === 'complementaryEvents') return `complementaryEvents|${complementaryEventsPhase}`;
-      if (phase === 'unionTheory') return `unionTheory|${unionTheoryPhase}`;
-      return phase;
-    },
+    getCurrentPhaseId: () => buildSnapshot(),
     advance: () => {
       // Delegação para o SampleSpaceTree (Cena "tree" tem 7 sub-fases internas).
       if (phase === 'tree' && sampleSpaceTreeRef.current) {
@@ -2421,39 +2668,203 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
       }
     },
     setCurrentPhaseId: (phaseId: string) => {
-      // Sincroniza a fase do componente a partir do snapshot DEV.
+      // ATIVA bloqueio: os filhos (SampleSpaceTree, UnionExerciseN, etc.)
+      // vão emitir `onPhaseChange` no mount inicial com state default —
+      // os wrappers ignoram enquanto esta flag está true. Sem isso, o
+      // `sampleSpaceTreePhase` (e os 6 unionExerciseNPhase) vindos do
+      // banco são sobrescritos por defaults antes do setCurrentPhaseId
+      // do filho rodar via RAF — aluno regride pro 'select1' do tree
+      // mesmo após avançar pro 'count' / 'multiply' / 'pickPair' / etc.
+      isRestoringExperimentRef.current = true;
+      // Libera DEPOIS dos RAFs propagarem pros filhos. 3 RAFs cobrem:
+      // commit do setPhase('tree'), mount do tree, useEffect emit em
+      // microtask, RAF interno do setCurrentPhaseId do tree, e o emit
+      // final do tree restaurado.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            isRestoringExperimentRef.current = false;
+          });
+        });
+      });
+      // BUG HISTÓRICO: o código antigo aqui interceptava `tree|...` /
+      // `complementaryEvents|...` / `unionTheory|...` com `setPhase('tree')`
+      // ANTES de tentar parsear JSON v2. Mesmo após a migração pra JSON
+      // v2, o snapshot do DevPanel continuava entregando os prefixos
+      // antigos em alguns casos (ex.: history navigation, ou quando o
+      // pai chamava direto com prefixo), causando regressão pra 'tree'
+      // sempre que o JSON v2 começava com `{"v":2...}` MAS estava
+      // ausente. Hoje TODOS os caminhos passam primeiro pelo JSON v2,
+      // e SÓ caem no fallback antigo se JSON.parse falhar.
+      // `rolling` é transitória (animação 3D) — promove pra `landed`.
+      const promoteRolling = (p: string) => p === 'rolling' ? 'landed' : p;
+      // Tenta JSON v2 primeiro. Se falhar, cai no formato antigo
+      // (string única, possivelmente prefixada por tree|/complementaryEvents|/
+      // unionTheory|) — compat com snapshots já gravados no banco.
+      try {
+        const obj = JSON.parse(phaseId);
+        if (obj && typeof obj === 'object') {
+          if (obj.phase) setPhase(promoteRolling(obj.phase) as Phase);
+          if (typeof obj.round === 'number') setRound(obj.round);
+          if (typeof obj.pedagogicDone === 'boolean') setPedagogicDone(obj.pedagogicDone);
+          if (Array.isArray(obj.history)) setHistory(obj.history);
+          if (obj.ex6InitialStep === 'intro' || obj.ex6InitialStep === 'finalSynthesis') {
+            setEx6InitialStep(obj.ex6InitialStep);
+          }
+          if (typeof obj.ex7Completed === 'boolean') setEx7Completed(obj.ex7Completed);
+          if (typeof obj.ex8Completed === 'boolean') setEx8Completed(obj.ex8Completed);
+          if (typeof obj.greenResult === 'number') setGreenResult(obj.greenResult);
+          if (typeof obj.blueResult === 'number') setBlueResult(obj.blueResult);
+          if (typeof obj.pickedGreen === 'number' || obj.pickedGreen === null) setPickedGreen(obj.pickedGreen);
+          if (typeof obj.pickedBlue === 'number' || obj.pickedBlue === null) setPickedBlue(obj.pickedBlue);
+          if (typeof obj.pickAttempts === 'number') setPickAttempts(obj.pickAttempts);
+          if (typeof obj.pickGreenError === 'boolean') setPickGreenError(obj.pickGreenError);
+          if (typeof obj.pickBlueError === 'boolean') setPickBlueError(obj.pickBlueError);
+          if (typeof obj.pickFeedback === 'string') setPickFeedback(obj.pickFeedback);
+          if (Array.isArray(obj.tableMarks)) setTableMarks(obj.tableMarks);
+          if (typeof obj.markAttempts === 'number') setMarkAttempts(obj.markAttempts);
+          if (obj.markSolvedCell === null || (obj.markSolvedCell && typeof obj.markSolvedCell === 'object')) {
+            setMarkSolvedCell(obj.markSolvedCell);
+          }
+          if (typeof obj.sumAnswer === 'string') setSumAnswer(obj.sumAnswer);
+          if (typeof obj.sumAnswerError === 'boolean') setSumAnswerError(obj.sumAnswerError);
+          if (Array.isArray(obj.sumMarks)) setSumMarks(new Set(obj.sumMarks));
+          if (Array.isArray(obj.sumWrongMarks)) setSumWrongMarks(new Set(obj.sumWrongMarks));
+          if (obj.sumFeedbackState === 'none' || obj.sumFeedbackState === 'incomplete' || obj.sumFeedbackState === 'wrong') {
+            setSumFeedbackState(obj.sumFeedbackState);
+          }
+          if (typeof obj.sumCountAnswer === 'string') setSumCountAnswer(obj.sumCountAnswer);
+          if (typeof obj.sumCountError === 'boolean') setSumCountError(obj.sumCountError);
+          if (typeof obj.sumCountValidated === 'boolean') setSumCountValidated(obj.sumCountValidated);
+          if (typeof obj.sumPredictedMax === 'number' || obj.sumPredictedMax === null) setSumPredictedMax(obj.sumPredictedMax);
+          if (typeof obj.sumPredictedMin === 'number' || obj.sumPredictedMin === null) setSumPredictedMin(obj.sumPredictedMin);
+          if (Array.isArray(obj.sumImpossibleOptions)) setSumImpossibleOptions(obj.sumImpossibleOptions);
+          if (Array.isArray(obj.sumImpossibleSelected)) setSumImpossibleSelected(new Set(obj.sumImpossibleSelected));
+          if (obj.sumImpossibleError === 'none' || obj.sumImpossibleError === 'hint') {
+            setSumImpossibleError(obj.sumImpossibleError);
+          }
+          if (typeof obj.pairAnswer === 'string') setPairAnswer(obj.pairAnswer);
+          if (typeof obj.pairAnswerError === 'boolean') setPairAnswerError(obj.pairAnswerError);
+          if (obj.cachedPair === null || (obj.cachedPair && typeof obj.cachedPair === 'object')) {
+            setCachedPair(obj.cachedPair);
+          }
+          if (typeof obj.colorAnswer === 'string') setColorAnswer(obj.colorAnswer);
+          if (typeof obj.colorAnswerError === 'boolean') setColorAnswerError(obj.colorAnswerError);
+          if (typeof obj.whiteThrowCount === 'number') setWhiteThrowCount(obj.whiteThrowCount);
+          if (typeof obj.whiteDiceGreenResult === 'number') setWhiteDiceGreenResult(obj.whiteDiceGreenResult);
+          if (typeof obj.whiteDiceBlueResult === 'number') setWhiteDiceBlueResult(obj.whiteDiceBlueResult);
+          if (typeof obj.probPairX === 'number') setProbPairX(obj.probPairX);
+          if (typeof obj.probPairY === 'number') setProbPairY(obj.probPairY);
+          if (typeof obj.probPairNum === 'string') setProbPairNum(obj.probPairNum);
+          if (typeof obj.probPairDen === 'string') setProbPairDen(obj.probPairDen);
+          if (typeof obj.probPairError === 'boolean') setProbPairError(obj.probPairError);
+          if (obj.probPairErrorType === null || obj.probPairErrorType === 'denominator' || obj.probPairErrorType === 'numerator' || obj.probPairErrorType === 'both') {
+            setProbPairErrorType(obj.probPairErrorType);
+          }
+          if (obj.probSumInputs && typeof obj.probSumInputs === 'object') setProbSumInputs(obj.probSumInputs);
+          if (Array.isArray(obj.probSumWrongRows)) setProbSumWrongRows(new Set(obj.probSumWrongRows));
+          if (obj.probSumFeedback === 'none' || obj.probSumFeedback === 'missing' || obj.probSumFeedback === 'wrong') {
+            setProbSumFeedback(obj.probSumFeedback);
+          }
+          if (typeof obj.raceBet === 'number' || obj.raceBet === null) setRaceBet(obj.raceBet);
+          if (obj.racePositions && typeof obj.racePositions === 'object') setRacePositions(obj.racePositions);
+          if (typeof obj.racePendingSum === 'number' || obj.racePendingSum === null) setRacePendingSum(obj.racePendingSum);
+          if (typeof obj.raceWinner === 'number' || obj.raceWinner === null) setRaceWinner(obj.raceWinner);
+          if (typeof obj.raceGreenResult === 'number') setRaceGreenResult(obj.raceGreenResult);
+          if (typeof obj.raceBlueResult === 'number') setRaceBlueResult(obj.raceBlueResult);
+          if (typeof obj.sampleSpaceTreePhase === 'string') setSampleSpaceTreePhase(obj.sampleSpaceTreePhase);
+          if (typeof obj.complementaryEventsPhase === 'string') setComplementaryEventsPhase(obj.complementaryEventsPhase);
+          if (typeof obj.unionTheoryPhase === 'string') setUnionTheoryPhase(obj.unionTheoryPhase);
+          if (typeof obj.unionExercise1Phase === 'string') setUnionExercise1Phase(obj.unionExercise1Phase);
+          if (typeof obj.unionExercise2Phase === 'string') setUnionExercise2Phase(obj.unionExercise2Phase);
+          if (typeof obj.unionExercise3Phase === 'string') setUnionExercise3Phase(obj.unionExercise3Phase);
+          if (typeof obj.unionExercise4Phase === 'string') setUnionExercise4Phase(obj.unionExercise4Phase);
+          if (typeof obj.unionExercise5Phase === 'string') setUnionExercise5Phase(obj.unionExercise5Phase);
+          if (typeof obj.unionExercise6Phase === 'string') setUnionExercise6Phase(obj.unionExercise6Phase);
+          if (typeof obj.unionExercise7Phase === 'string') setUnionExercise7Phase(obj.unionExercise7Phase);
+          if (typeof obj.unionExercise8Phase === 'string') setUnionExercise8Phase(obj.unionExercise8Phase);
+          // Propaga sub-fase pros filhos com snapshot próprio (JSON v2).
+          // O state local atualizado acima (`sampleSpaceTreePhase`, etc.)
+          // é a versão pro cenaId DEV; o setCurrentPhaseId do filho é
+          // que RESTAURA selectedFaces/inputs/etc. Sem propagar, o filho
+          // re-monta com defaults e o aluno perde checkboxes marcados.
+          if (obj.phase === 'tree' && obj.sampleSpaceTreePhase) {
+            requestAnimationFrame(() => {
+              sampleSpaceTreeRef?.current?.setCurrentPhaseId?.(obj.sampleSpaceTreePhase);
+            });
+          }
+          if (obj.phase === 'complementaryEvents' && obj.complementaryEventsPhase) {
+            requestAnimationFrame(() => {
+              complementaryEventsRef?.current?.setCurrentPhaseId?.(obj.complementaryEventsPhase);
+            });
+          }
+          if (obj.phase === 'unionTheory' && obj.unionTheoryPhase) {
+            requestAnimationFrame(() => {
+              unionTheoryRef?.current?.setCurrentPhaseId?.(obj.unionTheoryPhase);
+            });
+          }
+          // Propaga step interno pros UnionExerciseN (Opção A: só step
+          // — inputs/marks ainda zeram, mas o aluno volta no passo certo
+          // do exercício em vez de cair sempre em 'intro').
+          if (obj.phase === 'unionExercises' && obj.unionExercise1Phase) {
+            requestAnimationFrame(() => { unionExercise1Ref?.current?.setCurrentPhaseId?.(obj.unionExercise1Phase); });
+          }
+          if (obj.phase === 'unionExercise2' && obj.unionExercise2Phase) {
+            requestAnimationFrame(() => { unionExercise2Ref?.current?.setCurrentPhaseId?.(obj.unionExercise2Phase); });
+          }
+          if (obj.phase === 'unionExercise3' && obj.unionExercise3Phase) {
+            requestAnimationFrame(() => { unionExercise3Ref?.current?.setCurrentPhaseId?.(obj.unionExercise3Phase); });
+          }
+          if (obj.phase === 'unionExercise4' && obj.unionExercise4Phase) {
+            requestAnimationFrame(() => { unionExercise4Ref?.current?.setCurrentPhaseId?.(obj.unionExercise4Phase); });
+          }
+          if (obj.phase === 'unionExercise5' && obj.unionExercise5Phase) {
+            requestAnimationFrame(() => { unionExercise5Ref?.current?.setCurrentPhaseId?.(obj.unionExercise5Phase); });
+          }
+          if (obj.phase === 'unionExercise6' && obj.unionExercise6Phase) {
+            requestAnimationFrame(() => { unionExercise6Ref?.current?.setCurrentPhaseId?.(obj.unionExercise6Phase); });
+          }
+          if (obj.phase === 'twoDicesGameFree' && obj.unionExercise7Phase) {
+            requestAnimationFrame(() => { ex7Ref?.current?.setCurrentPhaseId?.(obj.unionExercise7Phase); });
+          }
+          if (obj.phase === 'unionExercise8' && obj.unionExercise8Phase) {
+            requestAnimationFrame(() => { ex8Ref?.current?.setCurrentPhaseId?.(obj.unionExercise8Phase); });
+          }
+          return;
+        }
+      } catch { /* não é JSON — cai no parser antigo */ }
+      // Formato antigo (string única, possivelmente prefixada).
+      // ATENÇÃO: snapshots antigos do banco podem ter `tree|...` mesmo
+      // quando o aluno já avançou MUITO além do tree — porque versões
+      // anteriores do código só persistiam a fase do tree. Setar
+      // `phase='tree'` faria o aluno REGREDIR. Por segurança, no fallback
+      // antigo só aplicamos o phase se for um valor PURO conhecido
+      // (sem prefixo); prefixos antigos delegam só pra sub-componente
+      // quando o phase atual já casa (ou seja, ainda estamos no tree).
       if (phaseId.startsWith('tree|')) {
         const sub = phaseId.slice('tree|'.length);
-        setPhase('tree');
-        sampleSpaceTreeRef.current?.setCurrentPhaseId?.(sub);
+        // Só restaurar sub-fase do tree; NÃO forçar setPhase('tree').
+        if (phase === 'tree') {
+          sampleSpaceTreeRef.current?.setCurrentPhaseId?.(sub);
+        }
         return;
       }
       if (phaseId.startsWith('complementaryEvents|')) {
-        // Sub-phase do hook não tem setter público — restaura só o phase pai.
-        setPhase('complementaryEvents');
+        if (phase === 'complementaryEvents') {
+          // sub-phase não tem setter público — no-op.
+        }
         return;
       }
       if (phaseId.startsWith('unionTheory|')) {
-        // Propaga a sub-fase pra UnionProbabilityTheory via handle. Antes
-        // setávamos só a fase pai e a sub-fase ficava "presa" no valor
-        // antigo do componente filho — seta dev pra esquerda não voltava
-        // item por item dentro da teoria (intro, markA, countA, etc.).
         const sub = phaseId.slice('unionTheory|'.length);
-        setPhase('unionTheory');
-        // Em fluxo de restore (vindo de snapshot DEV), aguarda 1 frame pra
-        // garantir que o ref do UnionProbabilityTheory esteja montado.
-        requestAnimationFrame(() => {
-          unionTheoryRef?.current?.setCurrentPhaseId?.(sub);
-        });
+        if (phase === 'unionTheory') {
+          requestAnimationFrame(() => {
+            unionTheoryRef?.current?.setCurrentPhaseId?.(sub);
+          });
+        }
         return;
       }
-      // Restauração de snapshot: a fase `rolling` é transitória
-      // (animação 3D dos dados) e depende de timers que NÃO sobrevivem
-      // ao F5. Sem mapear, o aluno fica vendo os dados girarem
-      // eternamente. Promove pra `landed` — estado estável onde o
-      // resultado já está visível e o aluno clica pra continuar.
-      const stableId = phaseId === 'rolling' ? 'landed' : phaseId;
-      setPhase(stableId as Phase);
+      setPhase(promoteRolling(phaseId) as Phase);
     },
   }), [phase, round, pedagogicDone, greenResult, blueResult, sampleSpaceTreePhase, complementaryEventsPhase, unionTheoryPhase, onFinished, ex7Completed, ex8Completed, unionTheoryRef, unionExercise1Ref, unionExercise2Ref, unionExercise3Ref, unionExercise4Ref, unionExercise5Ref, unionExercise6Ref]);
 
@@ -2519,8 +2930,12 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           ref={sampleSpaceTreeRef}
           onFinished={() => setPhase('ready')}
           diceSceneRef={diceSceneRef}
-          onPhaseChange={setSampleSpaceTreePhase}
+          onPhaseChange={handleSampleSpaceTreePhaseChange}
           createAlert={createAlert}
+          // Inicializa o tree JÁ no estado restaurado — elimina a
+          // janela onde montaria com defaults e seu useEffect emitiria
+          // JSON_select1 sobrescrevendo o JSON do banco no parent.
+          initialSnapshot={sampleSpaceTreePhase}
         />
       )}
 
@@ -4004,29 +4419,13 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 borderRadius: 12,
                 width: '100%',
               }}>
-                <img
-                  src="/images/teaching/probability/two-dices/alien-livro.webp"
-                  alt="Alienígena amigável entregando um livro de matemática com símbolos dourados na capa"
-                  width={120}
-                  height={120}
-                  loading="lazy"
-                  style={{
-                    width: 'min(120px, 28vw)',
-                    height: 'auto',
-                    borderRadius: 10,
-                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.18)',
-                    objectFit: 'contain',
-                  }}
-                  onError={(e) => {
-                    const img = e.currentTarget;
-                    img.style.display = 'none';
-                    const fallback = document.createElement('div');
-                    fallback.textContent = '🛸 📘';
-                    fallback.style.fontSize = '2rem';
-                    fallback.setAttribute('aria-hidden', 'true');
-                    img.parentElement?.insertBefore(fallback, img);
-                  }}
-                />
+                <div
+                  role="img"
+                  aria-label="Alienígena amigável entregando um livro de matemática"
+                  style={{ fontSize: '2rem' }}
+                >
+                  🛸 📘
+                </div>
                 <p className="ds-body text-neutral-black text-center italic">
                   — Parabéns, humano! Você dominou as probabilidades de dois dados e viu a distribuição em ação.
                   O livro é seu — leia-o bem, ele guarda os segredos matemáticos de um milhão de mundos!
@@ -4051,7 +4450,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
           {phase === 'complementaryEvents' && (
             <ComplementaryEventsActivity
               ref={complementaryEventsRef}
-              onPhaseChange={setComplementaryEventsPhase}
+              onPhaseChange={handleComplementaryEventsPhaseChange}
+              // Restauração no MOUNT — evita a janela onde o hook
+              // montaria com defaults e seu emit sobrescreveria o JSON
+              // do banco no parent. Mesma técnica do SampleSpaceTree.
+              initialPhaseSnapshot={complementaryEventsPhase}
               onContinue={() => {
                 scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
@@ -4066,7 +4469,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               ref={unionTheoryRef}
               initialPhase={unionTheoryInitialPhase}
               createAlert={createAlert}
-              onPhaseChange={setUnionTheoryPhase}
+              onPhaseChange={handleUnionTheoryPhaseChange}
+              initialPhaseSnapshot={unionTheoryPhase}
               onFinished={() => {
                 scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
@@ -4082,6 +4486,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               ref={unionExercise1Ref}
               initialStep={unionExercise1InitialStep}
               createAlert={createAlert}
+              onPhaseChange={handleUnionExercise1PhaseChange}
+              initialPhaseSnapshot={unionExercise1Phase}
               onFinished={() => {
                 scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
@@ -4102,6 +4508,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               ref={unionExercise2Ref}
               initialStep={unionExercise2InitialStep}
               createAlert={createAlert}
+              onPhaseChange={handleUnionExercise2PhaseChange}
+              initialPhaseSnapshot={unionExercise2Phase}
               onFinished={() => {
                 scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
@@ -4122,6 +4530,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               ref={unionExercise3Ref}
               initialStep={unionExercise3InitialStep}
               createAlert={createAlert}
+              onPhaseChange={handleUnionExercise3PhaseChange}
+              initialPhaseSnapshot={unionExercise3Phase}
               onFinished={() => {
                 scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
@@ -4141,6 +4551,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <UnionExercise4
               ref={unionExercise4Ref}
               createAlert={createAlert}
+              onPhaseChange={handleUnionExercise4PhaseChange}
+              initialPhaseSnapshot={unionExercise4Phase}
               onFinished={() => {
                 scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
@@ -4159,6 +4571,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
             <UnionExercise5
               ref={unionExercise5Ref}
               createAlert={createAlert}
+              onPhaseChange={handleUnionExercise5PhaseChange}
+              initialPhaseSnapshot={unionExercise5Phase}
               onFinished={() => {
                 scrollDiceToTop();
                 playSound('/sounds/challengeFinished.mp3');
@@ -4182,6 +4596,8 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
               initialStep={ex6InitialStep}
               ex7Completed={ex7Completed}
               ex8Completed={ex8Completed}
+              onPhaseChange={handleUnionExercise6PhaseChange}
+              initialPhaseSnapshot={unionExercise6Phase}
               // createAlert injetado pro Ex6 disparar o alert de "OVA
               // concluído" no momento em que o aluno CHEGA na finalSynthesis
               // (transição automática após a Rodada 2), em vez de só ao
@@ -4244,7 +4660,12 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 sorteados em 7 desafios. Ao concluir, você volta à tela de
                 Parabéns do OVA.
               </p>
-              <TwoDicesGame enableMarkAll />
+              <TwoDicesGame
+                ref={ex7Ref}
+                enableMarkAll
+                onPhaseChange={handleUnionExercise7PhaseChange}
+                initialPhaseSnapshot={unionExercise7Phase}
+              />
             </div>
           )}
 
@@ -4284,7 +4705,11 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                 A → B → D nos compostos. Ao concluir, você volta à tela de
                 Parabéns do OVA.
               </p>
-              <TwoDicesGameAdvanced />
+              <TwoDicesGameAdvanced
+                ref={ex8Ref}
+                onPhaseChange={handleUnionExercise8PhaseChange}
+                initialPhaseSnapshot={unionExercise8Phase}
+              />
             </div>
           )}
 
@@ -4463,7 +4888,9 @@ export const TwoDicesExperiment = forwardRef<TwoDicesExperimentHandle, TwoDicesE
                     await new Promise(r => setTimeout(r, 300));
                     // 3. Máquina processa o lançamento completo (copo, pistões, física, som)
                     machineContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    await machine.roll();
+                    const whiteResult = await machine.roll();
+                    setWhiteDiceGreenResult(whiteResult.green);
+                    setWhiteDiceBlueResult(whiteResult.blue);
                     // 4. Feedback ao aluno após os dados pararem — som + alert
                     // instruindo a próxima ação (responder Sim/Não abaixo).
                     playSound('/sounds/correct.mp3');

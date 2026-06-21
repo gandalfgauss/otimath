@@ -73,6 +73,10 @@ interface UnionExercise4Props {
   initialStep?: Step;
   /** Toast alert do OVA (propagado pelo TwoDicesExperiment). */
   createAlert?: (title: string, description: string, type: 'success' | 'error' | 'info' | 'warning', timeout?: number, userResponse?: string) => void;
+  /** Emite snapshot JSON v2 completo pro pai. */
+  onPhaseChange?: (phaseId: string) => void;
+  /** Snapshot pra restauração pós-F5 no mount. */
+  initialPhaseSnapshot?: string;
 }
 
 export interface UnionExercise4Handle {
@@ -80,6 +84,8 @@ export interface UnionExercise4Handle {
   back: () => void;
   canAdvance: () => boolean;
   canBack: () => boolean;
+  getCurrentPhaseId: () => string;
+  setCurrentPhaseId: (phaseId: string) => void;
 }
 
 // Sequência principal (usada pela navegação dev com setinhas)
@@ -308,8 +314,16 @@ const CARD_OPTIONS = [
 // ═══════════════════════════════════════════════════════════════
 
 export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Props>(
-  function UnionExercise4({ onFinished, onRequestPreviousPhase, initialStep, createAlert }, ref) {
-    const [step, setStep] = useState<Step>(initialStep ?? 'intro');
+  function UnionExercise4({ onFinished, onRequestPreviousPhase, initialStep, createAlert, onPhaseChange, initialPhaseSnapshot }, ref) {
+    const initialStepFromSnapshot = (() => {
+      if (!initialPhaseSnapshot) return null;
+      try {
+        const obj = JSON.parse(initialPhaseSnapshot);
+        if (obj && typeof obj === 'object' && typeof obj.step === 'string') return obj.step as Step;
+      } catch { /* ignore */ }
+      return null;
+    })();
+    const [step, setStep] = useState<Step>(initialStepFromSnapshot ?? initialStep ?? 'intro');
     // Telemetria — leitura do enunciado do Ex.4.
     const confirmReadIntro = useReadingTelemetry(
       step === 'intro',
@@ -550,12 +564,112 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       }
     }, [step, onRequestPreviousPhase]);
 
+    // Snapshot JSON v2 completo — Ex4 tem 3 paths (lapCard/lapVenn/general)
+    // + Venn interativo com várias variáveis. Persiste TUDO menos *Error
+    // (UI transitória) e showHint (animação). vennLocked É persistido pra
+    // que F5 após validar lapVenn1 mantenha os inputs travados (sem isso,
+    // F5 desbloqueia inputs já validados e o aluno pode invalidar a prova).
+    const snapshotPayload = JSON.stringify({
+      v: 2,
+      step, round, data, hintsUsed, chosenPath,
+      completedPaths: Array.from(completedPaths),
+      card1Pos1, card1Pos2, card1Pos3, card1Pos4,
+      card2CInput, card2BInput, card2DInput,
+      card3Num, card3bNum,
+      card4Num, card4Den,
+      vennX, vennAmB, vennBmA, vennW, vennVar, vennLocked,
+      vennAUnionB, vennEqAmB, vennEqAnB, vennEqBmA,
+      vennEqLhsValue, vennEqSimplified,
+      vennXExpr, vennXValue, vennNS,
+      venn3Num, venn3Den,
+      g1CNum, g1CDen, g1BNum, g1BDen, g1DNum, g1DDen,
+      g2Num, g2Den, g3Num, g3Den,
+    });
+    useEffect(() => {
+      onPhaseChange?.(snapshotPayload);
+    }, [snapshotPayload, onPhaseChange]);
+
+    // Suprime os useEffects de telemetria debouncada (prevVennInputsRef /
+    // prevVenn2InputsRef) durante a janela do restore F5 — sem isso, F5
+    // era interpretado como "aluno digitou" e gerava exercício fantasma.
+    const isRestoringSnapshotRef = useRef(false);
+    const applyPhaseId = useCallback((phaseId: string) => {
+      isRestoringSnapshotRef.current = true;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => { isRestoringSnapshotRef.current = false; }, 700);
+        });
+      });
+      try {
+        const obj = JSON.parse(phaseId);
+        if (obj && typeof obj === 'object') {
+          if (typeof obj.step === 'string') setStep(obj.step as Step);
+          if (typeof obj.round === 'number') setRound(obj.round);
+          if (obj.data && typeof obj.data === 'object') setData(obj.data as Exercise4Data);
+          if (typeof obj.hintsUsed === 'number') setHintsUsed(obj.hintsUsed);
+          if (obj.chosenPath === null || obj.chosenPath === 'lapCard' || obj.chosenPath === 'lapVenn' || obj.chosenPath === 'general') setChosenPath(obj.chosenPath);
+          if (Array.isArray(obj.completedPaths)) setCompletedPaths(new Set(obj.completedPaths));
+          if (typeof obj.card1Pos1 === 'string') setCard1Pos1(obj.card1Pos1 as ExprId);
+          if (typeof obj.card1Pos2 === 'string') setCard1Pos2(obj.card1Pos2 as ExprId);
+          if (typeof obj.card1Pos3 === 'string') setCard1Pos3(obj.card1Pos3 as ExprId);
+          if (typeof obj.card1Pos4 === 'string') setCard1Pos4(obj.card1Pos4 as ExprId);
+          if (typeof obj.card2CInput === 'string') setCard2CInput(obj.card2CInput);
+          if (typeof obj.card2BInput === 'string') setCard2BInput(obj.card2BInput);
+          if (typeof obj.card2DInput === 'string') setCard2DInput(obj.card2DInput);
+          if (typeof obj.card3Num === 'string') setCard3Num(obj.card3Num);
+          if (typeof obj.card3bNum === 'string') setCard3bNum(obj.card3bNum);
+          if (typeof obj.card4Num === 'string') setCard4Num(obj.card4Num);
+          if (typeof obj.card4Den === 'string') setCard4Den(obj.card4Den);
+          if (typeof obj.vennX === 'string') setVennX(obj.vennX);
+          if (typeof obj.vennAmB === 'string') setVennAmB(obj.vennAmB);
+          if (typeof obj.vennBmA === 'string') setVennBmA(obj.vennBmA);
+          if (typeof obj.vennW === 'string') setVennW(obj.vennW);
+          if (typeof obj.vennVar === 'string') setVennVar(obj.vennVar);
+          if (typeof obj.vennLocked === 'boolean') setVennLocked(obj.vennLocked);
+          if (typeof obj.vennAUnionB === 'string') setVennAUnionB(obj.vennAUnionB);
+          if (typeof obj.vennEqAmB === 'string') setVennEqAmB(obj.vennEqAmB);
+          if (typeof obj.vennEqAnB === 'string') setVennEqAnB(obj.vennEqAnB);
+          if (typeof obj.vennEqBmA === 'string') setVennEqBmA(obj.vennEqBmA);
+          if (typeof obj.vennEqLhsValue === 'string') setVennEqLhsValue(obj.vennEqLhsValue);
+          if (typeof obj.vennEqSimplified === 'string') setVennEqSimplified(obj.vennEqSimplified);
+          if (typeof obj.vennXExpr === 'string') setVennXExpr(obj.vennXExpr);
+          if (typeof obj.vennXValue === 'string') setVennXValue(obj.vennXValue);
+          if (typeof obj.vennNS === 'string') setVennNS(obj.vennNS);
+          if (typeof obj.venn3Num === 'string') setVenn3Num(obj.venn3Num);
+          if (typeof obj.venn3Den === 'string') setVenn3Den(obj.venn3Den);
+          if (typeof obj.g1CNum === 'string') setG1CNum(obj.g1CNum);
+          if (typeof obj.g1CDen === 'string') setG1CDen(obj.g1CDen);
+          if (typeof obj.g1BNum === 'string') setG1BNum(obj.g1BNum);
+          if (typeof obj.g1BDen === 'string') setG1BDen(obj.g1BDen);
+          if (typeof obj.g1DNum === 'string') setG1DNum(obj.g1DNum);
+          if (typeof obj.g1DDen === 'string') setG1DDen(obj.g1DDen);
+          if (typeof obj.g2Num === 'string') setG2Num(obj.g2Num);
+          if (typeof obj.g2Den === 'string') setG2Den(obj.g2Den);
+          if (typeof obj.g3Num === 'string') setG3Num(obj.g3Num);
+          if (typeof obj.g3Den === 'string') setG3Den(obj.g3Den);
+          return;
+        }
+      } catch { /* formato antigo */ }
+      setStep(phaseId as Step);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const didInitialRestoreRef = useRef(false);
+    useEffect(() => {
+      if (didInitialRestoreRef.current) return;
+      didInitialRestoreRef.current = true;
+      if (initialPhaseSnapshot) applyPhaseId(initialPhaseSnapshot);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useImperativeHandle(ref, () => ({
       advance: advanceStep,
       back: backStep,
       canAdvance: () => true,
       canBack: () => step !== 'intro' || !!onRequestPreviousPhase,
-    }), [advanceStep, backStep, step, onRequestPreviousPhase]);
+      getCurrentPhaseId: () => snapshotPayload,
+      setCurrentPhaseId: applyPhaseId,
+    }), [advanceStep, backStep, step, onRequestPreviousPhase, snapshotPayload, applyPhaseId]);
 
     // ── Helpers de reset ────────────────────────────────────────
     const resetCardState = useCallback(() => {
@@ -599,6 +713,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       if (prev === null) { prevVennInputsRef.current = cur; return; }
       if (prev.x === cur.x && prev.amb === cur.amb && prev.bma === cur.bma && prev.w === cur.w) return;
       prevVennInputsRef.current = cur;
+      if (isRestoringSnapshotRef.current) return;
       if (step !== 'lapVenn1') return;
       const handle = window.setTimeout(() => {
         const parts: string[] = [];
@@ -632,6 +747,7 @@ export const UnionExercise4 = forwardRef<UnionExercise4Handle, UnionExercise4Pro
       const changed = (Object.keys(cur) as Array<keyof typeof cur>).some(k => prev[k] !== cur[k]);
       if (!changed) return;
       prevVenn2InputsRef.current = cur;
+      if (isRestoringSnapshotRef.current) return;
       if (step !== 'lapVenn2') return;
       const handle = window.setTimeout(() => {
         const parts: string[] = [];

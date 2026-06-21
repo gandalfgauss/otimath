@@ -61,9 +61,12 @@ import {
   verifyExactProbability,
   sanitizeFraction,
   createCompositeEvent,
+  serializeValidatedSetup,
+  deserializeValidatedSetup,
   type Event,
   type Operation,
   type ValidatedSetup,
+  type ValidatedSetupSerialized,
   type FractionInvalidReason,
 } from '@/lib/probability/eventParametrization';
 import { logAttempt, logMarkAllUsed } from '@/hooks/teaching/probability/two-dices/useTwoDicesLog';
@@ -299,6 +302,9 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
     useState<OperationSelectInputs>({} as OperationSelectInputs);
 
   const [game, setGame] = useState<AdvancedGame>({ challenges: [] });
+  // Setup sorteado — persistido no snapshot pra que F5 restaure o MESMO
+  // jogo (eventos + operações) que o aluno estava jogando.
+  const [currentSetup, setCurrentSetup] = useState<ValidatedSetup | null>(null);
 
   /** Conjunto de nomes de evento já validados (mark-A, mark-B, mark-D)
    *  no DESAFIO ATUAL — usado por `hideIfUnchecked`. */
@@ -377,7 +383,14 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
     _createAlert(title, message, type, duration, resolved);
   }, [_createAlert]);
 
+  // Mount inicial. GUARD anti-StrictMode: sem o ref, o useEffect roda
+  // 2x em dev e o segundo startGame zera o restoreSnapshot (que o
+  // componente aplica ENTRE os 2 runs do strict). Resultado: F5 voltava
+  // sempre pra challenge=0, step=0, checkboxes vazios.
+  const didMountStartGameRef = useRef(false);
   useEffect(() => {
+    if (didMountStartGameRef.current) return;
+    didMountStartGameRef.current = true;
     startGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -394,6 +407,9 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
     };
   });
 
+  // Flag suprime detect-and-emit durante restoreSnapshot F5 — sem isso,
+  // F5 dispara "select changed" / "digitou fração" indevidamente.
+  const isRestoringSnapshotRef = useRef(false);
   // Change-detection dos SELECTS — vide useTwoDicesHooks pra rationale.
   const prevSelectsRef = useRef<{ a: string; o: string; b: string } | null>(null);
   useEffect(() => {
@@ -406,6 +422,7 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
     if (prev === null) { prevSelectsRef.current = cur; return; }
     if (prev.a === cur.a && prev.o === cur.o && prev.b === cur.b) return;
     prevSelectsRef.current = cur;
+    if (isRestoringSnapshotRef.current) return;
     const changed: string[] = [];
     if (prev.a !== cur.a) changed.push(`Evento A: "${prev.a || '_'}" → "${cur.a || '_'}"`);
     if (prev.o !== cur.o) changed.push(`Operação: "${prev.o || '_'}" → "${cur.o || '_'}"`);
@@ -429,6 +446,7 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
     if (prev === null) { prevFractionsRef.current = cur; return; }
     if (prev.n === cur.n && prev.d === cur.d && prev.cn === cur.cn && prev.cd === cur.cd) return;
     prevFractionsRef.current = cur;
+    if (isRestoringSnapshotRef.current) return;
     const handle = window.setTimeout(() => {
       const parts: string[] = [];
       if (prev.n !== cur.n || prev.d !== cur.d) parts.push(`P principal: ${cur.n || '_'} / ${cur.d || '_'}`);
@@ -557,14 +575,14 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
     setProbabilitiesTextInputs({} as ProbabilitiesTextInputs);
   };
 
-  const buildProbabilities = (eventName: string, hasComplementary: boolean) => {
+  const buildProbabilities = (eventName: string, hasComplementary: boolean, initialValues?: { num?: string; den?: string; compNum?: string; compDen?: string }) => {
     const aux: ProbabilitiesTextInputs = {
       eventName,
       hasComplementary,
-      numerator:                { value: '', disabled: false, error: false },
-      denominator:              { value: '', disabled: false, error: false },
-      complementaryNumerator:   { value: '', disabled: false, error: false },
-      complementaryDenominator: { value: '', disabled: false, error: false },
+      numerator:                { value: initialValues?.num ?? '', disabled: false, error: false },
+      denominator:              { value: initialValues?.den ?? '', disabled: false, error: false },
+      complementaryNumerator:   { value: initialValues?.compNum ?? '', disabled: false, error: false },
+      complementaryDenominator: { value: initialValues?.compDen ?? '', disabled: false, error: false },
     };
     aux.numerator.setValue = (v: string) =>
       setProbabilitiesTextInputs((p) => ({ ...p, numerator: { ...p.numerator, value: v } }));
@@ -618,20 +636,21 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
   const buildOperationSelectInputs = (
     eventOptions: string[],
     opOptions: { value: string; label: string }[],
+    initialValues?: { a?: string; o?: string; b?: string },
   ) => {
     setOperationSelectInputs({
       eventsA: {
-        disabled: false, value: ' ', error: false,
+        disabled: false, value: initialValues?.a ?? ' ', error: false,
         setValue: (v) => setOperationSelectInputs((p) => ({ ...p, eventsA: { ...p.eventsA, value: v } })),
         options: eventOptions.map((e) => ({ value: e, label: e })),
       },
       operations: {
-        disabled: false, value: ' ', error: false,
+        disabled: false, value: initialValues?.o ?? ' ', error: false,
         setValue: (v) => setOperationSelectInputs((p) => ({ ...p, operations: { ...p.operations, value: v } })),
         options: opOptions.map((o) => ({ value: o.value, label: o.label })),
       },
       eventsB: {
-        disabled: false, value: ' ', error: false,
+        disabled: false, value: initialValues?.b ?? ' ', error: false,
         setValue: (v) => setOperationSelectInputs((p) => ({ ...p, eventsB: { ...p.eventsB, value: v } })),
         options: eventOptions.map((e) => ({ value: e, label: e })),
       },
@@ -1030,6 +1049,7 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
         DEFAULT_OPERATION_POOL,
       );
       const newGame = getNewGame(setup);
+      setCurrentSetup(setup);
       setGame(newGame);
       resetEventsCheckboxes({}, false);
       resetProbabilitiesTextInputs();
@@ -1048,6 +1068,7 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
           DEFAULT_OPERATION_POOL,
         );
         const newGame = getNewGame(setup);
+        setCurrentSetup(setup);
         setGame(newGame);
         resetEventsCheckboxes({}, false);
         resetProbabilitiesTextInputs();
@@ -1116,5 +1137,93 @@ export const useTwoDicesGameAdvancedHooks = (args: UseAdvancedArgs = {}) => {
     /** Índices do desafio atual (para integração com log/instrumentação). */
     challenge,
     step,
+    // Restauração pós-F5 (mesma estratégia do useTwoDicesHooks).
+    restoreSnapshot: (snap: {
+      challenge?: number;
+      step?: number;
+      eventsCheckboxes?: EventCheckboxes;
+      setup?: ValidatedSetupSerialized;
+      probValues?: { num?: string; den?: string; compNum?: string; compDen?: string };
+      selectValues?: { a?: string; o?: string; b?: string };
+      disabledCheckButton?: boolean;
+      disabledNextStepButton?: boolean;
+      disabledClearButton?: boolean;
+      probInputsDisabled?: boolean;
+      selectInputsDisabled?: boolean;
+    }) => {
+      // Suprime detect-and-emit dos useEffects durante a janela do restore.
+      isRestoringSnapshotRef.current = true;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => { isRestoringSnapshotRef.current = false; }, 700);
+        });
+      });
+      // Restaura `setup` ANTES de challenge/step — re-deriva o `game`
+      // pra que challenges[challenge] mostre o MESMO jogo do snapshot.
+      let restoredGame = game;
+      if (snap.setup && typeof snap.setup === 'object') {
+        try {
+          const restoredSetup = deserializeValidatedSetup(snap.setup);
+          setCurrentSetup(restoredSetup);
+          restoredGame = getNewGame(restoredSetup);
+          setGame(restoredGame);
+        } catch {
+          // Pool mudou ou snapshot corrompido — mantém o game atual.
+        }
+      }
+      if (typeof snap.challenge === 'number') setChallenge(snap.challenge);
+      if (typeof snap.step === 'number') setStep(snap.step);
+      if (snap.eventsCheckboxes && typeof snap.eventsCheckboxes === 'object') setEventsCheckboxes(snap.eventsCheckboxes);
+
+      // Restaura values dos inputs com closures (probabilitiesTextInputs /
+      // operationSelectInputs). Sem isso, aluno perdia digitação parcial
+      // em P(A)=?/? ou em selects de evento/operação após F5.
+      const challengeIdx = snap.challenge ?? challenge;
+      const stepIdx = snap.step ?? step;
+      const stepConfig = restoredGame.challenges?.[challengeIdx]?.steps?.[stepIdx];
+      if (snap.probValues && stepConfig?.eventToProbability) {
+        buildProbabilities(
+          stepConfig.eventToProbability.name ?? '',
+          stepConfig.hasComplementary ?? false,
+          snap.probValues,
+        );
+        if (snap.probInputsDisabled) disabledProbabilitiesTextInputs();
+      }
+      if (snap.selectValues && stepConfig?.activeEvents) {
+        const eventNames = stepConfig.activeEvents.map((e) => e.name ?? '');
+        const opOptions = stepConfig.operation
+          ? [{ value: stepConfig.operation as string, label: stepConfig.operation as string }]
+          : [];
+        buildOperationSelectInputs(eventNames, opOptions, snap.selectValues);
+        if (snap.selectInputsDisabled) disabledOperationSelectInputs();
+      }
+
+      // Botões — sem isso, F5 após acerto VOLTA o "Próximo Desafio" pra
+      // disabled e os inputs voltam editáveis, parecendo que a validação
+      // foi desfeita.
+      if (typeof snap.disabledCheckButton === 'boolean') setDisabledCheckButton(snap.disabledCheckButton);
+      if (typeof snap.disabledNextStepButton === 'boolean') setDisabledNextStepButton(snap.disabledNextStepButton);
+      if (typeof snap.disabledClearButton === 'boolean') setDisabledClearButton(snap.disabledClearButton);
+    },
+    snapshotData: {
+      challenge, step, eventsCheckboxes,
+      setup: currentSetup ? serializeValidatedSetup(currentSetup) : undefined,
+      probValues: {
+        num: probabilitiesTextInputs?.numerator?.value ?? '',
+        den: probabilitiesTextInputs?.denominator?.value ?? '',
+        compNum: probabilitiesTextInputs?.complementaryNumerator?.value ?? '',
+        compDen: probabilitiesTextInputs?.complementaryDenominator?.value ?? '',
+      },
+      selectValues: {
+        a: operationSelectInputs?.eventsA?.value ?? '',
+        o: operationSelectInputs?.operations?.value ?? '',
+        b: operationSelectInputs?.eventsB?.value ?? '',
+      },
+      disabledCheckButton,
+      disabledNextStepButton,
+      disabledClearButton,
+      probInputsDisabled: probabilitiesTextInputs?.numerator?.disabled ?? false,
+      selectInputsDisabled: operationSelectInputs?.eventsA?.disabled ?? false,
+    },
   };
 };
