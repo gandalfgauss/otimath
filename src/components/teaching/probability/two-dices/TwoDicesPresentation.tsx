@@ -1426,7 +1426,32 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
       )}
       <Grid id="apresentacao-dado" paddings="pt-md" noEdgeMargins>
         <GridItem cols="col-[1_/_13]">
-          <div className={`flex flex-col items-center gap-y-xs mx-auto ${scene === 7 && (scene7ExperimentPhase.startsWith('complementaryEvents') || scene7ExperimentPhase.startsWith('unionTheory') || scene7ExperimentPhase === 'unionExercises' || scene7ExperimentPhase === 'unionExercise2' || scene7ExperimentPhase === 'unionExercise3' || scene7ExperimentPhase === 'unionExercise4' || scene7ExperimentPhase === 'unionExercise5' || scene7ExperimentPhase === 'unionExercise6' || scene7ExperimentPhase === 'twoDicesGameFree' || scene7ExperimentPhase === 'unionExercise8') ? 'max-w-[1216px]' : 'max-w-[1200px]'}`}>
+          {(() => {
+            // Extrai a `phase` do snapshot JSON v2 do scene 7 — sem isso,
+            // o `startsWith('complementaryEvents')` falhava porque o state
+            // virou JSON tipo `{"v":2,"phase":"complementaryEvents",...}`
+            // e o wrapper NUNCA expandia pra 1216px nas sub-fases largas.
+            let phase7 = scene7ExperimentPhase;
+            if (phase7.startsWith('{')) {
+              try {
+                const obj = JSON.parse(phase7) as { phase?: string };
+                phase7 = typeof obj.phase === 'string' ? obj.phase : '';
+              } catch { phase7 = ''; }
+            }
+            const wideScene7 = scene === 7 && (
+              phase7.startsWith('complementaryEvents') ||
+              phase7.startsWith('unionTheory') ||
+              phase7 === 'unionExercises' ||
+              phase7 === 'unionExercise2' ||
+              phase7 === 'unionExercise3' ||
+              phase7 === 'unionExercise4' ||
+              phase7 === 'unionExercise5' ||
+              phase7 === 'unionExercise6' ||
+              phase7 === 'twoDicesGameFree' ||
+              phase7 === 'unionExercise8'
+            );
+            return (
+          <div className={`flex flex-col items-center gap-y-xs mx-auto ${wideScene7 ? 'max-w-[1216px]' : 'max-w-[1200px]'}`}>
 
             {/* Título da cena atual */}
             {scene === 1 && (
@@ -2198,6 +2223,8 @@ export const TwoDicesPresentation = forwardRef<TwoDicesPresentationHandle, TwoDi
             )}
 
           </div>
+            );
+          })()}
         </GridItem>
       </Grid>
 
