@@ -33,6 +33,21 @@ import { useEffect, useRef } from 'react';
 const INTERVAL_MS = 2_000; // tick de checagem de mudanças
 const MAX_RETRIES = 5;
 
+/** Flag global que SUPRIME todos os POSTs / sendBeacons do useProgressSync.
+ *  Setada por `suspendProgressSync()` antes de `handleRestartSequence` —
+ *  evita que o snapshot ANTIGO em memória sobrescreva a run nova zerada
+ *  via tick ou beforeunload entre o `/api/progress/new-run` e o reload. */
+let suspended = false;
+
+/** Suspende toda comunicação com /api/progress até reload da página.
+ *  Usado pelo "Voltar para o início" depois de criar nova run zerada,
+ *  pra evitar que o sendBeacon do beforeunload sobrescreva a nova run
+ *  com o snapshot da run anterior (estado em memória ainda cheio).
+ *  NÃO reverte sem reload (é one-way fire-and-forget). */
+export function suspendProgressSync(): void {
+  suspended = true;
+}
+
 export interface ProgressPayload {
   telemetryJson: unknown;
   elapsedTotalMs: number;
@@ -141,6 +156,7 @@ export function useProgressSync(opts: UseProgressSyncOpts): void {
 
     const tick = () => {
       if (cancelled) return;
+      if (suspended) return; // restart em andamento — não sobrescrever run nova
       let snap: ProgressPayload;
       try {
         snap = getSnapshotRef.current();
@@ -164,6 +180,10 @@ export function useProgressSync(opts: UseProgressSyncOpts): void {
     // Best-effort no unload (fechar aba, reload, navegação cross-origin).
     // sendBeacon é fire-and-forget e não bloqueia o fechamento.
     const beforeUnload = () => {
+      // Restart em andamento — beforeUnload sendBeacon enviaria o
+      // snapshot da run ANTERIOR ainda em memória, sobrescrevendo
+      // a run nova zerada que acabamos de criar.
+      if (suspended) return;
       try {
         const snap = getSnapshotRef.current();
         // Blob com Content-Type custom — alguns browsers aceitam,

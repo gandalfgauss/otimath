@@ -40,7 +40,8 @@ import {
   getTelemetrySnapshot,
   type TelemetrySnapshot,
 } from "@/hooks/teaching/probability/useTelemetry";
-import { useProgressSync, type ProgressPayload } from "@/hooks/useProgressSync";
+import { useProgressSync, suspendProgressSync, type ProgressPayload } from "@/hooks/useProgressSync";
+import { initDevConsole, isConsoleLogsEnabled, setConsoleLogsEnabled } from "@/lib/devConsole";
 import { playSound } from "@/hooks/global/useSound";
 import { useAlerts } from "@/hooks/global/useAlerts";
 import { Alerts } from "@/components/global/Alerts";
@@ -61,6 +62,10 @@ const STAGE_LABELS: Record<Stage, string> = {
 export default function DidacticSequencePage() {
   const [stage, setStage] = useState<Stage>('intro');
   const [devMode, setDevMode] = useState(false);
+
+  // Inicializa o toggle de console.log do DevPanel (lê preferência
+  // persistida em localStorage e instala wrappers). Idempotente.
+  useEffect(() => { initDevConsole(); }, []);
 
   // ─── Login gate (3-state) ───────────────────────────────────────
   // O conteúdo "interno" (barra de progresso, OVAs, questionário e
@@ -484,17 +489,26 @@ export default function DidacticSequencePage() {
   // run zerada no banco — NÃO apaga a anterior. Próximo "Iniciar a
   // sequência didática" começa do zero.
   const handleRestartSequence = useCallback(async () => {
+    // SUSPENDE useProgressSync ANTES de qualquer POST — sem isso, o tick
+    // (a cada 2s) OU o beforeunload (no reload abaixo) enviariam o
+    // snapshot ANTIGO em memória pra /api/progress, sobrescrevendo a
+    // run que acabamos de encerrar. Flag one-way, revertida pelo reload.
+    suspendProgressSync();
     try {
-      await fetch('/api/progress/new-run', {
+      // Encerra a run atual (endedReason='completed') E desloga.
+      // Próximo login cria nova run zerada — sem entrada fantasma
+      // intermediária no banco.
+      await fetch('/api/progress/finish-and-logout', {
         method: 'POST',
         credentials: 'same-origin',
       });
     } catch {
-      // Se falhar a chamada (offline), o aluno ainda navega — quando voltar
-      // online o /api/auth/me detectará a run velha como ativa, mas isso é
-      // ressalva rara aceitável (perde-se a separação entre 2 runs próximas).
+      // Se falhar (offline), o aluno ainda navega. O /api/auth/me detectará
+      // o cookie/sessão velhos no próximo carregamento — caso raro aceitável.
     }
-    window.location.href = '/';
+    // Recarrega a MESMA página da sequência didática — sem cookie, cai
+    // direto na tela de login (não na home do site).
+    window.location.href = '/ensino/probabilidade/sequencia-didatica';
   }, []);
 
   const goToStage = useCallback((target: Stage) => setStage(target), []);
@@ -940,6 +954,9 @@ function DevPanel({
             </button>
           )}
         </div>
+
+        {/* ─── Toggle console.log do código ────────────────────────── */}
+        <ConsoleLogsToggle />
       </div>
     );
   }
@@ -1531,6 +1548,40 @@ function CompletionStats() {
         entries={studyMenuOpen === 'roulette' ? DISCO_GLOSSARY : DOIS_DADOS_GLOSSARY}
         groups={studyMenuOpen === 'roulette' ? DISCO_GROUPS : DOIS_DADOS_GROUPS}
       />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Sub-componente: toggle de console.log do código (DevPanel).
+// Estado local espelha o módulo `devConsole` — toggle persiste em
+// localStorage e reflete em todos os logs sem reload.
+// ─────────────────────────────────────────────────────────────────
+function ConsoleLogsToggle() {
+  const [logsEnabled, setLogsEnabled] = useState(true);
+  // Lê a preferência atual no mount (depois que initDevConsole já rodou).
+  useEffect(() => { setLogsEnabled(isConsoleLogsEnabled()); }, []);
+  const toggle = () => {
+    const next = !logsEnabled;
+    setConsoleLogsEnabled(next);
+    setLogsEnabled(next);
+  };
+  return (
+    <div className="border-t border-neutral-lighter pt-micro mt-micro">
+      <p className="ds-caption text-neutral-dark mb-quarck">Console logs (debug)</p>
+      <button
+        onClick={toggle}
+        className={`w-full px-micro py-quarck rounded-md ds-small-bold cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-otimath-dark ${
+          logsEnabled
+            ? 'bg-feedback-success-darker text-neutral-white hover:opacity-90'
+            : 'bg-feedback-error-darker text-neutral-white hover:opacity-90'
+        }`}
+        title={logsEnabled
+          ? 'Clique pra SILENCIAR todos os console.log/warn/info (errors continuam aparecendo)'
+          : 'Clique pra REATIVAR os console.log/warn/info'}
+      >
+        {logsEnabled ? '🔊 Logs ON — clique p/ silenciar' : '🔇 Logs OFF — clique p/ ativar'}
+      </button>
     </div>
   );
 }
