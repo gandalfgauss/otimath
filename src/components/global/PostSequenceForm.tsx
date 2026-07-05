@@ -33,7 +33,7 @@ import { playSound } from '@/hooks/global/useSound';
  *  estiver pronto. Mantemos const exportada pra que outros componentes
  *  possam linkar pro mesmo questionário sem duplicação. */
 export const POST_SEQUENCE_QUESTIONNAIRE_URL =
-  'https://forms.gle/SUBSTITUIR_PELO_LINK_DO_QUESTIONARIO';
+  'https://forms.fillout.com/t/kZnRpo93maus';
 
 /**
  * Senha de acesso ao questionário fica AGORA no server (env
