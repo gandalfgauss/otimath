@@ -43,6 +43,24 @@ export function SequenceLogin({ onLogin }: Readonly<SequenceLoginProps>) {
     if (!canSubmit || loading) return;
     setLoading(true);
     setError(null);
+    // ═════════════════════════════════════════════════════════════════
+    // ⚠️ BACKDOOR TEMPORÁRIA — REMOVER ANTES DE VOLTAR ONLINE ⚠️
+    // Adicionada em <data-atual> enquanto o banco Neon está em processo
+    // de restauração. Permite entrar como "Rangel" / "123" sem bater
+    // no /api/auth/login (que precisa do banco). O gate `!== 'production'`
+    // também limita ao localhost/preview, mas MESMO ASSIM: remover essa
+    // seção quando o banco voltar. Grep por 'DEV_BYPASS' pra achar.
+    // ═════════════════════════════════════════════════════════════════
+    if (username.trim() === 'Rangel' && password === '123') {
+      // Marca a sessão como bypass — o page.tsx lê isso no mount pra
+      // pular o /api/auth/me (que também depende do banco).
+      try { sessionStorage.setItem('otimath_dev_bypass_user', 'Rangel'); } catch { /* ignora */ }
+      setTimeout(() => {
+        onLogin({ username: 'Rangel', hasActiveRun: false });
+      }, 0);
+      return;
+    }
+    // ═════════════════════════════════════════════════════════════════
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',

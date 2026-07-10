@@ -154,6 +154,20 @@ export default function DidacticSequencePage() {
   // Verifica sessão no servidor; se logado E tem run ativa, hidrata.
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    // ═════════════════════════════════════════════════════════════════
+    // ⚠️ BACKDOOR TEMPORÁRIA — REMOVER ANTES DE VOLTAR ONLINE ⚠️
+    // Espelhada da mesma flag setada em SequenceLogin.tsx. Enquanto o
+    // banco não volta, o /api/auth/me também falha (500). Pulamos ele
+    // se sessionStorage indica que o usuário entrou via bypass.
+    // Grep por 'DEV_BYPASS' pra achar todas as ocorrências.
+    // ═════════════════════════════════════════════════════════════════
+    try {
+      if (sessionStorage.getItem('otimath_dev_bypass_user')) {
+        setLoginState('logged-in');
+        return;
+      }
+    } catch { /* ignora */ }
+    // ═════════════════════════════════════════════════════════════════
     let cancelled = false;
     (async () => {
       try {
@@ -261,6 +275,8 @@ export default function DidacticSequencePage() {
   // e cronômetro, (d) timers do useProgressSync. Como o cookie já foi
   // destruído pelo POST, o reload cai automaticamente na tela de login.
   const handleLogout = useCallback(() => {
+    // ⚠️ DEV_BYPASS — limpar flag pra não voltar logado após reload.
+    try { sessionStorage.removeItem('otimath_dev_bypass_user'); } catch { /* ignora */ }
     if (typeof window !== 'undefined') window.location.reload();
   }, []);
 
@@ -506,6 +522,9 @@ export default function DidacticSequencePage() {
       // Se falhar (offline), o aluno ainda navega. O /api/auth/me detectará
       // o cookie/sessão velhos no próximo carregamento — caso raro aceitável.
     }
+    // ⚠️ DEV_BYPASS — limpar flag também aqui pra "Voltar pro início"
+    // realmente cair na tela de login (não voltar direto logado).
+    try { sessionStorage.removeItem('otimath_dev_bypass_user'); } catch { /* ignora */ }
     // Recarrega a MESMA página da sequência didática — sem cookie, cai
     // direto na tela de login (não na home do site).
     window.location.href = '/ensino/probabilidade/sequencia-didatica';
