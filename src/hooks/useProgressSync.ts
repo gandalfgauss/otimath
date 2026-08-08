@@ -48,6 +48,61 @@ export function suspendProgressSync(): void {
   suspended = true;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   Toggle de coleta (DevPanel) — pausa/retoma o envio da telemetria
+   ao banco. Idempotente, persistente em localStorage, sem restart.
+
+   DIFERENÇA para `suspended` (acima):
+     • suspended    — one-way, usado no fluxo de restart (não reverte).
+     • collectionEnabled — two-way, usado pelo pesquisador no DevPanel
+       pra pausar coleta temporariamente durante demos/QA sem sujar o
+       banco. Persiste em localStorage — sobrevive F5.
+
+   COMPORTAMENTO QUANDO DESATIVADO
+     • `tick` e `beforeUnload` fazem early-return — nenhum POST /
+       sendBeacon sai do front.
+     • Estado LOCAL em memória continua rodando (aluno navega OK,
+       telemetria acumula em memória). Quando reativar, o próximo
+       tick manda o snapshot atualizado — não perde o que foi
+       coletado enquanto estava desligado.
+
+   LIÇÃO DO BUG ANTERIOR
+     Wrappers/listeners NÃO capturam a flag por closure — leem a
+     variável module-scope por referência a cada call. Toggle
+     reflete imediatamente sem reinstalar listeners.
+   ═══════════════════════════════════════════════════════════════ */
+
+const COLLECTION_STORAGE_KEY = 'otimath_dev_collection_enabled';
+let collectionEnabled = true;
+let collectionInitialized = false;
+
+function readCollectionPref(): boolean {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return true;
+  try {
+    const v = localStorage.getItem(COLLECTION_STORAGE_KEY);
+    return v === null ? true : v === 'true';
+  } catch { return true; }
+}
+
+/** Idempotente — chama uma vez no mount do app pra hidratar a flag do localStorage. */
+export function initCollectionToggle(): void {
+  if (collectionInitialized) return;
+  collectionInitialized = true;
+  collectionEnabled = readCollectionPref();
+}
+
+export function isCollectionEnabled(): boolean {
+  return collectionEnabled;
+}
+
+export function setCollectionEnabled(v: boolean): void {
+  collectionEnabled = v;
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(COLLECTION_STORAGE_KEY, String(v));
+  } catch { /* localStorage cheio ou desabilitado — silencioso. */ }
+}
+
 export interface ProgressPayload {
   telemetryJson: unknown;
   elapsedTotalMs: number;
@@ -157,6 +212,7 @@ export function useProgressSync(opts: UseProgressSyncOpts): void {
     const tick = () => {
       if (cancelled) return;
       if (suspended) return; // restart em andamento — não sobrescrever run nova
+      if (!collectionEnabled) return; // pesquisador pausou a coleta via DevPanel
       let snap: ProgressPayload;
       try {
         snap = getSnapshotRef.current();
@@ -184,6 +240,8 @@ export function useProgressSync(opts: UseProgressSyncOpts): void {
       // snapshot da run ANTERIOR ainda em memória, sobrescrevendo
       // a run nova zerada que acabamos de criar.
       if (suspended) return;
+      // Pesquisador pausou coleta via DevPanel — não persistir nada.
+      if (!collectionEnabled) return;
       try {
         const snap = getSnapshotRef.current();
         // Blob com Content-Type custom — alguns browsers aceitam,

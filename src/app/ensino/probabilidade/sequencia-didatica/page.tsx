@@ -40,7 +40,14 @@ import {
   getTelemetrySnapshot,
   type TelemetrySnapshot,
 } from "@/hooks/teaching/probability/useTelemetry";
-import { useProgressSync, suspendProgressSync, type ProgressPayload } from "@/hooks/useProgressSync";
+import {
+  useProgressSync,
+  suspendProgressSync,
+  initCollectionToggle,
+  isCollectionEnabled,
+  setCollectionEnabled,
+  type ProgressPayload,
+} from "@/hooks/useProgressSync";
 import { initDevConsole, isConsoleLogsEnabled, setConsoleLogsEnabled } from "@/lib/devConsole";
 import { playSound } from "@/hooks/global/useSound";
 import { useAlerts } from "@/hooks/global/useAlerts";
@@ -66,6 +73,8 @@ export default function DidacticSequencePage() {
   // Inicializa o toggle de console.log do DevPanel (lê preferência
   // persistida em localStorage e instala wrappers). Idempotente.
   useEffect(() => { initDevConsole(); }, []);
+  // Inicializa o toggle de coleta de telemetria (idem — lê localStorage).
+  useEffect(() => { initCollectionToggle(); }, []);
 
   // ─── Login gate (3-state) ───────────────────────────────────────
   // O conteúdo "interno" (barra de progresso, OVAs, questionário e
@@ -976,6 +985,9 @@ function DevPanel({
 
         {/* ─── Toggle console.log do código ────────────────────────── */}
         <ConsoleLogsToggle />
+
+        {/* ─── Toggle coleta de telemetria ─────────────────────────── */}
+        <CollectionToggle />
       </div>
     );
   }
@@ -1567,6 +1579,43 @@ function CompletionStats() {
         entries={studyMenuOpen === 'roulette' ? DISCO_GLOSSARY : DOIS_DADOS_GLOSSARY}
         groups={studyMenuOpen === 'roulette' ? DISCO_GROUPS : DOIS_DADOS_GROUPS}
       />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Sub-componente: toggle de coleta de telemetria (DevPanel).
+// Quando OFF: `useProgressSync` para de enviar POST/sendBeacon pra
+// /api/progress — nada da sequência do aluno vai pro banco. Local
+// (memória) continua rodando normalmente, então se reativar durante
+// a sessão, o próximo tick manda o snapshot atualizado (não perde o
+// coletado enquanto estava desligado). Persiste em localStorage —
+// sobrevive F5.
+// ─────────────────────────────────────────────────────────────────
+function CollectionToggle() {
+  const [collecting, setCollecting] = useState(true);
+  useEffect(() => { setCollecting(isCollectionEnabled()); }, []);
+  const toggle = () => {
+    const next = !collecting;
+    setCollectionEnabled(next);
+    setCollecting(next);
+  };
+  return (
+    <div className="border-t border-neutral-lighter pt-micro mt-micro">
+      <p className="ds-caption text-neutral-dark mb-quarck">Coleta de telemetria</p>
+      <button
+        onClick={toggle}
+        className={`w-full px-micro py-quarck rounded-md ds-small-bold cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-otimath-dark ${
+          collecting
+            ? 'bg-feedback-success-darker text-neutral-white hover:opacity-90'
+            : 'bg-feedback-error-darker text-neutral-white hover:opacity-90'
+        }`}
+        title={collecting
+          ? 'Clique pra PAUSAR o envio da telemetria ao banco (interações do aluno não são persistidas)'
+          : 'Clique pra RETOMAR o envio da telemetria ao banco'}
+      >
+        {collecting ? '📊 Coletando — clique p/ pausar' : '⏸ Pausada — clique p/ retomar'}
+      </button>
     </div>
   );
 }
